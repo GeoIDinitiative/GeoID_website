@@ -1,7 +1,7 @@
 {
   "_readme": "Mount Etna start-up montage, the same mechanism as /load_screen/earth: frames play in this order from this folder, and adding a photograph plus a line here is the whole change. hold_ms is how long a frame holds, fade_ms the dissolve; the page fetches this file fresh on every start, so an edit shows on the next load.",
-  "_sources": "EVERY FRAME IS RE-ENCODED TO A BYTE BUDGET (<=1600x1000, WebP, under ~190 kB each). A start screen fetches its pictures while the viewer behind it fetches its own terrain and geology on the same connection, so a heavy frame is a slower hand-over. The set is 734 kB; it was 1,263 kB as supplied.",
-  "_credits": "06 is Copernicus Sentinel-2 data, processed by ESA (CC BY-SA 3.0 IGO). 04 came in named as iStock 000069407417 and is credited as stock. 01, 02, 05 are carried from the earlier set as GeoID's own. 03 is NASA. 07 arrived without a source and is captioned without one rather than being given a credit it may not have. Esri's World Imagery is deliberately absent even though the viewer draws it: it is licence-conditional, and a start screen is shown to every visitor rather than chosen by one.",
+  "_sources": "EVERY FRAME IS RE-ENCODED TO A BYTE BUDGET (<=1600x1000, WebP, under ~190 kB each). A start screen fetches its pictures while the viewer behind it fetches its own terrain and geology on the same connection, so a heavy frame is a slower hand-over. Six frames, about 590 kB.",
+  "_credits": "04 came in named as iStock 000069407417 and is credited as stock. 01, 02, 05 are carried from the earlier set as GeoID's own. 03 is NASA. 07 arrived without a source and is captioned without one rather than being given a credit it may not have. Esri's World Imagery is deliberately absent even though the viewer draws it: it is licence-conditional, and a start screen is shown to every visitor rather than chosen by one.",
   "hold_ms": 750,
   "fade_ms": 450,
   "opacity": 0.72,
@@ -33,13 +33,6 @@
       "place": "Etna, the summit craters",
       "coord": "37.75°N · 14.99°E · fumaroles",
       "src": "GeoID fieldwork"
-    },
-    {
-      "file": "06-etna-sentinel-2021.webp",
-      "kind": "Satellite image",
-      "place": "Lava flow from the Southeast Crater",
-      "coord": "Sentinel-2 · 18 February 2021",
-      "src": "Copernicus Sentinel data, ESA"
     },
     {
       "file": "05-etna-massif.webp",

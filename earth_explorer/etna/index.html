@@ -161,6 +161,8 @@
       font-family: var(--boot-body); font-size: 0.95em; letter-spacing: 0.14em; text-transform: uppercase;
       color: rgba(255, 244, 232, 0.55); line-height: 1.8; font-variant-numeric: tabular-nums; opacity: 0;
     }
+    .boot-cap-item { position: absolute; right: 0; top: 0; opacity: 0; white-space: nowrap; transition: opacity 0.45s ease; will-change: opacity; }
+    .boot-cap-item.on { opacity: 1; }
     .boot-cap b { display: block; color: var(--boot-ink); font-weight: 600; font-size: 1.25em; letter-spacing: 0.06em; }
     .boot-cap small { display: block; font-size: 0.75em; color: rgba(255, 244, 232, 0.35); letter-spacing: 0.2em; }
     .boot-cap .n { display: inline-block; margin-top: 0.7em; padding: 0.25em 0.7em; border: 1px solid var(--boot-bracket); color: var(--boot-bracket); font-size: 0.75em; }
@@ -252,7 +254,7 @@
       .boot-log div { opacity: 1; }
     }
   </style>
-  <link rel="stylesheet" href="/styles/v2-viewer.css?v=20260920-0b6704c">
+  <link rel="stylesheet" href="/styles/v2-viewer.css?v=20260920-d349e3c">
 </head>
 <body>
 
@@ -267,7 +269,7 @@
   <div class="boot" id="boot" role="status" aria-live="polite" aria-label="The Etna viewer is starting">
     <div class="boot-field">
       <div class="boot-montage" id="boot-montage"></div>
-      <div class="boot-cap" id="boot-cap"><small class="c-kind">Frame</small><b class="c-place">&mdash;</b><small class="c-coord">&mdash;</small><small class="c-src">&mdash;</small><span class="n c-n">&mdash; / &mdash;</span></div>
+      <div class="boot-cap" id="boot-cap"></div>
       <a class="boot-home" id="boot-home" href="/" target="_top" rel="home">&larr; Return home</a>
       <div class="boot-log" id="boot-log">
         <div>&#9656; terrain &middot; 100 &times; 100 km GMSH domain <i>56,521 nodes</i> <em>&#10003;</em></div>
@@ -487,21 +489,23 @@
           montage.appendChild(im); return im;
         });
         var srcOf = function (i) { return "/load_screen/etna/" + frames[i % frames.length].file; };
-        var cap = { kind: capEl.querySelector(".c-kind"), place: capEl.querySelector(".c-place"),
-                    coord: capEl.querySelector(".c-coord"), src: capEl.querySelector(".c-src"),
-                    n: capEl.querySelector(".c-n") };
+        /* A CAPTION PER FRAME, stacked, rather than one caption rewritten. Text
+           written by a timer freezes whenever the viewer behind takes the main
+           thread, and then the picture and its name part company. Stacked,
+           each caption fades with its own photograph -- by class while the
+           timer drives, by the same compositor cycle afterwards. */
+        var caps = frames.map(function (f) {
+          var d = document.createElement("div"); d.className = "boot-cap-item";
+          var mk = function (tag, cls, txt) { var e = document.createElement(tag); if (cls) e.className = cls; e.textContent = txt || ""; d.appendChild(e); return e; };
+          mk("small", "", f.kind || "Frame"); mk("b", "", f.place || ""); mk("small", "", f.coord || ""); mk("small", "", f.src || "");
+          d._n = mk("span", "n", "");
+          capEl.appendChild(d); return d;
+        });
         var capShown = false;
-        function paintCap(k, n) {
-          if (!capShown) {   // the caption arrives with the first frame, in
-            capShown = true; // either phase -- the cycle is not the only door
-            capEl.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 500, fill: "forwards" });
-          }
-          var f = frames[k];
-          cap.kind.textContent = f.kind || "Frame";
-          cap.place.textContent = f.place || "";
-          cap.coord.textContent = f.coord || "";
-          cap.src.textContent = f.src || "";
-          cap.n.textContent = String(k + 1).padStart(2, "0") + " / " + String(n).padStart(2, "0");
+        function paintCap(k, pos, n) {
+          if (!capShown) { capShown = true; capEl.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 500, fill: "forwards" }); }
+          caps[k]._n.textContent = String(pos + 1).padStart(2, "0") + " / " + String(n).padStart(2, "0");
+          caps.forEach(function (c, i) { c.classList.toggle("on", i === k); });
         }
 
         /* TWO PHASES, and the first one is why. While the frames are still
@@ -544,7 +548,7 @@
           if (!RM) imgs[cur].animate(kenKeys(cur, slot + fade).slice(0, 1).concat(
                      [{ transform: "scale(1.14) translate(" + (cur % 2 ? -1 : 1) + "%, -1%)" }]),
                      { duration: slot + 400, fill: "forwards", easing: "linear" });
-          paintCap(cur, frames.length);
+          paintCap(cur, cur, frames.length);
           if (cur) cue.frame();
           timer = setTimeout(function () { showTimed(cur + 1); }, slot);
         }
@@ -557,18 +561,25 @@
           var at = live.indexOf(cur); if (at < 0) at = 0;
           var into = Math.min(slot, performance.now() - curAt);
           var begun = performance.now() - (at * slot + into);
+          var capKeys = [{ opacity: 0, offset: 0 }, { opacity: 1, offset: fade / cycle },
+                         { opacity: 1, offset: slot / cycle }, { opacity: 0, offset: (slot + fade) / cycle },
+                         { opacity: 0, offset: 1 }];
+          if (!capShown) { capShown = true; capEl.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 500, fill: "forwards" }); }
           live.forEach(function (idx, k) {
+            var timing = { duration: cycle, iterations: Infinity, delay: k * slot - (at * slot + into) };
             imgs[idx].classList.remove("on");
-            anims.push(imgs[idx].animate(kenKeys(k, cycle), {
-              duration: cycle, iterations: Infinity, delay: k * slot - (at * slot + into)
-            }));
+            anims.push(imgs[idx].animate(kenKeys(k, cycle), timing));
+            caps[idx].classList.remove("on"); caps[idx].style.transition = "none";
+            caps[idx]._n.textContent = String(k + 1).padStart(2, "0") + " / " + String(N).padStart(2, "0");
+            anims.push(caps[idx].animate(capKeys, timing));
           });
-          var shown = -1;
+          // only the sound still asks the main thread for anything
+          var shown = at;
           (function tick() {
             if (over) return;
             var k = Math.floor(((performance.now() - begun) % cycle) / slot) % N;
-            if (k !== shown) { shown = k; paintCap(live[k], N); if (k) cue.frame(); }
-            capTimer = setTimeout(tick, 160);
+            if (k !== shown) { shown = k; cue.frame(); }
+            capTimer = setTimeout(tick, 200);
           })();
         }
 
@@ -681,6 +692,33 @@
          never drew. The message is the viewer's own contract, and CAP is what
          covers a viewer that never sends it. */
       function ready() { return reported; }
+      function tellViewer(msg) { try { viewerFrame.contentWindow.postMessage(msg, "*"); } catch (_e) {} }
+
+      /* THE VIEWER'S FIRST FRAMES LAND BEFORE THE FADE, NOT IN IT. Its first
+         render compiles every shader and uploads every buffer -- 5.9 to 8.2 s
+         as ONE block on a software renderer -- and released at the hand-over
+         that block fell inside the focus pull, the one part of this screen
+         that has to be smooth. So: released while the screen is still in its
+         steady state, where everything moving is on the compositor and a
+         blocked main thread changes nothing anybody can see; the viewer
+         answers geoid-drawn after three frames; it is HELD again for the
+         length of the fade, so the fade has the thread to itself over a
+         viewer that is already a picture; and released for good when the
+         screen has gone. WARM_CAP covers a viewer that never answers. */
+      var warming = false, WARM_CAP = 9000;
+      function handOver(delay) {
+        if (over || warming) return; warming = true;
+        var go = function () {
+          if (over) return;
+          window.removeEventListener("message", onDrawn);
+          tellViewer("geoid-hold");
+          showAcquired(); t(finish, delay);
+        };
+        var onDrawn = function (e) { if (e.data === "geoid-drawn") go(); };
+        window.addEventListener("message", onDrawn);
+        tellViewer("geoid-release");
+        t(go, WARM_CAP);
+      }
 
       /* ── the hand-over: a focus pull ─────────────────────────────────
          The screen softens and swells as it fades, a flare crosses at the
@@ -700,9 +738,6 @@
            and never gets its first style recalculation, and it sits
            "running" with fill backwards holding the frame at 0 -- measured
            four seconds after the hand-over, on a viewer that had drawn. */
-        // and it may draw again: one frame of that scene costs more than
-        // this screen's whole budget, and the two share a main thread.
-        try { viewerFrame.contentWindow.postMessage("geoid-release", "*"); } catch (_e) {}
         viewerFrame.style.transition = "none";
         viewerFrame.style.opacity = "1";
         viewerFrame.style.zIndex = "2";
@@ -711,6 +746,7 @@
         var ended = false;
         var end = function () {
           if (ended) return; ended = true;   // reached by the animation AND by the safety timer
+          tellViewer("geoid-release");       // the screen has gone: the viewer draws for good
           if (boot.parentNode) boot.parentNode.removeChild(boot);
           if (ctx && ctx.close && ctx.state !== "closed") { setTimeout(function () { try { ctx.close().catch(function () {}); } catch (_e) {} }, 900); }
         };
@@ -758,17 +794,13 @@
          perhaps once a second and the cap is noticed well after it passes --
          measured at 31.7 s against a 16 s cap. One timer fires as soon as the
          thread is free after CAP, whatever the poll is doing. */
-      t(function () { if (!over) { showAcquired(); t(finish, 120); } }, CAP);
+      t(function () { handOver(120); }, CAP);
 
       (function poll() {
         if (over) return;
         var now = performance.now() - started;
         var isReady = ready();
-        if (isReady && linesDone && now >= MIN_HOLD) {
-          showAcquired();
-          t(finish, 320);
-          return;
-        }
+        if (isReady && linesDone && now >= MIN_HOLD) { handOver(320); return; }
         if (!isReady && linesDone && now >= MIN_HOLD && !waitShown) {
           // The beats are done and the viewer is still building: say so
           // rather than sit silent.
@@ -777,7 +809,7 @@
         }
         t(poll, 100);
       })();
-      function skip() { if (performance.now() - started > 600) { showAcquired(); t(finish, 200); } }
+      function skip() { if (performance.now() - started > 600) { tellViewer("geoid-release"); showAcquired(); t(finish, 200); } }
       function onKey(e) { if (e.key === "Escape") skip(); }
       document.addEventListener("keydown", onKey);
       boot.addEventListener("click", function (e) { if (e.target === boot || e.target === field) skip(); });

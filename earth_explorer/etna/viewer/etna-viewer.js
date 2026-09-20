@@ -5863,7 +5863,18 @@ function buildCompass() {
 window.__etnaHoldRender = new URLSearchParams(location.search).has('hold');
 window.addEventListener('message', (e) => {
   if (e.data === 'geoid-release') window.__etnaHoldRender = false;
+  if (e.data === 'geoid-hold')    window.__etnaHoldRender = true;
 });
+/* THE FIRST FRAMES ARE THE EXPENSIVE ONES, and they must not land in the
+ * screen's hand-over. The first render compiles every shader and uploads every
+ * buffer -- measured at 5.9 to 8.2 s on a software renderer, as one block --
+ * and released AT the hand-over it fell inside the focus pull, which is the
+ * part of the screen that has to be smooth. So the screen releases this loop
+ * while it is still in its steady state (everything moving there runs on the
+ * compositor), waits for geoid-drawn, holds the loop again for the length of
+ * its fade, and releases it for good when it has gone. */
+let _warmFrames = 0;
+const _WARM_FRAMES = 3;
 if (window.__etnaHoldRender) setTimeout(() => { window.__etnaHoldRender = false; }, 30000);
 
 function animate() {
@@ -6072,6 +6083,10 @@ function animate() {
   // Reset to full viewport
   renderer.setScissorTest(false);
   renderer.setViewport(0, 0, cW, cH);
+
+  if (_warmFrames < _WARM_FRAMES && ++_warmFrames === _WARM_FRAMES) {
+    try { window.parent.postMessage('geoid-drawn', '*'); } catch (_) {}
+  }
 }
 
 // ─── POI popup ────────────────────────────────────────────────────────────────
