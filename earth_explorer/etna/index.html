@@ -161,8 +161,6 @@
       font-family: var(--boot-body); font-size: 0.95em; letter-spacing: 0.14em; text-transform: uppercase;
       color: rgba(255, 244, 232, 0.55); line-height: 1.8; font-variant-numeric: tabular-nums; opacity: 0;
     }
-    .boot-cap-item { position: absolute; right: 0; top: 0; opacity: 0; white-space: nowrap; transition: opacity 0.45s ease; will-change: opacity; }
-    .boot-cap-item.on { opacity: 1; }
     .boot-cap b { display: block; color: var(--boot-ink); font-weight: 600; font-size: 1.25em; letter-spacing: 0.06em; }
     .boot-cap small { display: block; font-size: 0.75em; color: rgba(255, 244, 232, 0.35); letter-spacing: 0.2em; }
     .boot-cap .n { display: inline-block; margin-top: 0.7em; padding: 0.25em 0.7em; border: 1px solid var(--boot-bracket); color: var(--boot-bracket); font-size: 0.75em; }
@@ -207,8 +205,7 @@
     .boot-br.tl { border-right: 0; border-bottom: 0; } .boot-br.tr { border-left: 0; border-bottom: 0; }
     .boot-br.bl { border-right: 0; border-top: 0; }   .boot-br.br { border-left: 0; border-top: 0; }
     .boot-scan {
-      position: absolute; left: 0; right: 0; height: 0.3em; top: 0; opacity: 0;
-      will-change: transform;
+      position: absolute; left: 0; right: 0; height: 0.3em; top: -1em; opacity: 0;
       background: linear-gradient(90deg, transparent, var(--boot-data), transparent);
       box-shadow: 0 0 1.4em var(--boot-data);
     }
@@ -225,7 +222,7 @@
     .boot-dots b:nth-child(2) { animation-delay: 0.2s; } .boot-dots b:nth-child(3) { animation-delay: 0.4s; }
     @keyframes boot-dot { 0%, 60%, 100% { opacity: 0.2; } 30% { opacity: 1; } }
     .boot-bar { position: absolute; left: 0; right: 0; bottom: 0; height: 0.3em; background: rgba(255, 244, 232, 0.08); }
-    .boot-bar > i { position: absolute; left: 0; top: 0; bottom: 0; width: 100%; transform: scaleX(0); transform-origin: 0 50%; will-change: transform; background: var(--boot-data); box-shadow: 0 0 0.8em var(--boot-data); }
+    .boot-bar > i { position: absolute; left: 0; top: 0; bottom: 0; width: 0%; background: var(--boot-data); box-shadow: 0 0 0.8em var(--boot-data); }
     .boot-home {
       position: absolute; left: 2.2em; top: 2.2em; z-index: 3; opacity: 0;
       font-family: var(--boot-body); font-size: 0.92em; letter-spacing: 0.22em; text-transform: uppercase;
@@ -254,7 +251,7 @@
       .boot-log div { opacity: 1; }
     }
   </style>
-  <link rel="stylesheet" href="/styles/v2-viewer.css?v=20260920-701060b">
+  <link rel="stylesheet" href="/styles/v2-viewer.css?v=20260920-cd27f7a">
 </head>
 <body>
 
@@ -275,7 +272,7 @@
   <div class="boot" id="boot" role="status" aria-live="polite" aria-label="The Etna viewer is starting">
     <div class="boot-field">
       <div class="boot-montage" id="boot-montage"></div>
-      <div class="boot-cap" id="boot-cap"></div>
+      <div class="boot-cap" id="boot-cap"><small class="c-kind">Frame</small><b class="c-place">&mdash;</b><small class="c-coord">&mdash;</small><small class="c-src">&mdash;</small><span class="n c-n">&mdash; / &mdash;</span></div>
       <a class="boot-home" id="boot-home" href="/" target="_top" rel="home">&larr; Return home</a>
       <div class="boot-log" id="boot-log">
         <div>&#9656; terrain &middot; 100 &times; 100 km GMSH domain <i>56,521 nodes</i> <em>&#10003;</em></div>
@@ -486,148 +483,42 @@
       function runMontage(m) {
         var frames = (m && m.frames || []).filter(function (f) { return f && f.file; });
         if (!frames.length || over) return;
-        var hold = Math.max(300, (m.hold_ms || 750) * (quick ? 0.6 : 1));
-        var fade = Math.max(150, m.fade_ms || 450);
-        var slot = hold + fade;
+        var hold = Math.max(300, (m.hold_ms || 750) * (quick ? 0.6 : 1)), fade = Math.max(150, m.fade_ms || 450);
         if (m.opacity) montage.style.opacity = String(m.opacity);
-        var imgs = frames.map(function () {
-          var im = new Image(); im.alt = ""; im.decoding = "async";
-          montage.appendChild(im); return im;
-        });
-        var srcOf = function (i) { return "/load_screen/etna/" + frames[i % frames.length].file; };
-        /* A CAPTION PER FRAME, stacked, rather than one caption rewritten. Text
-           written by a timer freezes whenever the viewer behind takes the main
-           thread, and then the picture and its name part company. Stacked,
-           each caption fades with its own photograph -- by class while the
-           timer drives, by the same compositor cycle afterwards. */
-        var caps = frames.map(function (f) {
-          var d = document.createElement("div"); d.className = "boot-cap-item";
-          var mk = function (tag, cls, txt) { var e = document.createElement(tag); if (cls) e.className = cls; e.textContent = txt || ""; d.appendChild(e); return e; };
-          mk("small", "", f.kind || "Frame"); mk("b", "", f.place || ""); mk("small", "", f.coord || ""); mk("small", "", f.src || "");
-          d._n = mk("span", "n", "");
-          capEl.appendChild(d); return d;
-        });
-        var capShown = false;
-        function paintCap(k, pos, n) {
-          if (!capShown) { capShown = true; capEl.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 500, fill: "forwards" }); }
-          caps[k]._n.textContent = String(pos + 1).padStart(2, "0") + " / " + String(n).padStart(2, "0");
-          caps.forEach(function (c, i) { c.classList.toggle("on", i === k); });
+        montage.style.setProperty("--fade", fade + "ms");
+        /* ONE FRAME AHEAD, and only ever two layers in play. An earlier cut of
+           this screen ran one infinite animation per frame so the montage
+           would keep turning while the viewer blocked the main thread -- and
+           six full-screen layers, promoted for the whole load with
+           will-change on every one, is its own kind of choking. It also split
+           the screen in two: the pictures ran on the compositor while the bar
+           and the log ran on the main thread, so one kept moving while the
+           other stalled, which is what "the slides and the bar are not in
+           unison" is. Everything here is on one footing again, as the hub's
+           is: they stall together and they resume together. */
+        var imgs = frames.map(function (f) { var im = new Image(); im.alt = ""; im.decoding = "async"; im.style.transitionDuration = fade + "ms"; montage.appendChild(im); return im; });
+        var want = function (n) { var im = imgs[n % imgs.length]; if (!im.getAttribute("src")) im.src = "/load_screen/etna/" + frames[n % frames.length].file; };
+        want(0); want(1);
+        var cap = { kind: capEl.querySelector(".c-kind"), place: capEl.querySelector(".c-place"), coord: capEl.querySelector(".c-coord"), src: capEl.querySelector(".c-src"), n: capEl.querySelector(".c-n") };
+        var i = -1, timer = null, shownOnce = false;
+        function show(n) {
+          if (over) return;
+          i = n % frames.length;
+          if (imgs[i].complete && imgs[i].naturalWidth === 0) { timer = setTimeout(function () { show(i + 1); }, 0); return; }   // a frame that failed to load
+          imgs.forEach(function (im, k) { im.classList.toggle("on", k === i); });
+          want(i + 2);
+          if (!RM) imgs[i].animate([{ transform: "scale(1.06) translate(" + (i % 2 ? 1 : -1) + "%, 0)" }, { transform: "scale(1.14) translate(" + (i % 2 ? -1 : 1) + "%, -1%)" }], { duration: hold + fade + 400, fill: "forwards", easing: "linear" });
+          var f = frames[i];
+          cap.kind.textContent = f.kind || "Frame"; cap.place.textContent = f.place || ""; cap.coord.textContent = f.coord || ""; cap.src.textContent = f.src || "";
+          cap.n.textContent = String(i + 1).padStart(2, "0") + " / " + String(frames.length).padStart(2, "0");
+          if (!shownOnce) { shownOnce = true; capEl.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 500, delay: 200, fill: "forwards" }); }
+          else cue.frame();
+          timer = setTimeout(function () { show(i + 1); }, hold + fade);
         }
-
-        /* TWO PHASES, and the first one is why. While the frames are still
-           arriving the screen is driven by a timer, the way the hub's is: it
-           shows the first photograph the moment it lands rather than holding
-           a black field until all seven are in. Nothing else is on the main
-           thread yet, so a timer is smooth there.
-
-           THE SECOND PHASE RUNS ON THE COMPOSITOR, and that is the whole of
-           "the loading screen is laggy". The viewer boots in a same-origin
-           frame and owns the main thread in ~900 ms bites; a montage advanced
-           by setTimeout stalls for every one of them, and the montage is the
-           part of this screen that is always moving. One infinite animation
-           per frame, on opacity and transform only, keeps turning whatever
-           the main thread is doing -- the same reason the transit screen
-           draws in a worker. It takes over at the phase the timer had
-           reached, so the swap is invisible. */
-        var anims = [], timer = null, capTimer = null, cycling = false;
-        var cur = -1, curAt = 0;
-
-        function kenKeys(k, cycle) {
-          var dir = k % 2 ? 1 : -1;
-          if (RM) return [{ opacity: 0, offset: 0 }, { opacity: 1, offset: fade / cycle },
-                          { opacity: 1, offset: slot / cycle }, { opacity: 0, offset: (slot + fade) / cycle },
-                          { opacity: 0, offset: 1 }];
-          return [{ opacity: 0, transform: "scale(1.06) translate(" + dir + "%, 0)", offset: 0 },
-                  { opacity: 1, offset: fade / cycle },
-                  { opacity: 1, offset: slot / cycle },
-                  { opacity: 0, transform: "scale(1.14) translate(" + (-dir) + "%, -1%)", offset: (slot + fade) / cycle },
-                  { opacity: 0, offset: 1 }];
-        }
-
-        function showTimed(n) {
-          if (over || cycling) return;
-          cur = ((n % frames.length) + frames.length) % frames.length;
-          curAt = performance.now();
-          if (imgs[cur].complete && imgs[cur].naturalWidth === 0) { timer = setTimeout(function () { showTimed(cur + 1); }, 0); return; }
-          imgs.forEach(function (im, k) { im.classList.toggle("on", k === cur); });
-          if (!imgs[(cur + 1) % imgs.length].getAttribute("src")) imgs[(cur + 1) % imgs.length].src = srcOf(cur + 1);
-          if (!RM) imgs[cur].animate(kenKeys(cur, slot + fade).slice(0, 1).concat(
-                     [{ transform: "scale(1.14) translate(" + (cur % 2 ? -1 : 1) + "%, -1%)" }]),
-                     { duration: slot + 400, fill: "forwards", easing: "linear" });
-          paintCap(cur, cur, frames.length);
-          if (cur) cue.frame();
-          timer = setTimeout(function () { showTimed(cur + 1); }, slot);
-        }
-
-        function startCycle(live) {
-          if (over || cycling || !live.length) return;
-          cycling = true; clearTimeout(timer);
-          var N = live.length, cycle = N * slot;
-          // take over at the phase the timer had reached, so nothing jumps
-          var at = live.indexOf(cur); if (at < 0) at = 0;
-          var into = Math.min(slot, performance.now() - curAt);
-          var begun = performance.now() - (at * slot + into);
-          var capKeys = [{ opacity: 0, offset: 0 }, { opacity: 1, offset: fade / cycle },
-                         { opacity: 1, offset: slot / cycle }, { opacity: 0, offset: (slot + fade) / cycle },
-                         { opacity: 0, offset: 1 }];
-          if (!capShown) { capShown = true; capEl.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 500, fill: "forwards" }); }
-          live.forEach(function (idx, k) {
-            var timing = { duration: cycle, iterations: Infinity, delay: k * slot - (at * slot + into) };
-            imgs[idx].classList.remove("on");
-            anims.push(imgs[idx].animate(kenKeys(k, cycle), timing));
-            caps[idx].classList.remove("on"); caps[idx].style.transition = "none";
-            caps[idx]._n.textContent = String(k + 1).padStart(2, "0") + " / " + String(N).padStart(2, "0");
-            anims.push(caps[idx].animate(capKeys, timing));
-          });
-          // only the sound still asks the main thread for anything
-          var shown = at;
-          (function tick() {
-            if (over) return;
-            var k = Math.floor(((performance.now() - begun) % cycle) / slot) % N;
-            if (k !== shown) { shown = k; cue.frame(); }
-            capTimer = setTimeout(tick, 200);
-          })();
-        }
-
-        /* The first two frames are asked for now and the rest the moment the
-           first has landed: the opening photograph is what the reader is
-           waiting on, and the rest have until the cycle takes over. */
-        var settled = 0, live = [];
-        function settle(i, ok) {
-          if (ok) live.push(i);
-          if (++settled === imgs.length) { live.sort(function (a, b) { return a - b; }); startCycle(live); }
-        }
-        imgs.forEach(function (im, i) {
-          im.addEventListener("load", function () { settle(i, true); }, { once: true });
-          im.addEventListener("error", function () { settle(i, false); }, { once: true });
-        });
-        imgs[0].src = srcOf(0);
-        if (imgs.length > 1) imgs[1].src = srcOf(1);
-        var rest = function () {
-          imgs.forEach(function (im, i) { if (!im.getAttribute("src")) im.src = srcOf(i); });
-        };
-        if (imgs[0].complete) { showTimed(0); rest(); }
-        else {
-          imgs[0].addEventListener("load", function () { showTimed(0); rest(); }, { once: true });
-          imgs[0].addEventListener("error", function () { showTimed(1); rest(); }, { once: true });
-        }
-        // a frame that never answers must not hold the cycle back for ever
-        t(function () {
-          if (cycling || over) return;
-          live = imgs.map(function (im, i) { return im.naturalWidth > 0 ? i : -1; })
-                     .filter(function (i) { return i >= 0; });
-          startCycle(live);
-        }, 4000);
-
-        /* PAUSE, never cancel. A cancelled animation drops the element back
-           to its stylesheet value -- opacity 0 -- so the photograph vanished
-           at the exact moment of the focus pull and the screen faded out over
-           a blank field. Pausing holds the frame that is up, which is what
-           the focus pull is pulling away from. */
-        montageStop = function () {
-          clearTimeout(timer); clearTimeout(capTimer);
-          anims.forEach(function (a) { try { a.pause(); } catch (_e) {} });
-        };
+        var first = imgs[0];
+        var begin = function () { show(0); };
+        if (first.complete) begin(); else { first.addEventListener("load", begin, { once: true }); first.addEventListener("error", begin, { once: true }); }
+        montageStop = function () { clearTimeout(timer); };
       }
       try {
         fetch(FRAMES_URL, { cache: "no-cache" }).then(function (r) { return r.ok ? r.json() : null; }).then(runMontage).catch(function () {});
@@ -649,7 +540,7 @@
       var linesDone = false, acquiredShown = false, waitShown = false;
       if (RM) {
         stageLines.forEach(function (l, i) { l.style.opacity = "0"; t(function () { l.style.opacity = "1"; cue.line(i); }, 200 + i * 220 * K); });
-        fill.animate([{ transform: "scaleX(0)" }, { transform: "scaleX(0.62)" }], { duration: 1600 * K, fill: "forwards", delay: 200 });
+        fill.animate([{ width: "0%" }, { width: "100%" }], { duration: 1800 * K, fill: "forwards", delay: 200 });
         fact.style.opacity = "1"; home.style.opacity = "1";
         t(function () { linesDone = true; }, 200 + stageLines.length * 220 * K);
       } else {
@@ -658,31 +549,14 @@
           t(function () { cue.tick(); }, i * 60 * K);
         });
         t(function () { cue.scan(); }, 400 * K);
-        scan.animate([{ transform: "translateY(-1em)", opacity: 0 }, { opacity: 1, offset: 0.1 }, { opacity: 1, offset: 0.9 }, { transform: "translateY(" + boot.clientHeight + "px)", opacity: 0 }], { duration: 900 * K, delay: 400 * K, fill: "forwards", easing: "linear" });
+        scan.animate([{ top: "-1em", opacity: 0 }, { opacity: 1, offset: 0.1 }, { opacity: 1, offset: 0.9 }, { top: "100%", opacity: 0 }], { duration: 900 * K, delay: 400 * K, fill: "forwards", easing: "linear" });
         clips.forEach(function (c) { c.animate([{ clipPath: "inset(50% 0 50% 0)" }, { clipPath: "inset(0 0 0 0)" }], { duration: 700 * K, delay: 600 * K, fill: "forwards", easing: "ease-out" }); });
         fact.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 600 * K, delay: 1100 * K, fill: "forwards" });
         home.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 500 * K, delay: 900 * K, fill: "forwards" });
         stageLines.forEach(function (l, i) {
           t(function () { l.animate([{ opacity: 0, transform: "translateX(-0.4em)" }, { opacity: 1, transform: "translateX(0)" }], { duration: 160, fill: "forwards" }); cue.line(i); }, (1000 + i * 380) * K);
         });
-        /* THE BAR TRACKS THE WAIT. A fixed fill finished at 3.6 s and the
-           screen then sat for another five seconds with a full bar on it,
-           which is what "the slideshow and the loading bar are not in unison"
-           is: the bar had said done while the montage was still turning and
-           the viewer was still building. It fills through the beats, creeps
-           while the viewer is the only thing left to wait for, and closes on
-           SUMMIT ACQUIRED -- so it finishes when the screen does. */
-        fill.animate([{ transform: "scaleX(0)" }, { transform: "scaleX(0.62)" }],
-                     { duration: (SEQ_END - 1000 * K), delay: 1000 * K, fill: "forwards", easing: "linear" });
-        t(function () {
-          if (!over && !acquiredShown) {
-            // LINEAR, and long. An eased creep reaches its end in the first
-            // second and sits there, which is the fault this replaced wearing
-            // a smaller number: measured at 0.94 one second in.
-            fill.animate([{ transform: "scaleX(0.62)" }, { transform: "scaleX(0.93)" }],
-                         { duration: 16000, fill: "forwards", easing: "linear" });
-          }
-        }, SEQ_END);
+        fill.animate([{ width: "0%" }, { width: "100%" }], { duration: 2600 * K, delay: 1000 * K, fill: "forwards", easing: "linear" });
         t(function () { linesDone = true; }, (1000 + stageLines.length * 380) * K);
       }
 
@@ -700,30 +574,18 @@
       function ready() { return reported; }
       function tellViewer(msg) { try { viewerFrame.contentWindow.postMessage(msg, "*"); } catch (_e) {} }
 
-      /* THE VIEWER'S FIRST FRAMES LAND BEFORE THE FADE, NOT IN IT. Its first
-         render compiles every shader and uploads every buffer -- 5.9 to 8.2 s
-         as ONE block on a software renderer -- and released at the hand-over
-         that block fell inside the focus pull, the one part of this screen
-         that has to be smooth. So: released while the screen is still in its
-         steady state, where everything moving is on the compositor and a
-         blocked main thread changes nothing anybody can see; the viewer
-         answers geoid-drawn after two frames; it is HELD again for the
-         length of the fade, so the fade has the thread to itself over a
-         viewer that is already a picture; and released for good when the
-         screen has gone. WARM_CAP covers a viewer that never answers. */
-      var warming = false, WARM_CAP = 20000;
+      /* THE VIEWER DRAWS ITS FIRST FRAME AFTER THE SCREEN HAS GONE, not
+         during it and not in the fade. That frame compiles every shader and
+         uploads every texture -- measured at 2.3 s to 9 s as ONE task, and it
+         swings run to run -- so wherever it lands, it is a stall. In the
+         screen's life it stutters the slides; in the fade it stutters the
+         fade. After, on a page where nothing is animating and the reader has
+         just been handed a still picture, it costs nothing anybody is
+         watching. So the screen keeps the main thread to itself for the whole
+         of its life, and end() releases the loop. */
       function handOver(delay) {
-        if (over || warming) return; warming = true;
-        var go = function () {
-          if (over) return;
-          window.removeEventListener("message", onDrawn);
-          tellViewer("geoid-hold");
-          showAcquired(); t(finish, delay);
-        };
-        var onDrawn = function (e) { if (e.data === "geoid-drawn") go(); };
-        window.addEventListener("message", onDrawn);
-        tellViewer("geoid-release");
-        t(go, WARM_CAP);
+        if (over) return;
+        showAcquired(); t(finish, delay);
       }
 
       /* ── the hand-over: a focus pull ─────────────────────────────────
@@ -744,6 +606,13 @@
            and never gets its first style recalculation, and it sits
            "running" with fill backwards holding the frame at 0 -- measured
            four seconds after the hand-over, on a viewer that had drawn. */
+        /* RELEASED AT THE START OF THE FADE. Held to here, the screen had
+           the main thread to itself for the whole of its life -- the slides
+           and the bar never stalled -- and the viewer's first frame now runs
+           UNDER the fade. That is safe only because the fade is compositor
+           work and nothing else: opacity and transform, no blur, no left/top,
+           no width. A blocked main thread cannot stop any of it. */
+        tellViewer("geoid-release");
         viewerFrame.style.transition = "none";
         viewerFrame.style.opacity = "1";
         viewerFrame.style.zIndex = "2";
@@ -752,7 +621,6 @@
         var ended = false;
         var end = function () {
           if (ended) return; ended = true;   // reached by the animation AND by the safety timer
-          tellViewer("geoid-release");       // the screen has gone: the viewer draws for good
           if (boot.parentNode) boot.parentNode.removeChild(boot);
           if (ctx && ctx.close && ctx.state !== "closed") { setTimeout(function () { try { ctx.close().catch(function () {}); } catch (_e) {} }, 900); }
         };
@@ -765,11 +633,14 @@
         var pc = layoutBrackets();
         Object.keys(brackets).forEach(function (k) {
           var b = brackets[k];
-          b.animate([{ left: b.style.left, top: b.style.top, opacity: 1 }, { left: pc.corner[k][0] + "px", top: pc.corner[k][1] + "px", opacity: 1, offset: 0.75 }, { left: pc.corner[k][0] + "px", top: pc.corner[k][1] + "px", opacity: 0 }], { duration: 900, fill: "forwards", easing: EASE });
+          var dx = pc.corner[k][0] - parseFloat(b.style.left || 0);
+          var dy = pc.corner[k][1] - parseFloat(b.style.top || 0);
+          var to = "translate(" + dx + "px, " + dy + "px)";
+          b.animate([{ transform: "translate(0, 0)", opacity: 1 }, { transform: to, opacity: 1, offset: 0.75 }, { transform: to, opacity: 0 }], { duration: 900, fill: "forwards", easing: EASE });
         });
         var flare = document.getElementById("boot-flare");
-        if (flare) flare.animate([{ left: "-20%", opacity: 0 }, { opacity: 0.9, offset: 0.3 }, { left: "110%", opacity: 0 }], { duration: 800, fill: "forwards", easing: "ease-in-out" });
-        field.animate([{ filter: "blur(0px)", transform: "scale(1)", opacity: 1 }, { filter: "blur(14px)", transform: "scale(1.06)", opacity: 0 }], { duration: 900, fill: "forwards", easing: EASE });
+        if (flare) flare.animate([{ transform: "skewX(-18deg) translateX(0)", opacity: 0 }, { opacity: 0.9, offset: 0.3 }, { transform: "skewX(-18deg) translateX(" + (boot.clientWidth * 1.3) + "px)", opacity: 0 }], { duration: 800, fill: "forwards", easing: "ease-in-out" });
+        field.animate([{ transform: "scale(1)", opacity: 1 }, { transform: "scale(1.09)", opacity: 0 }], { duration: 900, fill: "forwards", easing: EASE });
         // The logo becomes the viewer's own corner mark: same image, same box.
         var target = null;
         try { target = viewerFrame.contentDocument && viewerFrame.contentDocument.getElementById("top-right-logo"); } catch (_e) {}
@@ -789,8 +660,6 @@
       }
       function showAcquired() {
         if (acquiredShown) return; acquiredShown = true;
-        fill.animate([{ transform: getComputedStyle(fill).transform }, { transform: "scaleX(1)" }],
-                     { duration: 280, fill: "forwards", easing: "ease-out" });
         if (waitShown) waitLine.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 150, fill: "forwards" });
         finalLine.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 160, fill: "forwards" });
         cue.acquired();
