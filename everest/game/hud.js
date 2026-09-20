@@ -508,7 +508,7 @@ export class Hud {
     this.el.logo.href = "/earth_explorer/";
     this.el.logo.target = "_top";
     this.el.logo.setAttribute("aria-label", "Back to Earth Explorer");
-    this.el.logo.innerHTML = `<img id="top-right-logo" src="/earth_explorer/assets/logo.png" alt="GeoID logo">`;
+    this.el.logo.innerHTML = `<img id="top-right-logo" src="/earth_explorer/assets/logo.png?v=geoid-2026" alt="GeoID logo">`;
     document.body.appendChild(this.el.logo);
 
     this.el.navTab = mk("nav-tab");

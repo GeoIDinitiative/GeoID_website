@@ -16,7 +16,7 @@
 //   * a request that asks for a byte range is never cached (a COG read);
 //   * only whole 200 responses are stored.
 
-const SITE_VERSION = 'v59';   // v59: one root worker; launch data cached
+const SITE_VERSION = 'v60';   // v60: the GeoID wordmark, versioned so no cache holds the old one
 const STATIC_CACHE = `geoid-site-${SITE_VERSION}`;
 const DATA_CACHE = 'geoid-data-v1';        // data.geoidinitiative.com, fingerprinted (?v=)
 const BASEMAP_CACHE = 'geoid-basemap-tiles-v1';  // Sentinel-2 cloudless / GIBS / OSM tiles
@@ -43,7 +43,7 @@ const PRECACHE = [
   '/assets/GeoID_mark.png',
   '/assets/explorer_logo.png',
   '/assets/mygeoid_logo.png',
-  '/earth_explorer/assets/logo.png',
+  '/earth_explorer/assets/logo.png?v=geoid-2026',
 ];
 
 self.addEventListener('install', (evt) => {
