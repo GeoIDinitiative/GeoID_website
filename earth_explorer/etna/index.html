@@ -252,7 +252,7 @@
       .boot-log div { opacity: 1; }
     }
   </style>
-  <link rel="stylesheet" href="/styles/v2-viewer.css?v=20260920-9bf4855">
+  <link rel="stylesheet" href="/styles/v2-viewer.css?v=20260920-8955db3">
 </head>
 <body>
 
@@ -383,12 +383,12 @@
          it in long bites. Measured here: 36.6 s of long tasks against 1.5 s
          for a page whose frame stays hidden. Started at once, the brackets,
          the sweep and the reveal all land inside the first of those bites and
-         the screen opens broken. VIEWER_AT is past them; from there the beats
-         that remain are opacity and transform, which the compositor runs
-         whatever the main thread is doing. The viewer holds its own 4.5 s
+         the screen opens broken. VIEWER_AT is past ALL of them: once the log has
+         landed the only thing still moving is the montage, and that runs on
+         the compositor. The viewer holds its own 4.5 s
          floor before it reports, so this costs the reader nothing they were
          not already waiting for. */
-      var VIEWER_AT = RM ? 0 : 1400 * K;
+      var VIEWER_AT = RM ? 0 : SEQ_END;
       t(function () { viewerFrame.src = "viewer/?transit=1"; }, VIEWER_AT);
 
       /* ── sound ─────────────────────────────────────────────────────── */
@@ -478,31 +478,139 @@
       function runMontage(m) {
         var frames = (m && m.frames || []).filter(function (f) { return f && f.file; });
         if (!frames.length || over) return;
-        var hold = Math.max(300, (m.hold_ms || 750) * (quick ? 0.6 : 1)), fade = Math.max(150, m.fade_ms || 450);
+        var hold = Math.max(300, (m.hold_ms || 750) * (quick ? 0.6 : 1));
+        var fade = Math.max(150, m.fade_ms || 450);
+        var slot = hold + fade;
         if (m.opacity) montage.style.opacity = String(m.opacity);
-        var imgs = frames.map(function (f) { var im = new Image(); im.alt = ""; im.decoding = "async"; im.style.transitionDuration = fade + "ms"; montage.appendChild(im); return im; });
-        var want = function (n) { var im = imgs[n % imgs.length]; if (!im.getAttribute("src")) im.src = "/load_screen/etna/" + frames[n % frames.length].file; };
-        want(0); want(1);
-        var cap = { kind: capEl.querySelector(".c-kind"), place: capEl.querySelector(".c-place"), coord: capEl.querySelector(".c-coord"), src: capEl.querySelector(".c-src"), n: capEl.querySelector(".c-n") };
-        var i = -1, timer = null, shownOnce = false;
-        function show(n) {
-          if (over) return;
-          i = n % frames.length;
-          if (imgs[i].complete && imgs[i].naturalWidth === 0) { timer = setTimeout(function () { show(i + 1); }, 0); return; }
-          imgs.forEach(function (im, k) { im.classList.toggle("on", k === i); });
-          want(i + 2);
-          if (!RM) imgs[i].animate([{ transform: "scale(1.06) translate(" + (i % 2 ? 1 : -1) + "%, 0)" }, { transform: "scale(1.14) translate(" + (i % 2 ? -1 : 1) + "%, -1%)" }], { duration: hold + fade + 400, fill: "forwards", easing: "linear" });
-          var f = frames[i];
-          cap.kind.textContent = f.kind || "Frame"; cap.place.textContent = f.place || ""; cap.coord.textContent = f.coord || ""; cap.src.textContent = f.src || "";
-          cap.n.textContent = String(i + 1).padStart(2, "0") + " / " + String(frames.length).padStart(2, "0");
-          if (!shownOnce) { shownOnce = true; capEl.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 500, delay: 200, fill: "forwards" }); }
-          else cue.frame();
-          timer = setTimeout(function () { show(i + 1); }, hold + fade);
+        var imgs = frames.map(function () {
+          var im = new Image(); im.alt = ""; im.decoding = "async";
+          montage.appendChild(im); return im;
+        });
+        var srcOf = function (i) { return "/load_screen/etna/" + frames[i % frames.length].file; };
+        var cap = { kind: capEl.querySelector(".c-kind"), place: capEl.querySelector(".c-place"),
+                    coord: capEl.querySelector(".c-coord"), src: capEl.querySelector(".c-src"),
+                    n: capEl.querySelector(".c-n") };
+        var capShown = false;
+        function paintCap(k, n) {
+          if (!capShown) {   // the caption arrives with the first frame, in
+            capShown = true; // either phase -- the cycle is not the only door
+            capEl.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 500, fill: "forwards" });
+          }
+          var f = frames[k];
+          cap.kind.textContent = f.kind || "Frame";
+          cap.place.textContent = f.place || "";
+          cap.coord.textContent = f.coord || "";
+          cap.src.textContent = f.src || "";
+          cap.n.textContent = String(k + 1).padStart(2, "0") + " / " + String(n).padStart(2, "0");
         }
-        var first = imgs[0];
-        var begin = function () { show(0); };
-        if (first.complete) begin(); else { first.addEventListener("load", begin, { once: true }); first.addEventListener("error", begin, { once: true }); }
-        montageStop = function () { clearTimeout(timer); };
+
+        /* TWO PHASES, and the first one is why. While the frames are still
+           arriving the screen is driven by a timer, the way the hub's is: it
+           shows the first photograph the moment it lands rather than holding
+           a black field until all seven are in. Nothing else is on the main
+           thread yet, so a timer is smooth there.
+
+           THE SECOND PHASE RUNS ON THE COMPOSITOR, and that is the whole of
+           "the loading screen is laggy". The viewer boots in a same-origin
+           frame and owns the main thread in ~900 ms bites; a montage advanced
+           by setTimeout stalls for every one of them, and the montage is the
+           part of this screen that is always moving. One infinite animation
+           per frame, on opacity and transform only, keeps turning whatever
+           the main thread is doing -- the same reason the transit screen
+           draws in a worker. It takes over at the phase the timer had
+           reached, so the swap is invisible. */
+        var anims = [], timer = null, capTimer = null, cycling = false;
+        var cur = -1, curAt = 0;
+
+        function kenKeys(k, cycle) {
+          var dir = k % 2 ? 1 : -1;
+          if (RM) return [{ opacity: 0, offset: 0 }, { opacity: 1, offset: fade / cycle },
+                          { opacity: 1, offset: slot / cycle }, { opacity: 0, offset: (slot + fade) / cycle },
+                          { opacity: 0, offset: 1 }];
+          return [{ opacity: 0, transform: "scale(1.06) translate(" + dir + "%, 0)", offset: 0 },
+                  { opacity: 1, offset: fade / cycle },
+                  { opacity: 1, offset: slot / cycle },
+                  { opacity: 0, transform: "scale(1.14) translate(" + (-dir) + "%, -1%)", offset: (slot + fade) / cycle },
+                  { opacity: 0, offset: 1 }];
+        }
+
+        function showTimed(n) {
+          if (over || cycling) return;
+          cur = ((n % frames.length) + frames.length) % frames.length;
+          curAt = performance.now();
+          if (imgs[cur].complete && imgs[cur].naturalWidth === 0) { timer = setTimeout(function () { showTimed(cur + 1); }, 0); return; }
+          imgs.forEach(function (im, k) { im.classList.toggle("on", k === cur); });
+          if (!imgs[(cur + 1) % imgs.length].getAttribute("src")) imgs[(cur + 1) % imgs.length].src = srcOf(cur + 1);
+          if (!RM) imgs[cur].animate(kenKeys(cur, slot + fade).slice(0, 1).concat(
+                     [{ transform: "scale(1.14) translate(" + (cur % 2 ? -1 : 1) + "%, -1%)" }]),
+                     { duration: slot + 400, fill: "forwards", easing: "linear" });
+          paintCap(cur, frames.length);
+          if (cur) cue.frame();
+          timer = setTimeout(function () { showTimed(cur + 1); }, slot);
+        }
+
+        function startCycle(live) {
+          if (over || cycling || !live.length) return;
+          cycling = true; clearTimeout(timer);
+          var N = live.length, cycle = N * slot;
+          // take over at the phase the timer had reached, so nothing jumps
+          var at = live.indexOf(cur); if (at < 0) at = 0;
+          var into = Math.min(slot, performance.now() - curAt);
+          var begun = performance.now() - (at * slot + into);
+          live.forEach(function (idx, k) {
+            imgs[idx].classList.remove("on");
+            anims.push(imgs[idx].animate(kenKeys(k, cycle), {
+              duration: cycle, iterations: Infinity, delay: k * slot - (at * slot + into)
+            }));
+          });
+          var shown = -1;
+          (function tick() {
+            if (over) return;
+            var k = Math.floor(((performance.now() - begun) % cycle) / slot) % N;
+            if (k !== shown) { shown = k; paintCap(live[k], N); if (k) cue.frame(); }
+            capTimer = setTimeout(tick, 160);
+          })();
+        }
+
+        /* The first two frames are asked for now and the rest the moment the
+           first has landed: the opening photograph is what the reader is
+           waiting on, and the rest have until the cycle takes over. */
+        var settled = 0, live = [];
+        function settle(i, ok) {
+          if (ok) live.push(i);
+          if (++settled === imgs.length) { live.sort(function (a, b) { return a - b; }); startCycle(live); }
+        }
+        imgs.forEach(function (im, i) {
+          im.addEventListener("load", function () { settle(i, true); }, { once: true });
+          im.addEventListener("error", function () { settle(i, false); }, { once: true });
+        });
+        imgs[0].src = srcOf(0);
+        if (imgs.length > 1) imgs[1].src = srcOf(1);
+        var rest = function () {
+          imgs.forEach(function (im, i) { if (!im.getAttribute("src")) im.src = srcOf(i); });
+        };
+        if (imgs[0].complete) { showTimed(0); rest(); }
+        else {
+          imgs[0].addEventListener("load", function () { showTimed(0); rest(); }, { once: true });
+          imgs[0].addEventListener("error", function () { showTimed(1); rest(); }, { once: true });
+        }
+        // a frame that never answers must not hold the cycle back for ever
+        t(function () {
+          if (cycling || over) return;
+          live = imgs.map(function (im, i) { return im.naturalWidth > 0 ? i : -1; })
+                     .filter(function (i) { return i >= 0; });
+          startCycle(live);
+        }, 4000);
+
+        /* PAUSE, never cancel. A cancelled animation drops the element back
+           to its stylesheet value -- opacity 0 -- so the photograph vanished
+           at the exact moment of the focus pull and the screen faded out over
+           a blank field. Pausing holds the frame that is up, which is what
+           the focus pull is pulling away from. */
+        montageStop = function () {
+          clearTimeout(timer); clearTimeout(capTimer);
+          anims.forEach(function (a) { try { a.pause(); } catch (_e) {} });
+        };
       }
       try {
         fetch(FRAMES_URL, { cache: "no-cache" }).then(function (r) { return r.ok ? r.json() : null; }).then(runMontage).catch(function () {});
