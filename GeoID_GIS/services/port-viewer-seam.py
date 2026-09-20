@@ -376,6 +376,11 @@ SEARCH_WORLDS = ["mars", "venus", "mercury", "moon", "pluto"]
 
 SEARCH_MARK = "Search and Tour Mode read the loaded layers too"
 
+PREDICT_ANCHOR = ("      return allFeatureData\n"
+                  "        .filter((item) => normalizeSearchText(item.name).startsWith(needle))")
+PREDICT_WANT = ("      return searchPool()\n"
+                "        .filter((item) => normalizeSearchText(item.name).startsWith(needle))")
+
 SEARCH_BLOCK = """    // \u2500\u2500 Search and Tour Mode read the loaded layers too \u2500\u2500\u2500\u2500\u2500\u2500
     //
     // `allFeatureData` is what this viewer shipped with. A PROVIDER rather than
@@ -455,6 +460,7 @@ def apply_search(check: bool) -> int:
             src = src.replace("        registerFeatureSource,\n", "")
             src = src.replace("        // What Search and Tour Mode look in, besides what this viewer ships.\n", "")
             src = src.replace("      const pool = searchPool();", "      const pool = allFeatureData;")
+            src = src.replace(PREDICT_WANT, PREDICT_ANCHOR)
             src = src.replace("tourStopPool().filter((item) => facet.matches(item)).slice(0, TOUR_MAX_STOPS)",
                               "labelData.filter((item) => facet.matches(item))")
         want = src.replace(find_anchor, SEARCH_BLOCK + find_anchor, 1)
@@ -472,6 +478,16 @@ def apply_search(check: bool) -> int:
             stale += 1
             continue
         want = want.replace(tour, "tourStopPool().filter((item) => facet.matches(item)).slice(0, TOUR_MAX_STOPS)", 1)
+        # THE SUGGESTIONS DO NOT GO THROUGH `rankFeatureMatches` ON A PLANET.
+        # `refreshSearchSuggestions` calls `getPredictiveNameMatches`, which
+        # reads `allFeatureData` itself -- so wiring the two pools above left
+        # the box unchanged and a probe source registered straight onto the
+        # seam returned nothing. Measured on Mars before this line existed.
+        if want.count(PREDICT_ANCHOR) != 1:
+            print(f"  {world:<9} PREDICTIVE ANCHOR: expected 1, found {want.count(PREDICT_ANCHOR)}")
+            stale += 1
+            continue
+        want = want.replace(PREDICT_ANCHOR, PREDICT_WANT, 1)
         if check:
             if path.read_text(encoding="utf-8") != want:
                 print(f"  {world:<9} STALE (search)")

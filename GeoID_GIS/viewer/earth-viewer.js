@@ -2,13 +2,13 @@ import * as THREE from "./vendor/three.module.js";
 // The polygon-area rule lives in one place, with a test. Stamped by hand
 // once: stamp.py only rewrites a ?v= that already exists.
 import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
-  from "./gis/geo-utils.js?v=20260920-724172f";
+  from "./gis/geo-utils.js?v=20260920-f6aad18";
 import { attachReliefAttributes, followRelief }
-  from "./gis/vector-render.js?v=20260920-724172f";
+  from "./gis/vector-render.js?v=20260920-f6aad18";
 import { rockClass, crustalSetting, rockClassLabel, classificationBasis }
-  from "./gis/rock-class.js?v=20260920-724172f";
+  from "./gis/rock-class.js?v=20260920-f6aad18";
 import { lithologyLabel }
-  from "./gis/lithology-label.js?v=20260920-724172f";
+  from "./gis/lithology-label.js?v=20260920-f6aad18";
 
 /**
  * This module's own cache stamp, read off its own URL.
@@ -1213,6 +1213,22 @@ function fmtProp(value) {
     let earthGlobeRef = null;   // set by init(); bridged so module-level openGeoPopup can access globe rotation
     let moonLayer = null;
     let gisBases = [];
+    /**
+     * DECLARED OUT HERE BECAUSE THE SEARCH IS OUT HERE, and this asymmetry was
+     * a live bug: `gisBases` is declared at this scope and assigned by init(),
+     * while `gisPins` was DECLARED inside init()'s own block. So every
+     * reference to it from `findFeatureByName` and `rankFeatureMatches` -- both
+     * of which sit above that block -- was a ReferenceError, and since
+     * `refreshSearchSuggestions` calls the second on every keystroke, THE
+     * SEARCH BOX NEVER FILTERED: it threw, the render never ran, and the list
+     * left standing was the unfiltered default. Measured by typing into it.
+     *
+     * `baseLabelItem` is a function declaration inside that same block, so it
+     * is invisible here for the same reason and is bridged rather than moved:
+     * it closes over the block's own state.
+     */
+    let gisPins = [];
+    let gisBaseLabelItem = null;
     const saturnViewModeSelect = null; // Earth has no tilted/untilted toggle
     /**
      * The view mode this page starts in, and returns to.
@@ -5531,7 +5547,8 @@ function fmtProp(value) {
     function searchPool() {
       const pool = [...allFeatureData, ...extraFeatureItems(),
         ...(Array.isArray(gisPins) ? gisPins : []),
-        ...(Array.isArray(gisBases) ? gisBases.map(baseLabelItem) : [])];
+        ...(Array.isArray(gisBases) && gisBaseLabelItem
+          ? gisBases.map(gisBaseLabelItem) : [])];
       const seen = new Set();
       return pool.filter((item) => {
         const key = String(item?.name || "").trim().toLowerCase();
@@ -14874,9 +14891,10 @@ uniform float uViewportWidth;`,
       let gisInspectPoint = null;
       let gisBookmarks = [];
       let gisStudyAreas = [];
-      let gisPins = initialGisPins;
+      gisPins = initialGisPins;
       let gisBuffers = [];
       gisBases = initialGisBases;
+      gisBaseLabelItem = baseLabelItem;
       let gisActiveBaseId = "";
       let gisBasePlacementMode = false;
       let gisBufferState = null;

@@ -5511,7 +5511,7 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
       if (!needle) {
         return [];
       }
-      return allFeatureData
+      return searchPool()
         .filter((item) => normalizeSearchText(item.name).startsWith(needle))
         .sort((a, b) => a.name.localeCompare(b.name))
         .slice(0, maxResults);
