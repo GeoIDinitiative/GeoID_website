@@ -59,307 +59,9 @@
         repeating-linear-gradient(180deg, rgba(0,0,0,0.13) 0 1px, transparent 1px 3px),
         radial-gradient(125% 125% at 50% 50%, transparent 55%, rgba(12, 5, 1, 0.48) 100%);
     }
-
-    /* ── Background: the montage ───────────────────────
-       The same mechanism the GeoHUB and the planet start screens use --
-       /load_screen/etna/frames.json lists the frames and their captions, so
-       adding a photograph is a file in that folder and a line in that file.
-       The still image stays as the FALLBACK and is what a page that cannot
-       reach the manifest shows, which is exactly what this page showed
-       before. It is cleared once a frame is actually on screen, or a frame at
-       the manifest's own opacity would be a blend of two photographs. */
-    .bg {
-      position: fixed;
-      inset: 0;
-      background: url('https://data.geoidinitiative.com/assets/hotlink-ok/etna/etna.jpg?v=dc76c4684896') center / cover no-repeat;
-      z-index: 0;
-    }
-    .bg img {
-      position: absolute;
-      inset: 0;
-      width: 100%; height: 100%;
-      object-fit: cover;
-      opacity: 0;
-      transition: opacity var(--fade, 500ms) ease;
-      will-change: opacity, transform;
-    }
-    .bg img.on { opacity: var(--shot-opacity, 1); }
-    .bg::after {
-      content: '';
-      position: absolute;
-      inset: 0;
-      background:
-        linear-gradient(180deg,
-          rgba(6,2,0,0.72) 0%,
-          rgba(6,2,0,0.48) 40%,
-          rgba(6,2,0,0.68) 100%);
-    }
-
-    /* ── What the frame is ─────────────────────────────
-       Bottom-left: the card is centred and the mark is top-right, so this is
-       the one corner a caption can hold without crossing either. A photograph
-       shown without saying what it is is a decoration; with a place and a
-       source it is a frame of the mountain the page is about. */
-    .bg-cap {
-      position: fixed;
-      left: 1.6rem;
-      bottom: 1.3rem;
-      z-index: 2;
-      max-width: min(24rem, 42vw);
-      font-family: "Exo 2", "Trebuchet MS", sans-serif;
-      font-size: 0.72rem;
-      letter-spacing: 0.15em;
-      text-transform: uppercase;
-      color: var(--muted);
-      text-shadow: 0 2px 12px rgba(0, 0, 0, 0.9);
-      opacity: 0;
-      transition: opacity 0.5s ease;
-      pointer-events: none;
-    }
-    .bg-cap.on { opacity: 1; }
-    .bg-cap b {
-      display: block;
-      margin: 0.15em 0 0.1em;
-      font-weight: 600; font-size: 1.3em;
-      letter-spacing: 0.04em; text-transform: none;
-      color: var(--text);
-    }
-    .bg-cap small { display: block; font-size: 0.9em; color: rgba(232, 197, 160, 0.5); }
-    .bg-cap .n {
-      display: inline-block;
-      margin-top: 0.6em; padding: 0.2em 0.65em;
-      border: 1px solid var(--border);
-      color: var(--accent); font-size: 0.9em;
-    }
-
-    /* ── Shell ───────────────────────────────────────── */
-    .shell {
-      position: relative;
-      z-index: 1;
-      min-height: 100dvh;
-      display: grid;
-      place-items: center;
-      padding: 1rem;
-      transition: opacity 0.5s ease;
-    }
-
-    /* ── Logo ────────────────────────────────────────── */
-    /* THE WORDMARK IS 3.4:1, so it is sized by WIDTH and its height follows.
-       Pinned square it would draw at a seventh of the box and read as a
-       mistake -- the lockup is a name, not an icon. */
-    .logo-img {
-      position: fixed;
-      top: 1.2rem;
-      right: 1.4rem;
-      width: 13.5rem;
-      height: auto;
-      filter: drop-shadow(0 4px 24px rgba(0,0,0,0.6));
-      z-index: 100;
-      pointer-events: none;
-    }
-
-    /* ── Card ────────────────────────────────────────── */
-    .card {
-      position: relative;
-      width: min(780px, 100%);
-      border-radius: 1.5rem;
-      border: 2px solid #ff6a00;
-      background:
-        radial-gradient(ellipse 70% 40% at 50% 0%, rgba(247,120,30,0.08) 0%, transparent 60%),
-        linear-gradient(170deg, rgba(18,8,3,0.55) 0%, rgba(8,3,1,0.50) 100%);
-      backdrop-filter: blur(28px);
-      -webkit-backdrop-filter: blur(28px);
-      box-shadow:
-        0 50px 140px rgba(0,0,0,0.55),
-        0 0 0 1px rgba(255,106,0,0.45),
-        0 0 28px rgba(255,80,0,0.28),
-        inset 0 1px 0 rgba(255,255,255,0.06);
-      overflow: hidden;
-    }
-
-    /* ── Hero ────────────────────────────────────────── */
-    .hero {
-      display: grid;
-      grid-template-columns: auto 1fr;
-      align-items: center;
-      gap: clamp(1.25rem, 4vw, 2rem);
-      padding: 1.6rem clamp(1.25rem, 3vw, 2rem) 1.4rem;
-    }
-
-    .etna-icon {
-      width: clamp(5rem, 12vw, 8rem);
-      height: clamp(5rem, 12vw, 8rem);
-      object-fit: contain;
-      filter: drop-shadow(0 4px 18px rgba(247,100,20,0.5));
-      flex-shrink: 0;
-    }
-
-    .hero-text { min-width: 0; }
-
-    .dest-title {
-      font-family: "Orbitron", sans-serif;
-      font-size: clamp(2.6rem, 8vw, 5rem);
-      font-weight: 800;
-      line-height: 0.9;
-      text-transform: uppercase;
-      letter-spacing: -0.02em;
-      background: linear-gradient(130deg, #ffffff 20%, rgba(247,200,160,0.75) 100%);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
-    }
-
-    .dest-sub {
-      margin-top: 0.6rem;
-      color: var(--muted);
-      font-size: 0.9rem;
-      letter-spacing: 0.06em;
-      text-transform: uppercase;
-      font-weight: 500;
-    }
-
-    /* ── Fact box ─────────────────────────────────────── */
-    .fact-box {
-      margin: 0 clamp(1.25rem, 3vw, 2rem);
-      padding: 1.1rem 1.4rem;
-      border-radius: 0.9rem;
-      border: 1px solid rgba(255,106,0,0.30);
-      background: rgba(255,80,0,0.07);
-    }
-
-    .fact-label {
-      font-family: "Public Sans", sans-serif;
-      font-size: 0.6rem;
-      font-weight: 700;
-      letter-spacing: 0.2em;
-      text-transform: uppercase;
-      color: var(--accent);
-      margin-bottom: 0.5rem;
-    }
-
-    .fact-text {
-      font-size: 0.97rem;
-      line-height: 1.6;
-      color: rgba(245,237,224,0.9);
-    }
-
-    /* ── Elevation block (top-right of card) ─────────── */
-    .arrival-block {
-      position: absolute;
-      top: 1.1rem;
-      right: 1.4rem;
-      text-align: right;
-      z-index: 2;
-    }
-    .arrival-label {
-      font-family: "Public Sans", sans-serif;
-      font-size: 0.6rem;
-      font-weight: 700;
-      letter-spacing: 0.18em;
-      text-transform: uppercase;
-      color: rgba(160,136,120,0.8);
-    }
-    .arrival-value {
-      font-size: 1rem;
-      font-weight: 600;
-      color: #ffffff;
-      margin-top: 0.14rem;
-    }
-
-    /* ── Footer ──────────────────────────────────────── */
-    .footer {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 1rem;
-      padding: 0.9rem clamp(1.25rem, 3vw, 2rem);
-      margin-top: 1.2rem;
-      border-top: 1px solid rgba(255,255,255,0.06);
-      background: rgba(255,255,255,0.015);
-    }
-
-    .home-btn {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.35rem;
-      padding: 0.58rem 1.05rem;
-      border-radius: 999px;
-      border: 1px solid rgba(255,255,255,0.14);
-      background: rgba(255,255,255,0.04);
-      color: var(--text);
-      font-size: 0.88rem;
-      font-family: inherit;
-      text-decoration: none;
-      transition: border-color 0.15s, background 0.15s, transform 0.15s;
-      white-space: nowrap;
-    }
-    .home-btn:hover {
-      border-color: rgba(255,255,255,0.28);
-      background: rgba(255,255,255,0.08);
-      transform: translateY(-1px);
-    }
-
-    /* ── Initialising indicator ──────────────────────── */
-    .init-row {
-      display: flex;
-      align-items: center;
-      gap: 0.6rem;
-    }
-    .init-dots {
-      display: flex;
-      gap: 0.35rem;
-      align-items: center;
-    }
-    .init-dots span {
-      width: 0.42rem;
-      height: 0.42rem;
-      border-radius: 50%;
-      background: rgba(247,160,85,0.85);
-      animation: dot-pulse 1.3s ease-in-out infinite;
-    }
-    .init-dots span:nth-child(2) { animation-delay: 0.18s; }
-    .init-dots span:nth-child(3) { animation-delay: 0.36s; }
     @keyframes dot-pulse {
       0%, 80%, 100% { transform: scale(0.6); opacity: 0.3; }
       40%            { transform: scale(1);   opacity: 1;   }
-    }
-    .init-status {
-      font-family: "Public Sans", sans-serif;
-      font-size: 0.78rem;
-      font-weight: 700;
-      color: rgba(160,136,120,0.8);
-      letter-spacing: 0.14em;
-      text-transform: uppercase;
-    }
-
-    /* ── Landscape / constrained-height ─────────────────── */
-    @media (max-height: 560px) and (pointer: coarse) {
-      .shell { padding: 0.4rem; }
-      .logo-img { width: 8rem; height: auto; top: 0.5rem; right: 0.7rem; }
-      .bg-cap { display: none; }
-      .card { border-radius: 1rem; width: min(520px, 76%); }
-      .arrival-block { display: none; }
-      .hero { padding: 0.8rem 1rem 0.6rem; gap: 0.8rem; }
-      .etna-icon { width: clamp(3.5rem, 9vw, 5rem); height: clamp(3.5rem, 9vw, 5rem); }
-      .dest-title { font-size: clamp(2rem, 7vw, 3.2rem); }
-      .dest-sub { font-size: 0.8rem; margin-top: 0.3rem; }
-      .fact-box { margin: 0 1rem; padding: 0.7rem 1rem; }
-      .fact-text { font-size: 0.88rem; line-height: 1.45; }
-      .footer { margin-top: 0.6rem; padding: 0.6rem 1rem;
-                padding-bottom: max(0.6rem, env(safe-area-inset-bottom)); }
-    }
-
-    /* ── Portrait narrow ──────────────────────────────── */
-    @media (max-width: 560px) {
-      .shell { padding: 0.5rem; align-items: flex-start; padding-top: max(1rem, env(safe-area-inset-top)); }
-      .card { border-radius: 1rem; }
-      .logo-img { width: 9rem; height: auto; top: 0.6rem; right: 0.75rem; }
-      .hero { grid-template-columns: 1fr; gap: 0.6rem; padding: 1rem; }
-      .etna-icon { width: 5rem; height: 5rem; margin: 0 auto; }
-      .footer { flex-direction: column; align-items: flex-start; gap: 0.4rem;
-                padding-bottom: max(0.8rem, env(safe-area-inset-bottom)); }
-      .arrival-block { top: 0.7rem; right: 0.9rem; }
-      .arrival-value { font-size: 0.88rem; }
     }
 
     /* ── Portrait advisory ────────────────────────────── */
@@ -420,7 +122,137 @@
       #portrait-advisory.is-dismissed { display: flex !important; }
     }
   </style>
-  <link rel="stylesheet" href="/styles/v2-viewer.css?v=20260920-52de73f">
+  <!-- ── Start-up screen ───────────────────────────────────────────────
+       The GeoHUB start screen (#boot-style in /index.html), in Etna's own
+       palette and over Etna's own frames. Same structure, same beats, same
+       sound: a reader who has come from the hub meets one screen, not two.
+       Cyan is the hub's data colour; here the data is lava and the reticle
+       is the gold the viewer already uses. -->
+  <style id="boot-style">
+    .boot {
+      --boot-bg: #080502;
+      --boot-ink: #fff4e8;
+      --boot-data: #ff9a4d;
+      --boot-bracket: #ffd166;
+      --boot-accent: #ff4d1a;
+      --boot-body: "Exo 2", "Chakra Petch", "Segoe UI", monospace;
+      --boot-display: "Orbitron", "Audiowide", sans-serif;
+      position: fixed; inset: 0; z-index: 100000;
+      font-size: clamp(8px, 1.1vw, 14px);
+      color: var(--boot-ink);
+      overflow: hidden;
+      cursor: default;
+    }
+    .boot-field {
+      position: absolute; inset: 0;
+      background: var(--boot-bg);
+      will-change: filter, transform, opacity;
+    }
+    /* THE MONTAGE: real frames of Etna from /load_screen/etna/, listed in
+       that folder's frames.json, each held briefly and dissolved into the
+       next. Add a photograph to that folder and a line to that file and it
+       plays; nothing in this page changes. */
+    .boot-montage { position: absolute; inset: 0; z-index: 0; opacity: 0.62; }
+    .boot-montage img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0; transition: opacity 0.45s ease; will-change: transform, opacity; }
+    .boot-montage img.on { opacity: 1; }
+    .boot-montage::after { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(8,5,2,0.58) 0%, rgba(8,5,2,0.14) 40%, rgba(8,5,2,0.74) 100%); }
+    .boot-cap {
+      position: absolute; right: 2.2em; top: 2.2em; z-index: 2; text-align: right;
+      font-family: var(--boot-body); font-size: 0.95em; letter-spacing: 0.14em; text-transform: uppercase;
+      color: rgba(255, 244, 232, 0.55); line-height: 1.8; font-variant-numeric: tabular-nums; opacity: 0;
+    }
+    .boot-cap b { display: block; color: var(--boot-ink); font-weight: 600; font-size: 1.25em; letter-spacing: 0.06em; }
+    .boot-cap small { display: block; font-size: 0.75em; color: rgba(255, 244, 232, 0.35); letter-spacing: 0.2em; }
+    .boot-cap .n { display: inline-block; margin-top: 0.7em; padding: 0.25em 0.7em; border: 1px solid var(--boot-bracket); color: var(--boot-bracket); font-size: 0.75em; }
+    .boot-flare { position: absolute; top: 0; bottom: 0; width: 18%; left: -20%; opacity: 0; background: linear-gradient(90deg, transparent, rgba(255, 220, 190, 0.38), transparent); transform: skewX(-18deg); pointer-events: none; }
+    .boot-field::before {
+      content: ""; position: absolute; inset: 0; pointer-events: none; z-index: 1;
+      background-image: linear-gradient(rgba(255, 140, 66, 0.065) 1px, transparent 1px),
+                        linear-gradient(90deg, rgba(255, 140, 66, 0.065) 1px, transparent 1px);
+      background-size: 4em 4em;
+    }
+    .boot-field::after {
+      content: ""; position: absolute; inset: 0; pointer-events: none; z-index: 1;
+      background: repeating-linear-gradient(0deg, rgba(255, 244, 232, 0.035) 0 1px, transparent 1px 3px);
+    }
+    .boot-field > .boot-log, .boot-field > .boot-bar, .boot-field > .boot-clip { z-index: 2; }
+    .boot-fx { position: absolute; inset: 0; pointer-events: none; }
+    .boot-clip { position: absolute; inset: 0; clip-path: inset(50% 0 50% 0); }
+    .boot-logo {
+      position: absolute; left: 50%; top: 50%;
+      width: 24em; height: auto; transform: translate(-50%, -62%);
+      transform-origin: 50% 50%;
+      filter: drop-shadow(0 0 1em rgba(255, 154, 77, 0.45));
+      will-change: transform;
+    }
+    .boot-word {
+      position: absolute; left: 50%; top: calc(50% + 4.6em); transform: translateX(-50%);
+      font-family: var(--boot-display); font-size: 2.2em; letter-spacing: 0.08em; color: var(--boot-ink);
+      white-space: nowrap;
+    }
+    .boot-word b { font-weight: 400; color: var(--boot-accent); }
+    /* The one thing GeoHUB's screen has no room for and this page already had:
+       a fact about the mountain, under its name, where the hub leaves a gap. */
+    .boot-fact {
+      position: absolute; right: 4.4em; bottom: 4.2em; z-index: 2;
+      width: min(30em, 44vw); text-align: right; opacity: 0;
+      font-family: var(--boot-body); font-size: 1em; line-height: 1.7;
+      color: rgba(255, 244, 232, 0.6);
+    }
+    .boot-fact span { display: block; margin-bottom: 0.4em; font-size: 0.78em; letter-spacing: 0.3em; text-transform: uppercase; color: var(--boot-bracket); }
+    @media (max-width: 1100px) { .boot-fact { display: none; } }
+    .boot-br { position: absolute; width: 2.6em; height: 2.6em; border: 0.18em solid var(--boot-bracket); opacity: 0; }
+    .boot-br.tl { border-right: 0; border-bottom: 0; } .boot-br.tr { border-left: 0; border-bottom: 0; }
+    .boot-br.bl { border-right: 0; border-top: 0; }   .boot-br.br { border-left: 0; border-top: 0; }
+    .boot-scan {
+      position: absolute; left: 0; right: 0; height: 0.3em; top: 0; opacity: 0;
+      will-change: transform;
+      background: linear-gradient(90deg, transparent, var(--boot-data), transparent);
+      box-shadow: 0 0 1.4em var(--boot-data);
+    }
+    .boot-log {
+      position: absolute; left: 4.4em; bottom: 4.2em; right: 4.4em;
+      overflow: hidden;
+      font-family: var(--boot-body); font-size: 1em; line-height: 1.7; letter-spacing: 0.06em;
+      color: var(--boot-data);
+    }
+    .boot-log div { opacity: 0; white-space: nowrap; }
+    .boot-log i { font-style: normal; color: rgba(255, 244, 232, 0.4); margin-left: 1em; }
+    .boot-log em { font-style: normal; color: var(--boot-bracket); }
+    .boot-dots b { font-weight: inherit; animation: boot-dot 1.2s infinite; }
+    .boot-dots b:nth-child(2) { animation-delay: 0.2s; } .boot-dots b:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes boot-dot { 0%, 60%, 100% { opacity: 0.2; } 30% { opacity: 1; } }
+    .boot-bar { position: absolute; left: 0; right: 0; bottom: 0; height: 0.3em; background: rgba(255, 244, 232, 0.08); }
+    .boot-bar > i { position: absolute; left: 0; top: 0; bottom: 0; width: 100%; transform: scaleX(0); transform-origin: 0 50%; will-change: transform; background: var(--boot-data); box-shadow: 0 0 0.8em var(--boot-data); }
+    .boot-home {
+      position: absolute; left: 2.2em; top: 2.2em; z-index: 3; opacity: 0;
+      font-family: var(--boot-body); font-size: 0.92em; letter-spacing: 0.22em; text-transform: uppercase;
+      color: rgba(255, 244, 232, 0.5); text-decoration: none;
+      border: 1px solid rgba(255, 154, 77, 0.28); padding: 0.5em 0.9em; border-radius: 0.3em;
+    }
+    .boot-home:hover { color: var(--boot-ink); border-color: var(--boot-data); }
+    /* The hub's log spans the width because nothing shares its row. Here the
+       fact does, so the log's BOX has to stop as well as its text: two boxes
+       that overlap put the fact's first line behind a log line nobody can
+       see through. The longest line measures under a third of the width. */
+    @media (min-width: 1101px) { .boot-log { right: 52%; } }
+    @media (max-width: 720px) {
+      .boot-log { left: 1.6em; right: 1.6em; bottom: 6.4em; font-size: 1.15em; }
+      /* The lines are nowrap inside an overflow: hidden box, so on a phone
+         the counts were cut mid-number -- "223 trac". The subject and the
+         tick are the line; the count is the detail, and it goes first. */
+      .boot-log i { display: none; }
+      .boot-log i.boot-dots { display: inline; }
+      .boot-logo { width: 62vw; }
+      .boot-cap, .boot-fact { display: none; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .boot-clip { clip-path: none; }
+      .boot-br { opacity: 1; }
+      .boot-log div { opacity: 1; }
+    }
+  </style>
+  <link rel="stylesheet" href="/styles/v2-viewer.css?v=20260920-9bf4855">
 </head>
 <body>
 
@@ -428,42 +260,40 @@
     style="position:fixed;inset:0;width:100%;height:100%;border:none;opacity:0;pointer-events:none;z-index:0;background:#0a0502;"
     allow="fullscreen"></iframe>
 
-  <div class="bg" id="bg" aria-hidden="true"></div>
-  <div class="bg-cap" id="bg-cap" aria-hidden="true"><small class="c-kind">Frame</small><b class="c-place">—</b><small class="c-coord">—</small><small class="c-src">—</small><span class="n c-n">— / —</span></div>
-
-  <img class="logo-img" src="/assets/GeoID_logo_icon.png" alt="GeoID">
-
-  <main class="shell" id="transit-shell">
-    <article class="card">
-
-      <div class="arrival-block">
-        <div class="arrival-label">Summit elevation</div>
-        <div class="arrival-value">3,329 m asl</div>
+  <!-- ── Start-up screen (see #boot-style in <head>) ────────────────────
+       Markup first so it is on screen at the first paint; the script that
+       runs it follows immediately and hands over to the viewer behind when
+       the viewer says it has drawn. -->
+  <div class="boot" id="boot" role="status" aria-live="polite" aria-label="The Etna viewer is starting">
+    <div class="boot-field">
+      <div class="boot-montage" id="boot-montage"></div>
+      <div class="boot-cap" id="boot-cap"><small class="c-kind">Frame</small><b class="c-place">&mdash;</b><small class="c-coord">&mdash;</small><small class="c-src">&mdash;</small><span class="n c-n">&mdash; / &mdash;</span></div>
+      <a class="boot-home" id="boot-home" href="/" target="_top" rel="home">&larr; Return home</a>
+      <div class="boot-log" id="boot-log">
+        <div>&#9656; terrain &middot; 100 &times; 100 km GMSH domain <i>56,521 nodes</i> <em>&#10003;</em></div>
+        <div>&#9656; geology &middot; INGV EtnaGeoMap <i>3,907 units</i> <em>&#10003;</em></div>
+        <div>&#9656; faults &middot; Pernicana, Timpe, Ragalna, South <i>223 traces</i> <em>&#10003;</em></div>
+        <div>&#9656; seismicity &middot; Osservatorio Etneo <i>12,368 events &middot; 2011&ndash;2023</i> <em>&#10003;</em></div>
+        <div>&#9656; tomography &middot; elastic model <i>6,175 nodes</i> <em>&#10003;</em></div>
+        <div>&#9656; monitoring &middot; INGV network <i>122 GNSS, tilt, strain, gravity</i> <em>&#10003;</em></div>
+        <div id="boot-wait">&#9656; plumbing &middot; chambers and conduit <i class="boot-dots"><b>.</b><b>.</b><b>.</b></i></div>
+        <div id="boot-final"><em>&#9632; SUMMIT ACQUIRED</em></div>
       </div>
-
-      <div class="hero">
-        <img class="etna-icon" src="../../assets/etna_icon.png" alt="Mount Etna" loading="eager">
-        <div class="hero-text">
-          <h1 class="dest-title">Mount<br>Etna</h1>
-          <p class="dest-sub">Earth Explorer · Volcano Geology</p>
-        </div>
+      <div class="boot-bar"><i id="boot-fill"></i></div>
+      <div class="boot-clip" id="boot-clip">
+        <div class="boot-word">MOUNT <b>ETNA</b></div>
       </div>
-
-      <div class="fact-box">
-        <div class="fact-label">Did you know?</div>
-        <p class="fact-text" id="fact-text">Loading…</p>
+      <div class="boot-fact" id="boot-fact"><span>Did you know?</span><p id="fact-text"></p></div>
+    </div>
+    <div class="boot-fx">
+      <div class="boot-clip" id="boot-clip-logo">
+        <img class="boot-logo" id="boot-logo" src="/assets/GeoID_logo_icon.png" alt="GeoID">
       </div>
-
-      <footer class="footer">
-        <a class="home-btn" href="/" target="_top" rel="home">← Return Home</a>
-        <div class="init-row">
-          <div class="init-dots" aria-hidden="true"><span></span><span></span><span></span></div>
-          <span class="init-status">Initialising viewer…</span>
-        </div>
-      </footer>
-
-    </article>
-  </main>
+      <div class="boot-br tl"></div><div class="boot-br tr"></div><div class="boot-br bl"></div><div class="boot-br br"></div>
+      <div class="boot-scan" id="boot-scan"></div>
+      <div class="boot-flare" id="boot-flare"></div>
+    </div>
+  </div>
 
   <div id="portrait-advisory" role="status" aria-live="polite">
     <img src="../../assets/tilt_phone.png" alt="Rotate device" id="portrait-advisory-icon" loading="lazy" decoding="async"
@@ -491,131 +321,338 @@
       "During the 2001–03 eruptions, the Italian Army used explosive charges and earthworks to divert lava flows — some of the most ambitious volcanic intervention attempts ever made.",
     ];
 
-    // Pick a random fact on each load
-    const idx = Math.floor(Math.random() * FACTS.length);
-    document.getElementById('fact-text').textContent = FACTS[idx];
 
-    // ── Background montage ────────────────────────────────────────────────────
-    // /load_screen/etna/frames.json lists the frames and their captions -- the
-    // same file and the same mechanism the GeoHUB and the planet start screens
-    // use, so adding a photograph here is a file in that folder and a line in
-    // that manifest, and nothing in this page changes.
-    //
-    // ONE FRAME AHEAD, never all at once. The viewer below is fetching its
-    // modules, its DEM and its tiles on the same connection; a montage that
-    // asks for every frame at the start queues in front of them and the
-    // hand-over lands later. Only the frame on screen and the next one are
-    // ever in flight.
-    var stopMontage = function () {};
+    /**
+     * THE START-UP SEQUENCE.
+     *
+     * The GeoHUB start screen (/index.html), running over Etna's own frames
+     * while the viewer behind it boots. Same beats, same sound, same
+     * hand-over, so arriving here from the hub is one screen and not two.
+     *
+     * It ends on the VIEWER'S OWN EVIDENCE rather than on a timer: the viewer
+     * posts "geoid-ready" once its terrain is up (etna-viewer.js). Never
+     * shorter than MIN_HOLD, so a warm cache does not flash it; never longer
+     * than CAP, so a viewer that never reports is still handed over to.
+     *
+     * SOUND is synthesised in the page (no file, no fetch). A browser that
+     * will not play before a gesture stays silent until the first click or
+     * key. localStorage "geoid:boot-sound" = "off" mutes it, the same key the
+     * hub's screen reads.
+     */
     (function () {
-      var bg = document.getElementById('bg'), capEl = document.getElementById('bg-cap');
-      if (!bg || !capEl || !window.fetch) return;
-      var RM = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-      fetch('/load_screen/etna/frames.json', { cache: 'no-cache' })
-        .then(function (r) { return r.ok ? r.json() : null; })
-        .then(function (m) {
-          var frames = (m && m.frames || []).filter(function (f) { return f && f.file; });
-          if (!frames.length) return;   // no manifest means the still image, not a broken page
-          var hold = Math.max(300, m.hold_ms || 900), fade = Math.max(150, m.fade_ms || 500);
-          bg.style.setProperty('--fade', fade + 'ms');
-          if (m.opacity) bg.style.setProperty('--shot-opacity', String(m.opacity));
-          var imgs = frames.map(function () {
-            var im = new Image();
-            im.alt = ''; im.decoding = 'async';
-            im.style.transitionDuration = fade + 'ms';
-            bg.appendChild(im);
-            return im;
-          });
-          var want = function (n) {
-            var im = imgs[n % imgs.length];
-            if (!im.getAttribute('src')) im.src = '/load_screen/etna/' + frames[n % frames.length].file;
-          };
-          want(0); want(1);
-          var cap = {
-            kind: capEl.querySelector('.c-kind'), place: capEl.querySelector('.c-place'),
-            coord: capEl.querySelector('.c-coord'), src: capEl.querySelector('.c-src'),
-            n: capEl.querySelector('.c-n')
-          };
-          var i = -1, timer = null, cleared = false, stopped = false;
-          function show(n) {
-            if (stopped) return;
-            i = ((n % frames.length) + frames.length) % frames.length;
-            // A frame that failed to load is SKIPPED rather than shown blank.
-            if (imgs[i].complete && imgs[i].naturalWidth === 0) {
-              timer = setTimeout(function () { show(i + 1); }, 0);
-              return;
-            }
-            imgs.forEach(function (im, k) { im.classList.toggle('on', k === i); });
-            if (!cleared) { cleared = true; bg.style.backgroundImage = 'none'; }
-            want(i + 2);
-            if (!RM && imgs[i].animate) {
-              imgs[i].animate(
-                [{ transform: 'scale(1.06) translate(' + (i % 2 ? 1 : -1) + '%, 0)' },
-                 { transform: 'scale(1.14) translate(' + (i % 2 ? -1 : 1) + '%, -1%)' }],
-                { duration: hold + fade + 400, fill: 'forwards', easing: 'linear' });
-            }
-            var f = frames[i];
-            cap.kind.textContent = f.kind || 'Frame';
-            cap.place.textContent = f.place || '';
-            cap.coord.textContent = f.coord || '';
-            cap.src.textContent = f.src || '';
-            cap.n.textContent = String(i + 1).padStart(2, '0') + ' / ' + String(frames.length).padStart(2, '0');
-            capEl.classList.add('on');
-            timer = setTimeout(function () { show(i + 1); }, hold + fade);
-          }
-          var first = imgs[0];
-          var begin = function () { show(0); };
-          if (first.complete) begin();
-          else {
-            first.addEventListener('load', begin, { once: true });
-            first.addEventListener('error', begin, { once: true });
-          }
-          stopMontage = function () { stopped = true; clearTimeout(timer); };
-        })
-        .catch(function () { /* the still image is already behind it */ });
-    })();
+      "use strict";
+      var boot = document.getElementById("boot");
+      var viewerFrame = document.getElementById("viewer-frame");
+      if (!boot || !viewerFrame) return;
 
-    // ── Viewer preload + crossfade ────────────────────────────────────────────
-    const TRANSIT_MS   = 5000;
-    const viewerFrame  = document.getElementById('viewer-frame');
-    const transitShell = document.getElementById('transit-shell');
-    const CROSSFADE_MS = 450;
 
-    // Start loading the viewer immediately — the viewer is open to everyone,
-    // so there is no auth step to wait on.
-    viewerFrame.src = 'viewer/?transit=1';
+      var RM = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      var quick = false;
+      try { quick = sessionStorage.getItem("geoid:etna-booted") === "1"; sessionStorage.setItem("geoid:etna-booted", "1"); } catch (_e) {}
+      var K = quick ? 0.4 : 1;                 // the second start in a session: same beats, compressed
+      var CAP = 16000;                         // the viewer holds its own 4.5 s floor before it reports
 
-    setTimeout(() => {
-      try { viewerFrame.contentWindow.postMessage('geoid-reveal', '*'); } catch (_) {}
+      var lines = Array.prototype.slice.call(document.querySelectorAll("#boot-log > div"));
+      var finalLine = document.getElementById("boot-final"), waitLine = document.getElementById("boot-wait");
+      var stageLines = lines.filter(function (l) { return l !== finalLine && l !== waitLine; });
+      /* THE SEQUENCE ALWAYS PLAYS ONCE. Handing over as soon as the viewer is
+         ready means brackets half-drawn and the logo half-revealed on a warm
+         load; the minimum hold is the length of the beats, so a viewer that is
+         ready early meets the screen at its end. */
+      var SEQ_END = (1000 + stageLines.length * 380) * K + 300;
+      var MIN_HOLD = Math.max(1600, SEQ_END);
+      var fill = document.getElementById("boot-fill");
+      var clips = [document.getElementById("boot-clip"), document.getElementById("boot-clip-logo")];
+      var scan = document.getElementById("boot-scan");
+      var logo = document.getElementById("boot-logo");
+      var fact = document.getElementById("boot-fact");
+      var home = document.getElementById("boot-home");
+      var field = boot.querySelector(".boot-field");
+      // One fact about the mountain, under its name. The page has carried
+      // these since before the screen did; the screen keeps them.
+      var factText = document.getElementById("fact-text");
+      if (factText) factText.textContent = FACTS[Math.floor(Math.random() * FACTS.length)];
+      var brackets = { tl: boot.querySelector(".boot-br.tl"), tr: boot.querySelector(".boot-br.tr"), bl: boot.querySelector(".boot-br.bl"), br: boot.querySelector(".boot-br.br") };
+      var timers = [];
+      var t = function (fn, ms) { timers.push(setTimeout(fn, ms)); };
+      var started = performance.now();
 
-      let crossed = false;
-      function doCrossfade() {
-        if (crossed) return; crossed = true;
-        // The montage has done its job; leaving it cycling behind the viewer
-        // is work nobody can see.
-        stopMontage();
-        const capEl = document.getElementById('bg-cap');
-        if (capEl) capEl.classList.remove('on');
-        const logoImg = document.querySelector('.logo-img');
-        transitShell.style.transition = `opacity ${CROSSFADE_MS}ms ease`;
-        transitShell.style.opacity = '0';
-        if (logoImg) {
-          logoImg.style.transition = `opacity ${CROSSFADE_MS}ms ease`;
-          logoImg.style.opacity = '0';
+      /* THE VIEWER STARTS AFTER THE OPENING BEATS, and that is not politeness.
+         It loads in a SAME-ORIGIN frame, so it shares this page's main thread
+         -- the fault the transit screen already records -- and its boot takes
+         it in long bites. Measured here: 36.6 s of long tasks against 1.5 s
+         for a page whose frame stays hidden. Started at once, the brackets,
+         the sweep and the reveal all land inside the first of those bites and
+         the screen opens broken. VIEWER_AT is past them; from there the beats
+         that remain are opacity and transform, which the compositor runs
+         whatever the main thread is doing. The viewer holds its own 4.5 s
+         floor before it reports, so this costs the reader nothing they were
+         not already waiting for. */
+      var VIEWER_AT = RM ? 0 : 1400 * K;
+      t(function () { viewerFrame.src = "viewer/?transit=1"; }, VIEWER_AT);
+
+      /* ── sound ─────────────────────────────────────────────────────── */
+      var AC = window.AudioContext || window.webkitAudioContext;
+      var ctx = null, master = null, soundOn = true, audioReady = false;
+      try { soundOn = localStorage.getItem("geoid:boot-sound") !== "off"; } catch (_e) {}
+      function audio() {
+        if (!AC) return null;
+        if (!ctx) {
+          try { ctx = new AC(); master = ctx.createGain(); master.gain.value = 0.16; master.connect(ctx.destination); } catch (_e) { ctx = null; }
         }
-        viewerFrame.style.transition = `opacity ${CROSSFADE_MS}ms ease`;
-        viewerFrame.style.opacity = '1';
-        viewerFrame.style.zIndex = '2';
-        setTimeout(() => { viewerFrame.style.pointerEvents = 'auto'; }, CROSSFADE_MS);
+        return ctx;
+      }
+      function tryStart() {
+        var c = audio(); if (!c) return;
+        var pr = c.resume && c.resume();
+        var mark = function () { audioReady = c.state === "running"; if (audioReady && !over) padStart(); };
+        if (pr && pr.then) pr.then(mark, mark); else mark();
+      }
+      function tone(freq, dur, type, gain, at, glideTo) {
+        if (!soundOn || !ctx || ctx.state !== "running") return;
+        var now = ctx.currentTime + (at || 0);
+        var o = ctx.createOscillator(), g = ctx.createGain();
+        o.type = type || "sine"; o.frequency.setValueAtTime(freq, now);
+        if (glideTo) o.frequency.exponentialRampToValueAtTime(glideTo, now + dur);
+        g.gain.setValueAtTime(0.0001, now);
+        g.gain.exponentialRampToValueAtTime(gain || 0.3, now + 0.008);
+        g.gain.exponentialRampToValueAtTime(0.0001, now + dur);
+        o.connect(g); g.connect(master); o.start(now); o.stop(now + dur + 0.02);
+      }
+      function sweep(fromHz, toHz, dur, gain, at, type) {
+        if (!soundOn || !ctx || ctx.state !== "running") return;
+        var now = ctx.currentTime + (at || 0);
+        var len = Math.ceil(ctx.sampleRate * dur), buf = ctx.createBuffer(1, len, ctx.sampleRate), d = buf.getChannelData(0);
+        for (var i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+        var src = ctx.createBufferSource(); src.buffer = buf;
+        var f = ctx.createBiquadFilter(); f.type = type || "bandpass"; f.Q.value = 6;
+        f.frequency.setValueAtTime(fromHz, now); f.frequency.exponentialRampToValueAtTime(toHz, now + dur);
+        var g = ctx.createGain();
+        g.gain.setValueAtTime(0.0001, now); g.gain.exponentialRampToValueAtTime(gain || 0.2, now + 0.05);
+        g.gain.exponentialRampToValueAtTime(0.0001, now + dur);
+        src.connect(f); f.connect(g); g.connect(master); src.start(now); src.stop(now + dur + 0.02);
+      }
+      /* A quiet pad under the whole run, so the cues have a floor to sit on.
+         Etna's is a tone lower than the hub's: this is a mountain, not a
+         satellite link. */
+      var pad = null;
+      function padStart() {
+        if (!soundOn || !ctx || ctx.state !== "running" || pad) return;
+        var now = ctx.currentTime, g = ctx.createGain(), f = ctx.createBiquadFilter();
+        f.type = "lowpass"; f.frequency.value = 190;
+        g.gain.setValueAtTime(0.0001, now); g.gain.exponentialRampToValueAtTime(0.048, now + 1.2);
+        var oscs = [49, 73.4, 98.2].map(function (hz, i) { var o = ctx.createOscillator(); o.type = i === 2 ? "triangle" : "sine"; o.frequency.value = hz; o.connect(f); o.start(now); return o; });
+        f.connect(g); g.connect(master); pad = { g: g, oscs: oscs };
+      }
+      function padStop(secs) {
+        if (!pad || !ctx) return;
+        var now = ctx.currentTime; pad.g.gain.cancelScheduledValues(now); pad.g.gain.setValueAtTime(pad.g.gain.value || 0.0001, now); pad.g.gain.exponentialRampToValueAtTime(0.0001, now + secs);
+        pad.oscs.forEach(function (o) { o.stop(now + secs + 0.05); }); pad = null;
+      }
+      var cue = {
+        tick: function () { tone(1400, 0.035, "square", 0.25); },
+        scan: function () { sweep(300, 2600, 0.85 * K, 0.22); },
+        line: function (i) { tone(480 + i * 58, 0.045, "triangle", 0.3); },
+        frame: function () { sweep(2200, 500, 0.16, 0.10, 0, "lowpass"); },
+        acquired: function () { tone(620, 0.12, "sine", 0.35); tone(930, 0.16, "sine", 0.35, 0.12); },
+        focus: function () { sweep(2400, 180, 0.7, 0.26, 0, "lowpass"); tone(1240, 0.5, "sine", 0.08, 0.05, 620); }
+      };
+      var gestures = ["pointerdown", "keydown", "touchstart"];
+      function onGesture() { if (soundOn && !audioReady) tryStart(); }
+      gestures.forEach(function (ev) { document.addEventListener(ev, onGesture, { passive: true }); });
+      if (soundOn) tryStart();
+
+      /* ── the montage ─────────────────────────────────────────────────
+         /load_screen/etna/frames.json lists the frames and their captions.
+         Fetched fresh so an edit shows on the next start; a frame that fails
+         to load is skipped, and a missing manifest means no montage rather
+         than a broken one.
+
+         ONE FRAME AHEAD, never all at once: the viewer behind is fetching its
+         modules, its DEM and its geology on the same connection, and a
+         montage that asks for every frame at the start queues in front of it. */
+      var FRAMES_URL = "/load_screen/etna/frames.json";
+      var montage = document.getElementById("boot-montage"), capEl = document.getElementById("boot-cap");
+      var montageStop = function () {};
+      var over = false;
+      function runMontage(m) {
+        var frames = (m && m.frames || []).filter(function (f) { return f && f.file; });
+        if (!frames.length || over) return;
+        var hold = Math.max(300, (m.hold_ms || 750) * (quick ? 0.6 : 1)), fade = Math.max(150, m.fade_ms || 450);
+        if (m.opacity) montage.style.opacity = String(m.opacity);
+        var imgs = frames.map(function (f) { var im = new Image(); im.alt = ""; im.decoding = "async"; im.style.transitionDuration = fade + "ms"; montage.appendChild(im); return im; });
+        var want = function (n) { var im = imgs[n % imgs.length]; if (!im.getAttribute("src")) im.src = "/load_screen/etna/" + frames[n % frames.length].file; };
+        want(0); want(1);
+        var cap = { kind: capEl.querySelector(".c-kind"), place: capEl.querySelector(".c-place"), coord: capEl.querySelector(".c-coord"), src: capEl.querySelector(".c-src"), n: capEl.querySelector(".c-n") };
+        var i = -1, timer = null, shownOnce = false;
+        function show(n) {
+          if (over) return;
+          i = n % frames.length;
+          if (imgs[i].complete && imgs[i].naturalWidth === 0) { timer = setTimeout(function () { show(i + 1); }, 0); return; }
+          imgs.forEach(function (im, k) { im.classList.toggle("on", k === i); });
+          want(i + 2);
+          if (!RM) imgs[i].animate([{ transform: "scale(1.06) translate(" + (i % 2 ? 1 : -1) + "%, 0)" }, { transform: "scale(1.14) translate(" + (i % 2 ? -1 : 1) + "%, -1%)" }], { duration: hold + fade + 400, fill: "forwards", easing: "linear" });
+          var f = frames[i];
+          cap.kind.textContent = f.kind || "Frame"; cap.place.textContent = f.place || ""; cap.coord.textContent = f.coord || ""; cap.src.textContent = f.src || "";
+          cap.n.textContent = String(i + 1).padStart(2, "0") + " / " + String(frames.length).padStart(2, "0");
+          if (!shownOnce) { shownOnce = true; capEl.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 500, delay: 200, fill: "forwards" }); }
+          else cue.frame();
+          timer = setTimeout(function () { show(i + 1); }, hold + fade);
+        }
+        var first = imgs[0];
+        var begin = function () { show(0); };
+        if (first.complete) begin(); else { first.addEventListener("load", begin, { once: true }); first.addEventListener("error", begin, { once: true }); }
+        montageStop = function () { clearTimeout(timer); };
+      }
+      try {
+        fetch(FRAMES_URL, { cache: "no-cache" }).then(function (r) { return r.ok ? r.json() : null; }).then(runMontage).catch(function () {});
+      } catch (_e) {}
+
+      /* ── the beats ───────────────────────────────────────────────────── */
+      var EASE = "cubic-bezier(0.16, 0.84, 0.44, 1)";
+      function layoutBrackets() {
+        var w = boot.clientWidth, h = boot.clientHeight, em = parseFloat(getComputedStyle(boot).fontSize);
+        var hw = Math.min(15 * em, w * 0.42), hh = Math.min(11 * em, h * 0.34), s = 2.6 * em;
+        return {
+          inner: { tl: [w / 2 - hw, h / 2 - hh], tr: [w / 2 + hw - s, h / 2 - hh], bl: [w / 2 - hw, h / 2 + hh - s], br: [w / 2 + hw - s, h / 2 + hh - s] },
+          corner: { tl: [1.2 * em, 1.2 * em], tr: [w - s - 1.2 * em, 1.2 * em], bl: [1.2 * em, h - s - 1.2 * em], br: [w - s - 1.2 * em, h - s - 1.2 * em] }
+        };
+      }
+      var pos = layoutBrackets();
+      Object.keys(brackets).forEach(function (k) { brackets[k].style.left = pos.inner[k][0] + "px"; brackets[k].style.top = pos.inner[k][1] + "px"; });
+
+      var linesDone = false, acquiredShown = false, waitShown = false;
+      if (RM) {
+        stageLines.forEach(function (l, i) { l.style.opacity = "0"; t(function () { l.style.opacity = "1"; cue.line(i); }, 200 + i * 220 * K); });
+        fill.animate([{ transform: "scaleX(0)" }, { transform: "scaleX(1)" }], { duration: 1800 * K, fill: "forwards", delay: 200 });
+        fact.style.opacity = "1"; home.style.opacity = "1";
+        t(function () { linesDone = true; }, 200 + stageLines.length * 220 * K);
+      } else {
+        ["tl", "tr", "bl", "br"].forEach(function (k, i) {
+          brackets[k].animate([{ opacity: 0, transform: "scale(1.6)" }, { opacity: 1, transform: "scale(1)" }], { duration: 450 * K, delay: i * 60 * K, fill: "forwards", easing: EASE });
+          t(function () { cue.tick(); }, i * 60 * K);
+        });
+        t(function () { cue.scan(); }, 400 * K);
+        scan.animate([{ transform: "translateY(-1em)", opacity: 0 }, { opacity: 1, offset: 0.1 }, { opacity: 1, offset: 0.9 }, { transform: "translateY(" + boot.clientHeight + "px)", opacity: 0 }], { duration: 900 * K, delay: 400 * K, fill: "forwards", easing: "linear" });
+        clips.forEach(function (c) { c.animate([{ clipPath: "inset(50% 0 50% 0)" }, { clipPath: "inset(0 0 0 0)" }], { duration: 700 * K, delay: 600 * K, fill: "forwards", easing: "ease-out" }); });
+        fact.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 600 * K, delay: 1100 * K, fill: "forwards" });
+        home.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 500 * K, delay: 900 * K, fill: "forwards" });
+        stageLines.forEach(function (l, i) {
+          t(function () { l.animate([{ opacity: 0, transform: "translateX(-0.4em)" }, { opacity: 1, transform: "translateX(0)" }], { duration: 160, fill: "forwards" }); cue.line(i); }, (1000 + i * 380) * K);
+        });
+        fill.animate([{ transform: "scaleX(0)" }, { transform: "scaleX(1)" }], { duration: 2600 * K, delay: 1000 * K, fill: "forwards", easing: "linear" });
+        t(function () { linesDone = true; }, (1000 + stageLines.length * 380) * K);
       }
 
-      window.addEventListener('message', function onReady(e) {
-        if (e.data !== 'geoid-ready') return;
-        window.removeEventListener('message', onReady);
-        doCrossfade();
-      });
-      setTimeout(doCrossfade, 700);
-    }, TRANSIT_MS);
+      /* ── is the viewer up yet? ───────────────────────────────────────
+         etna-viewer.js posts "geoid-ready" once its terrain is up, holding
+         its own 4.5 s floor first. Same-origin, so a viewer that reports
+         nothing is still caught by its own scene having drawn. */
+      var reported = false;
+      window.addEventListener("message", function (e) { if (e.data === "geoid-ready") reported = true; });
+      /* The message is the whole test. etna-viewer.js keeps its renderer in
+         module scope, so there is no window.renderer to read from here -- a
+         check for one answers false for ever and reads like a viewer that
+         never drew. The message is the viewer's own contract, and CAP is what
+         covers a viewer that never sends it. */
+      function ready() { return reported; }
+
+      /* ── the hand-over: a focus pull ─────────────────────────────────
+         The screen softens and swells as it fades, a flare crosses at the
+         moment of hand-over, and the logo travels to the viewer's own corner
+         mark. The viewer beneath is simply what remains when the screen has
+         gone out of focus. */
+      function finish() {
+        if (over) return; over = true;
+        timers.forEach(clearTimeout); montageStop();
+        gestures.forEach(function (ev) { document.removeEventListener(ev, onGesture); });
+        document.removeEventListener("keydown", onKey);
+
+        /* The viewer comes up under the screen, not after it -- and with NO
+           transition of its own. The screen's focus pull IS the crossfade,
+           and a transition here does not survive this page: the viewer owns
+           the main thread while it boots, the opacity transition is created
+           and never gets its first style recalculation, and it sits
+           "running" with fill backwards holding the frame at 0 -- measured
+           four seconds after the hand-over, on a viewer that had drawn. */
+        viewerFrame.style.transition = "none";
+        viewerFrame.style.opacity = "1";
+        viewerFrame.style.zIndex = "2";
+        viewerFrame.style.pointerEvents = "auto";
+
+        var ended = false;
+        var end = function () {
+          if (ended) return; ended = true;   // reached by the animation AND by the safety timer
+          if (boot.parentNode) boot.parentNode.removeChild(boot);
+          if (ctx && ctx.close && ctx.state !== "closed") { setTimeout(function () { try { ctx.close().catch(function () {}); } catch (_e) {} }, 900); }
+        };
+        padStop(0.8);
+        if (RM) {
+          boot.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 500, fill: "forwards" }).onfinish = end;
+          return;
+        }
+        cue.focus();
+        var pc = layoutBrackets();
+        Object.keys(brackets).forEach(function (k) {
+          var b = brackets[k];
+          b.animate([{ left: b.style.left, top: b.style.top, opacity: 1 }, { left: pc.corner[k][0] + "px", top: pc.corner[k][1] + "px", opacity: 1, offset: 0.75 }, { left: pc.corner[k][0] + "px", top: pc.corner[k][1] + "px", opacity: 0 }], { duration: 900, fill: "forwards", easing: EASE });
+        });
+        var flare = document.getElementById("boot-flare");
+        if (flare) flare.animate([{ left: "-20%", opacity: 0 }, { opacity: 0.9, offset: 0.3 }, { left: "110%", opacity: 0 }], { duration: 800, fill: "forwards", easing: "ease-in-out" });
+        field.animate([{ filter: "blur(0px)", transform: "scale(1)", opacity: 1 }, { filter: "blur(14px)", transform: "scale(1.06)", opacity: 0 }], { duration: 900, fill: "forwards", easing: EASE });
+        // The logo becomes the viewer's own corner mark: same image, same box.
+        var target = null;
+        try { target = viewerFrame.contentDocument && viewerFrame.contentDocument.getElementById("top-right-logo"); } catch (_e) {}
+        var a = null;
+        if (target && target.getBoundingClientRect().width > 0) {
+          var from = logo.getBoundingClientRect(), to = target.getBoundingClientRect();
+          var dx = (to.left + to.width / 2) - (from.left + from.width / 2);
+          var dy = (to.top + to.height / 2) - (from.top + from.height / 2);
+          var k = to.width / from.width;
+          logo.style.filter = "none";
+          a = logo.animate([{ transform: "translate(-50%, -62%) translate(0, 0) scale(1)" }, { transform: "translate(-50%, -62%) translate(" + dx + "px, " + dy + "px) scale(" + k + ")" }], { duration: 720, fill: "forwards", easing: EASE });
+        } else {
+          a = logo.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 500, fill: "forwards" });
+        }
+        a.onfinish = end;
+        setTimeout(end, 1200);   // whatever happens, the screen leaves
+      }
+      function showAcquired() {
+        if (acquiredShown) return; acquiredShown = true;
+        if (waitShown) waitLine.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 150, fill: "forwards" });
+        finalLine.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 160, fill: "forwards" });
+        cue.acquired();
+      }
+      /* CAP IS ITS OWN TIMER, not a condition the poll tests. The viewer owns
+         the main thread in long bites while it boots, so a 100 ms poll runs
+         perhaps once a second and the cap is noticed well after it passes --
+         measured at 31.7 s against a 16 s cap. One timer fires as soon as the
+         thread is free after CAP, whatever the poll is doing. */
+      t(function () { if (!over) { showAcquired(); t(finish, 120); } }, CAP);
+
+      (function poll() {
+        if (over) return;
+        var now = performance.now() - started;
+        var isReady = ready();
+        if (isReady && linesDone && now >= MIN_HOLD) {
+          showAcquired();
+          t(finish, 320);
+          return;
+        }
+        if (!isReady && linesDone && now >= MIN_HOLD && !waitShown) {
+          // The beats are done and the viewer is still building: say so
+          // rather than sit silent.
+          waitShown = true;
+          waitLine.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 200, fill: "forwards" });
+        }
+        t(poll, 100);
+      })();
+      function skip() { if (performance.now() - started > 600) { showAcquired(); t(finish, 200); } }
+      function onKey(e) { if (e.key === "Escape") skip(); }
+      document.addEventListener("keydown", onKey);
+      boot.addEventListener("click", function (e) { if (e.target === boot || e.target === field) skip(); });
+      window.addEventListener("resize", function () { if (over) return; pos = layoutBrackets(); Object.keys(brackets).forEach(function (k) { brackets[k].style.left = pos.inner[k][0] + "px"; brackets[k].style.top = pos.inner[k][1] + "px"; }); });
+    })();
 
     // ── Portrait advisory ─────────────────────────────────────────────────────
     (function () {
