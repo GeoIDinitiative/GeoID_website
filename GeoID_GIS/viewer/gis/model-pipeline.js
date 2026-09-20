@@ -2,31 +2,31 @@ import {
   buildSurface, planGrid, surfaceStl, domainStl, stlStats,
   gmshScript, femSpec, makeLocalFrame, DEFAULT_MATERIALS,
   nativeStepM, sizeField, structuredFieldText, DEFAULT_FLAGS, atmosphereStl, DEFAULT_MAX_NODES, triangleWriter,
-} from "./model-build.js?v=20260919-6c76717";
-import { ringsFromCollection } from "./extraction.js?v=20260919-6c76717";
+} from "./model-build.js?v=20260920-4149ca7";
+import { ringsFromCollection } from "./extraction.js?v=20260920-4149ca7";
 import {
   buildTin, tinHeightAt, tinSurfaceStl, tinShellStl, samplingSizeField,
   extendBoundary, extendedBoundaryLines, gridAsTin, shellFacets,
-} from "./surface-sampling.js?v=20260919-6c76717";
-import { renderFeatureCollection } from "./vector-render.js?v=20260919-6c76717";
-import { promptDrawTool } from "./extent-picker.js?v=20260919-6c76717";
+} from "./surface-sampling.js?v=20260920-4149ca7";
+import { renderFeatureCollection } from "./vector-render.js?v=20260920-4149ca7";
+import { promptDrawTool } from "./extent-picker.js?v=20260920-4149ca7";
 import {
   profileAlong, profileHeightAt, sectionPolygons, sectionPositions, sectionGmshScript, profileCsv,
-} from "./section-model.js?v=20260919-6c76717";
-import { defaultField, describeField, FIELD_TYPES, smallestSize } from "./mesh-size-fields.js?v=20260919-6c76717";
+} from "./section-model.js?v=20260920-4149ca7";
+import { defaultField, describeField, FIELD_TYPES, smallestSize } from "./mesh-size-fields.js?v=20260920-4149ca7";
 import {
   layerHeights, layeredVolumes, REGOLITH_ON_ROCK_M, facetsStlByFace, layeredGmshScript, thinLayerSizeM, tinWith, LAYER_FLAGS, facetsClosed,
   facetsVolume, facetsArea, estimateElements, estimateSentence,
-} from "./layered-model.js?v=20260919-6c76717";
-import { waterMasks, waterFeatures } from "./water-mask.js?v=20260919-6c76717";
-import { bathymetryGrid, gridAt } from "./bathymetry.js?v=20260919-6c76717";
-import { burnRivers } from "./river-zones.js?v=20260919-6c76717";
+} from "./layered-model.js?v=20260920-4149ca7";
+import { waterMasks, waterFeatures } from "./water-mask.js?v=20260920-4149ca7";
+import { bathymetryGrid, gridAt } from "./bathymetry.js?v=20260920-4149ca7";
+import { burnRivers } from "./river-zones.js?v=20260920-4149ca7";
 import {
   linesFromCollection, hasLines, faultPlane, faultDefaultsFrom, nonCrossing, faultsStl, bearingDeg, traceLength,
   clipTraceToBox, FAULT_FLAG_BASE, slug as faultSlug,
-} from "./fault-planes.js?v=20260919-6c76717";
-import { describeQuery, openReader, sampleAtNodes, fieldCsv, slugOf, syncReader } from "./layer-query.js?v=20260919-6c76717";
-import { loadRockProperties, resolveLithology } from "./rock-properties.js?v=20260919-6c76717";
+} from "./fault-planes.js?v=20260920-4149ca7";
+import { describeQuery, openReader, sampleAtNodes, fieldCsv, slugOf, syncReader } from "./layer-query.js?v=20260920-4149ca7";
+import { loadRockProperties, resolveLithology } from "./rock-properties.js?v=20260920-4149ca7";
 
 /**
  * The Model Builder tab: the GIS study area becomes a meshable domain.
@@ -147,7 +147,7 @@ const state = {
    * their surveyed level, rivers a channel depth deep). `read` holds the
    * heights once they have been read onto the surface's nodes.
    */
-  layers: { soil: false, water: false, minSoilM: 1, minWaterM: 1, read: null, readFor: null },
+  layers: { soil: false, water: false, minSoilM: 0, minWaterM: 1, read: null, readFor: null },
   /**
    * FAULTS: traces from layers given the fault role, and ones picked on the
    * globe, each a plane in the rock with its own flag (fault-planes.js). The
@@ -2139,7 +2139,7 @@ function stepDomain(body) {
     body.appendChild(row("Soil over bedrock (two volumes, one surface)", soilOn));
     if (L.soil) {
       const min = number("gis-mb-soil-min", L.minSoilM, 0.5);
-      min.addEventListener("input", () => { L.minSoilM = Math.max(0.1, Number(min.value) || 1); L.read = null; state.outputs = null; });
+      min.addEventListener("input", () => { const v = Number(min.value); L.minSoilM = Number.isFinite(v) && v > 0 ? v : 0; L.read = null; state.outputs = null; });
       body.appendChild(row("Thinnest soil kept (m)", min));
     }
     const waterOn = el("input", null);

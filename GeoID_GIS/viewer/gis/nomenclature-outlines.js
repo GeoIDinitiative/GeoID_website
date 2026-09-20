@@ -46,11 +46,11 @@
  *     a crater on Io. The satellites' own seam, for the same reason.
  */
 import * as THREE from "../vendor/three.module.js";
-import { dataUrl } from "./data-base.js?v=20260920-1e7b58d";
-import { currentBodyId, getBody } from "./bodies.js?v=20260920-1e7b58d";
-import { latLonToVector3 } from "./geo-utils.js?v=20260920-1e7b58d";
-import { pointInPolygon } from "./geometry.js?v=20260920-1e7b58d";
-import { paintByField } from "./symbology-dialog.js?v=20260920-1e7b58d";
+import { dataUrl } from "./data-base.js?v=20260920-4149ca7";
+import { currentBodyId, getBody } from "./bodies.js?v=20260920-4149ca7";
+import { latLonToVector3 } from "./geo-utils.js?v=20260920-4149ca7";
+import { pointInPolygon } from "./geometry.js?v=20260920-4149ca7";
+import { paintByField } from "./symbology-dialog.js?v=20260920-4149ca7";
 
 export const OUTLINE_BODIES = {
   moon: { path: "/data/global/nomenclature/moon.geojson", name: "Moon" },
@@ -105,13 +105,59 @@ export const isExtent = (feature) => feature?.properties?.extent === true;
  * world that is mostly boxes, "414 named features outlined" is the sentence a
  * reader would otherwise take away, and it would be wrong about 373 of them.
  */
-export function outlineSummary(features) {
-  const total = (features || []).length;
+export function outlineSummary(features, hidden = 0) {
+  const drawn = (features || []).length;
   const boxes = (features || []).filter(isExtent).length;
-  const n = total.toLocaleString();
+  const n = drawn.toLocaleString();
+  const held = Number(hidden) || 0;
+  const h = held.toLocaleString();
+  // EVERY named feature on this body is a box (Titania, Oberon, Hyperion), so
+  // hiding them draws nothing. Saying "0 features" would read as a failed
+  // fetch; what is true is that the gazetteer has outlined none of them.
+  if (held && !drawn) {
+    return `The gazetteer has outlined none of this body's ${h} named features -- every one is `
+      + "its BOUNDING BOX. Nothing is drawn; tick 'Show bounding boxes' to draw them";
+  }
+  if (held) {
+    return `${n} outlined features. ${h} more are the gazetteer's BOUNDING BOX rather than an `
+      + "outline and are held back -- tick 'Show bounding boxes' to draw them";
+  }
   if (!boxes) return `${n} named features outlined`;
   return `${n} named features, ${boxes.toLocaleString()} of them the gazetteer's `
     + "EXTENT (the box around the feature) rather than an outline -- those are drawn unfilled";
+}
+
+/**
+ * THE BOXES ARE HELD BACK BY DEFAULT, and that is a decision about what the
+ * map CLAIMS rather than about tidiness.
+ *
+ * Measured across the 25 baked bodies, the gazetteer splits in two: the Moon,
+ * Mars, Mercury, Io, Pluto, Charon and Triton are digitised outlines with no
+ * box among them, and eighteen others are mostly or entirely boxes -- Venus
+ * 373 of 414, Dione 95%, Tethys 96%, Titania and Oberon every one. Drawn, a
+ * box says "this is the shape of the feature" in the one language a map has,
+ * and it is the shape of the smallest rectangle that holds it: Aphrodite
+ * Terra's is 166 degrees wide. Unfilled it says it more quietly and still
+ * says it.
+ *
+ * So a body's outlines are the features somebody actually drew, and the boxes
+ * are one tick away with the count in front of it. Nothing is invented and
+ * nothing is lost -- the file is unchanged and the tick draws all of it.
+ */
+export function withoutExtents(fc) {
+  const features = (fc?.features || []).filter((f) => !isExtent(f));
+  return { ...(fc || {}), type: "FeatureCollection", features };
+}
+
+const EXTENTS_KEY = "geoid-gis:iau-extents";
+
+/** Remembered per browser; a storage that throws answers "hidden". */
+export function showExtents() {
+  try { return window.localStorage?.getItem(EXTENTS_KEY) === "1"; } catch { return false; }
+}
+
+function setShowExtents(on) {
+  try { window.localStorage?.setItem(EXTENTS_KEY, on ? "1" : "0"); } catch { /* private window */ }
 }
 
 export const layerNameFor = (body) => `Named feature outlines — ${OUTLINE_BODIES[body]?.name || body} (IAU)`;
@@ -513,12 +559,27 @@ let busy = false;
  * One import for a planet and for a moon: the same file the importer takes
  * from a drop, so both arrive with a Workspace row, symbology and export.
  */
-async function importOutlines(path, name, { west = false, flat = false } = {}) {
-  const manager = window.GeoIDImportManager;
+async function fetchOutlines(path, { west = false } = {}) {
   const response = await fetch(await dataUrl(path));
   if (!response.ok) throw new Error(`HTTP ${response.status}`);
-  let blob = await response.blob();
-  if (west) blob = new Blob([JSON.stringify(toWestPositive(JSON.parse(await blob.text())))]);
+  const all = await response.json();
+  const total = (all.features || []).length;
+  let fc = showExtents() ? all : withoutExtents(all);
+  const hidden = total - (fc.features || []).length;
+  if (west) fc = toWestPositive(fc);
+  return { fc, total, hidden };
+}
+
+/**
+ * One import for a planet and for a moon: the same file the importer takes
+ * from a drop, so both arrive with a Workspace row, symbology and export.
+ *
+ * `unfilled` stays even though the boxes are hidden by default: the tick draws
+ * them, and drawn they are still the box rather than the shape.
+ */
+async function importOutlines(fc, name, { flat = false } = {}) {
+  const manager = window.GeoIDImportManager;
+  const blob = new Blob([JSON.stringify(fc)], { type: "application/geo+json" });
   await manager.importFileList([new File([blob], `${name}.geojson`, { type: "application/geo+json" })],
     { name, frame: false, hold: false, flat, unfilled: isExtent });
   const layer = namedLayer(name);
@@ -537,7 +598,12 @@ async function load(body, say) {
   try {
     say("Loading the outlines…");
     const west = isWestPositive(body);
-    const layer = await importOutlines(OUTLINE_BODIES[body].path, layerNameFor(body), { west });
+    const { fc, hidden } = await fetchOutlines(OUTLINE_BODIES[body].path, { west });
+    // Nothing to draw is an ANSWER here, not a failure: this body's every
+    // named feature is a box. Importing an empty collection would register a
+    // layer with no geometry and a row that explains nothing.
+    if (!fc.features.length) { say(outlineSummary([], hidden) + "."); return false; }
+    const layer = await importOutlines(fc, layerNameFor(body), { flat: false });
     layer.metadata = { ...(layer.metadata || {}), source: CREDIT, citation: CREDIT,
       crs: `${OUTLINE_BODIES[body].name} 2000 geographic, longitude ${west ? "WEST-positive (this viewer's convention)" : "east"}` };
     // a regio holds the planitia that holds the crater: the name the pointer
@@ -547,7 +613,7 @@ async function load(body, say) {
     layer.sceneItemFor = (feature) => sceneItem(feature);
     // one colour per feature type, the question an outline map is read for
     paintByField(layer, "type");
-    say(`${outlineSummary(layer.features)}. Source: ${CREDIT}.`);
+    say(`${outlineSummary(layer.features, hidden)}. Source: ${CREDIT}.`);
     return true;
   } catch (error) {
     say(`The outlines did not load (${error.message || error}).`);
@@ -590,7 +656,9 @@ async function loadMoon(target, say) {
   try {
     say(`Loading ${target.name}'s outlines…`);
     const name = moonLayerNameFor(target.key);
-    const layer = await importOutlines(moonPath(target.key), name, { flat: true });
+    const { fc, hidden } = await fetchOutlines(moonPath(target.key));
+    if (!fc.features.length) { say(`${target.name}: ${outlineSummary([], hidden)}.`); return false; }
+    const layer = await importOutlines(fc, name, { flat: true });
     layer.metadata = { ...(layer.metadata || {}), source: CREDIT, citation: CREDIT,
       crs: `${target.name} geographic, longitude east (drawn on the moon's own mesh)` };
     layer.pickSmallest = true;
@@ -601,7 +669,7 @@ async function loadMoon(target, say) {
     layer.sceneItemFor = (feature) => sceneItem(feature, { moon_name: target.name });
     paintByField(layer, "type");
     if (!hangOnMoon(layer, target, say)) { manager.removeLayer(layer.id); return false; }
-    say(`${outlineSummary(layer.features)} on ${target.name}. Source: ${CREDIT}.`);
+    say(`${outlineSummary(layer.features, hidden)} on ${target.name}. Source: ${CREDIT}.`);
     return true;
   } catch (error) {
     say(`${target.name}'s outlines did not load (${error.message || error}).`);
@@ -783,8 +851,12 @@ function install(body, tries = 0) {
       <p class="compact-copy">The extent of each named feature -- craters, plains, ridges -- as the IAU
         gazetteer draws it. A layer: it joins the Workspace, where it can be recoloured and exported.</p>
       <p class="compact-copy">Where the gazetteer has drawn no outline it publishes the feature's
-        BOUNDING BOX instead -- most of Venus, Europa, Callisto, Titan and the mapped moons. Those are
-        drawn unfilled, because a filled rectangle claims to be the shape of what it only encloses.</p>
+        BOUNDING BOX instead -- every named feature on Titania, Oberon and Hyperion, 373 of Venus's 414,
+        and most of Europa, Callisto, Titan and the mapped moons. A box is the smallest rectangle that
+        holds a feature, not its shape, so those are held back. Drawn, they are drawn unfilled.</p>
+      <div class="row"><label for="nomenclature-extents-toggle"
+        title="The gazetteer's bounding boxes rather than digitised outlines. Held back by default; drawn unfilled.">Show bounding boxes</label><span class="checkbox-wrap"><input
+        id="nomenclature-extents-toggle" type="checkbox"></span></div>
       ${moonLine}
       <p class="compact-copy" id="nomenclature-outlines-status" aria-live="polite"></p>
     </div>`;
@@ -796,6 +868,31 @@ function install(body, tries = 0) {
   ["click", "pointerdown"].forEach((type) => tick.addEventListener(type, (event) => event.stopPropagation()));
   const status = byId("nomenclature-outlines-status");
   const say = (m) => { if (status) status.textContent = m; };
+  /**
+   * The boxes are a SECOND question -- "is this feature drawn" against "is its
+   * shape known" -- so they get a second tick rather than a mode on the first.
+   *
+   * Changing it REBUILDS whatever is on the globe. `renderFeatureCollection`
+   * merges every feature into one fill mesh, one seal and one line buffer, so
+   * there is no per-feature visibility to flip; the tiled geology's own
+   * Boundaries select rebuilds for the same reason.
+   */
+  const extents = byId("nomenclature-extents-toggle");
+  if (extents) {
+    extents.checked = showExtents();
+    extents.addEventListener("change", async () => {
+      setShowExtents(extents.checked);
+      if (!tick.checked || busy) return;   // nothing on the globe to rebuild
+      busy = true;
+      try {
+        const layer = hasPlanet ? layerOf(body) : null;
+        if (layer) window.GeoIDImportManager.removeLayer(layer.id);
+        if (moon) dropMoon();
+      } finally { busy = false; }
+      if (hasPlanet) await load(body, say);
+      if (hasMoons) await followMoon(say);
+    });
+  }
   tick.addEventListener("change", async () => {
     if (tick.checked) {
       let ok = true;

@@ -221,3 +221,96 @@ const checkFile = (key, name, minFeatures) => {
 for (const [key, body] of Object.entries(m.OUTLINE_BODIES)) checkFile(key, body.name, 50);
 // a moon may honestly have one: Hyperion's gazetteer holds a single dorsum
 for (const [key, name] of Object.entries(m.OUTLINE_MOONS)) checkFile(key, name, 1);
+
+/* ── The boxes are held back ──────────────────────────────────────────────
+ *
+ * The gazetteer splits in two and the map has to say so. Seven bodies are
+ * digitised outlines with no box among them; eighteen are mostly or entirely
+ * the feature's BOUNDING BOX -- Venus 373 of 414, Titania and Oberon every
+ * one. A box drawn is a claim about a shape nobody drew, so the default is
+ * the features somebody outlined and the boxes are one tick away.
+ *
+ * Pinned on the SOURCE as well as the arithmetic: the filter is one line in
+ * the fetch, and a later edit that drops it would leave every check below
+ * passing while the map went back to rectangles.
+ */
+{
+  const box = (name) => ({ type: "Feature", properties: { name, extent: true },
+    geometry: { type: "Polygon", coordinates: [[[0, 0], [0, 1], [1, 1], [1, 0], [0, 0]]] } });
+  const drawn = (name) => ({ type: "Feature", properties: { name },
+    geometry: { type: "Polygon", coordinates: [[[0, 0], [0, 1], [1, 1], [0.5, 2], [0, 0]]] } });
+
+  const fc = { type: "FeatureCollection", _source: "kept",
+    features: [box("a"), drawn("b"), box("c"), drawn("d")] };
+  const cut = m.withoutExtents(fc);
+  ok(cut.features.length === 2 && cut.features.every((f) => !m.isExtent(f)),
+     "withoutExtents keeps only what was outlined");
+  ok(cut.features.map((f) => f.properties.name).join() === "b,d",
+     "withoutExtents keeps them in file order");
+  ok(fc.features.length === 4,
+     "withoutExtents does not mutate the collection it was given");
+  ok(cut._source === "kept",
+     "withoutExtents carries the file's own _source through");
+  ok(m.withoutExtents({ type: "FeatureCollection", features: [] }).features.length === 0
+     && m.withoutExtents({}).features.length === 0,
+     "withoutExtents survives an empty or shapeless collection");
+
+  // The sentence is the only thing that says why a world is emptier than its
+  // feature count. All three cases have to be distinguishable.
+  const held = m.outlineSummary([drawn("b"), drawn("d")], 373);
+  ok(/\b2\b/.test(held) && /373/.test(held) && /held back/i.test(held),
+     "the summary names what is drawn AND what is held back");
+  const none = m.outlineSummary([], 16);
+  ok(/outlined none/i.test(none) && /16/.test(none) && !/^0\b/.test(none),
+     "a body of nothing but boxes says the gazetteer outlined none of them");
+  ok(!/held back/i.test(m.outlineSummary([drawn("b")], 0)),
+     "a body with no boxes says nothing about boxes");
+  ok(/unfilled/.test(m.outlineSummary([box("a"), drawn("b")], 0)),
+     "with the boxes shown, the summary still says they are drawn unfilled");
+
+  // Source: comments stripped first, because the prose above the code names
+  // every one of these strings -- the scanner would otherwise pass on its own
+  // explanation, which this tree has paid for before.
+  const src = readFileSync(join(HERE, "nomenclature-outlines.js"), "utf8")
+    .replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+  ok(/showExtents\(\)\s*\?\s*all\s*:\s*withoutExtents\(all\)/.test(src),
+     "the fetch filters the boxes out unless they are asked for");
+  ok(/unfilled:\s*isExtent/.test(src),
+     "a box that IS drawn is still drawn unfilled");
+  ok(/id="nomenclature-extents-toggle"/.test(src),
+     "the panel offers the tick that draws them");
+  ok(/localStorage\?\.setItem\(EXTENTS_KEY/.test(src)
+     && /localStorage\?\.getItem\(EXTENTS_KEY\)/.test(src),
+     "the choice is remembered per browser");
+  ok(/catch\s*\{\s*return false;\s*\}/.test(src),
+     "a storage that throws answers 'hidden' rather than throwing");
+}
+
+/* What each baked body would DRAW with the boxes held back, from the files
+ * themselves. The three that draw nothing are the reason the empty case is a
+ * sentence rather than a failed import. */
+{
+  const dir = join(HERE, "..", "..", "..", "data", "global", "nomenclature");
+  const names = { ...m.OUTLINE_BODIES, ...m.OUTLINE_MOONS };
+  let checked = 0, allBoxes = [];
+  for (const key of Object.keys(names)) {
+    const file = join(dir, `${key}.geojson`);
+    if (!existsSync(file)) continue;
+    checked += 1;
+    const d = JSON.parse(readFileSync(file, "utf8"));
+    const kept = m.withoutExtents(d).features.length;
+    ok(kept + d.features.filter(m.isExtent).length === d.features.length,
+       `${key}: every feature is either an outline or a box`);
+    if (!kept) allBoxes.push(key);
+  }
+  if (checked) {
+    ok(allBoxes.sort().join() === "hyperion,oberon,titania",
+       `only Titania, Oberon and Hyperion are nothing but boxes (got ${allBoxes.join() || "none"})`);
+    const venus = join(dir, "venus.geojson");
+    if (existsSync(venus)) {
+      const d = JSON.parse(readFileSync(venus, "utf8"));
+      ok(m.withoutExtents(d).features.length === 41 && d.features.length === 414,
+         `Venus draws 41 of its 414 (got ${m.withoutExtents(d).features.length} of ${d.features.length})`);
+    }
+  }
+}
