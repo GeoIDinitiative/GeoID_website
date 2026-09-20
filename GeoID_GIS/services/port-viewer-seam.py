@@ -365,10 +365,129 @@ def apply_pick(check: bool) -> int:
 
 
 
+# ── Search and Tour Mode read the loaded layers too ──────────────────────────
+#
+# A viewer ships the places it was written around; the gazetteer the GIS modules
+# load beside it is the same {name, type, lat, lon} shape and is what a reader
+# means by "search for a place". Rocky worlds only: a gas giant has no surface
+# features of its own, and its moons' outlines carry the MOON's coordinates,
+# which this search would fly the planet to.
+SEARCH_WORLDS = ["mars", "venus", "mercury", "moon", "pluto"]
+
+SEARCH_MARK = "Search and Tour Mode read the loaded layers too"
+
+SEARCH_BLOCK = """    // \u2500\u2500 Search and Tour Mode read the loaded layers too \u2500\u2500\u2500\u2500\u2500\u2500
+    //
+    // `allFeatureData` is what this viewer shipped with. A PROVIDER rather than
+    // a list, because a gazetteer layer arrives late and goes away again: a
+    // copy taken here would be empty for ever, one taken on load would outlive
+    // the layer. Each source is asked every time, in its own try, so one that
+    // throws cannot empty the search.
+    const featureSources = new Map();
+    function registerFeatureSource(key, provider) {
+      const id = String(key);
+      if (typeof provider === "function") featureSources.set(id, provider);
+      else featureSources.delete(id);
+      return () => featureSources.delete(id);
+    }
+    function extraFeatureItems() {
+      const out = [];
+      for (const provider of featureSources.values()) {
+        try {
+          const items = provider();
+          if (Array.isArray(items)) out.push(...items);
+        } catch (error) { /* a source that throws answers nothing */ }
+      }
+      return out;
+    }
+    // A shipped feature wins a name it shares with a gazetteer one: it carries
+    // the description this viewer's card is written on.
+    const dedupeByName = (items) => {
+      const seen = new Set();
+      return items.filter((item) => {
+        const key = String((item && item.name) || "").trim().toLowerCase();
+        if (!key || seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+    };
+    function searchPool() {
+      return dedupeByName([...allFeatureData, ...extraFeatureItems()]);
+    }
+    // A TOUR IS A LIST SOMEBODY READS DOWN, so it is capped: one <option> per
+    // stop over a gazetteer is thousands in a select nobody can use, and the
+    // flight between two stops is the same flight whichever is sixtieth.
+    const TOUR_MAX_STOPS = 60;
+    function tourStopPool() {
+      return dedupeByName([...labelData, ...extraFeatureItems()]);
+    }
+    // PUBLISHED ONTO THE SEAM RATHER THAN WRITTEN INTO IT. Two porter sections
+    // anchored at the same property swap places on every run and `--check`
+    // never settles -- measured, this one and the picker traded sides each
+    // time. Attaching afterwards costs nothing: every caller registers from a
+    // module that is already waiting for the viewer.
+    (function publishFeatureSeam(tries) {
+      if (window.GeoIDViewer) {
+        window.GeoIDViewer.registerFeatureSource = registerFeatureSource;
+        return;
+      }
+      if (tries < 200) setTimeout(() => publishFeatureSeam(tries + 1), 100);
+    })(0);
+    // (end of the shared search seam)
+"""
+
+def apply_search(check: bool) -> int:
+    """The search/tour seam, on the five rocky worlds."""
+    stale = 0
+    for world in SEARCH_WORLDS:
+        path = target(world)
+        src = path.read_text(encoding="utf-8")
+        find_anchor = "    function findFeatureByName(name) {"
+        if find_anchor not in src:
+            print(f"  {world:<9} ANCHOR MISSING (search)")
+            stale += 1
+            continue
+        # Idempotent: strip a previous block, and put the pools back, before
+        # writing the current one.
+        if SEARCH_MARK in src:
+            src = re.sub(r"[ ]*// \u2500\u2500 Search and Tour Mode.*?// \(end of the shared search seam\)\n",
+                         "", src, count=1, flags=re.S)
+            src = src.replace("        registerFeatureSource,\n", "")
+            src = src.replace("        // What Search and Tour Mode look in, besides what this viewer ships.\n", "")
+            src = src.replace("      const pool = searchPool();", "      const pool = allFeatureData;")
+            src = src.replace("tourStopPool().filter((item) => facet.matches(item)).slice(0, TOUR_MAX_STOPS)",
+                              "labelData.filter((item) => facet.matches(item))")
+        want = src.replace(find_anchor, SEARCH_BLOCK + find_anchor, 1)
+        n = want.count("      const pool = allFeatureData;")
+        if n != 2:
+            print(f"  {world:<9} POOL ANCHOR: expected 2, found {n}")
+            stale += 1
+            continue
+        want = want.replace("      const pool = allFeatureData;", "      const pool = searchPool();")
+        # Two shapes of the tour filter: the plain return, and the Moon's, which
+        # keeps its own per-mission filtering on the result.
+        tour = "labelData.filter((item) => facet.matches(item))"
+        if want.count(tour) != 1:
+            print(f"  {world:<9} TOUR ANCHOR: expected 1, found {want.count(tour)}")
+            stale += 1
+            continue
+        want = want.replace(tour, "tourStopPool().filter((item) => facet.matches(item)).slice(0, TOUR_MAX_STOPS)", 1)
+        if check:
+            if path.read_text(encoding="utf-8") != want:
+                print(f"  {world:<9} STALE (search)")
+                stale += 1
+            else:
+                print(f"  {world:<9} up to date (search)")
+        else:
+            path.write_text(want, encoding="utf-8")
+            print(f"  {world:<9} search seam written")
+    return stale
+
 
 if __name__ == "__main__":
     check = "--check" in sys.argv
-    bad = apply(check) + apply_cards(check) + apply_cutaway(check) + apply_spin(check) + apply_pick(check)
+    bad = (apply(check) + apply_cards(check) + apply_cutaway(check)
+           + apply_spin(check) + apply_pick(check) + apply_search(check))
     if check:
         print("uniform" if not bad else f"{bad} viewer(s) stale")
     sys.exit(1 if bad else 0)

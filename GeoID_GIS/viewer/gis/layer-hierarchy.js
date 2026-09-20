@@ -10,17 +10,17 @@
 // everything below. That is the opposite of three.js renderOrder, so the two are
 // inverted when applied.
 
-import { bandOf } from "./draw-order.js?v=20260920-f4b4954";
-import { paintOpacity } from "./layer-opacity.js?v=20260920-f4b4954";
-import { currentBody } from "./bodies.js?v=20260920-f4b4954";
-import { samplerToRaster } from "./raster-analysis.js?v=20260920-f4b4954";
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260920-f4b4954";
-import { datasetInfoButton } from "./catalogue-list.js?v=20260920-f4b4954";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260920-f4b4954";
+import { bandOf } from "./draw-order.js?v=20260920-724172f";
+import { paintOpacity } from "./layer-opacity.js?v=20260920-724172f";
+import { currentBody } from "./bodies.js?v=20260920-724172f";
+import { samplerToRaster } from "./raster-analysis.js?v=20260920-724172f";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260920-724172f";
+import { datasetInfoButton } from "./catalogue-list.js?v=20260920-724172f";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260920-724172f";
 import {
   openSymbologyDialog, geometrySummary, geometryKind,
-} from "./symbology-dialog.js?v=20260920-f4b4954";
-import { chipHtml, typeSelect, applyTag, descriptionOf, isUserInput } from "./data-tags.js?v=20260920-f4b4954";
+} from "./symbology-dialog.js?v=20260920-724172f";
+import { chipHtml, typeSelect, applyTag, descriptionOf, isUserInput } from "./data-tags.js?v=20260920-724172f";
 
 /**
  * The row grew a column and gained a tile, and .layer-row is declared twice --
@@ -121,7 +121,6 @@ const STYLE = `
 }
 .layer-label-size { display: inline-flex; align-items: center; gap: 0.35rem; cursor: default; }
 .layer-label-size input { width: 5.5rem; accent-color: rgb(var(--nav-accent-rgb)); }
-.layer-label-size span { min-width: 2.6rem; text-align: right; font-size: 0.72rem; opacity: 0.8; font-variant-numeric: tabular-nums; }
 /* One more column, for the ⓘ every layer carries. */
 .layer-stack .layer-row.has-info {
   grid-template-columns: auto auto auto 1fr auto auto 4.5rem auto;
@@ -1062,13 +1061,21 @@ function locationLabelsRow() {
     wrap.className = "layer-label-size";
     wrap.title = "Label size";
     const k = viewer.getLabelSizeScale?.() || 1;
-    wrap.innerHTML = `<input type="range" min="0.5" max="2.5" step="0.05" value="${k}" aria-label="Label size"><span>${Math.round(k * 100)}%</span>`;
-    const range = wrap.querySelector("input"), out = wrap.querySelector("span");
+    /**
+     * NO READOUT. The slider is beside the thing it sizes, so the answer is on
+     * the globe rather than in a number — and "100%" of a scale nobody set is
+     * a figure with no unit and nothing to compare against, sitting in the one
+     * row of the Workspace that is not a layer. What it said is kept where it
+     * costs no width: on the control's own tooltip, refreshed as it moves.
+     */
+    wrap.innerHTML = `<input type="range" min="0.5" max="2.5" step="0.05" value="${k}" aria-label="Label size">`;
+    const range = wrap.querySelector("input");
+    const readout = (v) => { range.title = `Label size ${Math.round(v * 100)}%`; };
+    readout(k);
     // Held here, never re-rendered while dragged: a render rebuilds the row.
     for (const type of ["pointerdown", "mousedown", "click", "dragstart"]) range.addEventListener(type, (e) => e.stopPropagation());
     range.addEventListener("input", () => {
-      const v = viewer.setLabelSizeScale(parseFloat(range.value));
-      out.textContent = `${Math.round(v * 100)}%`;
+      readout(viewer.setLabelSizeScale(parseFloat(range.value)));
     });
     node.appendChild(wrap);
   }

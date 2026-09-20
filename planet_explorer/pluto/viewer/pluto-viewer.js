@@ -5356,12 +5356,70 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
       hoverTooltip.hidden = true;
     }
 
+    // ── Search and Tour Mode read the loaded layers too ──────
+    //
+    // `allFeatureData` is what this viewer shipped with. A PROVIDER rather than
+    // a list, because a gazetteer layer arrives late and goes away again: a
+    // copy taken here would be empty for ever, one taken on load would outlive
+    // the layer. Each source is asked every time, in its own try, so one that
+    // throws cannot empty the search.
+    const featureSources = new Map();
+    function registerFeatureSource(key, provider) {
+      const id = String(key);
+      if (typeof provider === "function") featureSources.set(id, provider);
+      else featureSources.delete(id);
+      return () => featureSources.delete(id);
+    }
+    function extraFeatureItems() {
+      const out = [];
+      for (const provider of featureSources.values()) {
+        try {
+          const items = provider();
+          if (Array.isArray(items)) out.push(...items);
+        } catch (error) { /* a source that throws answers nothing */ }
+      }
+      return out;
+    }
+    // A shipped feature wins a name it shares with a gazetteer one: it carries
+    // the description this viewer's card is written on.
+    const dedupeByName = (items) => {
+      const seen = new Set();
+      return items.filter((item) => {
+        const key = String((item && item.name) || "").trim().toLowerCase();
+        if (!key || seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+    };
+    function searchPool() {
+      return dedupeByName([...allFeatureData, ...extraFeatureItems()]);
+    }
+    // A TOUR IS A LIST SOMEBODY READS DOWN, so it is capped: one <option> per
+    // stop over a gazetteer is thousands in a select nobody can use, and the
+    // flight between two stops is the same flight whichever is sixtieth.
+    const TOUR_MAX_STOPS = 60;
+    function tourStopPool() {
+      return dedupeByName([...labelData, ...extraFeatureItems()]);
+    }
+    // PUBLISHED ONTO THE SEAM RATHER THAN WRITTEN INTO IT. Two porter sections
+    // anchored at the same property swap places on every run and `--check`
+    // never settles -- measured, this one and the picker traded sides each
+    // time. Attaching afterwards costs nothing: every caller registers from a
+    // module that is already waiting for the viewer.
+    (function publishFeatureSeam(tries) {
+      if (window.GeoIDViewer) {
+        window.GeoIDViewer.registerFeatureSource = registerFeatureSource;
+        return;
+      }
+      if (tries < 200) setTimeout(() => publishFeatureSeam(tries + 1), 100);
+    })(0);
+    // (end of the shared search seam)
     function findFeatureByName(name) {
       const needle = String(name || "").trim().toLowerCase();
       if (!needle) {
         return null;
       }
-      const pool = allFeatureData;
+      const pool = searchPool();
       return pool.find((item) => item.name.toLowerCase() === needle)
         || pool.find((item) => item.name.toLowerCase().startsWith(needle));
     }
@@ -5390,7 +5448,7 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
       if (!needle) {
         return [];
       }
-      const pool = allFeatureData;
+      const pool = searchPool();
       return pool
         .map((item) => {
           const name = String(item.name || "").toLowerCase();
@@ -5509,7 +5567,7 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
       if (!facet) {
         return [];
       }
-      return labelData.filter((item) => facet.matches(item));
+      return tourStopPool().filter((item) => facet.matches(item)).slice(0, TOUR_MAX_STOPS);
     }
 
     function populateTourTargetOptions(facetId = activeTourModeFacetId, selectedName = activeTourModeFeature?.name || "") {

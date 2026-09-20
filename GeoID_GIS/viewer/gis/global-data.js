@@ -26,18 +26,18 @@
  * rebuilt or updated without guessing what was done to them.
  */
 
-import { runConnector } from "./research/connectors.js?v=20260920-f4b4954";
-import { explainFetchFailure, dataUrl } from "./data-base.js?v=20260920-f4b4954";
-import { mathsFor } from "./equations.js?v=20260920-f4b4954";
+import { runConnector } from "./research/connectors.js?v=20260920-724172f";
+import { explainFetchFailure, dataUrl } from "./data-base.js?v=20260920-724172f";
+import { mathsFor } from "./equations.js?v=20260920-724172f";
 import {
   riskEdges, RISK_LABELS,
-} from "./cyclone-risk.js?v=20260920-f4b4954";
-import { colourRange as volcanicColourRange } from "./volcanic-risk.js?v=20260920-f4b4954";
-import { featureForModel, may, refusal } from "./membership.js?v=20260920-f4b4954";
-import { colourRange as seismicColourRange } from "./seismic-bands.js?v=20260920-f4b4954";
+} from "./cyclone-risk.js?v=20260920-724172f";
+import { colourRange as volcanicColourRange } from "./volcanic-risk.js?v=20260920-724172f";
+import { featureForModel, may, refusal } from "./membership.js?v=20260920-724172f";
+import { colourRange as seismicColourRange } from "./seismic-bands.js?v=20260920-724172f";
 // The cyclone tracks are classed on the same scale the live storm markers
 // band by, so the archive and the feed cut intensity at the same knots.
-import { SAFFIR_SIMPSON_KTS } from "./event-sources.js?v=20260920-f4b4954";
+import { SAFFIR_SIMPSON_KTS } from "./event-sources.js?v=20260920-724172f";
 
 /** Order the groups read in, coarse to specific. */
 export const GROUPS = ["Physical", "Hydrology", "Boundaries", "Tectonics",
@@ -191,12 +191,19 @@ export const DATASETS = [
     summary: "515 lines",
     licence: "Natural Earth — public domain",
     /**
-     * ON WHEN THE PAGE OPENS, faint: a fifth of full strength, so the borders
-     * say where a place is without ruling a political map over the physical
-     * one. The LINES, not the country polygons — a filled country at 20% is a
-     * tint over the whole planet, a border is only where one country ends.
+     * ON WHEN THE PAGE OPENS, and WHITE. The LINES, not the country polygons —
+     * a filled country is a tint over the whole planet, a border is only where
+     * one country ends.
+     *
+     * White because a border is not a reading. Left to the renderer it took
+     * `lineColor`, the app's own data cyan (0x8ef6c4), which is the colour
+     * every measured layer on this globe is drawn in — so the one line that
+     * carries no measurement was wearing the livery of the ones that do, and
+     * a political boundary read as a dataset. White is the neutral the rest of
+     * the palette is defined against and belongs to nothing else here.
      */
     defaultOn: true,
+    colour: "#ffffff",
     opacity: 1,
   },
   {

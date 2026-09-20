@@ -46,11 +46,11 @@
  *     a crater on Io. The satellites' own seam, for the same reason.
  */
 import * as THREE from "../vendor/three.module.js";
-import { dataUrl } from "./data-base.js?v=20260920-f4b4954";
-import { currentBodyId, getBody } from "./bodies.js?v=20260920-f4b4954";
-import { latLonToVector3 } from "./geo-utils.js?v=20260920-f4b4954";
-import { pointInPolygon } from "./geometry.js?v=20260920-f4b4954";
-import { paintByField } from "./symbology-dialog.js?v=20260920-f4b4954";
+import { dataUrl } from "./data-base.js?v=20260920-724172f";
+import { currentBodyId, getBody } from "./bodies.js?v=20260920-724172f";
+import { latLonToVector3 } from "./geo-utils.js?v=20260920-724172f";
+import { pointInPolygon } from "./geometry.js?v=20260920-724172f";
+import { paintByField } from "./symbology-dialog.js?v=20260920-724172f";
 
 export const OUTLINE_BODIES = {
   moon: { path: "/data/global/nomenclature/moon.geojson", name: "Moon" },
@@ -632,6 +632,41 @@ function segmentDistance([px, py], [ax, ay], [bx, by]) {
 let busy = false;
 
 /**
+ * THE OUTLINES ANSWER SEARCH AND TOUR MODE, for as long as they are loaded.
+ *
+ * A viewer ships the places it was written around -- Mars's own label data,
+ * Earth's curated forty-five -- and the gazetteer is a layer somebody ticks on
+ * beside them. Registering a PROVIDER rather than handing over a list is what
+ * lets the features go when the layer does: unticked, the search stops
+ * offering craters that are no longer on the globe.
+ *
+ * Built on the first ask and kept, because the Moon's file is 9,060 features
+ * and a search runs on every keystroke. The cache dies with the registration.
+ *
+ * A MOON'S OUTLINES ARE DELIBERATELY NOT OFFERED HERE. Their coordinates are
+ * the MOON's, and this viewer's search flies the PLANET to a lat/lon -- the
+ * same reason the moon layer carries `groundPick: false`. Each viewer already
+ * ships its moons' own feature data for that.
+ */
+const searchHandles = new Map();
+
+function offerToSearch(key, layer) {
+  const viewer = window.GeoIDViewer;
+  if (typeof viewer?.registerFeatureSource !== "function" || !layer) return;
+  stopOfferingToSearch(key);
+  let cache = null;
+  searchHandles.set(key, viewer.registerFeatureSource(`iau-${key}`, () => {
+    cache ||= (layer.features || []).map((f) => sceneItem(f)).filter(Boolean);
+    return cache;
+  }));
+}
+
+function stopOfferingToSearch(key) {
+  const off = searchHandles.get(key);
+  if (off) { off(); searchHandles.delete(key); }
+}
+
+/**
  * One import for a planet and for a moon: the same file the importer takes
  * from a drop, so both arrive with a Workspace row, symbology and export.
  */
@@ -689,6 +724,7 @@ async function load(body, say) {
     layer.sceneItemFor = (feature) => sceneItem(feature);
     // one colour per feature type, the question an outline map is read for
     paintByField(layer, "type");
+    offerToSearch(body, layer);
     say(`${outlineSummary(layer.features, hidden)}. Source: ${CREDIT}.`);
     return true;
   } catch (error) {
@@ -953,6 +989,7 @@ function install(body, tries = 0) {
     } else {
       const layer = hasPlanet ? layerOf(body) : null;
       if (layer) window.GeoIDImportManager.removeLayer(layer.id);
+      stopOfferingToSearch(body);
       dropMoon();
       say("");
     }
@@ -960,8 +997,13 @@ function install(body, tries = 0) {
   // the tick follows the layer: removed in the Workspace, it unticks here
   const follow = () => {
     if (busy) return;
-    if (hasPlanet) tick.checked = Boolean(layerOf(body));
-    else if (!moonLayer() && moon) { dropMoon(); }
+    if (hasPlanet) {
+      const layer = layerOf(body);
+      tick.checked = Boolean(layer);
+      // Removed from the Workspace rather than here, so the search has to be
+      // told the same way the tick is.
+      if (!layer) stopOfferingToSearch(body);
+    } else if (!moonLayer() && moon) { dropMoon(); }
   };
   const hook = (n = 0) => {
     if (window.GeoIDImportManager?.onChange) window.GeoIDImportManager.onChange(follow);

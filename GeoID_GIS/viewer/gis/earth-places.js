@@ -14,8 +14,8 @@
  *
  * Earth only: the page's own script tag loads it, the planets never do.
  */
-import { dataUrl } from "./data-base.js?v=20260920-f4b4954";
-import { holdLaunch } from "./launch-ready.js?v=20260920-f4b4954";
+import { dataUrl } from "./data-base.js?v=20260920-724172f";
+import { holdLaunch } from "./launch-ready.js?v=20260920-724172f";
 
 const PATH = "/data/global/earth-places.json";
 const ON_KEY = "geoid-gis:earth-places-on";   // what was switched ON — see note
@@ -189,6 +189,29 @@ async function load(viewer) {
   const curated = viewer.curatedPlaces();
   const rank = (item, lod, category) => viewer.rankPlace(item, lod, category);
   const places = (doc.places || []).filter((p) => !isCuratedDuplicate(p, curated));
+  /**
+   * SEARCHABLE WHETHER OR NOT THEY ARE DRAWN. A reader looking for Vesuvius
+   * has not first ticked "Volcanoes" on -- that tick decides what is written
+   * across the globe, and the search box is how you get to a place you cannot
+   * see. So every row is offered, and the category filter governs the labels
+   * alone.
+   *
+   * Built on the FIRST ask and kept, never per keystroke: 13,200 rows is a
+   * cheap list to hold and an expensive one to rebuild sixty times a minute.
+   * Lighter than a label item -- no chip, no palette, no scale -- because
+   * nothing here is drawn.
+   */
+  let searchItems = null;
+  viewer.registerFeatureSource?.("earth-places", () => {
+    searchItems ||= places.map((row) => ({
+      name: row.name, type: row.type, lat: row.lat, lon: row.lon,
+      theme: "standard", description: row.description, source: row.source,
+      region: row.region, population: row.population,
+      elevation_m: typeof row.elevation_m === "number" ? row.elevation_m : undefined,
+      place: true, lod: row.lod, category: `place-${row.category}`,
+    }));
+    return searchItems;
+  });
   drawRows(viewer);
   wireMaster();
   viewer.setPlaceCategoryFilter((category) => onSet.has(category));

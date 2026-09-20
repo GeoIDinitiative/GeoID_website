@@ -2,13 +2,13 @@ import * as THREE from "./vendor/three.module.js";
 // The polygon-area rule lives in one place, with a test. Stamped by hand
 // once: stamp.py only rewrites a ?v= that already exists.
 import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
-  from "./gis/geo-utils.js?v=20260920-f4b4954";
+  from "./gis/geo-utils.js?v=20260920-724172f";
 import { attachReliefAttributes, followRelief }
-  from "./gis/vector-render.js?v=20260920-f4b4954";
+  from "./gis/vector-render.js?v=20260920-724172f";
 import { rockClass, crustalSetting, rockClassLabel, classificationBasis }
-  from "./gis/rock-class.js?v=20260920-f4b4954";
+  from "./gis/rock-class.js?v=20260920-724172f";
 import { lithologyLabel }
-  from "./gis/lithology-label.js?v=20260920-f4b4954";
+  from "./gis/lithology-label.js?v=20260920-724172f";
 
 /**
  * This module's own cache stamp, read off its own URL.
@@ -405,6 +405,24 @@ function fmtProp(value) {
         matches: (item) => item.theme === "moon" || Boolean(item.moon_name),
       },
     ];
+    /**
+     * A FACET PER PLACE CATEGORY, generated from `PLACE_CATEGORIES` rather than
+     * typed out beside it. The facets above match on a type regex, which was
+     * the only handle the curated forty-five gave; a gazetteer place carries
+     * the category the Locations list already sorts it by, so touring
+     * "Mountains" is the same question the tick box asks.
+     *
+     * Generated, because a category added to that list and forgotten here is a
+     * tour facet nobody knows is missing.
+     */
+    for (const cat of PLACE_CATEGORIES) {
+      TOUR_MODE_FACETS.push({
+        id: `cat-${cat.id}`,
+        label: cat.label,
+        description: `Named ${cat.label.toLowerCase()} from the gazetteer, most significant first.`,
+        matches: (item) => item.category === cat.id,
+      });
+    }
     const BASE_BUILDER_CATALOG = [
       { id: "hab_primary", name: "Primary Habitat", category: "Habitation", size: [4, 4], rotatable: true, color: "#4fc3f7", description: "Pressurised crew habitat and communal living module." },
       { id: "hab_extended", name: "Extended Habitat", category: "Habitation", size: [4, 2], rotatable: true, color: "#64b5f6", description: "Additional living or family habitation wing." },
@@ -5471,12 +5489,64 @@ function fmtProp(value) {
       hoverTooltip.hidden = true;
     }
 
+    /**
+     * FEATURES THE VIEWER DID NOT SHIP WITH.
+     *
+     * `labelData` is the forty-five curated places this file was written
+     * around. What a reader now means by "search for a place" is the gazetteer
+     * the GIS modules load beside it -- Earth's 13,200 named places, a planet's
+     * IAU nomenclature -- and those are the same {name, type, lat, lon} shape,
+     * so Search and Tour Mode read them too.
+     *
+     * A PROVIDER RATHER THAN A LIST, because those layers arrive late and go
+     * away again: a copy taken when this file ran would be empty for ever, and
+     * one taken when a layer loaded would outlive the layer. Each source
+     * answers for itself, every time it is asked.
+     *
+     * One bad source must never empty the search, so each is called in its own
+     * try.
+     */
+    const featureSources = new Map();
+    function registerFeatureSource(key, provider) {
+      const id = String(key);
+      if (typeof provider === "function") featureSources.set(id, provider);
+      else featureSources.delete(id);
+      return () => featureSources.delete(id);
+    }
+    function extraFeatureItems() {
+      const out = [];
+      for (const provider of featureSources.values()) {
+        try {
+          const items = provider();
+          if (Array.isArray(items)) out.push(...items);
+        } catch (error) { /* a source that throws is a source that answers nothing */ }
+      }
+      return out;
+    }
+    /**
+     * A CURATED PLACE AND ITS GAZETTEER TWIN ARE ONE PLACE, and the curated one
+     * wins: it is first in the pool and carries the description the scene card
+     * is written on. Without this, searching "Everest" offers it twice.
+     */
+    function searchPool() {
+      const pool = [...allFeatureData, ...extraFeatureItems(),
+        ...(Array.isArray(gisPins) ? gisPins : []),
+        ...(Array.isArray(gisBases) ? gisBases.map(baseLabelItem) : [])];
+      const seen = new Set();
+      return pool.filter((item) => {
+        const key = String(item?.name || "").trim().toLowerCase();
+        if (!key || seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+    }
+
     function findFeatureByName(name) {
       const needle = String(name || "").trim().toLowerCase();
       if (!needle) {
         return null;
       }
-      const pool = [...allFeatureData, ...(Array.isArray(gisPins) ? gisPins : []), ...(Array.isArray(gisBases) ? gisBases.map(baseLabelItem) : [])];
+      const pool = searchPool();
       return pool.find((item) => item.name.toLowerCase() === needle)
         || pool.find((item) => item.name.toLowerCase().includes(needle));
     }
@@ -5486,7 +5556,7 @@ function fmtProp(value) {
       if (!needle) {
         return [];
       }
-      const pool = [...allFeatureData, ...(Array.isArray(gisPins) ? gisPins : []), ...(Array.isArray(gisBases) ? gisBases.map(baseLabelItem) : [])];
+      const pool = searchPool();
       return pool
         .map((item) => {
           const haystack = item.name.toLowerCase();
@@ -5602,12 +5672,36 @@ function fmtProp(value) {
       return TOUR_MODE_FACETS.find((facet) => facet.id === facetId) || TOUR_MODE_FACETS[0] || null;
     }
 
+    /**
+     * A TOUR IS A LIST SOMEBODY READS DOWN, so it is capped.
+     *
+     * `populateTourTargetOptions` builds one <option> per stop; over the
+     * gazetteer that is thirteen thousand of them in a select nobody can use,
+     * and the flight between two of them is the same flight whichever is
+     * fiftieth. Curated places lead -- they carry the description the stop card
+     * is written on -- and the rest follow in the gazetteer's OWN significance
+     * order (`lod`, 1 being the tier it labels first), which is the same answer
+     * the Locations list sorts by.
+     */
+    const TOUR_MAX_STOPS = 60;
+    function tourStopPool() {
+      const extra = extraFeatureItems()
+        .slice()
+        .sort((a, b) => (Number(a.lod) || 9) - (Number(b.lod) || 9));
+      const seen = new Set();
+      return [...labelData, ...extra].filter((item) => {
+        const key = String(item?.name || "").trim().toLowerCase();
+        if (!key || seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+    }
     function getTourFeaturesByFacet(facetId = activeTourModeFacetId) {
       const facet = getTourFacetById(facetId);
       if (!facet) {
         return [];
       }
-      return labelData.filter((item) => facet.matches(item));
+      return tourStopPool().filter((item) => facet.matches(item)).slice(0, TOUR_MAX_STOPS);
     }
 
     function populateTourTargetOptions(facetId = activeTourModeFacetId, selectedName = activeTourModeFeature?.name || "") {
@@ -22261,6 +22355,10 @@ uniform float uViewportWidth;`,
       }
 
       window.GeoIDViewer = {
+        // What Search and Tour Mode look in, besides the curated places. A
+        // provider is asked every time, so a layer that comes and goes takes
+        // its features with it.
+        registerFeatureSource,
         /**
          * FLOATING CARDS, so a mode change can dismiss them.
          *
