@@ -7,8 +7,8 @@
     "node": ">=22"
   },
   "dependencies": {
-    "@google/earthengine": "^1.4.0",
-    "google-auth-library": "^9.14.0"
+    "@google/earthengine": "^1.7.45",
+    "google-auth-library": "^11.1.0"
   },
   "scripts": {
     "start": "functions-framework --target=geeImage --port=8130"

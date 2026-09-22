@@ -2,9 +2,11 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https:; media-src 'self' data: blob: https://data.geoidinitiative.com; connect-src 'self' https://data.geoidinitiative.com https://auth.geoidinitiative.com https://formspree.io; frame-src 'self' https://docs.google.com; form-action 'self' https://formspree.io https://buy.stripe.com https://docs.google.com; upgrade-insecure-requests">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="description" content="About the GeoID Initiative — GeoHUB, a free hazard GIS on a 3D globe; Earth Explorer's close-up site models; and six modelled hazard maps open to members, with the methods published.">
-  <title>GeoID Initiative — About</title>
+  <title>About GeoID | Open 3D Geoscience &amp; Natural Hazard Platform</title>
   <!-- Social / search preview. Without an og:image, search engines pick an
        arbitrary image off the page — which is why results showed a stray
        Earth icon instead of the GeoID logo. -->
@@ -12,14 +14,14 @@
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="GeoID Initiative">
   <meta property="og:url" content="https://geoidinitiative.com/about/">
-  <meta property="og:title" content="GeoID Initiative — About">
+  <meta property="og:title" content="About GeoID | Open 3D Geoscience &amp; Natural Hazard Platform">
   <meta property="og:description" content="About the GeoID Initiative — GeoHUB, a free hazard GIS on a 3D globe; Earth Explorer's close-up site models; and six modelled hazard maps open to members, with the methods published.">
   <meta property="og:image" content="https://geoidinitiative.com/assets/og_geoid.jpg">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="1200">
   <meta property="og:image:alt" content="GeoID Initiative logo">
   <meta name="twitter:card" content="summary">
-  <meta name="twitter:title" content="GeoID Initiative — About">
+  <meta name="twitter:title" content="About GeoID | Open 3D Geoscience &amp; Natural Hazard Platform">
   <meta name="twitter:description" content="About the GeoID Initiative — GeoHUB, a free hazard GIS on a 3D globe; Earth Explorer's close-up site models; and six modelled hazard maps open to members, with the methods published.">
   <meta name="twitter:image" content="https://geoidinitiative.com/assets/og_geoid.jpg">
   <link rel="icon" type="image/png" href="/assets/GeoID_mark.png">
@@ -28,7 +30,7 @@
   <link rel="preload" as="font" type="font/woff2" crossorigin href="https://fonts.gstatic.com/s/audiowide/v22/l7gdbjpo0cum0ckerWCdlg_O.woff2">
   <link rel="preload" as="font" type="font/woff2" crossorigin href="https://fonts.gstatic.com/s/chakrapetch/v13/cIf6MapbsEk7TDLdtEz1BwkWn6pg.woff2">
   <!-- font link consolidated by v2 skin -->
-  <link rel="stylesheet" href="/styles/shared.css?v=20260920-84ebb99">
+  <link rel="stylesheet" href="/styles/shared.css?v=20260922-9c13628">
   <style>
     /* ── Page-level overrides ── */
     /* Overview page: re-tint the cyan accent to royal blue. Every rule
@@ -935,8 +937,8 @@
       .two-tracks-grid { grid-template-columns: 1fr; }
     }
   </style>
-  <link rel="stylesheet" href="/styles/v2-site.css?v=20260920-84ebb99">
-  <script src="/scripts/v2-site.js?v=20260920-84ebb99" defer></script>
+  <link rel="stylesheet" href="/styles/v2-site.css?v=20260922-9c13628">
+  <script src="/scripts/v2-site.js?v=20260922-9c13628" defer></script>
   <style id="v2-page-fixes">
     /* Brand mark in the hero. It used to be greyscaled to a white plate
        because the old neon-wireframe logo fought the photo behind it; the
@@ -945,7 +947,7 @@
     .hero-logo-img { filter: drop-shadow(0 2px 24px rgba(0,0,0,0.8)); opacity: 1; }
   </style>
   <link rel="stylesheet" href="/styles/skins/synthwave.css">
-  <link rel="stylesheet" href="/styles/site-nav.css?v=20260920-84ebb99">
+  <link rel="stylesheet" href="/styles/site-nav.css?v=20260922-9c13628">
 </head>
 <body>
   <nav class="site-nav" role="navigation" aria-label="Primary navigation">
@@ -1282,8 +1284,8 @@
     <div class="status-item">About Overview</div>
   </div>
 
-  <script type="module" src="/scripts/nav-membership.js?v=20260920-84ebb99"></script>
-  <script src="/scripts/site.js?v=20260920-84ebb99"></script>
+  <script type="module" src="/scripts/nav-membership.js?v=20260922-9c13628"></script>
+  <script src="/scripts/site.js?v=20260922-9c13628"></script>
   <script>
     (function () {
       const slides = Array.from(document.querySelectorAll('#heroSlides .hero-slide'));
@@ -1296,6 +1298,6 @@
       }, 6000);
     })();
   </script>
-<script src="/styles/nav.js?v=20260920-84ebb99" defer></script>
+<script src="/styles/nav.js?v=20260922-9c13628" defer></script>
 </body>
 </html>

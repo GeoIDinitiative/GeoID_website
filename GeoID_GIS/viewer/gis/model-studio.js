@@ -1,18 +1,19 @@
+import { escapeHtml } from "./escape-html.js?v=20260922-9c13628";
 import * as THREE from "../vendor/three.module.js";
-import { currentBody, getBody, currentBodyId } from "./bodies.js?v=20260920-84ebb99";
-import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260920-84ebb99";
+import { currentBody, getBody, currentBodyId } from "./bodies.js?v=20260922-9c13628";
+import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260922-9c13628";
 import {
   latticeTetMesh, tetBoundarySurface, qualityStats, elementCounts, toGmsh22,
-} from "./mesh-volume.js?v=20260920-84ebb99";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260920-84ebb99";
-import { downloadText } from "./extraction.js?v=20260920-84ebb99";
-import { shellPositions, surfacePositions, tinHeightAt, tinToGrid, gridAsTin, tinValueAt } from "./surface-sampling.js?v=20260920-84ebb99";
-import { rampColour } from "./symbology.js?v=20260920-84ebb99";
-import { layeredVolumes, facetPositions, tinWith, LAYER_FLAGS } from "./layered-model.js?v=20260920-84ebb99";
-import { sectionPolygons, sectionPositions, profileHeightAt } from "./section-model.js?v=20260920-84ebb99";
-import { faceParts, partPositions, studioGmshScript, DEFAULT_FACE_FLAGS } from "./studio-gmsh.js?v=20260920-84ebb99";
-import { describeField, FIELD_TYPES } from "./mesh-size-fields.js?v=20260920-84ebb99";
-import { femSpec } from "./model-build.js?v=20260920-84ebb99";
+} from "./mesh-volume.js?v=20260922-9c13628";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260922-9c13628";
+import { downloadText } from "./extraction.js?v=20260922-9c13628";
+import { shellPositions, surfacePositions, tinHeightAt, tinToGrid, gridAsTin, tinValueAt } from "./surface-sampling.js?v=20260922-9c13628";
+import { rampColour } from "./symbology.js?v=20260922-9c13628";
+import { layeredVolumes, facetPositions, tinWith, LAYER_FLAGS } from "./layered-model.js?v=20260922-9c13628";
+import { sectionPolygons, sectionPositions, profileHeightAt } from "./section-model.js?v=20260922-9c13628";
+import { faceParts, partPositions, studioGmshScript, DEFAULT_FACE_FLAGS } from "./studio-gmsh.js?v=20260922-9c13628";
+import { describeField, FIELD_TYPES } from "./mesh-size-fields.js?v=20260922-9c13628";
+import { femSpec } from "./model-build.js?v=20260922-9c13628";
 
 // Meshing Studio, ported from atlas-ai/services/mesh/meshing_studio.
 //
@@ -1923,7 +1924,7 @@ function renderModelTree() {
     state.groups.forEach((g) => {
       const row = document.createElement("div");
       row.className = "studio-item";
-      row.innerHTML = `<span>${g.name}</span><span>${g.entities.length} entities</span>`;
+      row.innerHTML = `<span>${escapeHtml(g.name)}</span><span>${g.entities.length} entities</span>`;
       groups.appendChild(row);
     });
   }
@@ -4894,7 +4895,8 @@ function fieldColourControl(card) {
       const ends = document.createElement("div");
       ends.style.cssText = "display:flex;justify-content:space-between";
       const fmtv = (v) => (Math.abs(v) >= 100 ? v.toFixed(0) : Math.abs(v) >= 1 ? v.toFixed(1) : v.toPrecision(2));
-      ends.innerHTML = `<span>${fmtv(f.min)}${f.unit ? ` ${f.unit}` : ""}</span><span>${fmtv(f.max)}${f.unit ? ` ${f.unit}` : ""}</span>`;
+      const unit = f.unit ? ` ${escapeHtml(f.unit)}` : "";
+      ends.innerHTML = `<span>${fmtv(f.min)}${unit}</span><span>${fmtv(f.max)}${unit}</span>`;
       key.appendChild(ends);
     } else {
       const present = new Set(Array.from(f.values).filter(Number.isFinite));

@@ -1,6 +1,7 @@
-import { CRS_OPTIONS, transform } from "./projection.js?v=20260920-84ebb99";
-import { currentBody } from "./bodies.js?v=20260920-84ebb99";
-import { rowsToCsv, downloadText } from "./extraction.js?v=20260920-84ebb99";
+import { escapeHtml } from "./escape-html.js?v=20260922-9c13628";
+import { CRS_OPTIONS, transform } from "./projection.js?v=20260922-9c13628";
+import { currentBody } from "./bodies.js?v=20260922-9c13628";
+import { rowsToCsv, downloadText } from "./extraction.js?v=20260922-9c13628";
 
 // GIS mode presents a toolbox rather than a control centre: the whole GeoID
 // control set folds into one group, and the tool groups stack beneath it.
@@ -375,7 +376,7 @@ function refreshProjectSummary() {
   const sampleable = (window.GeoIDImportManager?.getSampleableLayers?.() || []).length;
   const byKind = {};
   loaded.forEach((layer) => { byKind[layer.ext] = (byKind[layer.ext] || 0) + 1; });
-  const kinds = Object.entries(byKind).map(([ext, n]) => `${n} ${ext.toUpperCase()}`).join(", ");
+  const kinds = Object.entries(byKind).map(([ext, n]) => `${n} ${escapeHtml(String(ext).toUpperCase())}`).join(", ");
   node.innerHTML = `<strong>${loaded.length}</strong> layers (${kinds})<br>`
     + `${georeferenced} georeferenced, ${sampleable} sampleable`;
 }
@@ -527,7 +528,7 @@ function runVectorQuery() {
     counts.set(key, (counts.get(key) || 0) + 1);
   });
   const top = [...counts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 5)
-    .map(([value, count]) => `${value} (${count})`).join("<br>");
+    .map(([value, count]) => `${escapeHtml(value)} (${count})`).join("<br>");
   out.innerHTML = `<strong>${queryMatches.length}</strong> features matched<br>${top}`;
   if (exportBtn) exportBtn.disabled = false;
 }

@@ -1,18 +1,18 @@
 import * as THREE from "../vendor/three.module.js";
-import { loadStlFromArrayBuffer } from "./stl-loader-adapter.js?v=20260920-84ebb99";
-import { loadGeoTiffFromArrayBuffer, buildRasterLayer } from "./geotiff-adapter.js?v=20260920-84ebb99";
-import { loadObj, loadPly, parseAsciiGrid } from "./mesh-formats.js?v=20260920-84ebb99";
-import { parseGeoJson, parseKml, parseGpx, parseWkt } from "./vector-formats.js?v=20260920-84ebb99";
+import { loadStlFromArrayBuffer } from "./stl-loader-adapter.js?v=20260922-9c13628";
+import { loadGeoTiffFromArrayBuffer, buildRasterLayer } from "./geotiff-adapter.js?v=20260922-9c13628";
+import { loadObj, loadPly, parseAsciiGrid } from "./mesh-formats.js?v=20260922-9c13628";
+import { parseGeoJson, parseKml, parseGpx, parseWkt } from "./vector-formats.js?v=20260922-9c13628";
 import {
   buildVectorLayerResult, setRenderRelief, setLineDrapeFromAltitude, setSealWidthFromAltitude,
   getRenderRelief,
   setMarkerSizeFromAltitude,
-} from "./vector-render.js?v=20260920-84ebb99";
-import { loadShapefile } from "./shapefile-adapter.js?v=20260920-84ebb99";
-import { loadXyzPoints } from "./xyz-adapter.js?v=20260920-84ebb99";
-import { loadMshFile } from "./msh-adapter.js?v=20260920-84ebb99";
-import { frameGlobeBounds, placeLocalModel } from "./geo-utils.js?v=20260920-84ebb99";
-import { defaultOpacityFor } from "./layer-opacity.js?v=20260920-84ebb99";
+} from "./vector-render.js?v=20260922-9c13628";
+import { loadShapefile } from "./shapefile-adapter.js?v=20260922-9c13628";
+import { loadXyzPoints } from "./xyz-adapter.js?v=20260922-9c13628";
+import { loadMshFile } from "./msh-adapter.js?v=20260922-9c13628";
+import { frameGlobeBounds, placeLocalModel } from "./geo-utils.js?v=20260922-9c13628";
+import { defaultOpacityFor } from "./layer-opacity.js?v=20260922-9c13628";
 
 // Sidecars are consumed by the parser of their primary file, so they must not
 // each spawn their own layer row.
@@ -792,13 +792,80 @@ async function expandArchives(files) {
   return out;
 }
 
+/**
+ * What an archive may cost before it is refused.
+ *
+ * A ZIP CAN LIE ABOUT ITS SIZE, and inflating one without a bound is how a
+ * 40 KB file takes the tab down: deflate reaches about a thousand to one on
+ * a run of zeroes, so a small archive can ask for gigabytes. Nothing here
+ * checked, and `new Response(stream).blob()` had already made the allocation
+ * by the time anybody could have.
+ *
+ * The caps are generous against real data and cheap against a bomb: the
+ * biggest thing this app legitimately reads out of an archive is a shapefile
+ * of a few hundred megabytes, and the sources it ships are smaller than that.
+ * A member over its own cap is skipped with a sentence; an archive over the
+ * total is stopped where it is, and what was read before the cap is kept
+ * rather than thrown away.
+ *
+ * THIS IS NOT ZIP-SLIP. Nothing here is written to a filesystem, and a
+ * member's path is flattened to its last segment below, so `../../etc` is a
+ * file named `etc` in memory and nothing else.
+ */
+const ZIP_MAX_MEMBERS = 512;
+const ZIP_MAX_MEMBER_BYTES = 256 * 1024 * 1024;
+const ZIP_MAX_TOTAL_BYTES = 512 * 1024 * 1024;
+
+/**
+ * Inflate, refusing past `limit` rather than finding out afterwards.
+ *
+ * Read in chunks and counted as they arrive, so the cap is enforced DURING
+ * the inflation. `cancel()` stops the stream rather than leaving it running
+ * behind a rejected promise.
+ */
+async function inflateBounded(body, limit) {
+  const stream = new Blob([body]).stream()
+    .pipeThrough(new DecompressionStream("deflate-raw"));
+  const reader = stream.getReader();
+  const chunks = [];
+  let total = 0;
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      total += value.byteLength;
+      if (total > limit) {
+        await reader.cancel();
+        return null;
+      }
+      chunks.push(value);
+    }
+  } catch (error) {
+    try { await reader.cancel(); } catch (e) { /* already gone */ }
+    return null;
+  }
+  return new Blob(chunks);
+}
+
 /** Every readable entry in a zip, as Files named by their last path segment. */
 async function readZip(buffer) {
   const bytes = new Uint8Array(buffer);
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
   const files = [];
   let at = 0;
+  let inflated = 0;
+  let refused = 0;
   while (at + 30 <= bytes.length && view.getUint32(at, true) === 0x04034b50) {
+    if (files.length >= ZIP_MAX_MEMBERS) {
+      setStatus(`This archive holds more than ${ZIP_MAX_MEMBERS} files — `
+        + `the first ${ZIP_MAX_MEMBERS} were read.`);
+      break;
+    }
+    if (inflated > ZIP_MAX_TOTAL_BYTES) {
+      setStatus("This archive expands to more than half a gigabyte — "
+        + "it was stopped there. Unzip it and open the file you want.");
+      break;
+    }
     const method = view.getUint16(at + 8, true);
     const flags = view.getUint16(at + 6, true);
     let size = view.getUint32(at + 18, true);
@@ -818,14 +885,23 @@ async function readZip(buffer) {
     const leaf = name.split("/").pop();
     if (!leaf || name.endsWith("/")) continue;          // a directory entry
     if (method === 0) {
+      // Stored: what is on disk is what comes out, so its size is its own cap.
+      if (body.byteLength > ZIP_MAX_MEMBER_BYTES) { refused += 1; continue; }
+      inflated += body.byteLength;
       files.push(new File([body], leaf));
     } else if (method === 8 && typeof DecompressionStream === "function") {
-      try {
-        const stream = new Blob([body]).stream()
-          .pipeThrough(new DecompressionStream("deflate-raw"));
-        files.push(new File([await new Response(stream).blob()], leaf));
-      } catch (error) { /* one unreadable member is not a broken archive */ }
+      const room = Math.min(ZIP_MAX_MEMBER_BYTES, ZIP_MAX_TOTAL_BYTES - inflated);
+      const blob = await inflateBounded(body, Math.max(0, room));
+      // Null is either a member over the cap or one this browser could not
+      // read; one unreadable member is not a broken archive either way.
+      if (!blob) { refused += 1; continue; }
+      inflated += blob.size;
+      files.push(new File([blob], leaf));
     }
+  }
+  if (refused) {
+    setStatus(`${refused} file${refused === 1 ? "" : "s"} in this archive `
+      + "could not be read or expanded past the size limit.");
   }
   return files;
 }

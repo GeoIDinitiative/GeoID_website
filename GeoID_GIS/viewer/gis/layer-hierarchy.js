@@ -10,17 +10,18 @@
 // everything below. That is the opposite of three.js renderOrder, so the two are
 // inverted when applied.
 
-import { bandOf } from "./draw-order.js?v=20260920-84ebb99";
-import { paintOpacity } from "./layer-opacity.js?v=20260920-84ebb99";
-import { currentBody } from "./bodies.js?v=20260920-84ebb99";
-import { samplerToRaster } from "./raster-analysis.js?v=20260920-84ebb99";
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260920-84ebb99";
-import { datasetInfoButton } from "./catalogue-list.js?v=20260920-84ebb99";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260920-84ebb99";
+import { escapeHtml } from "./escape-html.js?v=20260922-9c13628";
+import { bandOf } from "./draw-order.js?v=20260922-9c13628";
+import { paintOpacity } from "./layer-opacity.js?v=20260922-9c13628";
+import { currentBody } from "./bodies.js?v=20260922-9c13628";
+import { samplerToRaster } from "./raster-analysis.js?v=20260922-9c13628";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260922-9c13628";
+import { datasetInfoButton } from "./catalogue-list.js?v=20260922-9c13628";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260922-9c13628";
 import {
   openSymbologyDialog, geometrySummary, geometryKind,
-} from "./symbology-dialog.js?v=20260920-84ebb99";
-import { chipHtml, typeSelect, applyTag, descriptionOf, isUserInput } from "./data-tags.js?v=20260920-84ebb99";
+} from "./symbology-dialog.js?v=20260922-9c13628";
+import { chipHtml, typeSelect, applyTag, descriptionOf, isUserInput } from "./data-tags.js?v=20260922-9c13628";
 
 /**
  * The row grew a column and gained a tile, and .layer-row is declared twice --
@@ -1662,7 +1663,7 @@ async function renderProjectContents(host) {
   wrap.appendChild(title);
   const line = document.createElement("span");
   line.innerHTML = `<i>Holds</i> ${counts.size
-    ? [...counts.entries()].sort((a, b) => b[1] - a[1]).map(([k, n]) => `${n} ${k}`).join(" · ")
+    ? [...counts.entries()].sort((a, b) => b[1] - a[1]).map(([k, n]) => `${n} ${escapeHtml(k)}`).join(" · ")
     : "nothing recorded yet"}`;
   wrap.appendChild(line);
   // The newest few, each a way back onto the globe — the return path exists

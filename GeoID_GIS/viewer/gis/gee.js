@@ -10,25 +10,25 @@
 // its own opacity and draw order, is listed in the legend, and carries its
 // source and licence into the metadata panel like anything else imported.
 
-import { attachReliefAttributes, attachExactReliefAttributes, followRelief } from "./vector-render.js?v=20260920-84ebb99";
-import { latLonToVector3, drapedRadius } from "./geo-utils.js?v=20260920-84ebb99";
-import { geeSamplerFromImage, columnName } from "./gee-sample.js?v=20260920-84ebb99";
+import { attachReliefAttributes, attachExactReliefAttributes, followRelief } from "./vector-render.js?v=20260922-9c13628";
+import { latLonToVector3, drapedRadius } from "./geo-utils.js?v=20260922-9c13628";
+import { geeSamplerFromImage, columnName } from "./gee-sample.js?v=20260922-9c13628";
 import { visibleBounds, viewChangedEnough, onViewSettled }
-  from "./view-extent.js?v=20260920-84ebb99";
+  from "./view-extent.js?v=20260922-9c13628";
 import {
   resolvePolygonExtent, refreshPolygonOptions, promptDrawTool, drawnOverlayBounds,
   persistExtent,
-} from "./extent-picker.js?v=20260920-84ebb99";
-import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260920-84ebb99";
+} from "./extent-picker.js?v=20260922-9c13628";
+import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260922-9c13628";
 import {
   // Aliased: this module already has a `loadCatalogue`, which fills the
   // dropdown from the SERVICE. Two catalogues, and the names have to say so.
   loadCatalogue as loadGeeCatalogue,
   catalogueReady, searchCatalogue, categories, datasetById, describeDataset,
   freshness, isNewDataset, isExtendedDataset, indexedHrefs, bakedOn,
-} from "./gee-catalogue-index.js?v=20260920-84ebb99";
-import { checkCatalogue, describeCheck } from "./gee-watch.js?v=20260920-84ebb99";
-import { may, refusal } from "./membership.js?v=20260920-84ebb99";
+} from "./gee-catalogue-index.js?v=20260922-9c13628";
+import { checkCatalogue, describeCheck } from "./gee-watch.js?v=20260922-9c13628";
+import { may, refusal, dataPass } from "./membership.js?v=20260922-9c13628";
 
 // The page's own stamp. A dynamic import under any other query is a SECOND
 // module instance with its own state — the trap that made a stopped player
@@ -110,6 +110,27 @@ function wipeEndpointIfLocked() {
   // And out of the form, so it is not sitting on screen either.
   const field = byId("gee-endpoint");
   if (field) field.value = "";
+}
+
+/**
+ * Every request to the service, carrying the member's pass.
+ *
+ * THE SERVICE REFUSES WITHOUT IT. Earth Engine is billed per render, so the
+ * function verifies a short pass (`aud: "data"`, fifteen minutes, the same
+ * one the data bucket takes) rather than trusting an Origin header, which is
+ * a browser's courtesy and not a credential. The pass is fetched and cached
+ * by `membership.dataPass()` and is empty for anybody who is not a member --
+ * which is the right thing to send, because the refusal that follows is the
+ * one the reader should see.
+ *
+ * In the HEADER, never the query string: this is an ordinary `fetch`, so it
+ * reaches, and a query string is logged.
+ */
+async function serviceFetch(url, options = {}) {
+  const pass = await dataPass();
+  const headers = { ...(options.headers || {}) };
+  if (pass) headers.Authorization = `Bearer ${pass}`;
+  return fetch(url, { cache: "no-store", ...options, headers });
 }
 
 function setEndpoint(url) {
@@ -558,7 +579,7 @@ export async function fetchScene({ dataset, bounds, from, to, dimensions = 1024,
   // day. A service that does not know the parameter ignores it and says so in
   // the legend it returns, which is what the picture is read back against.
   if (Number.isFinite(max)) params.set("max", String(max));
-  const response = await fetch(`${endpoint()}?${params}`, { cache: "no-store" });
+  const response = await serviceFetch(`${endpoint()}?${params}`);
   const data = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(data.error || `HTTP ${response.status}`);
   return data;
@@ -567,7 +588,7 @@ export async function fetchScene({ dataset, bounds, from, to, dimensions = 1024,
 /** The first and last dates the service holds for a dataset: `{ first, last }`. */
 export async function fetchDates(dataset) {
   const params = new URLSearchParams({ dataset, dates: "1" });
-  const response = await fetch(`${endpoint()}?${params}`, { cache: "no-store" });
+  const response = await serviceFetch(`${endpoint()}?${params}`);
   const data = await response.json().catch(() => ({}));
   if (!response.ok || data.error) throw new Error(data.error || `HTTP ${response.status}`);
   return data;
@@ -647,7 +668,7 @@ async function request() {
     // ignores the parameter cannot over-claim.
     params.set("dimensions", String(requestDimensions(bounds)));
 
-    const response = await fetch(`${url}?${params}`, { cache: "no-store" });
+    const response = await serviceFetch(`${url}?${params}`);
     const data = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(data.error || `HTTP ${response.status}`);
 
@@ -2067,7 +2088,7 @@ function attachGeeRefine(layer) {
     });
     if (query.from) params.set("from", query.from);
     if (query.to) params.set("to", query.to);
-    const response = await fetch(`${query.endpoint}?${params}`, { cache: "no-store" });
+    const response = await serviceFetch(`${query.endpoint}?${params}`);
     const data = await response.json().catch(() => ({}));
     if (!response.ok || !data.imageUrl) {
       throw new Error(data.error || `HTTP ${response.status}`);
@@ -2212,7 +2233,7 @@ async function loadCatalogue() {
   const url = endpoint();
   if (!url) return;
   try {
-    const response = await fetch(`${url}?list`, { cache: "no-store" });
+    const response = await serviceFetch(`${url}?list`);
     if (!response.ok) return;
     const data = await response.json();
     if (!Array.isArray(data.datasets) || !data.datasets.length) return;
@@ -2390,7 +2411,7 @@ function init() {
     }
     status("Checking availability…");
     try {
-      const r = await fetch(`${endpoint()}?dates&dataset=${encodeURIComponent(id)}`);
+      const r = await serviceFetch(`${endpoint()}?dates&dataset=${encodeURIComponent(id)}`);
       const d = await r.json();
       if (!r.ok) throw new Error(d.error || `HTTP ${r.status}`);
       if (d.static) {

@@ -2,9 +2,11 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https:; media-src 'self' data: blob: https://data.geoidinitiative.com; connect-src 'self' https://data.geoidinitiative.com https://auth.geoidinitiative.com https://formspree.io; frame-src 'self' https://docs.google.com; form-action 'self' https://formspree.io https://buy.stripe.com https://docs.google.com; upgrade-insecure-requests">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <meta name="description" content="GeoID Initiative — GeoHUB, a free hazard GIS on a 3D globe: 312,500 earthquakes back to 1008, every cyclone track since 1842, world geology, live events and ten worlds, with a meshing studio and a research workspace. Membership adds six modelled hazard maps.">
-  <title>GeoID Initiative — Open Geoscience &amp; Geohazard Intelligence</title>
+  <meta name="description" content="An interactive 3D globe for geoscience: 312,500 earthquakes back to 1008, every cyclone track since 1842, world geology, live events and ten worlds. Free in your browser; membership adds six hazard models.">
+  <title>GeoID Dashboard | Interactive 3D Globe &amp; Geoscience Workspace</title>
   <!-- Social / search preview. Without an og:image, search engines pick an
        arbitrary image off the page — which is why results showed a stray
        Earth icon instead of the GeoID logo. -->
@@ -12,14 +14,14 @@
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="GeoID Initiative">
   <meta property="og:url" content="https://geoidinitiative.com/dashboard/">
-  <meta property="og:title" content="GeoID Initiative — GeoHUB, a hazard GIS on a 3D globe">
+  <meta property="og:title" content="GeoID | Interactive 3D Globe &amp; Geoscience Workspace">
   <meta property="og:description" content="GeoHUB is a free hazard GIS in your browser — the earthquake and cyclone record played through time, world geology, live events and ten worlds. Membership opens six modelled hazard maps, the Model Builder and Earth Engine.">
   <meta property="og:image" content="https://geoidinitiative.com/assets/og_geoid.jpg">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="1200">
   <meta property="og:image:alt" content="GeoID Initiative logo">
   <meta name="twitter:card" content="summary">
-  <meta name="twitter:title" content="GeoID Initiative — GeoHUB, a hazard GIS on a 3D globe">
+  <meta name="twitter:title" content="GeoID | Interactive 3D Globe &amp; Geoscience Workspace">
   <meta name="twitter:description" content="GeoHUB is a free hazard GIS in your browser — the earthquake and cyclone record played through time, world geology, live events and ten worlds. Membership opens six modelled hazard maps, the Model Builder and Earth Engine.">
   <meta name="twitter:image" content="https://geoidinitiative.com/assets/og_geoid.jpg">
   <!-- Organization structured data. Gives search engines an explicit logo to
@@ -28,6 +30,7 @@
   {
     "@context": "https://schema.org",
     "@type": "Organization",
+    "@id": "https://geoidinitiative.com/#organization",
     "name": "GeoID Initiative",
     "url": "https://geoidinitiative.com/",
     "logo": {
@@ -51,7 +54,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
   <!-- LCP is the first hero frame; everything else can wait. -->
   <link rel="preload" as="image" href="/assets/opt/geohub-hero-poster.webp" fetchpriority="high">
-  <link rel="stylesheet" href="/styles/shared.css?v=20260920-84ebb99">
+  <link rel="stylesheet" href="/styles/shared.css?v=20260922-9c13628">
   <script>
     /* Animation styles are gated on this class so that if scripting is off —
        or the observer never reports — nothing can be stranded invisible. */
@@ -710,7 +713,7 @@
   }
   </style>
   <link rel="stylesheet" href="/styles/skins/synthwave.css">
-  <link rel="stylesheet" href="/styles/site-nav.css?v=20260920-84ebb99">
+  <link rel="stylesheet" href="/styles/site-nav.css?v=20260922-9c13628">
 </head>
 <body>
 
@@ -767,7 +770,7 @@
       <div class="hs-scrim"></div>
       <div class="hs-body"><div class="shell"><div class="hs-copy">
         <span class="hs-tag">Membership · £49.99 a year</span>
-        <h1 class="hs-title">Become a member for <em>full access</em>.</h1>
+        <h2 class="hs-title">Become a member for <em>full access</em>.</h2>
         <p class="hs-lede">Full access to GeoID's six hazard maps — landslide and slope stability from sixteen days of GFS rainfall, flood by discharge, cyclone, seismic, volcanic ashfall and sea level — plus rock properties, the Model Builder, Earth Engine and saving to your own disk.</p>
         <div class="hs-actions">
           <a class="btn btn-solid" href="/membership/">Become a member <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
@@ -781,7 +784,7 @@
       <div class="hs-scrim"></div>
       <div class="hs-body"><div class="shell"><div class="hs-copy">
         <span class="hs-tag">Free · Earth Explorer</span>
-        <h1 class="hs-title">Climb <em>Everest</em>.</h1>
+        <h2 class="hs-title">Climb <em>Everest</em>.</h2>
         <p class="hs-lede">The real mountain, first-person: Esri imagery over live elevation data, the South Col route, oxygen, weather and crevasses. Pick a camp and go.</p>
         <div class="hs-actions">
           <a class="btn btn-solid" href="/everest/">Play ASCENT <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
@@ -795,7 +798,7 @@
       <div class="hs-scrim"></div>
       <div class="hs-body"><div class="shell"><div class="hs-copy">
         <span class="hs-tag">Free · Earth Explorer</span>
-        <h1 class="hs-title">Look inside Europe's <em>most active volcano</em>.</h1>
+        <h2 class="hs-title">Look inside Europe's <em>most active volcano</em>.</h2>
         <p class="hs-lede">12,000 INGV earthquakes from 2011 to 2023, the magma chambers and conduits beneath them, the regional faults and a live cross-section — Etna in 3D, summit to coastline.</p>
         <div class="hs-actions">
           <a class="btn btn-solid" href="/earth_explorer/etna/">Open the viewer <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
@@ -811,7 +814,7 @@
       <div class="hs-scrim"></div>
       <div class="hs-body"><div class="shell"><div class="hs-copy">
         <span class="hs-tag">Free · GeoHUB worlds</span>
-        <h1 class="hs-title">Fly the surface of <em>Mars</em>.</h1>
+        <h2 class="hs-title">Fly the surface of <em>Mars</em>.</h2>
         <p class="hs-lede">MOLA relief with the CTX mosaic streamed beneath you, from an 8 km low pass to 300 km orbit. Pick a launch site and a heading anywhere on the planet.</p>
         <div class="hs-actions">
           <a class="btn btn-solid" href="/?world=mars">Launch the simulator <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
@@ -855,7 +858,7 @@
         </button>
         <span class="worlds-ghost" id="worlds-ghost" aria-hidden="true">MOON</span>
         <div class="worlds-planet" id="worlds-planet">
-          <img id="worlds-img" src="/assets/opt/moon.webp" alt="Moon">
+          <img id="worlds-img" src="/assets/opt/moon.webp" alt="The Moon rendered in 3D from mission data in GeoID's planetary explorer">
         </div>
       </div>
 
@@ -989,7 +992,7 @@
   <!-- ══════════ MISSION ══════════ -->
   <section class="mission" id="mission" aria-label="Our mission">
     <div class="mission-plate" id="mission-plate" aria-hidden="true">
-      <img src="/assets/opt/hero_valencia.webp" alt="" loading="lazy">
+      <img src="/assets/opt/hero_valencia.webp" alt="Cars swept into a street by the Valencia floods, Spain — the kind of flood event GeoID’s hazard models map" loading="lazy">
     </div>
     <div class="mission-inner"><div class="shell">
       <div class="mission-copy rise">
@@ -1110,8 +1113,8 @@
     </div>
   </footer>
 
-  <script type="module" src="/scripts/nav-membership.js?v=20260920-84ebb99"></script>
-  <script src="/scripts/site.js?v=20260920-84ebb99"></script>
+  <script type="module" src="/scripts/nav-membership.js?v=20260922-9c13628"></script>
+  <script src="/scripts/site.js?v=20260922-9c13628"></script>
   <script>
   (function () {
     "use strict";
@@ -1234,7 +1237,7 @@
         Promise.all([ready, minWait]).then(() => {
           if (my !== seq) return;   /* superseded by a newer selection */
           img.src = next.src;
-          img.alt = label;
+          img.alt = `${label} rendered in 3D from mission data in GeoID’s planetary explorer`;
           ghost.textContent = label.toUpperCase();
           name.textContent  = label;
           copy.textContent  = text;
@@ -1327,6 +1330,6 @@
     })();
   })();
   </script>
-  <script src="/styles/nav.js?v=20260920-84ebb99" defer></script>
+  <script src="/styles/nav.js?v=20260922-9c13628" defer></script>
 </body>
 </html>

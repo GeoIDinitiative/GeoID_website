@@ -1,8 +1,25 @@
 # geoidinitiative.com
+#
+# NOTHING IS DISALLOWED, AND THAT IS THE FIX RATHER THAN AN OVERSIGHT.
+#
+# This file used to disallow /sign-in/, /account/ and /membership/. Two things
+# were wrong with that. /membership/ is the one page that says what GeoID
+# sells, and it was in the sitemap and marked `index` at the same time, so it
+# could only ever have been listed with no description under it. And a
+# Disallow does not remove a page from the index -- it stops Google READING
+# the page, which means it never sees the `noindex` those pages carry, and the
+# bare URL can sit in results for ever.
+#
+# So the private pages keep `<meta name="robots" content="noindex, follow">`
+# (/sign-in/, /account/, /transit/, /membership/welcome/ and the redirect
+# stubs), a crawler is allowed to fetch them, reads the noindex and drops
+# them. That is the only instruction that actually deindexes anything.
+#
+# Everything a reader can look at is open to a crawler too, including the
+# JavaScript, the stylesheets and the data the application draws from: a
+# crawler that cannot fetch those renders a blank page and indexes nothing.
+
 User-agent: *
 Allow: /
-Disallow: /account/
-Disallow: /membership/
-Disallow: /sign-in/
 
 Sitemap: https://geoidinitiative.com/sitemap.xml

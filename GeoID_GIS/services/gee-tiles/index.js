@@ -458,8 +458,168 @@ async function authViaAdc() {
   }
 }
 
+// ── The membership gate, and the rate limit behind it ───────────────────────
+//
+// EARTH ENGINE IS THE ONE THING HERE BILLED PER USE, and the app's own
+// `membership.js` has always declared it `enforced: true` -- "every request
+// goes through our own billed Cloud Function, so this is the one refusal that
+// can be made where the reader cannot reach". It never was. This function
+// took no credential at all, so `curl` spent the project's quota as readily
+// as a member did, and the browser-side gate the module itself calls a
+// courtesy was the whole of it.
+//
+// ALLOWED_ORIGINS IS NOT A DEFENCE. An `Origin` header is a browser's own
+// courtesy to a server; a script sends whatever it likes, or nothing. It
+// stops a page on somebody else's site from spending this quota and it stops
+// nothing else, which is what it was written for.
+//
+// The pass is the SHORT token the membership service issues at
+// `/auth/data-token`: `aud: "data"`, fifteen minutes, HS256 over the same
+// JWT_SECRET the data bucket's gate verifies. Deliberately not the week-long
+// session token -- a service should ask for the narrowest credential that
+// answers its question, and the question here is only "is this a member".
+// The pass carries no identity at all, which is also why the rate limit
+// below counts passes and addresses rather than people.
+//
+// FAILS CLOSED. With REQUIRE_MEMBERSHIP unset the gate is ON; a deployment
+// that means to run it open has to say so, because a gate that defaults off
+// is one somebody forgets to switch on. Without JWT_SECRET it cannot verify
+// anything, so it refuses with 503 rather than waving everything through.
+
+const crypto = require("crypto");
+
+const requireMembership = () => process.env.REQUIRE_MEMBERSHIP !== "0";
+
+/**
+ * Verify a pass, or answer null.
+ *
+ * Null for every failure -- bad shape, wrong signature, wrong audience,
+ * expired -- so a caller cannot tell them apart and act differently. The
+ * signature is compared in constant time; `timingSafeEqual` throws on a
+ * length mismatch, so that is checked first.
+ */
+function validPass(token, secret) {
+  const parts = String(token || "").split(".");
+  if (parts.length !== 3) return null;
+  const expected = crypto.createHmac("sha256", secret)
+    .update(`${parts[0]}.${parts[1]}`).digest();
+  let given;
+  try {
+    given = Buffer.from(parts[2].replace(/-/g, "+").replace(/_/g, "/"), "base64");
+  } catch (error) {
+    return null;
+  }
+  if (given.length !== expected.length) return null;
+  if (!crypto.timingSafeEqual(given, expected)) return null;
+  let payload = null;
+  try {
+    payload = JSON.parse(
+      Buffer.from(parts[1].replace(/-/g, "+").replace(/_/g, "/"), "base64").toString("utf8"));
+  } catch (error) {
+    return null;
+  }
+  if (!payload || payload.aud !== "data") return null;
+  if (!Number.isFinite(payload.exp) || payload.exp <= Math.floor(Date.now() / 1000)) return null;
+  return payload;
+}
+
+/**
+ * A token bucket per key, in this instance's memory.
+ *
+ * STATED HONESTLY: Cloud Functions scale out, so this bounds what ONE warm
+ * instance will serve and not what the deployment as a whole will. It is a
+ * cost cap against a runaway loop rather than a defence against somebody
+ * deliberately spreading requests, and the real ceiling on the bill is
+ * `--max-instances` on the deployment, which is in the runbook beside this.
+ */
+const BUCKET_TTL_MS = 10 * 60 * 1000;
+const buckets = new Map();
+
+function overRate(key, perMinute, burst) {
+  const now = Date.now();
+  if (buckets.size > 5000) {
+    for (const [k, b] of buckets) if (now - b.seen > BUCKET_TTL_MS) buckets.delete(k);
+  }
+  let bucket = buckets.get(key);
+  if (!bucket) {
+    bucket = { tokens: burst, seen: now };
+    buckets.set(key, bucket);
+  }
+  bucket.tokens = Math.min(burst, bucket.tokens + (now - bucket.seen) / 60000 * perMinute);
+  bucket.seen = now;
+  if (bucket.tokens < 1) return true;
+  bucket.tokens -= 1;
+  return false;
+}
+
+/** The caller's address, as the front end reports it. */
+function callerIp(req) {
+  const forwarded = String(req.get("x-forwarded-for") || "").split(",")[0].trim();
+  return forwarded || req.ip || "unknown";
+}
+
+/**
+ * May this request be served? Answers null to allow, or {code, message}.
+ *
+ * `?list` is deliberately open: it is a catalogue of dataset names, it costs
+ * nothing to serve, and the page builds its list from it before anybody has
+ * signed in. Everything that RENDERS is gated.
+ */
+function refuseRequest(req, { billed }) {
+  const secret = process.env.JWT_SECRET;
+  const ip = callerIp(req);
+
+  // The address limit applies to everything, gate or no gate: it is what
+  // stops one loop from emptying an instance's budget.
+  if (overRate(`ip:${ip}`, Number(process.env.RATE_PER_MIN_IP || 30), 60)) {
+    return { code: 429, message: "Too many requests from this address -- wait a minute." };
+  }
+  if (!billed || !requireMembership()) return null;
+
+  if (!secret) {
+    return {
+      code: 503,
+      message: "This Earth Engine service is not configured to verify membership "
+        + "(no JWT_SECRET). It refuses rather than serving unverified requests.",
+    };
+  }
+  const bearer = String(req.get("authorization") || "").replace(/^Bearer\s+/i, "");
+  const pass = bearer || String((req.query || {}).t || "");
+  const claims = validPass(pass, secret);
+  if (!claims) {
+    return {
+      code: 402,
+      message: "Earth Engine is part of GeoID membership. Sign in as a member "
+        + "at https://geoidinitiative.com/membership/ to fetch from it.",
+    };
+  }
+  // Per PASS as well as per address: one member on a flaky connection must
+  // not be able to spend an instance's whole budget by retrying.
+  const handle = crypto.createHash("sha256").update(pass).digest("hex").slice(0, 32);
+  if (overRate(`pass:${handle}`, Number(process.env.RATE_PER_MIN_PASS || 20), 40)) {
+    return { code: 429, message: "Too many renders on this pass -- wait a minute." };
+  }
+  return null;
+}
+
 function bad(res, code, message) {
   res.status(code).json({ error: message });
+}
+
+/**
+ * An UPSTREAM failure, reported without repeating what it said.
+ *
+ * Earth Engine's own errors name assets, project paths and sometimes the
+ * service account, and this reply goes to anybody who asks. The detail is
+ * logged where the operator can read it and the caller gets the fact plus
+ * the id they sent, which is what they need to try something else. The
+ * 4xx messages above are this service's own sentences and stay verbatim:
+ * they are the ones that tell a reader what to fix.
+ */
+function upstreamFailed(res, where, error, code = 502) {
+  console.error(`${where}:`, error && error.stack ? error.stack : error);
+  bad(res, code, `${where}. The service logged why; try again, or choose `
+    + "another dataset or a smaller area.");
 }
 
 /** Bounding box as [west, south, east, north], validated and clamped. */
@@ -557,24 +717,43 @@ function buildImage(id, config, from, to, region) {
 
 // The catalogue resolution is pure and testable without Earth Engine, a
 // credential or a deployment: `stac.test.mjs` runs it over real records.
-exports.__testing = { configFromStac, stacRecord, configFor, DATASETS };
+exports.__testing = {
+  configFromStac, stacRecord, configFor, DATASETS,
+  // The gate, so a test can prove it refuses rather than only that it exists.
+  validPass, refuseRequest, overRate, buckets,
+};
 
 exports.geeImage = async (req, res) => {
-  // The page is served from a different origin, so it needs CORS. Restrict to
-  // the sites that should be allowed to spend this project's quota.
-  const allowed = (process.env.ALLOWED_ORIGINS || "*").split(",").map((s) => s.trim());
-  const origin = req.get("origin");
-  res.set("Access-Control-Allow-Origin",
-    allowed.includes("*") || allowed.includes(origin) ? (origin || "*") : allowed[0]);
+  // The page is served from a different origin, so it needs CORS. An allowed
+  // origin is echoed and anything else gets NO header at all -- the browser
+  // then refuses the reply, which is the answer. The old default was `*`,
+  // which is every page on the internet; a deployment that has not been told
+  // its own origins now answers for none rather than for all.
+  const allowed = String(process.env.ALLOWED_ORIGINS || "")
+    .split(/[,\s]+/).map((s) => s.trim()).filter(Boolean);
+  const origin = req.get("origin") || "";
+  if (origin && allowed.includes(origin)) {
+    res.set("Access-Control-Allow-Origin", origin);
+  }
   res.set("Vary", "Origin");
   if (req.method === "OPTIONS") {
     res.set("Access-Control-Allow-Methods", "GET, OPTIONS");
-    res.set("Access-Control-Allow-Headers", "Content-Type");
+    // The membership pass travels in this header, so the preflight has to
+    // allow it or the browser never sends the real request.
+    res.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
+    res.set("Access-Control-Max-Age", "600");
     res.status(204).send("");
     return;
   }
 
   const q = req.query || {};
+
+  // Gated here, at the one door every request comes through, and BEFORE
+  // anything is resolved or rendered: a render is billed, and refusing after
+  // paying for one is the wrong order. `?list` is a catalogue of names and
+  // costs nothing, so it is not billed; everything else is.
+  const refusal = refuseRequest(req, { billed: q.list === undefined });
+  if (refusal) return bad(res, refusal.code, refusal.message);
 
   if (q.list !== undefined) {
     // Lets the page build its catalogue from the service rather than keeping a
@@ -595,7 +774,7 @@ exports.geeImage = async (req, res) => {
   try {
     config = await configFor(q.dataset);
   } catch (error) {
-    return bad(res, 502, error.message);
+    return upstreamFailed(res, "That dataset could not be resolved", error);
   }
   if (!config) {
     return bad(res, 404, `"${q.dataset}" is not in the Earth Engine data `
@@ -667,7 +846,7 @@ exports.geeImage = async (req, res) => {
       res.set("Cache-Control", "public, max-age=3600");
       return res.json(body);
     } catch (error) {
-      return bad(res, 502, `Could not read the collection's dates: ${error.message}`);
+      return upstreamFailed(res, "The collection's dates could not be read", error);
     }
   }
 
@@ -763,6 +942,6 @@ exports.geeImage = async (req, res) => {
   } catch (error) {
     // Reported rather than swallowed: an empty picture because the request
     // failed is not the same as one because nothing was in range.
-    bad(res, 502, `Earth Engine request failed: ${error.message}`);
+    upstreamFailed(res, "The Earth Engine request failed", error);
   }
 };

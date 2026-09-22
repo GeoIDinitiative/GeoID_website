@@ -2,25 +2,48 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https:; media-src 'self' data: blob: https://data.geoidinitiative.com; connect-src 'self' https://data.geoidinitiative.com https://auth.geoidinitiative.com https://formspree.io; frame-src 'self' https://docs.google.com; form-action 'self' https://formspree.io https://buy.stripe.com https://docs.google.com; upgrade-insecure-requests">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <meta name="description" content="GeoHUB is a hazard GIS on a 3D globe, free in your browser: 312,500 earthquakes back to 1008, every cyclone track since 1842, world geology, live events, ten worlds, a meshing studio and a research workspace. Membership opens six modelled hazard maps.">
-  <title>GeoHUB — GeoID Initiative</title>
+  <meta name="description" content="GeoHUB is a free 3D GIS and geohazard mapping platform: 312,500 earthquakes back to 1008, every cyclone track since 1842, world geology, live events, ten worlds, meshing and a research workspace.">
+  <title>GeoHUB | 3D GIS &amp; Geohazard Mapping Platform | GeoID</title>
   <!-- Social / search preview. Without an og:image, search engines pick an
        arbitrary image off the page — which is why results showed a stray
        Earth icon instead of the GeoID logo. -->
   <link rel="canonical" href="https://geoidinitiative.com/about_geohub/">
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "WebApplication",
+    "name": "GeoHUB",
+    "url": "https://geoidinitiative.com/",
+    "applicationCategory": "https://schema.org/BusinessApplication",
+    "applicationSubCategory": "3D GIS and geohazard mapping",
+    "operatingSystem": "Any modern web browser",
+    "browserRequirements": "Requires WebGL 2",
+    "description": "A free 3D GIS and geohazard mapping platform: 312,500 earthquakes back to 1008, every cyclone track since 1842, world geology, live events, ten worlds, a meshing studio and a research workspace.",
+    "image": "https://geoidinitiative.com/assets/og_geoid.jpg",
+    "publisher": { "@id": "https://geoidinitiative.com/#organization" },
+    "offers": {
+      "@type": "Offer",
+      "price": "0",
+      "priceCurrency": "GBP",
+      "description": "GeoHUB is free to use. Membership adds the six modelled hazard maps, rock properties, the Model Builder and Earth Engine."
+    }
+  }
+  </script>
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="GeoID Initiative">
   <meta property="og:url" content="https://geoidinitiative.com/about_geohub/">
-  <meta property="og:title" content="GeoHUB — GeoID Initiative">
-  <meta property="og:description" content="GeoHUB is a hazard GIS on a 3D globe, free in your browser: 312,500 earthquakes back to 1008, every cyclone track since 1842, world geology, live events, ten worlds, a meshing studio and a research workspace. Membership opens six modelled hazard maps.">
+  <meta property="og:title" content="GeoHUB | 3D GIS &amp; Geohazard Mapping Platform | GeoID">
+  <meta property="og:description" content="GeoHUB is a free 3D GIS and geohazard mapping platform: 312,500 earthquakes back to 1008, every cyclone track since 1842, world geology, live events, ten worlds, meshing and a research workspace.">
   <meta property="og:image" content="https://geoidinitiative.com/assets/og_geoid.jpg">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="1200">
   <meta property="og:image:alt" content="GeoID Initiative logo">
   <meta name="twitter:card" content="summary">
-  <meta name="twitter:title" content="GeoHUB — GeoID Initiative">
-  <meta name="twitter:description" content="GeoHUB is a hazard GIS on a 3D globe, free in your browser: 312,500 earthquakes back to 1008, every cyclone track since 1842, world geology, live events, ten worlds, a meshing studio and a research workspace. Membership opens six modelled hazard maps.">
+  <meta name="twitter:title" content="GeoHUB | 3D GIS &amp; Geohazard Mapping Platform | GeoID">
+  <meta name="twitter:description" content="GeoHUB is a free 3D GIS and geohazard mapping platform: 312,500 earthquakes back to 1008, every cyclone track since 1842, world geology, live events, ten worlds, meshing and a research workspace.">
   <meta name="twitter:image" content="https://geoidinitiative.com/assets/og_geoid.jpg">
   <link rel="icon" type="image/png" href="/assets/GeoID_mark.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -28,7 +51,7 @@
   <link rel="preload" as="font" type="font/woff2" crossorigin href="https://fonts.gstatic.com/s/audiowide/v22/l7gdbjpo0cum0ckerWCdlg_O.woff2">
   <link rel="preload" as="font" type="font/woff2" crossorigin href="https://fonts.gstatic.com/s/chakrapetch/v13/cIf6MapbsEk7TDLdtEz1BwkWn6pg.woff2">
   <!-- font link consolidated by v2 skin -->
-  <link rel="stylesheet" href="/styles/shared.css?v=20260920-84ebb99">
+  <link rel="stylesheet" href="/styles/shared.css?v=20260922-9c13628">
   <style>
     /* ── Page-level overrides ── */
     .page-wrap {
@@ -152,6 +175,23 @@
       color: var(--text);
       margin: 0;
       letter-spacing: 0.06em;
+    }
+
+    /* The descriptive half of the H1. It is inside the heading so the page's
+       one <h1> says what GeoHUB IS rather than only what it is called, and it
+       is drawn in the tagline's own type so the hero reads exactly as it did
+       -- the mark, then a sentence under it. */
+    .hero-content h1 .hero-mark { display: block; }
+    .hero-content h1 .hero-sub {
+      display: block;
+      margin-top: 0.7rem;
+      font-family: "Public Sans", sans-serif;
+      font-size: clamp(1rem, 2vw, 1.2rem);
+      font-weight: 400;
+      line-height: 1.5;
+      letter-spacing: normal;
+      color: rgba(200,220,236,0.88);
+      max-width: 44rem;
     }
 
     .hero-tagline {
@@ -806,10 +846,10 @@
       .footer-bottom { flex-direction: column; text-align: center; }
     }
   </style>
-  <link rel="stylesheet" href="/styles/v2-site.css?v=20260920-84ebb99">
-  <script src="/scripts/v2-site.js?v=20260920-84ebb99" defer></script>
+  <link rel="stylesheet" href="/styles/v2-site.css?v=20260922-9c13628">
+  <script src="/scripts/v2-site.js?v=20260922-9c13628" defer></script>
   <link rel="stylesheet" href="/styles/skins/synthwave.css">
-  <link rel="stylesheet" href="/styles/site-nav.css?v=20260920-84ebb99">
+  <link rel="stylesheet" href="/styles/site-nav.css?v=20260922-9c13628">
 </head>
 <body>
   <nav class="site-nav" role="navigation" aria-label="Primary navigation">
@@ -862,8 +902,8 @@
         <div class="hero-overlay"></div>
         <div class="hero-content">
           <img class="hero-logo-img" src="/assets/GeoID_logo_icon.png" alt="" loading="lazy" decoding="async">
-          <h1>GeoHUB</h1>
-          <p class="hero-tagline">A hazard GIS on a 3D globe. Free, in your browser, with nothing to install.</p>
+          <h1><span class="hero-mark">GeoHUB</span>
+            <span class="hero-sub">A 3D GIS and geohazard mapping platform on a global globe. Free, in your browser, with nothing to install.</span></h1>
           <p class="hero-desc">Open the globe and the whole hazard record is already on it — 312,500 earthquakes back to 1008, every cyclone track since 1842, world geology, live events, live satellites, and ten worlds beyond Earth. Draw an area, sample every layer under it, take the table away. Then mesh it, model it, and write it up in the same window. Membership adds the six hazard models GeoID computes itself.</p>
           <div class="hero-actions">
             <a class="btn-primary" href="/">Open GeoHUB</a>
@@ -1401,8 +1441,8 @@
     <div class="status-item">GeoHUB</div>
   </div>
 
-  <script type="module" src="/scripts/nav-membership.js?v=20260920-84ebb99"></script>
-  <script src="/scripts/site.js?v=20260920-84ebb99"></script>
-<script src="/styles/nav.js?v=20260920-84ebb99" defer></script>
+  <script type="module" src="/scripts/nav-membership.js?v=20260922-9c13628"></script>
+  <script src="/scripts/site.js?v=20260922-9c13628"></script>
+<script src="/styles/nav.js?v=20260922-9c13628" defer></script>
 </body>
 </html>

@@ -3,7 +3,22 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <title>Mount Etna — Planet Explorer</title>
+  <title>Mount Etna | 3D Geological Model &amp; Volcano Explorer | GeoID</title>
+  <meta name="description" content="An interactive 3D geological model of Mount Etna — the volcano's structure, its eruptive record and its deformation, on real terrain and free in your browser.">
+  <link rel="canonical" href="https://geoidinitiative.com/earth_explorer/etna/">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="GeoID Initiative">
+  <meta property="og:url" content="https://geoidinitiative.com/earth_explorer/etna/">
+  <meta property="og:title" content="Mount Etna | 3D Geological Model &amp; Volcano Explorer | GeoID">
+  <meta property="og:description" content="An interactive 3D geological model of Mount Etna — the volcano's structure, its eruptive record and its deformation, on real terrain.">
+  <meta property="og:image" content="https://geoidinitiative.com/assets/og_geoid.jpg">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="1200">
+  <meta property="og:image:alt" content="GeoID Initiative logo">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:image" content="https://geoidinitiative.com/assets/og_geoid.jpg">
+  <meta name="twitter:title" content="Mount Etna | 3D Geological Model &amp; Volcano Explorer | GeoID">
+  <meta name="twitter:description" content="An interactive 3D geological model of Mount Etna — the volcano's structure, its eruptive record and its deformation, on real terrain.">
   <link rel="icon" href="../../assets/etna_icon.png" type="image/png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -129,6 +144,19 @@
        Cyan is the hub's data colour; here the data is lava and the reticle
        is the gold the viewer already uses. -->
   <style id="boot-style">
+    /* THE PAGE'S ONE HEADING. This document is an application shell -- a
+       start-up screen over a viewer in a frame -- so it had no heading at all:
+       a screen reader met a page with no outline, and a crawler met a page
+       with nothing saying what it is. The heading is off-screen rather than
+       display:none so assistive technology still reads it, and it says exactly
+       what the <title> says. */
+    .page-heading {
+      position: absolute;
+      width: 1px; height: 1px;
+      margin: -1px; padding: 0; border: 0;
+      overflow: hidden; clip-path: inset(50%);
+      white-space: nowrap;
+    }
     .boot {
       --boot-bg: #080502;
       --boot-ink: #fff4e8;
@@ -251,9 +279,11 @@
       .boot-log div { opacity: 1; }
     }
   </style>
-  <link rel="stylesheet" href="/styles/v2-viewer.css?v=20260920-84ebb99">
+  <link rel="stylesheet" href="/styles/v2-viewer.css?v=20260922-9c13628">
 </head>
 <body>
+
+  <h1 class="page-heading">Mount Etna — an interactive 3D geological model of the volcano</h1>
 
   <!-- VISIBLE FROM THE START, under the screen. At opacity 0 the viewer's
        canvas was first PRESENTED at the hand-over, and that first presentation

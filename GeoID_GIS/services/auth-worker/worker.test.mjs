@@ -289,11 +289,30 @@ check("microsoft: a guest's #EXT# UPN is refused",
 
   const f1 = await worker.fetch(new Request(link), env);
   const to = new URL(f1.headers.get("location") || "https://x/");
-  const tok = decodeURIComponent(to.hash.replace(/^#token=/, ""));
-  const claims = await verify(tok, SECRET, { audience: "site" });
+  // RE-ARGUED, NOT DELETED. This check has always been "following the link
+  // issues a member session at the return address"; what changed is where the
+  // session lives. The SIGNED token is now an httpOnly cookie and the
+  // fragment carries a display claim, so the check reads both halves --
+  // otherwise the pin would pass on a redirect that set no cookie at all.
+  const setCookie = f1.headers.get("Set-Cookie") || "";
+  const cookieToken = setCookie.split(";")[0].split("=").slice(1).join("=");
+  const claims = await verify(cookieToken, SECRET, { audience: "site" });
+  const shown = JSON.parse(new TextDecoder().decode(Uint8Array.from(
+    atob(decodeURIComponent(to.hash.replace(/^#claims=/, ""))
+      .replace(/-/g, "+").replace(/_/g, "/")), (c) => c.charCodeAt(0))));
   check("following the link issues a member session at the return address",
     f1.status === 302 && `${to.origin}${to.pathname}${to.search}` === "https://example.org/sign-in/?next=%2Fgeohub%2F"
       && claims?.email === "mem@outlook.com" && claims.member === true, to.hash.slice(0, 30));
+  check("the signed token is in an httpOnly, Secure, SameSite cookie",
+    /HttpOnly/.test(setCookie) && /Secure/.test(setCookie)
+      && /SameSite=Lax/.test(setCookie) && /Domain=\.example\.org/.test(setCookie),
+    setCookie.slice(0, 120));
+  check("the fragment carries display claims and NOT the signed token",
+    !/token=/.test(to.hash) && shown.email === "mem@outlook.com" && shown.member === true
+      && shown.plan === "member" && !("sub" in shown) && !("iss" in shown),
+    to.hash.slice(0, 40));
+  check("the display claim cannot be verified as a session",
+    (await verify(decodeURIComponent(to.hash.replace(/^#claims=/, "")), SECRET)) === null);
   const f2 = await worker.fetch(new Request(link), env);
   const to2 = new URL(f2.headers.get("location") || "https://x/");
   check("the link works once", f2.status === 302 && to2.hash.startsWith("#auth-error="), to2.hash.slice(0, 40));
@@ -316,5 +335,88 @@ check("microsoft: a guest's #EXT# UPN is refused",
   check("without a mail key the door says it is not set up", r4.status === 503, String(r4.status));
 }
 
-console.log(`\n${failures ? `${failures} failed` : "all passed"}`);
-process.on("exit", () => { process.exitCode = failures ? 1 : 0; });
+// THE VERDICT IS AN EXIT HOOK, so the ORDER of the checks above it stops
+// mattering. Written inline it was printed a third of the way down this file
+// and reported "all passed" over checks that had not run yet -- which is the
+// exact trap this tree has paid for twice, and which appending the session
+// checks below it walked into again.
+// ── The cookie is the session, and the page can no longer hold one ──────────
+//
+// What these prove: the endpoints that mint a pass read the COOKIE, a forged
+// display claim gets nothing, signing out is a request the service answers
+// (only it can unset an httpOnly cookie), and a loop is stopped.
+
+async function sessionChecks() {
+  const env = {
+    ...kv(),
+    JWT_SECRET: SECRET,
+    SELF_ORIGIN: "https://auth.example.org",
+    SITE_ORIGIN: "https://example.org",
+    RETURN_ORIGINS: "https://example.org",
+  };
+  const now = Math.floor(Date.now() / 1000);
+  await env.MEMBERS.put("member:mem@example.org",
+    JSON.stringify({ until: now + 86400, plan: "member" }));
+
+  const token = await sign({
+    sub: "mem@example.org", email: "mem@example.org", name: "A Member",
+    member: true, plan: "member", aud: "site", iat: now, exp: now + 3600,
+  }, SECRET);
+  const withCookie = (path, method = "POST") => worker.fetch(new Request(
+    `https://auth.example.org${path}`,
+    { method, headers: { Cookie: `geoid_session=${token}; other=1` } }), env);
+
+  const me = await withCookie("/auth/me", "GET");
+  const meBody = await me.json();
+  check("/auth/me reads the cookie", meBody.signedIn === true
+    && meBody.email === "mem@example.org" && meBody.member === true);
+
+  const pass = await withCookie("/auth/data-token");
+  const passBody = await pass.json();
+  const passClaims = await verify(passBody.token, SECRET, { audience: "data" });
+  check("/auth/data-token mints a pass from the cookie",
+    pass.status === 200 && !!passClaims, JSON.stringify(passBody).slice(0, 80));
+  check("the pass says nothing about who anybody is",
+    !!passClaims && !("email" in passClaims) && !("sub" in passClaims));
+
+  const bare = await worker.fetch(new Request(
+    "https://auth.example.org/auth/data-token", { method: "POST" }), env);
+  check("no cookie, no pass", bare.status === 403);
+
+  // A forged display claim is exactly what an attacker holding the page's
+  // localStorage would have. It must buy nothing.
+  const forged = btoa(JSON.stringify({ email: "mem@example.org", member: true }))
+    .replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  const faked = await worker.fetch(new Request(
+    "https://auth.example.org/auth/data-token",
+    { method: "POST", headers: { Cookie: `geoid_session=${forged}` } }), env);
+  check("a forged display claim mints no pass", faked.status === 403);
+
+  const out = await withCookie("/auth/signout");
+  const cleared = out.headers.get("Set-Cookie") || "";
+  check("signing out clears the cookie, which only this service can do",
+    out.status === 200 && /geoid_session=;/.test(cleared) && /Max-Age=0/.test(cleared),
+    cleared.slice(0, 80));
+
+  // The limiter counts in KV against the caller's address.
+  const flood = { ...env, RATE_PER_MIN: "3" };
+  let refused = null;
+  for (let i = 0; i < 40 && !refused; i += 1) {
+    const r = await worker.fetch(new Request("https://auth.example.org/auth/me", {
+      headers: { "CF-Connecting-IP": "203.0.113.99" },
+    }), flood);
+    if (r.status === 429) refused = r;
+  }
+  check("a loop against the service is stopped", !!refused);
+  const other = await worker.fetch(new Request("https://auth.example.org/auth/me", {
+    headers: { "CF-Connecting-IP": "203.0.113.100" },
+  }), flood);
+  check("one address's flood does not lock everybody out", other.status === 200);
+}
+
+await sessionChecks();
+
+process.on("exit", () => {
+  console.log(`\n${failures ? `${failures} failed` : "all passed"}`);
+  if (failures) process.exitCode = 1;
+});

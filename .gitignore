@@ -280,3 +280,36 @@ data/global/worldpop/*.tif
 # IAU nomenclature outline bake: source zips (bake-nomenclature.py)
 data/global/.nomenclature-work/
 data/global/nomenclature/*.geojson
+
+# ─────────────────────────────────────────────────────────────────────────
+# SECRETS. Nothing in this list has ever been committed (the history was
+# swept for it), and this is what keeps it that way.
+#
+# The deployed services hold their secrets in their own environments --
+# `wrangler secret put` for the two Workers, `gcloud functions deploy
+# --set-secrets` for the Earth Engine service -- so there is no .env in this
+# tree today. The moment somebody makes one for a local run, it must not be
+# the commit that leaks the Stripe key.
+# ─────────────────────────────────────────────────────────────────────────
+.env
+.env.*
+!.env.example
+*.env
+.envrc
+.dev.vars
+.dev.vars.*
+secrets.json
+service-account*.json
+*-service-account.json
+gcp-credentials*.json
+client_secret*.json
+*.pem
+*.p12
+*.pfx
+id_rsa
+id_rsa.*
+id_ed25519
+id_ed25519.*
+.wrangler/
+.vercel/
+.netlify/

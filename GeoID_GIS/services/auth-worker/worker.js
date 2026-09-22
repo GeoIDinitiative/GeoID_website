@@ -10,8 +10,9 @@
  *   GET  /auth/callback/<provider>                          take them back
  *   POST /auth/email         {email, return}                a sign-in link by email
  *   GET  /auth/callback/email?token=                        the link, followed
- *   GET  /auth/me            (Bearer)                       who is this
- *   POST /auth/data-token    (Bearer)                       a short pass for the bucket
+ *   GET  /auth/me            (cookie)                       who is this
+ *   POST /auth/data-token    (cookie)                       a short pass for the bucket
+ *   POST /auth/signout       (cookie)                       drop the session
  *   POST /stripe/webhook     (Stripe-Signature)             a payment became a membership
  *
  * IT HOLDS NO WORK. A project is a folder on the member's own disk, their own
@@ -26,9 +27,18 @@
  * Worker's own environment and never reach a page: a browser cannot hold a
  * secret, which is the rule `google-credentials.js` already throws over.
  *
- * THE TOKEN COMES BACK IN THE URL FRAGMENT. A fragment is not sent to any
- * server, does not reach an access log and does not travel in a Referer, which
- * a query string does all three of.
+ * THE SIGNED TOKEN IS AN httpOnly COOKIE and never reaches JavaScript. What
+ * comes back to the page, in the URL FRAGMENT, is a DISPLAY claim -- a name,
+ * an address, whether they are a member and until when -- so the app can
+ * greet somebody and draw its gates without holding a credential that one
+ * cross-site-scripting hole would carry away. A fragment because it is not
+ * sent to any server, does not reach an access log and does not travel in a
+ * Referer, which a query string does all three of.
+ *
+ * FORGING THE DISPLAY CLAIM BUYS NOTHING. `membership.js` already says every
+ * browser-side gate is a courtesy; what is enforced is the short pass this
+ * service mints at /auth/data-token against the cookie, and which the data
+ * bucket's gate and the Earth Engine service verify.
  */
 
 const WEEK = 7 * 24 * 3600;
@@ -165,6 +175,115 @@ export async function verify(token, secret, { audience = null } = {}) {
   if (audience && payload.aud !== audience) return null;
   return payload;
 }
+
+// ── The session cookie, and the claims a page may hold ─────────────────────
+//
+// THE SIGNED TOKEN NEVER REACHES JAVASCRIPT NOW. It used to travel back in
+// the URL fragment and live in `localStorage`, where any script on the origin
+// could read it -- so a single cross-site-scripting hole anywhere on the site
+// handed an attacker a week-long credential to carry away. It is set as an
+// httpOnly cookie instead: the browser sends it to this service and to
+// nothing else, and script cannot read it at all.
+//
+// WHAT THE PAGE GETS INSTEAD is a DISPLAY claim -- the name, the address,
+// whether they are a member, and until when -- unsigned, and the app's own
+// `membership.js` already treats every browser-side gate as a courtesy for
+// exactly this reason. Somebody may edit it to read `member: true` and will
+// get an unlocked-looking interface over a `dataPass()` of "", because the
+// pass is minted HERE against the cookie, and the bucket and the Earth
+// Engine service verify that pass. Faking the display claim buys the
+// appearance of membership and none of it.
+//
+// `Domain=.geoidinitiative.com` so the site and this service share it;
+// `SameSite=Lax` is enough because they are the same site (one registrable
+// domain), and it still refuses a genuinely cross-site POST. `Secure` and
+// `HttpOnly` are not negotiable.
+
+const SESSION_COOKIE = "geoid_session";
+
+function cookieDomain(env) {
+  try {
+    const host = new URL(env.SITE_ORIGIN || "https://geoidinitiative.com").hostname;
+    const parts = host.split(".");
+    // Never set a Domain on a bare host or on localhost: a cookie for
+    // `localhost` with a Domain attribute is refused outright.
+    if (parts.length < 2 || host === "localhost") return "";
+    return `; Domain=.${parts.slice(-2).join(".")}`;
+  } catch (error) {
+    return "";
+  }
+}
+
+export function sessionCookie(env, token, maxAge) {
+  return `${SESSION_COOKIE}=${token}${cookieDomain(env)}; Path=/; HttpOnly; Secure; `
+    + `SameSite=Lax; Max-Age=${Math.max(0, Math.floor(maxAge))}`;
+}
+
+export function clearedCookie(env) {
+  return `${SESSION_COOKIE}=${cookieDomain(env)}; Path=/; HttpOnly; Secure; `
+    + "SameSite=Lax; Max-Age=0";
+}
+
+/** Read one cookie out of a Cookie header, without a parser. */
+export function readCookie(header, name) {
+  for (const part of String(header || "").split(";")) {
+    const at = part.indexOf("=");
+    if (at < 0) continue;
+    if (part.slice(0, at).trim() === name) return part.slice(at + 1).trim();
+  }
+  return "";
+}
+
+/**
+ * The credential this request carries.
+ *
+ * The cookie first, because that is what a browser now sends. A Bearer token
+ * is still accepted and still has to be a valid signature: after this change
+ * no page holds one, so allowing it costs the browser story nothing and
+ * keeps a script or a test able to speak to the service.
+ */
+function credential(request) {
+  const cookie = readCookie(request.headers.get("Cookie"), SESSION_COOKIE);
+  if (cookie) return cookie;
+  return (request.headers.get("Authorization") || "").replace(/^Bearer\s+/i, "");
+}
+
+/** What a page is told, and all it is told. Unsigned, and display only. */
+export function displayClaims(claims, holds) {
+  return {
+    email: claims.email,
+    name: claims.name || "",
+    member: !!holds,
+    plan: holds?.plan || "explorer",
+    exp: claims.exp,
+  };
+}
+
+const b64urlJson = (obj) => b64url(enc.encode(JSON.stringify(obj)));
+
+// ── A coarse rate limit, in KV ─────────────────────────────────────────────
+//
+// STATED HONESTLY: one counter per key per window, so two requests landing in
+// the same instant can both read the same count and both be let through. It
+// bounds a loop and a slow guess at somebody's address; it is not a defence
+// against a distributed flood, and the answer to that is a Cloudflare rate
+// limiting rule at the edge, which is in the runbook beside this. Counting in
+// KV rather than in memory because a Worker isolate is not a place state can
+// be kept: the next request may be served by another one.
+
+export async function tooMany(env, key, limit, windowSeconds) {
+  if (!env.MEMBERS) return false;
+  const window = Math.floor(Date.now() / 1000 / windowSeconds);
+  const slot = `rl:${key}:${window}`;
+  const count = Number(await env.MEMBERS.get(slot)) || 0;
+  if (count >= limit) return true;
+  await env.MEMBERS.put(slot, String(count + 1), { expirationTtl: windowSeconds + 60 });
+  return false;
+}
+
+/** Who to count against. Cloudflare's own header, never one the caller sets. */
+const callerIp = (request) =>
+  request.headers.get("CF-Connecting-IP") || "unknown";
 
 // ── Membership ──────────────────────────────────────────────────────────────
 
@@ -345,6 +464,11 @@ function cors(env, request) {
   if (!allow.includes(origin)) return {};
   return {
     "access-control-allow-origin": origin,
+    // The session is a cookie now, so the browser only sends it when the
+    // page asks with `credentials: "include"` AND the reply says so. This is
+    // also why the origin above is echoed from the allowlist and is never
+    // `*`: a wildcard and credentials together are refused outright.
+    "access-control-allow-credentials": "true",
     "access-control-allow-headers": "authorization, content-type",
     "access-control-allow-methods": "GET, POST, OPTIONS",
     vary: "Origin",
@@ -361,15 +485,32 @@ async function issueSession(env, who, returnTo) {
   // than a week, so a lapsed member's own copy stops working without anybody
   // having to reach into their browser.
   const exp = Math.min(now + WEEK, holds ? holds.until : now + WEEK);
-  const token = await sign({
+  const claims = {
     sub: who.email, email: who.email, name: who.name || "",
     member: !!holds, plan: holds?.plan || "explorer",
     iss: env.SELF_ORIGIN, aud: "site", iat: now, exp,
-  }, env.JWT_SECRET);
-  // In the FRAGMENT: not sent to any server, not logged, not in a Referer.
+  };
+  const token = await sign(claims, env.JWT_SECRET);
+
+  // THE SIGNED TOKEN GOES IN THE COOKIE AND NOWHERE ELSE, so no script on the
+  // site can read it. What travels back is the DISPLAY claim -- a name, an
+  // address, whether they are a member -- which the page needs to greet
+  // somebody and draw its gates, and which is worth nothing to anybody who
+  // forges it: the pass every enforced gate checks is minted here, against
+  // this cookie.
+  //
+  // Still in the FRAGMENT rather than the query: a fragment is not sent to
+  // any server, does not reach an access log and does not travel in a
+  // Referer, which a query string does all three of.
   const home = new URL(returnTo);
-  home.hash = `token=${encodeURIComponent(token)}`;
-  return Response.redirect(home.toString(), 302);
+  home.hash = `claims=${encodeURIComponent(b64urlJson(displayClaims(claims, holds)))}`;
+  return new Response(null, {
+    status: 302,
+    headers: {
+      Location: home.toString(),
+      "Set-Cookie": sessionCookie(env, token, exp - now),
+    },
+  });
 }
 
 function failSession(returnTo, message) {
@@ -430,6 +571,17 @@ export default {
     const url = new URL(request.url);
     const head = cors(env, request);
     if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: head });
+
+    // Counted before anything is read or verified, so a flood costs a KV read
+    // rather than a signature check and a KV lookup. Stripe is deliberately
+    // exempt: its deliveries are signature-verified and retried, and dropping
+    // one is a membership that never gets written.
+    if (!url.pathname.startsWith("/stripe/")) {
+      const per = Number(env.RATE_PER_MIN || 60);
+      if (await tooMany(env, `ip:${callerIp(request)}`, per, 60)) {
+        return json({ error: "Too many requests -- wait a minute." }, 429, head);
+      }
+    }
 
     // ── start ──────────────────────────────────────────────────────────────
     if (url.pathname === "/auth/start") {
@@ -520,10 +672,26 @@ export default {
       }
     }
 
+    // ── sign out ───────────────────────────────────────────────────────────
+    //
+    // A NEW ENDPOINT, and it has to exist: the session is an httpOnly cookie
+    // now, so clearing `localStorage` no longer signs anybody out -- only the
+    // service that set the cookie can unset it. The page calls this and then
+    // forgets its display claims.
+    if (url.pathname === "/auth/signout") {
+      return new Response(JSON.stringify({ ok: true }), {
+        status: 200,
+        headers: {
+          "content-type": "application/json; charset=utf-8",
+          "Set-Cookie": clearedCookie(env),
+          ...head,
+        },
+      });
+    }
+
     // ── who is this ────────────────────────────────────────────────────────
     if (url.pathname === "/auth/me") {
-      const token = (request.headers.get("Authorization") || "").replace(/^Bearer\s+/i, "");
-      const claims = await verify(token, env.JWT_SECRET, { audience: "site" });
+      const claims = await verify(credential(request), env.JWT_SECRET, { audience: "site" });
       if (!claims) return json({ signedIn: false }, 200, head);
       // Re-read the entitlement rather than trusting the token's own copy: a
       // membership that lapsed or was granted since was decided here, not in
@@ -538,8 +706,7 @@ export default {
 
     // ── a short pass for the bucket ────────────────────────────────────────
     if (url.pathname === "/auth/data-token") {
-      const token = (request.headers.get("Authorization") || "").replace(/^Bearer\s+/i, "");
-      const claims = await verify(token, env.JWT_SECRET, { audience: "site" });
+      const claims = await verify(credential(request), env.JWT_SECRET, { audience: "site" });
       const holds = claims && await membership(env, claims.email);
       if (!holds) return json({ error: "Not a member." }, 403, head);
       const now = Math.floor(Date.now() / 1000);

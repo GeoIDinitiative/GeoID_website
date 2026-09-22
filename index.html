@@ -10,12 +10,45 @@
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <meta name="description" content="GeoHUB — the GeoID workspace: a hazard GIS on a 3D globe with the earthquake and cyclone record, world geology, live events and ten worlds; the Meshing Studio and Research Hub beside it, and six modelled hazard maps for members.">
-  <title>GeoID Initiative — GeoHUB</title>
+  <meta name="description" content="GeoID is a 3D geospatial platform for geohazard mapping, Earth and planetary exploration and geological visualisation. Open GeoHUB free in your browser — no install, no account.">
+  <title>GeoID Initiative | 3D Geospatial Platform for Earth &amp; Planetary Science</title>
   <!-- Social / search preview. Without an og:image, search engines pick an
        arbitrary image off the page — which is why results showed a stray
        Earth icon instead of the GeoID logo. -->
   <link rel="canonical" href="https://geoidinitiative.com/">
+  <meta name="robots" content="index, follow">
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "Organization",
+        "@id": "https://geoidinitiative.com/#organization",
+        "name": "GeoID Initiative",
+        "url": "https://geoidinitiative.com/",
+        "logo": {
+          "@type": "ImageObject",
+          "url": "https://geoidinitiative.com/assets/og_geoid.jpg",
+          "width": 1200,
+          "height": 1200
+        },
+        "image": "https://geoidinitiative.com/assets/og_geoid.jpg",
+        "description": "A 3D geospatial platform for Earth and planetary science, geohazard mapping and open geoscience.",
+        "email": "geoid.initiative@gmail.com",
+        "sameAs": ["https://www.linkedin.com/company/geoid-initiative"]
+      },
+      {
+        "@type": "WebSite",
+        "@id": "https://geoidinitiative.com/#website",
+        "url": "https://geoidinitiative.com/",
+        "name": "GeoID Initiative",
+        "description": "A 3D geospatial platform for geohazard mapping, Earth and planetary exploration and geological visualisation.",
+        "publisher": { "@id": "https://geoidinitiative.com/#organization" },
+        "inLanguage": "en-GB"
+      }
+    ]
+  }
+  </script>
   <!-- THE START-UP SCREEN. Inline, and ahead of every stylesheet, so it is on
        screen from the first paint while the viewer below it fetches its
        modules, its terrain and its catalogues. It is a separate fixed layer
@@ -28,6 +61,19 @@
        default palette as the fallback for the instant before that sheet
        arrives, so the CRT or Workstation theme gets its own start-up. -->
   <style id="boot-style">
+    /* THE PAGE'S ONE HEADING. This document is an application shell -- a
+       start-up screen over a viewer in a frame -- so it had no heading at all:
+       a screen reader met a page with no outline, and a crawler met a page
+       with nothing saying what it is. The heading is off-screen rather than
+       display:none so assistive technology still reads it, and it says exactly
+       what the <title> says. */
+    .page-heading {
+      position: absolute;
+      width: 1px; height: 1px;
+      margin: -1px; padding: 0; border: 0;
+      overflow: hidden; clip-path: inset(50%);
+      white-space: nowrap;
+    }
     .boot {
       --boot-bg: var(--skin-bg, #030608);
       --boot-ink: var(--skin-ink, #e8f7f4);
@@ -132,26 +178,26 @@
   </style>
   <!-- Themes: the stylesheet hangs off data-skin, and theme.js stamps it
        in <head> so the first paint is already in the chosen theme. -->
-  <link rel="stylesheet" href="/styles/viewer-themes.css?v=20260920-84ebb99">
-  <script src="/scripts/theme.js?v=20260920-84ebb99"></script>
+  <link rel="stylesheet" href="/styles/viewer-themes.css?v=20260922-9c13628">
+  <script src="/scripts/theme.js?v=20260922-9c13628"></script>
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="GeoID Initiative">
   <meta property="og:url" content="https://geoidinitiative.com/">
-  <meta property="og:title" content="GeoID Initiative — GeoHUB">
-  <meta property="og:description" content="GeoHUB — the GeoID workspace: a hazard GIS on a 3D globe with the earthquake and cyclone record, world geology, live events and ten worlds; the Meshing Studio and Research Hub beside it, and six modelled hazard maps for members.">
+  <meta property="og:title" content="GeoID Initiative | 3D Geospatial Platform for Earth &amp; Planetary Science">
+  <meta property="og:description" content="GeoID is a 3D geospatial platform for geohazard mapping, Earth and planetary exploration and geological visualisation. Open GeoHUB free in your browser — no install, no account.">
   <meta property="og:image" content="https://geoidinitiative.com/assets/og_geoid.jpg">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="1200">
   <meta property="og:image:alt" content="GeoID Initiative logo">
   <meta name="twitter:card" content="summary">
-  <meta name="twitter:title" content="GeoID Initiative — GeoHUB">
-  <meta name="twitter:description" content="GeoHUB — the GeoID workspace: a hazard GIS on a 3D globe with the earthquake and cyclone record, world geology, live events and ten worlds; the Meshing Studio and Research Hub beside it, and six modelled hazard maps for members.">
+  <meta name="twitter:title" content="GeoID Initiative | 3D Geospatial Platform for Earth &amp; Planetary Science">
+  <meta name="twitter:description" content="GeoID is a 3D geospatial platform for geohazard mapping, Earth and planetary exploration and geological visualisation. Open GeoHUB free in your browser — no install, no account.">
   <meta name="twitter:image" content="https://geoidinitiative.com/assets/og_geoid.jpg">
   <link rel="icon" type="image/png" href="/assets/GeoID_mark.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@500;600;700;800&family=Public+Sans:wght@400;500;600;700;800&family=Source+Sans+3:wght@300;400;500;600;700&family=Archivo:wght@700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/styles/shared.css?v=20260920-84ebb99">
+  <link rel="stylesheet" href="/styles/shared.css?v=20260922-9c13628">
   <style>
     /* Scrollable interface shell: globe first, analysis hub below */
     html {
@@ -1377,11 +1423,13 @@
     .demo-disclaimer-backdrop[hidden] { display: none !important; }
   </style>
   <!-- Site header only — the app UI below keeps its own styling -->
-  <link rel="stylesheet" href="/styles/site-nav.css?v=20260920-84ebb99">
-  <link rel="stylesheet" href="/styles/geohub-shell.css?v=20260920-84ebb99">
-  <link rel="stylesheet" href="/styles/v2-viewer.css?v=20260920-84ebb99">
+  <link rel="stylesheet" href="/styles/site-nav.css?v=20260922-9c13628">
+  <link rel="stylesheet" href="/styles/geohub-shell.css?v=20260922-9c13628">
+  <link rel="stylesheet" href="/styles/v2-viewer.css?v=20260922-9c13628">
 </head>
 <body>
+
+  <h1 class="page-heading">GeoID Initiative — a 3D geospatial platform for Earth and planetary science</h1>
 
   <!-- ── Start-up screen (see #boot-style in <head>) ─────────────────────
        Markup first so it is on screen at the first paint; the script that
@@ -1928,7 +1976,7 @@
       <iframe
         id="globe-iframe"
         class="globe-iframe"
-        src="/GeoID_GIS/viewer/?v=gis-20260920-84ebb99"
+        src="/GeoID_GIS/viewer/?v=gis-20260922-9c13628"
         title="GeoHUB — interactive 3D globe with surface condition modelling"
         allow="fullscreen"
       ></iframe>
@@ -2973,11 +3021,11 @@
     })();
   </script>
 
-<script src="/scripts/site.js?v=20260920-84ebb99"></script>
+<script src="/scripts/site.js?v=20260922-9c13628"></script>
 <!-- The header's own controls tick and click too: the mode bar, the player
      and Settings moved up here from the viewer, which has always had them. -->
-<script src="/scripts/ui-sound.js?v=20260920-84ebb99" defer></script>
-<script src="/styles/nav.js?v=20260920-84ebb99" defer></script>
+<script src="/scripts/ui-sound.js?v=20260922-9c13628" defer></script>
+<script src="/styles/nav.js?v=20260922-9c13628" defer></script>
 
   <!-- ── Forecast panel ────────────────────────────────────────────────────
        Mapping first, then the location, then the time series. The pin says
@@ -3443,6 +3491,6 @@
       });
     })();
   </script>
-  <script type="module" src="/scripts/nav-membership.js?v=20260920-84ebb99"></script>
+  <script type="module" src="/scripts/nav-membership.js?v=20260922-9c13628"></script>
 </body>
 </html>

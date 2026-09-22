@@ -1,13 +1,19 @@
 /**
  * The sign-in door and the account page.
  *
- * ONE DOCUMENT HANDLES THE HANDOFF. The service sends the token back in the URL
- * fragment, and a fragment belongs to whichever document is at the top -- so a
- * return straight to / would land the token on the SHELL while the
- * viewer that needs it is inside an iframe. Every sign-in therefore comes back
- * here, to a page that has no iframe, and this page forwards to wherever the
- * reader started. The token is in localStorage by then, which every document on
- * the origin can read.
+ * ONE DOCUMENT HANDLES THE HANDOFF. The service sends a DISPLAY CLAIM back in
+ * the URL fragment, and a fragment belongs to whichever document is at the top
+ * -- so a return straight to / would land it on the SHELL while the viewer that
+ * needs it is inside an iframe. Every sign-in therefore comes back here, to a
+ * page that has no iframe, and this page forwards to wherever the reader
+ * started.
+ *
+ * WHAT IS NOT IN THE FRAGMENT IS THE SIGNED SESSION. That arrives as an
+ * httpOnly cookie on the same redirect, which the browser has already stored
+ * by the time this runs and which no script here can read -- so a
+ * cross-site-scripting hole anywhere on the site cannot carry the credential
+ * away. The display claim is what every document on the origin reads to draw
+ * a name and a gate.
  *
  * The fragment is cleaned off the address bar straight away: it is not secret
  * from the person holding it, and it should not be in their history or in a
@@ -34,15 +40,23 @@ function nextUrl() {
   return "/account/";
 }
 
-/** Take a token out of the fragment, if the service just sent one back. */
+/**
+ * Take what the service just sent back out of the fragment.
+ *
+ * `claims` is the display claim -- a name, an address, whether they are a
+ * member -- and is what the service sends now; the SIGNED session arrived
+ * beside it as an httpOnly cookie the browser has already stored and this
+ * page cannot see. `token` is the older shape and is still read, so a
+ * deployment that has not been updated still signs people in.
+ */
 function handoff() {
   const hash = new URLSearchParams(String(location.hash || "").replace(/^#/, ""));
-  const token = hash.get("token");
+  const handed = hash.get("claims") || hash.get("token");
   const failed = hash.get("auth-error");
-  if (!token && !failed) return null;
+  if (!handed && !failed) return null;
   history.replaceState(null, "", location.pathname + location.search);
   if (failed) return { error: failed };
-  membership.accept(token);
+  membership.accept(handed);
   return { ok: true };
 }
 

@@ -258,6 +258,17 @@ export function gatedData(path) {
     || clean.startsWith(`${p}-`));
 }
 
+/**
+ * WHAT IS IN STORAGE IS A DISPLAY CLAIM, NOT A CREDENTIAL.
+ *
+ * The signed session is an httpOnly cookie the service sets and only the
+ * service can read or clear. This key holds the name, the address, whether
+ * they are a member and until when -- enough to greet somebody and draw the
+ * gates, and worth nothing to anybody who edits it: every gate that is really
+ * enforced checks the short pass `dataPass()` fetches, and that is minted by
+ * the service against the cookie. Editing this buys an unlocked-looking
+ * interface over a pass of "", which is the 402 the bucket answers with.
+ */
 const TOKEN_KEY = "geoid:membership";
 const listeners = [];
 
@@ -342,9 +353,17 @@ function localUnlock() {
  */
 export function readClaims(raw) {
   const parts = String(raw || "").split(".");
-  if (parts.length !== 3) return null;
+  // TWO SHAPES, AND THE SHAPE IS THE POINT. What the service hands back now is
+  // one base64url segment of DISPLAY claims -- a name, an address, whether
+  // they are a member, until when -- because the signed token is an httpOnly
+  // cookie the page is not allowed to read. The three-part form is a signed
+  // token, still read here for a deployment that has not been updated and for
+  // a session stored before this change; either way it is read for DRAWING
+  // and for nothing else, which is what the note below has always said.
+  const body = parts.length === 3 ? parts[1] : (parts.length === 1 ? parts[0] : null);
+  if (!body) return null;
   try {
-    const binary = atob(parts[1].replace(/-/g, "+").replace(/_/g, "/"));
+    const binary = atob(body.replace(/-/g, "+").replace(/_/g, "/"));
     /**
      * TextDecoder, not `decodeURIComponent(escape(...))`.
      *
@@ -419,12 +438,31 @@ export function refresh() {
   return state();
 }
 
+/**
+ * Sign out, here AND at the service.
+ *
+ * CLEARING STORAGE IS NO LONGER ENOUGH, and that is worth stating plainly:
+ * the session is an httpOnly cookie, so only the service that set it can
+ * unset it. Without the call, forgetting the display claims would leave
+ * somebody looking signed out at a browser that is still a member -- and the
+ * next `dataPass()` would quietly succeed.
+ *
+ * The local half happens FIRST and does not wait: a network that is down must
+ * not leave somebody unable to sign out of the machine in front of them, and
+ * the cookie expires on its own within the week either way.
+ */
 export function signOut() {
   claims = null;
   forgetPass();
   forget();
   token = null;   // uncached, so the next read comes off storage
 
+  if (authBase) {
+    try {
+      fetch(`${authBase}/auth/signout`, { method: "POST", credentials: "include" })
+        .catch(() => { /* the local half is already done */ });
+    } catch (error) { /* no fetch, or a test */ }
+  }
   announce();
   return state();
 }
@@ -466,10 +504,18 @@ export function state() {
   };
 }
 
-/** The token, for a request that must carry it. Empty when there is none. */
+/**
+ * A signed token, for a request that must carry one. Usually empty now.
+ *
+ * The session is an httpOnly cookie, so what is in storage is a display claim
+ * and NOT a credential -- sending it as a Bearer token would be sending the
+ * service something it will refuse. This answers only when what is held is
+ * genuinely a signed token, which is a deployment that predates the cookie.
+ */
 export function bearer() {
   load();
-  return claims && !expired(claims) ? token : "";
+  if (!claims || expired(claims)) return "";
+  return String(token || "").split(".").length === 3 ? token : "";
 }
 
 /**
@@ -539,9 +585,18 @@ export async function dataPass() {
   if (passInFlight) return passInFlight;
   passInFlight = (async () => {
     try {
+      // `credentials: "include"` is what sends the httpOnly session cookie to
+      // the service: the site and the service are the same site (one
+      // registrable domain) but different ORIGINS, so a cross-origin fetch
+      // carries no cookie unless it is asked to, and the service's reply has
+      // to name this origin and allow credentials -- which its CORS does.
+      // The Authorization header is kept for a deployment that predates the
+      // cookie and is empty otherwise.
+      const carry = bearer();
       const res = await fetch(`${authBase}/auth/data-token`, {
         method: "POST",
-        headers: { Authorization: `Bearer ${bearer()}` },
+        credentials: "include",
+        headers: carry ? { Authorization: `Bearer ${carry}` } : {},
       });
       if (!res.ok) { pass = ""; passExp = 0; return ""; }
       const body = await res.json();

@@ -278,5 +278,40 @@ eq("...and its plan says member", m.state().plan, "member");
 m.accept(tokenFor({ email: "e@example.org", member: false, exp: inHours(24) }));
 eq("an explorer's plan says explorer", m.state().plan, "explorer");
 
-console.log(`\n${failures ? `${failures} failed` : "all passed"}`);
-process.on("exit", () => { process.exitCode = failures ? 1 : 0; });
+// ── The display claim, which is what storage holds now ──────────────────────
+//
+// The signed session is an httpOnly cookie the page cannot read, so what is
+// in `localStorage` is ONE base64url segment of display claims. These pin the
+// three things that would fail silently: the new shape is read, the old
+// three-part shape still is (a deployment that has not been updated), and
+// `bearer()` refuses to send a display claim to the service as though it
+// were a credential.
+
+const b64url = (obj) => Buffer.from(JSON.stringify(obj)).toString("base64url");
+const displayFor = (claims) => b64url(claims);
+
+m.accept(displayFor({ email: "d@example.org", name: "Dee", member: true, plan: "member", exp: inHours(24) }));
+eq("a display claim signs somebody in", m.state().signedIn, true);
+eq("...and says who they are", m.state().name, "Dee");
+eq("...and that they are a member", m.state().member, true);
+check("a display claim is NEVER sent as a bearer token", m.bearer() === "",
+  `got ${JSON.stringify(m.bearer())}`);
+
+m.accept(displayFor({ email: "old@example.org", member: true, exp: inHours(-1) }));
+eq("an expired display claim is not signed in", m.state().signedIn, false);
+
+// The old three-part shape still works, and is the only thing `bearer()`
+// answers for: a deployment that predates the cookie still has a credential
+// the page is allowed to hold.
+const legacy = tokenFor({ email: "legacy@example.org", member: true, exp: inHours(24) });
+m.accept(legacy);
+eq("a signed token still signs somebody in", m.state().signedIn, true);
+check("...and IS sent as a bearer token", m.bearer() === legacy);
+
+check("a claim of the wrong shape is refused rather than throwing",
+  m.accept("not..a..token..at..all").signedIn === false);
+
+process.on("exit", () => {
+  console.log(`\n${failures ? `${failures} failed` : "all passed"}`);
+  if (failures) process.exitCode = 1;
+});
