@@ -21,7 +21,7 @@
  * cannot disagree about what an M 7 looks like.
  */
 
-import { buildSymbology } from "./symbology.js?v=20260925-766e9bc";
+import { buildSymbology } from "./symbology.js?v=20260925-e61b297";
 
 /**
  * A CLASS PER MAGNITUDE UNIT, and a half one at the foot. The record's floor

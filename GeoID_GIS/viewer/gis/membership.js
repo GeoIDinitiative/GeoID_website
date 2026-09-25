@@ -272,7 +272,33 @@ export function gatedData(path) {
 const TOKEN_KEY = "geoid:membership";
 const listeners = [];
 
-let authBase = null;   // the Worker's origin; null until configured
+/**
+ * THE SERVICE, AS A DEFAULT — the address of the thing, not a secret.
+ *
+ * Every page used to have to name it in a meta tag, which is right for a
+ * SETTING and wrong for a fact: the service is this site's own, on this
+ * site's own domain, and the pages that needed it were the four membership
+ * pages plus the shell plus the ten viewers plus whatever is added next —
+ * a list kept in step by hand, and the first thing forgotten. Left unnamed,
+ * every gate in the app refused with "membership is not open for sign-in
+ * yet" over a service that had been live since the morning, and signing out
+ * could not reach the service to end the session.
+ *
+ * `gee.js` already carries its deployed function's address for exactly this
+ * reason. There is nothing to protect: the origin travels in the sign-in URL
+ * for anyone to read, and everything that is actually enforced is enforced
+ * THERE, against a cookie no page can see.
+ *
+ * Both ways out are unchanged and are what a fork or a local build uses:
+ *
+ *   <meta name="geoid-auth" content="https://…">   point it somewhere else
+ *   <meta name="geoid-membership" content="off">   no gates at all
+ *
+ * and `configure(null)` still clears it, which is what the tests do.
+ */
+const DEFAULT_SERVICE = "https://auth.geoidinitiative.com";
+
+let authBase = DEFAULT_SERVICE;
 let token = null;      // the signed membership token, as issued
 let claims = null;     // its payload, read for DISPLAY only
 

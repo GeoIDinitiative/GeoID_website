@@ -133,14 +133,27 @@ function controlFor(target, doc) {
 export function modeBarState(doc = document) {
   const music = doc.getElementById("music-btn");
   const audio = worldAudio(doc);
-  const project = Boolean(doc.getElementById("project-open-modal"));
+  /**
+   * THE FOLDER, AND WHETHER IT IS LOCKED — read off the button, never worked
+   * out here.
+   *
+   * Saving and exporting are membership's, so a free reader meeting the
+   * folder needs to know that before pressing it rather than after filling in
+   * a project name. Which of the two it is, is a question for the app's own
+   * gate; this side only carries the answer across, which is the same
+   * division every other control in this bar is under.
+   */
+  const folder = doc.getElementById("project-open-modal");
   const settings = Boolean(doc.getElementById(TARGETS.settings));
   const modes = ["gis", "model", "research"].filter((m) => doc.getElementById(TARGETS[m]));
   const mode = doc.body?.dataset?.viewMode || "gis";
   return {
     mode,
     modes,
-    project,
+    project: folder
+      ? { present: true, locked: folder.classList.contains("is-locked"),
+          label: folder.getAttribute("aria-label") || "Projects" }
+      : { present: false, locked: false, label: "" },
     settings,
     music: music
       ? { present: true, playing: !music.classList.contains("is-paused") }
@@ -241,6 +254,7 @@ function install() {
       const row = modeRow();
       row?.classList.toggle("is-modebar-hosted", hosted);
       row?.classList.toggle("is-modebar-empty", hosted && rowIsOnlyModeBar(row));
+      watchFolder();
       report();
       return;
     }
@@ -267,6 +281,29 @@ function install() {
   if (music) watch.observe(music, { attributes: true, attributeFilter: ["class"] });
   const icon = document.getElementById("audio-icon-pause");
   if (icon) watch.observe(icon, { attributes: true, attributeFilter: ["style"] });
+  /**
+   * A sign-in unlocks the folder, and the folder is what has to be re-read.
+   *
+   * The membership event alone is not enough and measured wrong: this module
+   * and project.js both listen for it, this one was installed first, so the
+   * report went out reading the class the button had not changed yet -- the
+   * dialog unlocked and the header's copy stayed locked. Watching the BUTTON
+   * is the pattern the player already uses here, and it cannot be out of
+   * order with itself.
+   */
+  let folderWatched = null;
+  const watchFolder = () => {
+    const folder = document.getElementById("project-open-modal");
+    // A PLANET PAGE HAS NO BUTTON AT INSTALL TIME: it arrives with the shared
+    // shell, after this module has loaded. So this is called again when the
+    // header claims the bar, which is the latest either of them happens, and
+    // is idempotent because a second observe of the same node would double
+    // every report.
+    if (!folder || folder === folderWatched) return;
+    folderWatched = folder;
+    watch.observe(folder, { attributes: true, attributeFilter: ["class", "aria-label"] });
+  };
+  watchFolder();
 
   /**
    * THE DOCUMENT THAT IS LEAVING SAYS SO, because nothing else can.

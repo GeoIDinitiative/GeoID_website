@@ -20,7 +20,7 @@
  * downstream can tell the difference, which is what makes a sign-in mid-session
  * work without a reload.
  */
-import { may, refusal, FEATURES, signInUrl } from "./membership.js?v=20260925-766e9bc";
+import { may, refusal, FEATURES, signInUrl, state, authService } from "./membership.js?v=20260925-e61b297";
 
 /**
  * Which tab or section belongs to which feature.
@@ -155,6 +155,52 @@ const STYLE = `
   font: 600 0.74rem/1 "Exo 2", system-ui, sans-serif;
 }
 .gis-lock-card .gis-lock-go:hover { background: rgba(var(--nav-accent-rgb, 255, 43, 214), 0.14); }
+.gis-lock-card .gis-lock-actions { display: flex; flex-wrap: wrap; gap: 0.45rem; margin: 0; }
+/* The second action is the same shape at a lower weight: two equal buttons is
+   two decisions, and only one of them is the one to take. */
+.gis-lock-card .gis-lock-go.is-quiet {
+  border-color: rgba(255, 255, 255, 0.22);
+  color: rgba(255, 255, 255, 0.72);
+}
+.gis-lock-card .gis-lock-go.is-quiet:hover { background: rgba(255, 255, 255, 0.07); }
+
+/*
+ * AN ICON BUTTON WEARS THE MARK AS A CORNER BADGE -- the folder in the header
+ * row and the Export door in the Workspace box, both of which are a glyph and
+ * a tooltip. There is no name to put the mark beside, and 13px of padlock
+ * inside a 1.05rem folder is a smudge. Full strength and in the accent, so it
+ * reads as deliberate rather than as the icon having gone wrong, and haloed
+ * against the panel behind it so it is not taken for part of the drawing.
+ *
+ * The button is NOT dimmed, which every other locked thing here is. It still
+ * opens -- the dialog is where the reason is written out, and a button that
+ * refused would have nowhere to say why -- so greying it would say "this does
+ * nothing", which is not true of it.
+ */
+.gis-lock-badge.is-locked { position: relative; overflow: visible; }
+.gis-lock-badge.is-locked > .gis-lock-mark {
+  position: absolute;
+  right: -2px;
+  bottom: -2px;
+  width: 11px; height: 11px;
+  margin: 0;
+  background: var(--nav-accent, #ff2bd6);
+  filter: drop-shadow(0 0 1.5px rgba(0, 0, 0, 0.9)) drop-shadow(0 0 1.5px rgba(0, 0, 0, 0.9));
+}
+
+/*
+ * A door inside the dialog that is going to refuse wears it inline, where
+ * there IS a name to put it beside -- and goes grey with it, which is the
+ * rule a locked tab already follows: the contrast dropping is what says "you
+ * cannot use this" before anything is read, and the lock is the reason. Bright
+ * and merely disabled, these two read as live buttons with an ornament.
+ */
+.button.is-locked {
+  opacity: 0.5;
+  filter: grayscale(1);
+  cursor: not-allowed;
+}
+.button.is-locked .gis-lock-mark { opacity: 0.9; }
 
 /* A locked mode button, in the same language as a locked tab. */
 .view-mode-btn.is-locked {
@@ -196,8 +242,20 @@ function nameOf(node) {
   return (head?.textContent || "").replace(/\s+/g, " ").trim() || "This";
 }
 
-/** The card that stands in a locked tab's body. */
-function lockCard(feature) {
+/**
+ * The card that stands in a locked tab's body -- and, exported, anywhere else
+ * a door has to say why it will not open.
+ *
+ * THE FIRST ACTION IS THE ONE THEY CAN TAKE. Until the membership service was
+ * reachable there was only ever one link here, to the page describing what
+ * membership will be, because "sign in" was an instruction nobody could
+ * follow. With the service live, somebody signed OUT is one press from the
+ * thing being refused, so that press leads; somebody signed in and not a
+ * member has nothing to sign into and is sent to membership instead. `may`
+ * answers the same either way, so the difference is only in what to offer.
+ */
+export function lockCard(feature) {
+  installStyle();
   const f = FEATURES[feature];
   const card = document.createElement("div");
   card.className = "gis-lock-card";
@@ -209,15 +267,45 @@ function lockCard(feature) {
   what.textContent = f ? f.blurb : "";
   const why = document.createElement("p");
   why.textContent = refusal(feature);
-  const go = document.createElement("a");
-  go.className = "gis-lock-go";
-  go.textContent = "About membership";
-  go.href = "/membership/";
-  // Inside the GIS iframe, or a viewer loads inside a viewer.
-  go.target = "_top";
 
-  card.append(head, what, why, go);
+  const row = document.createElement("p");
+  row.className = "gis-lock-actions";
+  // The RETURN is the top document's, not this one's: a viewer is framed, so
+  // `location.href` here is the iframe's own URL and coming back to it would
+  // load a viewer with no shell around it.
+  const signedOut = !state().signedIn;
+  const canSignIn = signedOut && Boolean(authService());
+  if (canSignIn) row.appendChild(link("Sign in", signInUrl(`${location.origin}/`), true));
+  row.appendChild(link(canSignIn ? "About membership" : "Membership",
+    "/membership/", !canSignIn));
+
+  card.append(head, what, why, row);
   return card;
+}
+
+function link(text, href, primary) {
+  const a = document.createElement("a");
+  a.className = primary ? "gis-lock-go" : "gis-lock-go is-quiet";
+  a.textContent = text;
+  a.href = href;
+  // Inside the GIS iframe, or a viewer loads inside a viewer.
+  a.target = "_top";
+  return a;
+}
+
+/**
+ * The padlock on its own, for a control that has no body to put a card in.
+ *
+ * A button cannot hold an explanation, so it wears the mark and says the rest
+ * in its tooltip and its accessible name -- the same division a locked tab
+ * makes between the grey (the signal) and the lock (the reason).
+ */
+export function lockMark() {
+  installStyle();
+  const mark = document.createElement("span");
+  mark.className = "gis-lock-mark";
+  mark.setAttribute("aria-hidden", "true");
+  return mark;
 }
 
 /** Lock or unlock one `<details>` section. */

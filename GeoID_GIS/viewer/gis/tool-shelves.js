@@ -25,6 +25,10 @@
  * later can address it.
  */
 
+import { may, refusal } from "./membership.js?v=20260925-e61b297";
+import { lockCard, lockMark } from "./feature-locks.js?v=20260925-e61b297";
+
+const CARD_ID = "export-panel-lock";
 const GEOPROCESS = "gis-group-preprocess";
 const ANALYSIS = "gis-group-analysis";
 
@@ -271,6 +275,44 @@ function wireExportPanel() {
     const row = document.getElementById(id)?.closest(".row");
     if (row) row.hidden = true;
   });
+  /**
+   * EXPORTING IS MEMBERS', AND THIS PANEL SAYS SO BEFORE THE PRESS.
+   *
+   * `#export-run` is the Workspace's one way into the export dialog, and that
+   * dialog refuses at its own door with a `window.alert` -- which a free
+   * reader met only after pressing a button that looked live, from a panel
+   * that gave no sign. The alert stays as the enforcement (the dialog is
+   * reachable from `window.GeoIDLayerExport` too), but nobody arriving by the
+   * button should ever see it.
+   *
+   * The panel HAS a body, so it gets the card the rest of the app uses rather
+   * than a bare mark; the button keeps its place and goes grey with the
+   * padlock beside its name, which is the same division every locked thing
+   * here makes between the signal and the reason. Both are re-painted on the
+   * membership event, because this panel is wired once and a sign-in has to
+   * open it without a reload.
+   */
+  const body = button.parentElement;
+  const paintLock = () => {
+    const locked = !may("save");
+    body?.querySelector(`#${CARD_ID}`)?.remove();
+    if (locked && body) {
+      const card = lockCard("save");
+      card.id = CARD_ID;
+      body.insertBefore(card, body.firstChild);
+    }
+    button.disabled = locked;
+    button.classList.toggle("is-locked", locked);
+    if (locked) button.title = refusal("save");
+    else button.removeAttribute("title");
+    button.setAttribute("aria-label",
+      locked ? `${button.textContent.trim()} — ${refusal("save")}` : button.textContent.trim());
+    button.querySelector(".gis-lock-mark")?.remove();
+    if (locked) button.appendChild(lockMark());
+  };
+  paintLock();
+  document.addEventListener("geoid:membership", paintLock);
+
   button.addEventListener("click", async () => {
     const layers = (window.GeoIDImportManager?.getLayers?.() || [])
       .filter((l) => l.status === "loaded" && (l.collection || l.raster));

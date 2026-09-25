@@ -28,21 +28,32 @@ const { modeBarState, pressModeBarTarget, worldAudio, rowIsOnlyModeBar } =
 /** The smallest document the pure halves read. */
 function fakeDoc({
   mode = "gis", playing = false, music = true, project = true,
+  projectLocked = false, projectLabel = null,
   modes = ["gis", "model", "research"],
   own = null, ownPlaying = false, ownLabel = "Sounds of Mars - NASA InSight", ownHidden = false,
 } = {}) {
   const made = new Map();
-  const make = (id, cls = []) => {
+  // ATTRIBUTES, not just classes: the folder's refusal is words, and the words
+  // are the app's own, already written into the button's `aria-label`. A stub
+  // with only a class list answered `folder.getAttribute is not a function`
+  // and took every check in this file down with it -- an element that cannot
+  // be asked for an attribute is not a stand-in for one that can.
+  const make = (id, cls = [], attrs = {}) => {
     const el = {
-      id, disabled: false, clicks: 0, style: {},
+      id, disabled: false, clicks: 0, style: {}, attrs: { ...attrs },
       classList: { _s: new Set(cls), contains(c) { return this._s.has(c); } },
+      getAttribute(n) { return n in this.attrs ? this.attrs[n] : null; },
+      setAttribute(n, v) { this.attrs[n] = String(v); },
       click() { this.clicks += 1; },
     };
     made.set(id, el);
     return el;
   };
   for (const m of modes) make(`view-mode-${m}`);
-  if (project) make("project-open-modal");
+  if (project) {
+    make("project-open-modal", projectLocked ? ["is-locked"] : [],
+      projectLabel === null ? {} : { "aria-label": projectLabel });
+  }
   if (music) make("music-btn", playing ? [] : ["is-paused"]);
   // A world's own recording: its own button, and an icon that says whether it
   // is playing by being swapped rather than by a class.
@@ -103,8 +114,56 @@ function fakeDoc({
   // The nine planet pages have the same row; a page that dropped a control must
   // not have it drawn in the header, greyed or otherwise.
   const s = modeBarState(fakeDoc({ music: false, project: false, modes: ["gis", "model"] }));
-  check("a control the page does not have is not offered", s.music.present === false && s.project === false);
+  check("a control the page does not have is not offered",
+    s.music.present === false && s.project.present === false);
   check("and neither is a mode it does not have", s.modes.join() === "gis,model");
+}
+
+// ── THE FOLDER'S LOCK TRAVELS; IT IS NOT DECIDED ON THIS SIDE ───────────────
+// Saving and exporting are membership's, so a free reader meeting the header's
+// copy of the folder is owed that BEFORE the press, not after filling in a
+// project name. That means the shell needs the state — but WHICH WAY THE GATE
+// WENT is the app's question, asked once, in the viewer, by the module that
+// owns it. This side reads the answer off the viewer's own button: the class
+// it wears and the words the app already wrote into its `aria-label`. Asking
+// the membership module a second time, in a second document, is the two
+// implementations of one control that this whole file exists to refuse.
+{
+  const open = modeBarState(fakeDoc());
+  check("an open folder is present, unlocked, and under its plain name",
+    open.project.present === true && open.project.locked === false
+    && open.project.label === "Projects");
+  const shut = modeBarState(fakeDoc({
+    projectLocked: true,
+    projectLabel: "Projects — Sign in as a member to save and export your work.",
+  }));
+  check("a locked one carries BOTH the lock and the app's own words for it",
+    shut.project.locked === true
+    && shut.project.label === "Projects — Sign in as a member to save and export your work.");
+  // Shown and refused, never hidden: the padlock IS the message, and a folder
+  // that vanished for signed-out readers would teach them the site has no
+  // projects rather than that projects are a member's.
+  check("and a locked folder is still offered, because the refusal is the point",
+    shut.project.present === true);
+  // A button whose label the app never wrote still gets a name, so the header
+  // never draws a control captioned `null`.
+  check("a folder with no words of its own falls back to a name, not to nothing",
+    modeBarState(fakeDoc({ projectLocked: true })).project.label === "Projects");
+
+  const bridge = strip(read("./mode-bar-bridge.js"));
+  check("the bridge asks the BUTTON, never the gate",
+    /folder\.classList\.contains\("is-locked"\)/.test(bridge)
+    && /folder\.getAttribute\("aria-label"\)/.test(bridge)
+    && !/\bmay\(/.test(bridge) && !/feature-locks/.test(bridge));
+  // The lock arrives AFTER this bridge installs -- both sides listen for
+  // `geoid:membership` and the bridge got there first, so on an unlock it
+  // reported the class the button had not changed yet. Measured: the header
+  // stayed locked until the next unrelated redraw. The button's own mutation
+  // is the signal, and the guard is what keeps a re-host from stacking
+  // observers on the same element.
+  check("and it learns of a change by watching that button MUTATE",
+    /watch\.observe\(folder, \{ attributes: true, attributeFilter: \["class", "aria-label"\] \}\)/.test(bridge)
+    && /folder === folderWatched/.test(bridge));
 }
 
 // ── A press is a CLICK ON THE REAL CONTROL ──────────────────────────────────

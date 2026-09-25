@@ -30,12 +30,14 @@
  *   panel and applied to something already drawn wrongly.
  */
 
-import { CRS_OPTIONS } from "./projection.js?v=20260925-766e9bc";
-import { readHead, validateMapping } from "./delimited.js?v=20260925-766e9bc";
-import { RAMP_NAMES } from "./symbology.js?v=20260925-766e9bc";
-import { AREA_OPACITY, MARK_OPACITY } from "./layer-opacity.js?v=20260925-766e9bc";
-import { isEarth } from "./bodies.js?v=20260925-766e9bc";
-import { DATA_TYPES, inferType, applyTag, markUserInput, suppressNextArrival } from "./data-tags.js?v=20260925-766e9bc";
+import { CRS_OPTIONS } from "./projection.js?v=20260925-e61b297";
+import { readHead, validateMapping } from "./delimited.js?v=20260925-e61b297";
+import { RAMP_NAMES } from "./symbology.js?v=20260925-e61b297";
+import { AREA_OPACITY, MARK_OPACITY } from "./layer-opacity.js?v=20260925-e61b297";
+import { isEarth } from "./bodies.js?v=20260925-e61b297";
+import { DATA_TYPES, inferType, applyTag, markUserInput, suppressNextArrival } from "./data-tags.js?v=20260925-e61b297";
+import { may, refusal } from "./membership.js?v=20260925-e61b297";
+import { lockMark } from "./feature-locks.js?v=20260925-e61b297";
 
 /* ── Where data belongs ──────────────────────────────────────────────────────
  *
@@ -992,6 +994,7 @@ function addButtonFor(role) {
       b.title = `${label} — ${b.title || ""}`.replace(/ — $/, "");
       b.setAttribute("aria-label", b.title);
       b.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true">${ICONS[label]}</svg>`;
+      if (label === "Export") markExportLock(b);
     });
   }
   // The vector tab's third doorway: capturing the drawn area. The button
@@ -1068,4 +1071,31 @@ if (typeof document !== "undefined") {
 
 if (typeof window !== "undefined") {
   window.GeoIDAddData = { open, close, roles: () => ROLES.map((r) => r.id) };
+}
+
+/**
+ * EXPORT SAYS IT IS MEMBERS' BEFORE IT IS PRESSED.
+ *
+ * Exporting is the other half of `save`, and it refused the way saving used
+ * to: press the door, pick a format, and meet an alert. The door still opens
+ * -- the workbench is where the formats and the reasons are -- and it carries
+ * the padlock and the refusal in its tooltip, the same as the folder in the
+ * bar. The mark is re-applied on the membership event, because a sign-in has
+ * to open it without a reload and this row is built once.
+ *
+ * Icon-only, so a corner badge rather than a mark beside a name.
+ */
+function markExportLock(button) {
+  const paint = () => {
+    const locked = !may("save");
+    const name = "Export — Export layers, maps and views";
+    button.classList.add("gis-lock-badge");
+    button.classList.toggle("is-locked", locked);
+    button.title = locked ? `${name} — ${refusal("save")}` : name;
+    button.setAttribute("aria-label", button.title);
+    button.querySelector(".gis-lock-mark")?.remove();
+    if (locked) button.appendChild(lockMark());
+  };
+  paint();
+  document.addEventListener("geoid:membership", paint);
 }

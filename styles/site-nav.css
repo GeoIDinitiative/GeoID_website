@@ -453,6 +453,41 @@
 .site-nav .nav-modebar-icon[hidden] { display: none; }
 .site-nav .nav-modebar-music.is-playing { color: var(--nav-accent); border-color: rgba(255, 62, 200, 0.45); }
 
+/*
+ * A LOCKED FOLDER SAYS SO BEFORE IT IS PRESSED.
+ *
+ * Saving and exporting are membership's, and a free reader used to find that
+ * out by opening the dialog, filling in a name and reading an error line at
+ * the foot of it. The button keeps its place and its press -- the dialog is
+ * where the reason is written out, and a button that refused to open would
+ * have nowhere to say why -- so this is a mark rather than a disabling: a
+ * padlock badge on the corner of the folder, at the accent so it reads as
+ * deliberate rather than as the icon having gone wrong, with the sentence in
+ * the tooltip and in the accessible name.
+ *
+ * The mask is drawn here rather than shared with the app's own --geoid-lock,
+ * which lives in the viewer's document: a node belongs to one document, and so
+ * does a custom property.
+ */
+.site-nav .nav-modebar-icon.is-locked { position: relative; }
+.site-nav .nav-modebar-icon.is-locked::after {
+  content: "";
+  position: absolute;
+  right: -2px;
+  bottom: -2px;
+  width: 11px;
+  height: 11px;
+  background: var(--nav-accent);
+  -webkit-mask: var(--nav-lock) center/contain no-repeat;
+  mask: var(--nav-lock) center/contain no-repeat;
+  /* Cut out of the bar behind it, or the badge sits in the folder's own
+     outline and reads as part of the drawing. */
+  filter: drop-shadow(0 0 1.5px #12030f) drop-shadow(0 0 1.5px #12030f);
+}
+:root {
+  --nav-lock: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect x='3.2' y='7' width='9.6' height='7' rx='1.2' fill='black'/%3E%3Cpath d='M5.4 7V5.1a2.6 2.6 0 0 1 5.2 0V7' fill='none' stroke='black' stroke-width='1.8'/%3E%3C/svg%3E");
+}
+
 /* A phone's header is the wordmark and the burger. The mode switch is reachable
    from the app's own pages there, and three pills plus two icons in a 62px bar
    is a row that wraps. */

@@ -311,6 +311,27 @@ check("...and IS sent as a bearer token", m.bearer() === legacy);
 check("a claim of the wrong shape is refused rather than throwing",
   m.accept("not..a..token..at..all").signedIn === false);
 
+// ── The service is a default, not a per-page setting ───────────────────────
+//
+// It is this site's own service on this site's own domain, and every page
+// having to name it was a list kept in step by hand: unnamed, the app refused
+// with "membership is not open for sign-in yet" over a service that was live,
+// and a sign-out could not reach it. A page may still point somewhere else,
+// and `configure(null)` still clears it, which is what a fork and these tests
+// do.
+{
+  const src = readFileSync(new URL("./membership.js", import.meta.url), "utf8");
+  const named = /const DEFAULT_SERVICE = "(https:\/\/[^"]+)"/.exec(src);
+  check("membership.js names a default service", Boolean(named), named?.[1]);
+  check("...and it is the one the Worker answers for",
+    named?.[1] === "https://auth.geoidinitiative.com", named?.[1]);
+  check("...assigned to authBase rather than left as a constant nobody reads",
+    /let authBase = DEFAULT_SERVICE;/.test(src));
+  // The meta tag is read AFTER this, so a page that names one wins.
+  check("a page's own tag still outranks it",
+    /if \(meta\?\.content\) configure\(meta\.content\)/.test(src));
+}
+
 // ── Signing out reaches the service that signed you in ─────────────────────
 //
 // The sign-out button is in the nav of every page on this site and only the

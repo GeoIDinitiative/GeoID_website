@@ -1,6 +1,8 @@
-import * as store from "./research/project-store.js?v=20260925-766e9bc";
-import { currentBodyId, currentBody } from "./bodies.js?v=20260925-766e9bc";
-import { ready as shellReady } from "./shell.js?v=20260925-766e9bc";
+import * as store from "./research/project-store.js?v=20260925-e61b297";
+import { currentBodyId, currentBody } from "./bodies.js?v=20260925-e61b297";
+import { ready as shellReady } from "./shell.js?v=20260925-e61b297";
+import { may, refusal } from "./membership.js?v=20260925-e61b297";
+import { lockCard, lockMark } from "./feature-locks.js?v=20260925-e61b297";
 
 /**
  * The folder button in the sidebar header.
@@ -54,6 +56,23 @@ function layerManifest() {
 /** Off by default: on Mars you almost always want Mars's projects. */
 let showAllWorlds = false;
 
+/**
+ * Mark a door that is going to refuse.
+ *
+ * DISABLED AND VISIBLE, never hidden: the folder dialog IS the saving feature,
+ * so hiding its controls would leave a dialog with nothing in it and no way to
+ * find out what it was for. The reason rides on the control itself rather than
+ * only in the card above it, because somebody who reaches past the card for the
+ * button is owed an answer at the button.
+ */
+function refuse(button) {
+  button.disabled = true;
+  button.title = refusal("save");
+  button.classList.add("is-locked");
+  button.appendChild(lockMark());
+  return button;
+}
+
 async function render() {
   const body = byId("project-dialog-body");
   if (!body) return;
@@ -61,6 +80,18 @@ async function render() {
 
   const root = store.getRoot();
   const active = store.getActive();
+  /**
+   * SAVING IS WHAT THIS DIALOG DOES, so the whole of it is behind one gate.
+   *
+   * Choosing a folder, keeping projects in the browser and making a project
+   * all throw `refusal("save")` in the store -- which, before this, a free
+   * reader met only by pressing a live-looking button and reading an error
+   * line at the foot of the dialog. The card says it first, at the top, in
+   * the same words and the same shape every other locked thing in this app
+   * uses.
+   */
+  const locked = !may("save");
+  if (locked) body.appendChild(lockCard("save"));
 
   // Where projects live. The picker needs a secure context, so name the real
   // obstacle when it is missing rather than blaming the browser -- the usual
@@ -78,6 +109,7 @@ async function render() {
   const choose = el("button", "button", root ? "Change folder…" : "Choose folder…");
   choose.type = "button";
   choose.disabled = !support.ok;
+  if (locked) refuse(choose);
   choose.addEventListener("click", async () => {
     try {
       await store.chooseRoot();
@@ -91,6 +123,7 @@ async function render() {
   if (!root && typeof indexedDB !== "undefined") {
     const inBrowser = el("button", "button secondary", "Keep in this browser");
     inBrowser.type = "button";
+    if (locked) refuse(inBrowser);
     inBrowser.addEventListener("click", async () => {
       try {
         await store.useBrowserStorage();
@@ -132,6 +165,7 @@ async function render() {
   const makeRow = el("div", "gis-btn-row");
   const create = el("button", "button", "Create");
   create.type = "button";
+  if (locked) { refuse(create); nameInput.disabled = true; }
   create.addEventListener("click", async () => {
     const name = nameInput.value.trim();
     if (!name) { status("Give the project a name first.", true); return; }
@@ -232,10 +266,26 @@ function refreshHeaderLabel() {
   const button = byId("project-open-modal");
   if (!button) return;
   const active = store.getActive();
+  /**
+   * A LOCKED FOLDER SAYS SO ON THE BUTTON, not only inside the dialog.
+   *
+   * The dialog is where the reason is written out, so the button still opens
+   * — a control that refused to open would have nowhere to say why. What it
+   * carries is the mark and the sentence: the padlock at full strength, and
+   * the refusal as the tooltip and the accessible name, so a reader knows
+   * before the press and a screen reader is told without one. The shell's
+   * header reads this same class and draws its own copy of the mark; it is a
+   * fact about the app's gate, decided here, once.
+   */
+  const locked = !may("save");
   const label = active ? `Project: ${active.name}` : "Projects";
-  button.title = label;
-  button.setAttribute("aria-label", label);
+  button.title = locked ? `${label} — ${refusal("save")}` : label;
+  button.setAttribute("aria-label", button.title);
   button.classList.toggle("is-open", Boolean(active));
+  button.classList.toggle("is-locked", locked);
+  button.classList.add("gis-lock-badge");
+  button.querySelector(".gis-lock-mark")?.remove();
+  if (locked) button.appendChild(lockMark());
 }
 
 /**
@@ -277,6 +327,13 @@ function init() {
   // updates it too -- there is only the one project now.
   store.onChange(refreshHeaderLabel);
   store.onChange(maybeRestoreLayers);
+  // Signing in opens the folder, and nothing in the store moves when it does.
+  // The dialog is re-rendered too, or somebody who signs in with it open is
+  // left looking at the refusal they have just answered.
+  document.addEventListener("geoid:membership", () => {
+    refreshHeaderLabel();
+    if (!byId("project-dialog")?.hidden) void render();
+  });
   refreshHeaderLabel();
   // A project restored on load fires onChange before this listener is attached,
   // so catch up on whatever is already open.

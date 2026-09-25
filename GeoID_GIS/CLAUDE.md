@@ -23221,3 +23221,69 @@ rest hidden, no providers at all folding to the not-ready panel, and the real
 unreachable host naming itself. The KV holds both owner records, good to
 2036; `geoid-data-gate` is NOT deployed, so the bucket pass is not yet needed
 and the four baked grids are open.
+
+## The lock is said before the press: the folder, the Export icon, the Export panel
+
+Saving and exporting are membership's, and the way a free reader found that
+out was by opening the folder dialog, typing a project name, pressing Create
+and reading an error line at the foot of it. `may("save")` was enforced in
+thirteen places and ANNOUNCED in none of them.
+
+**A locked thing is SHOWN and refused, never hidden.** The folder dialog IS
+the saving feature — hide its controls and there is a dialog with nothing in
+it and no way to find out what it was for. The contrast dropping is the
+signal, the padlock is the reason, and that division is what decides where
+each mark goes: **a surface with a BODY takes the card; a control that is only
+a glyph takes the mark.** The folder button, the Workspace's Export icon and
+the Export panel's own button are the three doors on this path, and the panel
+behind the icon has a body, so it is the one that gets a card.
+
+**The card is exported, not copied.** `lockCard` and `lockMark` come out of
+`feature-locks.js`, so the folder dialog shows the same card a locked tab does.
+A second refusal written beside the first is how two gates for one feature come
+to disagree — the fault this tree already records for the clip button, the
+extraction dialog and the click sound.
+
+**The first action is the one they CAN take.** With the service live, somebody
+signed out is one press from the thing being refused, so Sign in leads and
+membership follows quietly; somebody signed in and not a member has nothing to
+sign into, so membership leads. `may` answers the same either way — the
+difference is only in what to offer. The return address is the TOP document's
+(`${location.origin}/`), because a viewer is framed and returning to
+`location.href` here loads a viewer with no shell around it, and every link is
+`target="_top"` for the same reason.
+
+**A button that refuses has nowhere to say why, so these still open.** The
+folder button opens its dialog and the Export icon opens its panel; what they
+carry is the padlock badge and the sentence, in the tooltip AND the accessible
+name. Only the doors that would throw — Choose folder, Keep in this browser,
+Create, and the panel's Choose a layer to export — are disabled, and they go
+grey with the mark beside them.
+
+**THE HEADER'S COPY IS TOLD BY WATCHING THE BUTTON MUTATE.** The shell draws
+its own folder, so the bridge reports `locked` off the viewer's real button
+rather than asking the gate a second time in a second document. Both sides
+listen for `geoid:membership` and the bridge installs first: on an unlock it
+reported the class the button had not changed yet, and the header stayed locked
+until the next unrelated redraw. A `MutationObserver` on that button's `class`
+and `aria-label` is the fix, guarded by `folder === folderWatched` so a re-host
+does not stack observers and double every report.
+
+**`state.project` went from a boolean to an object**, which an older cached
+frame survives only because an object is truthy either way — the shell reads
+`p.present === false` to hide it.
+
+**A stub element with only a `classList` is not a stand-in for one.**
+`mode-bar-bridge.test.mjs` built its fake document with `classList.contains`
+and nothing else; the moment the bridge read the button's `aria-label` it
+threw `folder.getAttribute is not a function` at import and took all 42 checks
+to `0 passed` — this repo's documented signature, hit again. The stub grew
+`getAttribute`/`setAttribute`, not a guard in the module.
+
+**`openExportDialog`'s `window.alert` stays.** It is the enforcement, and the
+dialog is reachable from `window.GeoIDLayerExport` as well as from the panel.
+What changed is that nobody arriving by the button reaches it.
+
+The four measurement CSV exports on the tool rail (distance, area, profile,
+points) are NOT gated and are not marked — they write out what the reader just
+measured, not what the app computed.
