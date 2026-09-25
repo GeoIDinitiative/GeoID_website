@@ -25,6 +25,25 @@ MAIL_FROM = "GeoID <sign-in@geoidinitiative.com>"
 # take out if that ever stops being true.
 RETURN_ORIGINS = "https://geoidinitiative.com https://www.geoidinitiative.com http://localhost:8125"
 
+# A CLIENT ID IS PUBLIC AND A CLIENT SECRET IS NOT, which is why the pair is
+# split across two places. The id travels in the sign-in URL for anyone to
+# read, so it belongs here in plain sight; the secret goes in with
+# `wrangler secret put` and never touches this file or this repository.
+#
+# The Worker reads all three ids. Leave a provider's id empty and its door is
+# simply not offered -- so the smallest useful deploy is Google alone, and
+# GitHub and Microsoft can be filled in later with no migration.
+#
+# In each provider's console the redirect URI must be SELF_ORIGIN +
+# /auth/callback/<provider>, exactly:
+#   https://auth.geoidinitiative.com/auth/callback/google
+GOOGLE_CLIENT_ID = ""
+GITHUB_CLIENT_ID = ""
+MS_CLIENT_ID = ""
+
+# Sign-ins allowed per minute per address, before the KV counter refuses.
+RATE_PER_MIN = "10"
+
 # Stripe writes this list through POST /stripe/webhook, signed with the
 # endpoint's secret: `npx wrangler secret put STRIPE_WEBHOOK_SECRET` (the
 # whsec_… value Stripe shows when the endpoint is created). Without it the

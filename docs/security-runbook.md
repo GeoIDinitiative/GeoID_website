@@ -166,9 +166,40 @@ npx wrangler secret put GOOGLE_CLIENT_SECRET
 npx wrangler deploy
 ```
 
-`GOOGLE_CLIENT_ID`, `RETURN_ORIGINS` and `ALLOWED_ORIGINS` are plain vars in
-`wrangler.toml`, not secrets. In the Google console the redirect URI must be
+`GOOGLE_CLIENT_ID` is a plain var in `wrangler.toml`, not a secret -- it
+travels in the sign-in URL for anyone to read. Only the SECRET goes in with
+`wrangler secret put`. In the Google console the redirect URI must be
 `https://auth.geoidinitiative.com/auth/callback/google`, exactly.
+
+**NOBODY PAYS TO BE ADDED.** The KV entry IS the membership; Stripe's webhook
+writes one when somebody buys, and writing your own by hand is the same act
+without the money. There are also no CREDENTIALS to store for a member: the
+record is `{plan, until, source}` against an address, and the authentication
+is Google's. The Worker never learns or keeps anything about HOW somebody
+signs in -- it looks the address up after Google has vouched for it.
+
+**The order matters, and four of these only you can do:**
+
+| | who |
+| --- | --- |
+| 1. Google Cloud Console → OAuth client → id + secret | you |
+| 2. DNS: `auth.geoidinitiative.com` → the Worker route | you |
+| 3. `npx wrangler login` (opens a browser) | you |
+| 4. `npx wrangler kv namespace create MEMBERS`, id into wrangler.toml | either |
+| 5. `wrangler secret put` JWT_SECRET, GOOGLE_CLIENT_SECRET | you (interactive) |
+| 6. `GOOGLE_CLIENT_ID` into `[vars]` | either |
+| 7. `npx wrangler deploy` | either |
+| 8. the KV entry below, `plan: "owner"` | either |
+| 9. uncomment the three `geoid-auth` meta tags | either |
+
+**TO TEST THE FLOW WITHOUT DEPLOYING ANYTHING**, which is worth doing first:
+`npx wrangler dev` runs the Worker locally against a local KV, and
+`RETURN_ORIGINS` already allows `http://localhost:8125`. Register
+`http://localhost:8787/auth/callback/google` as a second redirect URI in the
+Google console, point the site's `geoid-auth` meta tag at
+`http://localhost:8787`, and the whole sign-in -- the redirect, the cookie,
+the member lookup -- runs on your machine against nothing live. Steps 2 and 7
+are not needed for that.
 
 **Then make yourself the master account.** One KV entry, and `plan: "owner"`
 is the flag that opens every feature including ones added later:
