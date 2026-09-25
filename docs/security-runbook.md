@@ -152,6 +152,49 @@ curl -s -o /dev/null -w '%{http_code}\n' \
 
 ### 4. The membership Worker — `wrangler`
 
+**THE SMALLEST DEPLOY THAT WORKS IS THREE SECRETS, NOT SEVEN.** The full list
+below covers every sign-in door; if the people who need accounts on day one
+have Google addresses, Google alone is enough and Microsoft, GitHub and the
+one-time-link mailer can all wait. Skipping them costs nothing later -- adding
+a provider is a secret and a redeploy, with no migration.
+
+```bash
+cd GeoID_GIS/services/auth-worker
+npx wrangler kv namespace create MEMBERS     # paste the id into wrangler.toml
+npx wrangler secret put JWT_SECRET           # any long random string
+npx wrangler secret put GOOGLE_CLIENT_SECRET
+npx wrangler deploy
+```
+
+`GOOGLE_CLIENT_ID`, `RETURN_ORIGINS` and `ALLOWED_ORIGINS` are plain vars in
+`wrangler.toml`, not secrets. In the Google console the redirect URI must be
+`https://auth.geoidinitiative.com/auth/callback/google`, exactly.
+
+**Then make yourself the master account.** One KV entry, and `plan: "owner"`
+is the flag that opens every feature including ones added later:
+
+```bash
+npx wrangler kv key put --binding=MEMBERS \
+  "member:YOU@example.com" \
+  '{"plan":"owner","until":2105932207,"source":"founder"}'
+```
+
+`until` is unix seconds; 2105932207 is Sep 2036. An owner is a member too, so
+nothing has to test for both -- and `grant()` and the cancellation path both
+refuse to lower an owner (worker.js, "never lowering an owner"), so a Stripe
+test purchase or a refund against your own address cannot downgrade you.
+
+**Do not put a real address in a tracked file.** This repository is public and
+serves from it; the command above is for a terminal, not a commit.
+
+**Note there is NO PASSWORD to set, for anyone, ever.** Sign-in is Google,
+Microsoft or GitHub, or a one-time link to an inbox. That is the answer to
+"hash passwords securely": there are none to hash, so there is no reset flow
+to abuse, no credential stuffing and no password breach to disclose.
+
+**The full set, when the other doors are wanted:**
+
+
 Not deployed today: the KV id in `wrangler.toml` is a placeholder and no page
 carries the `geoid-auth` meta tag. That is why the cookie refactor could be
 made without breaking a live user.
