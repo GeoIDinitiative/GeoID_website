@@ -192,14 +192,36 @@ signs in -- it looks the address up after Google has vouched for it.
 | 8. the KV entry below, `plan: "owner"` | either |
 | 9. uncomment the three `geoid-auth` meta tags | either |
 
-**TO TEST THE FLOW WITHOUT DEPLOYING ANYTHING**, which is worth doing first:
-`npx wrangler dev` runs the Worker locally against a local KV, and
-`RETURN_ORIGINS` already allows `http://localhost:8125`. Register
-`http://localhost:8787/auth/callback/google` as a second redirect URI in the
-Google console, point the site's `geoid-auth` meta tag at
-`http://localhost:8787`, and the whole sign-in -- the redirect, the cookie,
-the member lookup -- runs on your machine against nothing live. Steps 2 and 7
-are not needed for that.
+**TO TEST THE FLOW WITHOUT DEPLOYING ANYTHING**, which is worth doing first
+-- and worth doing first because this Worker had never once been STARTED
+until 2026-09-25, and the moment it was it turned out it could not run at all
+(see constants.js). A suite that imports a module proves the module parses.
+
+`npx wrangler dev` runs it locally against a local KV. Everything it needs
+goes in `.dev.vars` beside `wrangler.toml` -- gitignored, never committed:
+
+```
+JWT_SECRET=<openssl rand -base64 48>
+GOOGLE_CLIENT_SECRET=<GOCSPX-..., from the Google console>
+SELF_ORIGIN=http://localhost:8787
+```
+
+**`.dev.vars` OVERRIDES `[vars]`, which is the whole trick** -- measured:
+with `SELF_ORIGIN` in it, `wrangler dev` reports that binding as "(hidden)"
+rather than the production URL from `wrangler.toml`. So the production origin
+is never edited and there is nothing to remember to undo, which is how a
+localhost URL otherwise ends up deployed.
+
+`JWT_SECRET` is one you invent -- it signs the Worker's own session tokens and
+has nothing to do with Google. Changing it signs everybody out, and local and
+production must use the SAME value or a session made against one is refused by
+the other.
+
+Register `http://localhost:8787/auth/callback/google` as a second redirect URI
+in the Google console (Google allows plain http for localhost), point the
+site's `geoid-auth` meta tag at `http://localhost:8787`, and the whole
+sign-in -- the redirect, the cookie, the member lookup -- runs on your machine
+against nothing live. Steps 2 and 7 are not needed for that.
 
 **Then make yourself the master account.** One KV entry, and `plan: "owner"`
 is the flag that opens every feature including ones added later:
