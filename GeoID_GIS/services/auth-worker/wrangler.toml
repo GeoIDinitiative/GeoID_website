@@ -37,7 +37,7 @@ RETURN_ORIGINS = "https://geoidinitiative.com https://www.geoidinitiative.com ht
 # In each provider's console the redirect URI must be SELF_ORIGIN +
 # /auth/callback/<provider>, exactly:
 #   https://auth.geoidinitiative.com/auth/callback/google
-GOOGLE_CLIENT_ID = ""
+GOOGLE_CLIENT_ID = "473900633008-n15n9va0orhq6v0f5g83bjbeq6r6jhh9.apps.googleusercontent.com"
 GITHUB_CLIENT_ID = ""
 MS_CLIENT_ID = ""
 

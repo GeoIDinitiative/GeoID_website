@@ -14,10 +14,15 @@
  * Worker runtime gives, so this is the real implementation rather than a copy.
  */
 import worker, {
-  sign, verify, stripeSignatureValid, applyStripeEvent, PROVIDERS,
-  STRIPE_GRACE_SECONDS, STRIPE_TOLERANCE_SECONDS,
+  sign, verify, stripeSignatureValid, applyStripeEvent,
 } from "./worker.js";
+// Not from worker.js: a non-function named export on the ENTRY module stops
+// the Workers runtime starting. See constants.js.
+import {
+  PROVIDERS, STRIPE_GRACE_SECONDS, STRIPE_TOLERANCE_SECONDS,
+} from "./constants.js";
 import { createHmac } from "node:crypto";
+import { readFileSync } from "node:fs";
 
 let failures = 0;
 const check = (name, ok, detail) => {
@@ -417,6 +422,38 @@ async function sessionChecks() {
 }
 
 await sessionChecks();
+
+// NOTHING BUT FUNCTIONS MAY BE A NAMED EXPORT OF THE ENTRY MODULE.
+//
+// The Workers runtime reads every named export of the entry module as
+// something it must bind -- a handler, a Durable Object class, a
+// WorkerEntrypoint. A plain value stops the service starting outright:
+//
+//   Uncaught TypeError: Incorrect type for map entry 'LINK_SECONDS':
+//   the provided value is not of type 'function or ExportedHandler'.
+//
+// This service had NEVER BEEN STARTED, so nothing had said so -- the whole
+// suite passed against a Worker that could not run. Found the first time
+// anybody typed `wrangler dev`. The constants live in constants.js now, which
+// worker.js imports and does not re-export (a re-export from the entry module
+// is a named export of it, and fails the same way).
+//
+// Read off the SOURCE rather than by importing: what matters is the shape of
+// the module the runtime is handed, and an import would only tell us what the
+// values happen to be at runtime.
+{
+  const src = readFileSync(new URL("./worker.js", import.meta.url), "utf8")
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .replace(/(^|[^:])\/\/[^\n]*/g, "$1");
+  const named = [...src.matchAll(/^export\s+(?!default\b)(\w+(?:\s+\w+)*)\s+(\w+)/gm)]
+    .map((m) => ({ kind: m[1], name: m[2] }));
+  const values = named.filter((e) => !/function|class/.test(e.kind));
+  check("every named export of worker.js is a function or a class",
+    values.length === 0,
+    values.map((e) => `${e.kind} ${e.name}`).join(", ") || `${named.length} exports, all callable`);
+  check("worker.js re-exports nothing from constants.js",
+    !/^export\s*\{[^}]*\}\s*from\s*["']\.\/constants/m.test(src), "");
+}
 
 process.on("exit", () => {
   console.log(`\n${failures ? `${failures} failed` : "all passed"}`);
