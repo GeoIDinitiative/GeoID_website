@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; script-src 'self' 'sha256-3jq7CpQzBa21o61dFk+1aCDPMAhlnC3AmgALKKu+npU=' 'sha256-JZqJtj2BHucm950wTvgUUf81UUCtjBm13aSSpxXphm4='; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https: http://localhost:* http://127.0.0.1:*; media-src 'self' data: blob: https:; connect-src 'self' data: blob: https: http://localhost:* http://127.0.0.1:*; frame-src 'self' blob: https://docs.google.com https://drive.google.com; form-action 'self' https://formspree.io https://buy.stripe.com https://docs.google.com; worker-src 'self' blob:; child-src 'self' blob:; upgrade-insecure-requests">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>Mount Etna | 3D Geological Model &amp; Volcano Explorer | GeoID</title>
   <meta name="description" content="An interactive 3D geological model of Mount Etna — the volcano's structure, its eruptive record and its deformation, on real terrain and free in your browser.">
@@ -305,7 +306,7 @@
       .boot-log div { opacity: 1; }
     }
   </style>
-  <link rel="stylesheet" href="/styles/v2-viewer.css?v=20260925-f357b84">
+  <link rel="stylesheet" href="/styles/v2-viewer.css?v=20260925-61682d8">
 </head>
 <body>
 
@@ -356,9 +357,19 @@
     </div>
   </div>
 
+  <script>
+    // Was an onerror attribute on the icon below. An inline handler is exactly
+    // what a Content-Security-Policy without 'unsafe-inline' refuses -- and
+    // what an innerHTML injection delivers -- so the policy can only be strict
+    // if the page carries none. `error` does not bubble, so this listens in
+    // the CAPTURE phase; the icon is decoration and simply goes if it 404s.
+    window.addEventListener("error", function (event) {
+      var el = event.target;
+      if (el && el.id === "portrait-advisory-icon") el.style.display = "none";
+    }, true);
+  </script>
   <div id="portrait-advisory" role="status" aria-live="polite">
-    <img src="../../assets/tilt_phone.png" alt="Rotate device" id="portrait-advisory-icon" loading="lazy" decoding="async"
-         onerror="this.style.display='none'">
+    <img src="../../assets/tilt_phone.png" alt="Rotate device" id="portrait-advisory-icon" loading="lazy" decoding="async">
     <p id="portrait-advisory-text">Rotate to landscape for the best experience</p>
     <button id="portrait-advisory-dismiss" type="button">Got it</button>
   </div>

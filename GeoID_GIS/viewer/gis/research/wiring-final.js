@@ -1,12 +1,13 @@
-import { wire, wirePattern } from "./spec-page.js?v=20260925-f357b84";
-import * as store from "./project-store.js?v=20260925-f357b84";
-import * as stats from "./stats.js?v=20260925-f357b84";
-import * as dsp from "./dsp.js?v=20260925-f357b84";
-import { linePlot, heatmap } from "./plot.js?v=20260925-f357b84";
-import { column } from "./table.js?v=20260925-f357b84";
-import { findTables, loadTable, saveTable, saveFigure } from "./pages/common.js?v=20260925-f357b84";
-import { parseTable } from "./table.js?v=20260925-f357b84";
-import * as ec from "./event-correlation.js?v=20260925-f357b84";
+import { compileScalar } from "../field-calculator.js?v=20260925-61682d8";
+import { wire, wirePattern } from "./spec-page.js?v=20260925-61682d8";
+import * as store from "./project-store.js?v=20260925-61682d8";
+import * as stats from "./stats.js?v=20260925-61682d8";
+import * as dsp from "./dsp.js?v=20260925-61682d8";
+import { linePlot, heatmap } from "./plot.js?v=20260925-61682d8";
+import { column } from "./table.js?v=20260925-61682d8";
+import { findTables, loadTable, saveTable, saveFigure } from "./pages/common.js?v=20260925-61682d8";
+import { parseTable } from "./table.js?v=20260925-61682d8";
+import * as ec from "./event-correlation.js?v=20260925-61682d8";
 
 /**
  * The last of the spec's controls.
@@ -80,10 +81,10 @@ wire("Raster Tools", {
     // Bands bound as b1..bn, which is the convention every raster calculator
     // uses; the default expression is a normalised difference.
     const args = names.map((_, i) => `b${i + 1}`);
-    const fn = new Function(...args, "Math", `return (${expr});`);
+    const fn = compileScalar(expr, args);
     const n = Math.min(...names.map((k) => numeric[k].length));
     const result = Array.from({ length: n }, (_, i) =>
-      fn(...names.map((k) => numeric[k][i]), Math));
+      fn(Object.fromEntries(args.map((a, j) => [a, numeric[names[j]][i]]))));
     const out = `data/processed/bandmath-${stamp()}.csv`;
     await saveTable(out, [...names, "result"],
       Array.from({ length: n }, (_, i) => [...names.map((k) => numeric[k][i]), result[i]]),
@@ -109,7 +110,7 @@ wire("Raster Tools", {
     const { path, table } = await firstTable();
     const { latAt, lonAt } = coordinateColumns(table);
     if (latAt < 0 || lonAt < 0) throw new Error("No coordinate columns to reproject.");
-    const projection = await import("../projection.js?v=20260925-f357b84");
+    const projection = await import("../projection.js?v=20260925-61682d8");
     const rows = table.rows.map((r) => {
       const lat = Number(r[latAt]); const lon = Number(r[lonAt]);
       if (!Number.isFinite(lat) || !Number.isFinite(lon)) return [...r, "", "", ""];
@@ -166,7 +167,7 @@ wire("Vector Tools", {
     if (collections.length < 2) {
       throw new Error("A spatial join needs two GeoJSON layers in the project.");
     }
-    const g = await import("../geoprocessing.js?v=20260925-f357b84");
+    const g = await import("../geoprocessing.js?v=20260925-61682d8");
     const joined = g.spatialJoin(collections[0].fc, collections[1].fc);
     const out = `data/processed/joined-${stamp()}.geojson`;
     await store.writeProjectFile(out, JSON.stringify(joined));

@@ -1,13 +1,14 @@
-import { registerPage } from "../stages.js?v=20260925-f357b84";
-import * as store from "../project-store.js?v=20260925-f357b84";
-import { column } from "../table.js?v=20260925-f357b84";
-import { linePlot } from "../plot.js?v=20260925-f357b84";
-import * as dsp from "../dsp.js?v=20260925-f357b84";
+import { compileScalar } from "../../field-calculator.js?v=20260925-61682d8";
+import { registerPage } from "../stages.js?v=20260925-61682d8";
+import * as store from "../project-store.js?v=20260925-61682d8";
+import { column } from "../table.js?v=20260925-61682d8";
+import { linePlot } from "../plot.js?v=20260925-61682d8";
+import * as dsp from "../dsp.js?v=20260925-61682d8";
 import {
   el, card, field, input, textarea, selectOf, button, row, statGrid, statusLine,
   guard, crossPage, findTables, loadTable, inferSampling, seriesPicker,
   saveFigure, saveTable,
-} from "./common.js?v=20260925-f357b84";
+} from "./common.js?v=20260925-61682d8";
 
 /**
  * The rest of the Postprocessing and Signal Analysis stage.
@@ -505,14 +506,14 @@ const mountEquations = guard("Equation Workbench", async (host) => {
     let fn;
     try {
       // Only the three names are in scope; nothing else is passed in.
-      fn = new Function("x", "t", "i", "Math", `"use strict"; return (${expression.value});`);
+      fn = compileScalar(expression.value, ["x", "t", "i"]);
     } catch (error) {
       say(`That expression will not parse: ${error.message}`, true);
       return;
     }
     const out = [];
     for (let i = 0; i < loaded.values.length; i += 1) {
-      const v = fn(loaded.values[i], i / loaded.fs, i, Math);
+      const v = fn({ x: loaded.values[i], t: i / loaded.fs, i });
       out.push(Number.isFinite(v) ? v : NaN);
     }
     const bad = out.filter((v) => !Number.isFinite(v)).length;

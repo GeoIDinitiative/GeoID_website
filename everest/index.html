@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; script-src 'self' 'sha256-rreV8OrbFTvBCJSwCHRz/kE1DHai8MEB1OUCIQgBo/A=' 'sha256-7ysNQt8aHqXOFgkciCqCdanHLji0rVnRpww8OVJTETY=' 'sha256-z1MbM73GEIm2TW0KXHbmzyglFqmnihlRdwUJwk/oWaE='; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https: http://localhost:* http://127.0.0.1:*; media-src 'self' data: blob: https:; connect-src 'self' data: blob: https: http://localhost:* http://127.0.0.1:*; frame-src 'self' blob: https://docs.google.com https://drive.google.com; form-action 'self' https://formspree.io https://buy.stripe.com https://docs.google.com; worker-src 'self' blob:; child-src 'self' blob:; upgrade-insecure-requests">
 <!-- The modules bust their own cache via ?v= (tools/stamp.py), but this
      page has no stamp on its own URL — so it must revalidate, or the
      browser serves a cached copy still pointing at the old stamps. -->
@@ -53,9 +54,9 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://server.arcgisonline.com">
 <link rel="preconnect" href="https://s3.amazonaws.com">
-<link rel="stylesheet" href="/styles/viewer-skin.css?v=20260925-f357b84">
-  <link rel="stylesheet" href="/styles/viewer-themes.css?v=20260925-f357b84">
-  <script src="/scripts/theme.js?v=20260925-f357b84"></script>
+<link rel="stylesheet" href="/styles/viewer-skin.css?v=20260925-61682d8">
+  <link rel="stylesheet" href="/styles/viewer-themes.css?v=20260925-61682d8">
+  <script src="/scripts/theme.js?v=20260925-61682d8"></script>
 <link rel="preload" as="image" href="data/khumbu_hillshade.png">
 <link rel="preload" as="image" href="data/khumbu_contours.png">
 <link rel="stylesheet" href="everest.css?v=84ebb99-a7f30c15">
@@ -188,7 +189,7 @@ if (location.search.includes("reset")) {
     <p class="end-sub"></p>
     <div class="end-stats"></div>
     <div class="title-actions">
-      <button class="btn" onclick="location.reload()">Again</button>
+      <button class="btn" id="end-again" type="button">Again</button>
       <a class="btn ghost" href="/">Back to GeoHUB</a>
     </div>
   </div>
@@ -401,5 +402,11 @@ async function beginFlow(poi) {
   }
 }
 </script>
+  <script>
+    // Was an onclick attribute. See the note in earth_explorer/etna/index.html:
+    // a page carrying an inline handler cannot have a strict script-src.
+    document.getElementById("end-again")
+      ?.addEventListener("click", function () { location.reload(); });
+  </script>
 </body>
 </html>

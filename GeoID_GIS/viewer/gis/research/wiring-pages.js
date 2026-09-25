@@ -1,11 +1,12 @@
-import { wire, wirePattern } from "./spec-page.js?v=20260925-f357b84";
-import * as store from "./project-store.js?v=20260925-f357b84";
-import * as bridge from "./bridge.js?v=20260925-f357b84";
-import * as dsp from "./dsp.js?v=20260925-f357b84";
-import * as stats from "./stats.js?v=20260925-f357b84";
-import { linePlot } from "./plot.js?v=20260925-f357b84";
-import { parseTable, column } from "./table.js?v=20260925-f357b84";
-import { findTables, loadTable, saveTable, saveFigure } from "./pages/common.js?v=20260925-f357b84";
+import { compileScalar } from "../field-calculator.js?v=20260925-61682d8";
+import { wire, wirePattern } from "./spec-page.js?v=20260925-61682d8";
+import * as store from "./project-store.js?v=20260925-61682d8";
+import * as bridge from "./bridge.js?v=20260925-61682d8";
+import * as dsp from "./dsp.js?v=20260925-61682d8";
+import * as stats from "./stats.js?v=20260925-61682d8";
+import { linePlot } from "./plot.js?v=20260925-61682d8";
+import { parseTable, column } from "./table.js?v=20260925-61682d8";
+import { findTables, loadTable, saveTable, saveFigure } from "./pages/common.js?v=20260925-61682d8";
 
 /**
  * The rest of the spec's controls.
@@ -578,8 +579,8 @@ wire("Equation Workbench", {
     const name = Object.keys(numeric)[0];
     // Function, not eval: the expression is the user's own and is evaluated
     // against one bound name, with nothing else in scope.
-    const fn = new Function("x", "Math", `return (${expr});`);
-    const result = numeric[name].map((x) => fn(x, Math));
+    const fn = compileScalar(expr, ["x"]);
+    const result = numeric[name].map((x) => fn({ x }));
     const out = `analysis/equation-${stamp()}.csv`;
     await saveTable(out, [name, "result"], numeric[name].map((x, i) => [x, result[i]]),
       `Equation ${expr}`, "series");
@@ -760,7 +761,7 @@ wire("Preprocessing Transforms", {
     const { path, table } = await firstTable();
     const { latAt, lonAt } = coordinateColumns(table);
     if (latAt < 0 || lonAt < 0) throw new Error("No latitude/longitude columns to transform.");
-    const projection = await import(`../projection.js?v=20260925-f357b84`);
+    const projection = await import(`../projection.js?v=20260925-61682d8`);
     const zones = new Set();
     let projected = 0;
     const rows = table.rows.map((r) => {
@@ -1094,7 +1095,7 @@ wire("Post Processing", {
  */
 wire("Storyboard", {
   "AI Outline": async ({ say }) => {
-    const sidecar = await import("./sidecar.js?v=20260925-f357b84");
+    const sidecar = await import("./sidecar.js?v=20260925-61682d8");
     if (!sidecar.isConnected()) {
       throw new Error("This drafts with your own model through the sidecar — "
         + "connect it in Settings ▸ Sidecar first.");

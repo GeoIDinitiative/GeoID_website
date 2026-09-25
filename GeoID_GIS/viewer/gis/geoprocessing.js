@@ -1,5 +1,6 @@
-import * as G from "./geometry.js?v=20260925-f357b84";
-import { transform } from "./projection.js?v=20260925-f357b84";
+import { compileScalar } from "./field-calculator.js?v=20260925-61682d8";
+import * as G from "./geometry.js?v=20260925-61682d8";
+import { transform } from "./projection.js?v=20260925-61682d8";
 
 // Vector geoprocessing on GeoJSON FeatureCollections.
 //
@@ -904,7 +905,7 @@ export function fieldCalculator(fc, fieldName, expr) {
     .filter((name) => /^[A-Za-z_$][A-Za-z0-9_$]*$/.test(name));
   let fn;
   try {
-    fn = new Function(...fieldNames, "Math", `"use strict"; return (${expr});`);
+    fn = compileScalar(expr, fieldNames);
   } catch (error) {
     return { ok: false, message: `Invalid expression: ${error.message}` };
   }
@@ -913,7 +914,7 @@ export function fieldCalculator(fc, fieldName, expr) {
     let value = null;
     try {
       const props = f.properties || {};
-      value = fn(...fieldNames.map((name) => props[name]), Math);
+      value = fn(props);
     } catch (error) {
       failures += 1;
     }

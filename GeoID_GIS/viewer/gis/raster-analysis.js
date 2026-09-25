@@ -1,5 +1,6 @@
-import * as G from "./geometry.js?v=20260925-f357b84";
-import { featureCollection, feature, polygonsOf } from "./geoprocessing.js?v=20260925-f357b84";
+import { compileScalar } from "./field-calculator.js?v=20260925-61682d8";
+import * as G from "./geometry.js?v=20260925-61682d8";
+import { featureCollection, feature, polygonsOf } from "./geoprocessing.js?v=20260925-61682d8";
 
 // Raster analysis equivalents of the QGIS Raster menu / ArcGIS Spatial Analyst
 // surface tools. A raster here is { band, width, height, bounds, noData },
@@ -216,7 +217,7 @@ export function reclassify(raster, rules) {
 export function rasterCalculator(rasterA, rasterB, expr) {
   let fn;
   try {
-    fn = new Function("a", "b", "Math", `"use strict"; return (${expr});`);
+    fn = compileScalar(expr, ["a", "b"]);
   } catch (error) {
     return { ok: false, message: `Invalid expression: ${error.message}` };
   }
@@ -229,7 +230,7 @@ export function rasterCalculator(rasterA, rasterB, expr) {
       continue;
     }
     try {
-      const v = fn(a, b, Math);
+      const v = fn({ a, b });
       out[i] = Number.isFinite(v) ? v : NaN;
     } catch (error) {
       /* leave as NaN */

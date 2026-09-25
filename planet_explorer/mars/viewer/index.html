@@ -2,16 +2,17 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; script-src 'self' 'sha256-Boh3/L5gJ4B/mEAHihBvJMLZv+xu5vdVEIQPUiFu5OQ=' 'sha256-llIkh3H0ryUtOx+brDd7HyrMButUADFidWKaRKPBXT0=' 'sha256-rDdYEm63cRodo0Pct49R3DJzYsrko6oYkWHIvG0U4Wc=' 'sha256-mH24M4jOScFabkmAKkoOc2iC5IjaCL6zfyzTZvL1nRo='; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https: http://localhost:* http://127.0.0.1:*; media-src 'self' data: blob: https:; connect-src 'self' data: blob: https: http://localhost:* http://127.0.0.1:*; frame-src 'self' blob: https://docs.google.com https://drive.google.com; form-action 'self' https://formspree.io https://buy.stripe.com https://docs.google.com; worker-src 'self' blob:; child-src 'self' blob:; upgrade-insecure-requests">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>Mars</title>
   <link rel="icon" href="assets/logo.png" type="image/png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;600;700&family=Exo+2:wght@300;400;500&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=20260925-f357b84">
-  <link rel="stylesheet" href="/styles/flightsim.css?v=20260925-f357b84">
-  <link rel="stylesheet" href="/styles/viewer-skin.css?v=20260925-f357b84">
-  <link rel="stylesheet" href="/styles/viewer-themes.css?v=20260925-f357b84">
+  <link rel="stylesheet" href="styles.css?v=20260925-61682d8">
+  <link rel="stylesheet" href="/styles/flightsim.css?v=20260925-61682d8">
+  <link rel="stylesheet" href="/styles/viewer-skin.css?v=20260925-61682d8">
+  <link rel="stylesheet" href="/styles/viewer-themes.css?v=20260925-61682d8">
   <!-- THE LIVE SITE HAS ONE DOOR TO THIS WORLD, AND IT IS GEOHUB. This file
        is the viewer GeoHUB frames (via /transit/) when Mars is chosen from
        the planet strip or asked for as /?world=mars; inside the shell
@@ -21,11 +22,11 @@
        the shell frames this page where it works. Before theme.js, so nothing
        is painted first. -->
   <script>if (window.self === window.top) { window.location.replace("/?world=mars" + window.location.hash); }</script>
-  <script src="/scripts/theme.js?v=20260925-f357b84"></script>
-  <script src="/scripts/tour-enter.js?v=20260925-f357b84" defer></script>
-  <script src="/scripts/ui-sound.js?v=20260925-f357b84" defer></script>
+  <script src="/scripts/theme.js?v=20260925-61682d8"></script>
+  <script src="/scripts/tour-enter.js?v=20260925-61682d8" defer></script>
+  <script src="/scripts/ui-sound.js?v=20260925-61682d8" defer></script>
   <!-- The GIS layer: shared shell markup, styling and modules. -->
-  <link rel="stylesheet" href="/GeoID_GIS/viewer/gis/shell.css?v=20260925-f357b84">
+  <link rel="stylesheet" href="/GeoID_GIS/viewer/gis/shell.css?v=20260925-61682d8">
 </head>
 <body class="viewer-page">
   <div id="app"></div>
@@ -47,7 +48,7 @@
     <div class="brand-hero">
       <div class="brand">
         <button class="brand-logo-button" id="brand-reset-button" type="button" aria-label="Reset view" title="Reset view">
-          <img class="brand-logo" id="brand-logo" src="../../../assets/mars_icon1.png?v=20260925-f357b84" alt="Mars icon">
+          <img class="brand-logo" id="brand-logo" src="../../../assets/mars_icon1.png?v=20260925-61682d8" alt="Mars icon">
         </button>
         <h1 class="brand-title">Mars</h1>
         <button class="info-btn" id="info-btn" aria-label="About this viewer" title="About this viewer">i</button>
@@ -1223,7 +1224,7 @@
     </div>
   </div>
 
-<script src="mars-manifest.js?v=20260925-f357b84" defer></script>
+<script src="mars-manifest.js?v=20260925-61682d8" defer></script>
 <script>
   const statusNode = document.getElementById("status");
 
@@ -1301,9 +1302,9 @@
 
   void bootMarsViewer();
 </script>
-<script src="ui-controls.js?v=20260925-f357b84" defer></script>
-<script src="/scripts/flightsim.js?v=20260925-f357b84-atmos2" defer></script>
-<script src="music.js?v=20260925-f357b84" defer></script>
+<script src="ui-controls.js?v=20260925-61682d8" defer></script>
+<script src="/scripts/flightsim.js?v=20260925-61682d8-atmos2" defer></script>
+<script src="music.js?v=20260925-61682d8" defer></script>
 
   <div id="portrait-advisory" role="status" aria-live="polite">
     <img src="../../../assets/tilt_phone.png" alt="Rotate device" id="portrait-advisory-icon">
@@ -1324,6 +1325,6 @@
     })();
   </script>
   <script>if (window.self !== window.top) document.body.classList.add("is-embedded");</script>
-  <script type="module" src="/GeoID_GIS/viewer/gis/boot.js?v=20260925-f357b84"></script>
+  <script type="module" src="/GeoID_GIS/viewer/gis/boot.js?v=20260925-61682d8"></script>
 </body>
 </html>

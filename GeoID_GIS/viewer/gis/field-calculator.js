@@ -28,7 +28,8 @@ const FUNCTIONS = Object.assign(Object.create(null), {
 });
 // Null prototypes and own-property tests: `in` would find "constructor" and
 // "toString" on Object.prototype and hand a name the page's own functions.
-const CONSTANTS = Object.assign(Object.create(null), { pi: Math.PI, e: Math.E });
+const CONSTANTS = Object.assign(Object.create(null),
+  { pi: Math.PI, e: Math.E, PI: Math.PI, E: Math.E });
 const own = (table, key) => Object.prototype.hasOwnProperty.call(table, key);
 
 /** Tokens: numbers (1, 2.5, 1e-3), names (ux, stress.vm), operators and brackets, each with its position. */
@@ -155,6 +156,48 @@ export function compile(tree, resolve) {
  * the field's alias (the last part of its name) and bare where the key is
  * unique across fields. Answers Map name → { field, component }.
  */
+/**
+ * An expression over a few NAMED SCALARS, for the calculators that used to
+ * reach for `new Function`.
+ *
+ * WHY THIS EXISTS. Five places in this app evaluated a typed expression by
+ * compiling it: the raster calculator, the attribute field calculator, the
+ * curve fitter and two Research Hub pages. Each was careful in the way its own
+ * comment describes -- the names are bound as parameters, nothing else is in
+ * scope -- and each still needed `'unsafe-eval'` in the page's
+ * Content-Security-Policy, which is the one permission that turns a string
+ * into running code. A policy carrying it cannot claim to stop an injection,
+ * because these are precisely the functions an injection would look for.
+ *
+ * This file's own parser was written for the same problem and its header says
+ * why: an expression can be SAVED, shared, and opened by somebody who did not
+ * write it. The same answer serves all of them.
+ *
+ * `names` is what the expression may read. `Math.` is stripped on the way in,
+ * because expressions people have already typed say `Math.sqrt(a)` and every
+ * one of those functions is here under its bare name.
+ */
+export function compileScalar(text, names) {
+  const tree = parse(String(text ?? "").replace(/\bMath\s*\./g, ""));
+  const scope = Object.create(null);
+  for (const name of names) scope[name] = NaN;
+  const unknown = [...namesIn(tree)].filter((n) => !own(scope, n));
+  if (unknown.length) {
+    throw new Error(`unknown name '${unknown[0]}' -- this expression may read `
+      + (names.length ? names.join(", ") : "no names"));
+  }
+  const fn = compile(tree, (n) => (own(scope, n) ? () => scope[n] : null));
+  return (values) => {
+    for (const name of names) {
+      const v = values[name];
+      // NOT Number(v): Number(null) is 0, so a missing attribute would read as
+      // a measured zero. An absent value is not a number and says so.
+      scope[name] = v === null || v === undefined || v === "" ? NaN : Number(v);
+    }
+    return fn(0);
+  };
+}
+
 export function variableTable(fields) {
   const table = new Map();
   const counts = new Map();
