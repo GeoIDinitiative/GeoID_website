@@ -1,13 +1,13 @@
-import { registerPage } from "../stages.js?v=20260922-9c13628";
-import * as store from "../project-store.js?v=20260922-9c13628";
-import { column } from "../table.js?v=20260922-9c13628";
-import { linePlot } from "../plot.js?v=20260922-9c13628";
-import * as dsp from "../dsp.js?v=20260922-9c13628";
+import { registerPage } from "../stages.js?v=20260925-f357b84";
+import * as store from "../project-store.js?v=20260925-f357b84";
+import { column } from "../table.js?v=20260925-f357b84";
+import { linePlot } from "../plot.js?v=20260925-f357b84";
+import * as dsp from "../dsp.js?v=20260925-f357b84";
 import {
   el, card, field, input, textarea, selectOf, button, row, statGrid, statusLine,
   guard, crossPage, findTables, loadTable, inferSampling, seriesPicker,
   saveFigure, saveTable,
-} from "./common.js?v=20260922-9c13628";
+} from "./common.js?v=20260925-f357b84";
 
 /**
  * The rest of the Postprocessing and Signal Analysis stage.

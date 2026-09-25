@@ -673,8 +673,17 @@ check("no timestamp gets a sensible middle", recencyOpacity(null, now, day), 0.8
     /const seismic = events\.filter\(isQuake\)\.length;/.test(code), true);
   check("and the natural events include the ones with a source id",
     /events\.filter\(\(e\) => !isQuake\(e\)\)\.map\(\(e\) => e\.categoryTitle\)/.test(code), true);
+  // RE-ARGUED, NOT LOOSENED. The intent is unchanged -- the link names the
+  // feed's own publisher and names it briefly -- and what moved is that the
+  // name is escaped on the way into the markup, because it reaches `innerHTML`
+  // beside a title and an id that came out of EONET, USGS or GDACS. The
+  // escape is asserted too, so this cannot go back to raw and still pass.
   check("the link names the feed's own publisher, briefly",
-    /Open the \$\{publisherOf\(source, \{ short: true \}\)\} record/.test(code), true);
+    /Open the \$\{escapeHtml\(publisherOf\(source, \{ short: true \}\)\)\} record/.test(code),
+    true);
+  check("and the link's own url is scheme-checked rather than interpolated raw",
+    /const link = safeUrl\(event\.link\);/.test(code) && !/href="\$\{event\.link\}"/.test(code),
+    true);
   /**
    * `sourceId` keeps its one real job — looking the FEED up for its credit,
    * which is as true of GDACS as of the USGS — and has no other reader. Any

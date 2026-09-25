@@ -201,27 +201,31 @@ export async function verify(token, secret, { audience = null } = {}) {
 
 const SESSION_COOKIE = "geoid_session";
 
-function cookieDomain(env) {
-  try {
-    const host = new URL(env.SITE_ORIGIN || "https://geoidinitiative.com").hostname;
-    const parts = host.split(".");
-    // Never set a Domain on a bare host or on localhost: a cookie for
-    // `localhost` with a Domain attribute is refused outright.
-    if (parts.length < 2 || host === "localhost") return "";
-    return `; Domain=.${parts.slice(-2).join(".")}`;
-  } catch (error) {
-    return "";
-  }
-}
-
+/**
+ * HOST-ONLY, AND THAT IS THE WHOLE POINT OF THIS FUNCTION BEING SHORT.
+ *
+ * The first cut set `Domain=.geoidinitiative.com`, which is the reflex and is
+ * wrong here: the only reader of this cookie is this service, and a `Domain`
+ * attribute would attach a week-long signed session to every request to
+ * `data.geoidinitiative.com` as well -- which is the bucket, and which a
+ * member hits hundreds of times a session for tiles and range reads. The gate
+ * in front of it forwards the request onward with its headers, so the
+ * credential would land in the storage backend's access logs, and in the logs
+ * of anything those are shipped to. It would also be readable by every other
+ * subdomain this zone ever grows.
+ *
+ * Without the attribute the cookie is sent only to the host that set it -- and
+ * it still reaches this service from the site, because the two share one
+ * registrable domain, so `SameSite=Lax` does not stand in the way of a
+ * `credentials: "include"` fetch from the page.
+ */
 export function sessionCookie(env, token, maxAge) {
-  return `${SESSION_COOKIE}=${token}${cookieDomain(env)}; Path=/; HttpOnly; Secure; `
+  return `${SESSION_COOKIE}=${token}; Path=/; HttpOnly; Secure; `
     + `SameSite=Lax; Max-Age=${Math.max(0, Math.floor(maxAge))}`;
 }
 
-export function clearedCookie(env) {
-  return `${SESSION_COOKIE}=${cookieDomain(env)}; Path=/; HttpOnly; Secure; `
-    + "SameSite=Lax; Max-Age=0";
+export function clearedCookie() {
+  return `${SESSION_COOKIE}=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0`;
 }
 
 /** Read one cookie out of a Cookie header, without a parser. */

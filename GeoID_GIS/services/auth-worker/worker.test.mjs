@@ -303,9 +303,11 @@ check("microsoft: a guest's #EXT# UPN is refused",
   check("following the link issues a member session at the return address",
     f1.status === 302 && `${to.origin}${to.pathname}${to.search}` === "https://example.org/sign-in/?next=%2Fgeohub%2F"
       && claims?.email === "mem@outlook.com" && claims.member === true, to.hash.slice(0, 30));
-  check("the signed token is in an httpOnly, Secure, SameSite cookie",
+  // HOST-ONLY is asserted rather than a Domain: with one, this week-long
+  // session would ride on every request to the data bucket and into its logs.
+  check("the signed token is in a host-only, httpOnly, Secure, SameSite cookie",
     /HttpOnly/.test(setCookie) && /Secure/.test(setCookie)
-      && /SameSite=Lax/.test(setCookie) && /Domain=\.example\.org/.test(setCookie),
+      && /SameSite=Lax/.test(setCookie) && !/Domain=/i.test(setCookie),
     setCookie.slice(0, 120));
   check("the fragment carries display claims and NOT the signed token",
     !/token=/.test(to.hash) && shown.email === "mem@outlook.com" && shown.member === true

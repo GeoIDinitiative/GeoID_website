@@ -1,3 +1,4 @@
+import { escapeHtml } from "./escape-html.js";
 /**
  * Data tags: every input classified AS IT ARRIVES, and correctable forever.
  *
@@ -129,8 +130,12 @@ export function chipHtml(layer) {
   const type = typeOf(layer);
   const { label, colour } = DATA_TYPES[type];
   const note = descriptionOf(layer);
-  return `<span class="data-tag-chip" data-type="${type}" title="${
-    (note || label).replace(/"/g, "&quot;")}" style="--tag: ${colour}">${label}</span>`;
+  // The note is whatever was typed about this layer and the label rides on a
+  // layer's own record; escaping the quote alone left `<` untouched, which is
+  // all an attribute break needs once the value reaches the element's text.
+  return `<span class="data-tag-chip" data-type="${escapeHtml(type)}" `
+    + `title="${escapeHtml(note || label)}" style="--tag: ${colour}">`
+    + `${escapeHtml(label)}</span>`;
 }
 
 /** The same select everywhere a tag can be chosen. */

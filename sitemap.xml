@@ -19,6 +19,10 @@
   <url><loc>https://geoidinitiative.com/about_geohub/</loc><lastmod>2026-09-22</lastmod></url>
   <url><loc>https://geoidinitiative.com/dashboard/</loc><lastmod>2026-09-22</lastmod></url>
 
+  <!-- The ten worlds. Each is a page that DESCRIBES a world and opens the
+       viewer at /?world=<id>; the viewer itself is a state of the shell and
+       has no URL of its own worth offering a crawler. -->
+
   <!-- Earth Explorer and the two site models that are live. -->
   <url><loc>https://geoidinitiative.com/earth_explorer/</loc><lastmod>2026-09-22</lastmod></url>
   <url><loc>https://geoidinitiative.com/earth_explorer/etna/</loc><lastmod>2026-09-22</lastmod></url>

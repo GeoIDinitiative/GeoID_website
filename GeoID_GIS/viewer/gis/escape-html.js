@@ -40,4 +40,32 @@ export function escapeHtml(value) {
     .replace(/'/g, "&#39;");
 }
 
+
+/**
+ * A URL that came from a feed, safe to put in an `href`.
+ *
+ * ESCAPING IS NOT ENOUGH FOR A LINK. `javascript:alert(1)` contains no
+ * character `escapeHtml` touches, so an escaped value is still script the
+ * moment somebody clicks it — and `data:` and `vbscript:` are the same
+ * family. The scheme is what has to be checked, and it has to be checked on
+ * the PARSED url rather than on the string, because `java\tscript:` and
+ * `  javascript:` are both `javascript:` to a browser and neither starts with
+ * the letters a prefix test looks for.
+ *
+ * Answers "" for anything that is not http or https, which every caller
+ * treats as "no link" — an absent link is a worse page and a live
+ * `javascript:` link is a compromised one.
+ */
+export function safeUrl(value) {
+  const raw = String(value ?? "").trim();
+  if (!raw) return "";
+  try {
+    const url = new URL(raw, "https://geoidinitiative.com/");
+    if (url.protocol !== "http:" && url.protocol !== "https:") return "";
+    return escapeHtml(url.href);
+  } catch (error) {
+    return "";
+  }
+}
+
 export default escapeHtml;

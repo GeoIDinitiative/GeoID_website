@@ -1,7 +1,7 @@
-import { escapeHtml } from "./escape-html.js?v=20260922-9c13628";
-import { CRS_OPTIONS, transform } from "./projection.js?v=20260922-9c13628";
-import { currentBody } from "./bodies.js?v=20260922-9c13628";
-import { rowsToCsv, downloadText } from "./extraction.js?v=20260922-9c13628";
+import { escapeHtml } from "./escape-html.js?v=20260925-f357b84";
+import { CRS_OPTIONS, transform } from "./projection.js?v=20260925-f357b84";
+import { currentBody } from "./bodies.js?v=20260925-f357b84";
+import { rowsToCsv, downloadText } from "./extraction.js?v=20260925-f357b84";
 
 // GIS mode presents a toolbox rather than a control centre: the whole GeoID
 // control set folds into one group, and the tool groups stack beneath it.
@@ -405,17 +405,22 @@ function sampleRasters() {
   }
   (window.GeoIDImportManager?.getSampleableLayers?.() || []).forEach((layer) => {
     const value = layer.sampler(lat, lon);
+    // The layer's NAME is a file name somebody chose, and an object value is
+    // that feature's own attribute names and values -- from a dropped file or
+    // from a vector tile somebody else publishes. The same sources the
+    // attribute query below escapes.
+    const name = escapeHtml(layer.name);
     if (value === null || value === undefined) {
-      lines.push(`<strong>${layer.name}</strong> outside layer`);
+      lines.push(`<strong>${name}</strong> outside layer`);
     } else if (typeof value === "object") {
       const summary = Object.entries(value)
         .filter(([, v]) => v !== null && v !== "")
         .slice(0, 3)
-        .map(([k, v]) => `${k}: ${v}`)
+        .map(([k, v]) => `${escapeHtml(k)}: ${escapeHtml(v)}`)
         .join(", ");
-      lines.push(`<strong>${layer.name}</strong> ${summary || "no attributes"}`);
+      lines.push(`<strong>${name}</strong> ${summary || "no attributes"}`);
     } else {
-      lines.push(`<strong>${layer.name}</strong> ${value.toFixed(2)}`);
+      lines.push(`<strong>${name}</strong> ${value.toFixed(2)}`);
     }
   });
   out.innerHTML = lines.length ? lines.join("<br>") : "No raster layers to sample.";

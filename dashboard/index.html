@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https:; media-src 'self' data: blob: https://data.geoidinitiative.com; connect-src 'self' https://data.geoidinitiative.com https://auth.geoidinitiative.com https://formspree.io; frame-src 'self' https://docs.google.com; form-action 'self' https://formspree.io https://buy.stripe.com https://docs.google.com; upgrade-insecure-requests">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; script-src 'self' 'sha256-UXmzs69z6K0S8nvEMmPDTZMWN18t8+zJAB1keKn04Us=' 'sha256-HLteDuJP1H4uHqED4K8pYF9kJO+A2407sOm8U3/mOjc='; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https:; media-src 'self' data: blob: https://data.geoidinitiative.com; connect-src 'self' https://data.geoidinitiative.com https://auth.geoidinitiative.com https://formspree.io; frame-src 'self' https://docs.google.com; form-action 'self' https://formspree.io https://buy.stripe.com https://docs.google.com; upgrade-insecure-requests">
   <meta name="referrer" content="strict-origin-when-cross-origin">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="description" content="An interactive 3D globe for geoscience: 312,500 earthquakes back to 1008, every cyclone track since 1842, world geology, live events and ten worlds. Free in your browser; membership adds six hazard models.">
@@ -11,6 +11,26 @@
        arbitrary image off the page — which is why results showed a stray
        Earth icon instead of the GeoID logo. -->
   <link rel="canonical" href="https://geoidinitiative.com/dashboard/">
+  <script type="application/ld+json" data-breadcrumb>
+  {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    "itemListElement": [
+      {
+        "@type": "ListItem",
+        "position": 1,
+        "name": "Home",
+        "item": "https://geoidinitiative.com/"
+      },
+      {
+        "@type": "ListItem",
+        "position": 2,
+        "name": "Dashboard",
+        "item": "https://geoidinitiative.com/dashboard/"
+      }
+    ]
+  }
+  </script>
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="GeoID Initiative">
   <meta property="og:url" content="https://geoidinitiative.com/dashboard/">
@@ -54,7 +74,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
   <!-- LCP is the first hero frame; everything else can wait. -->
   <link rel="preload" as="image" href="/assets/opt/geohub-hero-poster.webp" fetchpriority="high">
-  <link rel="stylesheet" href="/styles/shared.css?v=20260922-9c13628">
+  <link rel="stylesheet" href="/styles/shared.css?v=20260925-f357b84">
   <script>
     /* Animation styles are gated on this class so that if scripting is off —
        or the observer never reports — nothing can be stranded invisible. */
@@ -713,7 +733,7 @@
   }
   </style>
   <link rel="stylesheet" href="/styles/skins/synthwave.css">
-  <link rel="stylesheet" href="/styles/site-nav.css?v=20260922-9c13628">
+  <link rel="stylesheet" href="/styles/site-nav.css?v=20260925-f357b84">
 </head>
 <body>
 
@@ -1113,8 +1133,8 @@
     </div>
   </footer>
 
-  <script type="module" src="/scripts/nav-membership.js?v=20260922-9c13628"></script>
-  <script src="/scripts/site.js?v=20260922-9c13628"></script>
+  <script type="module" src="/scripts/nav-membership.js?v=20260925-f357b84"></script>
+  <script src="/scripts/site.js?v=20260925-f357b84"></script>
   <script>
   (function () {
     "use strict";
@@ -1330,6 +1350,6 @@
     })();
   })();
   </script>
-  <script src="/styles/nav.js?v=20260922-9c13628" defer></script>
+  <script src="/styles/nav.js?v=20260925-f357b84" defer></script>
 </body>
 </html>

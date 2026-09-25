@@ -9,7 +9,7 @@
  * fixed — a value test cannot see a call site that stopped calling.
  */
 import { readFileSync } from "node:fs";
-import { escapeHtml } from "./escape-html.js";
+import { escapeHtml, safeUrl } from "./escape-html.js";
 
 let failures = 0;
 const check = (name, ok, detail) => {
@@ -62,6 +62,57 @@ const events = src("./events.js");
 check("a service's message is escaped before it is drawn",
   /escapeHtml\(out\?\.message/.test(events)
     && !/\$\{out\?\.message \|\| "No trace available\."\}/.test(events));
+
+// ── safeUrl: a scheme check, because escaping does not make a link safe ─────
+//
+// `javascript:alert(1)` contains no character `escapeHtml` touches, so an
+// escaped value in an `href` is still script the moment somebody clicks it.
+// The feeds this app reads supply their own urls.
+
+for (const bad of [
+  "javascript:alert(1)", "  javascript:alert(1)", "JaVaScRiPt:alert(1)",
+  "java\tscript:alert(1)", "data:text/html,<script>alert(1)</script>",
+  "vbscript:msgbox", "",
+]) {
+  check(`safeUrl refuses ${JSON.stringify(bad).slice(0, 38)}`, safeUrl(bad) === "",
+    `got ${JSON.stringify(safeUrl(bad))}`);
+}
+check("safeUrl keeps an ordinary https link",
+  safeUrl("https://earthquake.usgs.gov/x") === "https://earthquake.usgs.gov/x");
+check("safeUrl keeps http too", safeUrl("http://example.org/a?b=1") === "http://example.org/a?b=1");
+check("a url safeUrl allows can never break out of the attribute",
+  !/["'<>]/.test(safeUrl('" onfocus=alert(1) x="')));
+
+// ── The sinks the security review found, which the first sweep missed ──────
+//
+// All four were in files this work had ALREADY edited to close a sink — the
+// first grep looked for an interpolation on the `innerHTML =` line itself and
+// these build their markup a few lines above it. Pinned by source, because a
+// value test cannot see a call site that has stopped calling.
+
+check("the Metadata tab escapes the layer name and its provenance",
+  /escapeHtml\(layer\.name \|\| "layer"\)/.test(hierarchy)
+    && /<i>\$\{escapeHtml\(k\)\}<\/i> \$\{escapeHtml\(v\)\}/.test(hierarchy));
+check("the point sample escapes the layer name and each attribute",
+  /const name = escapeHtml\(layer\.name\)/.test(toolbox)
+    && /escapeHtml\(k\)\}: \$\{escapeHtml\(v\)/.test(toolbox));
+check("the event popup escapes the feed's own title, category and id",
+  /escapeHtml\(event\.title\)/.test(events)
+    && /escapeHtml\(event\.categoryTitle/.test(events)
+    && /escapeHtml\(event\.id\)/.test(events));
+check("the event popup's link is scheme-checked, not merely escaped",
+  /const link = safeUrl\(event\.link\)/.test(events)
+    && !/href="\$\{event\.link\}"/.test(events));
+
+const gee = src("./gee.js");
+check("the Earth Engine catalogue's own ids and names are escaped",
+  /escapeHtml\(cat\.label\)/.test(gee) && /escapeHtml\(d\.name\)/.test(gee)
+    && !/<option value="\$\{d\.id\}"/.test(gee));
+
+const tags = src("./data-tags.js");
+check("the data-tag chip escapes its label and note, not just the quote",
+  /escapeHtml\(note \|\| label\)/.test(tags)
+    && !/replace\(\/"\/g, "&quot;"\)/.test(tags));
 
 process.on("exit", () => {
   console.log(`\n${failures ? `${failures} failed` : "all passed"}`);

@@ -1,11 +1,12 @@
-import { registerPage } from "../stages.js?v=20260922-9c13628";
-import * as store from "../project-store.js?v=20260922-9c13628";
-import { STAGES, getPage } from "../stages.js?v=20260922-9c13628";
+import { escapeHtml } from "../../escape-html.js?v=20260925-f357b84";
+import { registerPage } from "../stages.js?v=20260925-f357b84";
+import * as store from "../project-store.js?v=20260925-f357b84";
+import { STAGES, getPage } from "../stages.js?v=20260925-f357b84";
 import {
   el, card, field, input, textarea, selectOf, button, row, statGrid, statusLine,
   guard, crossPage, findTables, saveTable,
   pageHeader, toolbar, inlineLabel, collapsible, dataTable, console_,
-} from "./common.js?v=20260922-9c13628";
+} from "./common.js?v=20260925-f357b84";
 
 /**
  * Dashboard, Project Manager, Pipeline and Data Hub.
@@ -380,17 +381,18 @@ const mountDataHub = guard("Data Hub", async (host, ctx) => {
       const data = await store.listData();
       const html = [
         "<!doctype html><meta charset=utf-8>",
-        `<title>${active.name}</title>`,
+        `<title>${escapeHtml(active.name)}</title>`,
         "<style>body{font:14px/1.6 system-ui;margin:3rem auto;max-width:52rem}"
         + "h1{margin-bottom:0}code{background:#f3f3f3;padding:.1em .3em}"
         + "td,th{border-bottom:1px solid #ddd;padding:.3rem .6rem;text-align:left}</style>",
-        `<h1>${active.name}</h1>`,
-        `<p>${active.meta.body || "earth"} · ${active.meta.phase} · `
-        + `${active.meta.priority} · ${active.meta.progress_pct ?? 0}%</p>`,
-        `<p>${active.meta.description || ""}</p>`,
-        active.meta.focus_question ? `<p><b>Focus:</b> ${active.meta.focus_question}</p>` : "",
+        `<h1>${escapeHtml(active.name)}</h1>`,
+        `<p>${escapeHtml(active.meta.body || "earth")} · ${escapeHtml(active.meta.phase)} · `
+        + `${escapeHtml(active.meta.priority)} · ${active.meta.progress_pct ?? 0}%</p>`,
+        `<p>${escapeHtml(active.meta.description || "")}</p>`,
+        active.meta.focus_question ? `<p><b>Focus:</b> ${escapeHtml(active.meta.focus_question)}</p>` : "",
         "<h2>Registered data</h2><table><tr><th>Name<th>Kind<th>Path<th>Source</tr>",
-        ...data.map((e) => `<tr><td>${e.name}<td>${e.kind}<td><code>${e.path}</code><td>${e.source || ""}</tr>`),
+        ...data.map((e) => `<tr><td>${escapeHtml(e.name)}<td>${escapeHtml(e.kind)}`
+          + `<td><code>${escapeHtml(e.path)}</code><td>${escapeHtml(e.source || "")}</tr>`),
         "</table>",
         "<h2>Artefacts</h2><ul>",
         ...Array.from(tree.querySelectorAll(".hub-file")).map((b) => `<li><code>${b.dataset.path}</code>`),

@@ -16,9 +16,9 @@ import {
   gdacsPoints, resolveColour,
   MARKER_LIFT_MAX, liftForAltitude, dotSizePx, isQuake, publisherOf, restoreActive,
   stormCategory, stormScale, stormLabel, STORM_BASE_CAP, markerHitGeometry, nearestHit,
-} from "./event-sources.js?v=20260922-9c13628";
-import { escapeHtml } from "./escape-html.js?v=20260922-9c13628";
-import { holdLaunch } from "./launch-ready.js?v=20260922-9c13628";
+} from "./event-sources.js?v=20260925-f357b84";
+import { escapeHtml, safeUrl } from "./escape-html.js?v=20260925-f357b84";
+import { holdLaunch } from "./launch-ready.js?v=20260925-f357b84";
 
 const API = "https://eonet.gsfc.nasa.gov/api/v3/events";
 
@@ -2689,8 +2689,8 @@ async function showTrace(event) {
   }
 
   const [plot, { spectrogram }] = await Promise.all([
-    import("./seismogram-plot.js?v=20260922-9c13628"),
-    import("./research/dsp.js?v=20260922-9c13628"),
+    import("./seismogram-plot.js?v=20260925-f357b84"),
+    import("./research/dsp.js?v=20260925-f357b84"),
   ]);
   if (stale()) return;
 
@@ -2700,7 +2700,7 @@ async function showTrace(event) {
   const seconds = trace.values.length / trace.sampleRate;
   host.innerHTML = `
     <div class="event-trace-head">
-      <strong>${trace.id}</strong>
+      <strong>${escapeHtml(trace.id)}</strong>
       <span>${out.station?.km ? `${Math.round(out.station.km)} km · ` : ""}`
         + `${trace.sampleRate} Hz · ${trace.durationS.toFixed(0)} s</span>
     </div>
@@ -2780,19 +2780,22 @@ function showPopup(event, x, y) {
       event.magnitudeValue)}</dd>` : "";
   node.dataset.eventId = event.id;
   node.classList.remove("has-trace");
+  // A feed's own url, refused unless it is http(s): an escaped
+  // `javascript:` is still script the moment somebody clicks it.
+  const link = safeUrl(event.link);
   node.innerHTML = `
     <button type="button" class="event-popup-close" aria-label="Close">×</button>
     <div class="event-popup-head">
       ${glyphSpan(symbol)}
-      <span>${event.categoryTitle || symbol.label}</span>
+      <span>${escapeHtml(event.categoryTitle || symbol.label)}</span>
     </div>
-    <h3>${event.title}</h3>
+    <h3>${escapeHtml(event.title)}</h3>
     <dl>${seismic}${storm}
       <dt>Position</dt><dd>${event.lat.toFixed(3)}°, ${event.lon.toFixed(3)}°</dd>
       <dt>Last report</dt><dd>${when}</dd>
-      <dt>Source</dt><dd>${source ? source.licence.split(" — ")[0] : "NASA EONET"} · ${event.id}</dd>
+      <dt>Source</dt><dd>${escapeHtml(source ? source.licence.split(" — ")[0] : "NASA EONET")} · ${escapeHtml(event.id)}</dd>
     </dl>
-    ${event.link ? `<a href="${event.link}" target="_blank" rel="noopener">Open the ${publisherOf(source, { short: true })} record</a>` : ""}
+    ${link ? `<a href="${link}" target="_blank" rel="noopener">Open the ${escapeHtml(publisherOf(source, { short: true }))} record</a>` : ""}
     <div class="event-popup-actions">
       <button type="button" class="button secondary" data-role="fly">Bring into view</button>
     </div>

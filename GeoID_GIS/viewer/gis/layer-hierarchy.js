@@ -10,18 +10,18 @@
 // everything below. That is the opposite of three.js renderOrder, so the two are
 // inverted when applied.
 
-import { escapeHtml } from "./escape-html.js?v=20260922-9c13628";
-import { bandOf } from "./draw-order.js?v=20260922-9c13628";
-import { paintOpacity } from "./layer-opacity.js?v=20260922-9c13628";
-import { currentBody } from "./bodies.js?v=20260922-9c13628";
-import { samplerToRaster } from "./raster-analysis.js?v=20260922-9c13628";
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260922-9c13628";
-import { datasetInfoButton } from "./catalogue-list.js?v=20260922-9c13628";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260922-9c13628";
+import { escapeHtml } from "./escape-html.js?v=20260925-f357b84";
+import { bandOf } from "./draw-order.js?v=20260925-f357b84";
+import { paintOpacity } from "./layer-opacity.js?v=20260925-f357b84";
+import { currentBody } from "./bodies.js?v=20260925-f357b84";
+import { samplerToRaster } from "./raster-analysis.js?v=20260925-f357b84";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260925-f357b84";
+import { datasetInfoButton } from "./catalogue-list.js?v=20260925-f357b84";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260925-f357b84";
 import {
   openSymbologyDialog, geometrySummary, geometryKind,
-} from "./symbology-dialog.js?v=20260922-9c13628";
-import { chipHtml, typeSelect, applyTag, descriptionOf, isUserInput } from "./data-tags.js?v=20260922-9c13628";
+} from "./symbology-dialog.js?v=20260925-f357b84";
+import { chipHtml, typeSelect, applyTag, descriptionOf, isUserInput } from "./data-tags.js?v=20260925-f357b84";
 
 /**
  * The row grew a column and gained a tile, and .layer-row is declared twice --
@@ -1694,10 +1694,15 @@ function renderMetadata(stack) {
     void renderProjectContents(host);
     return;
   }
+  // EVERY VALUE HERE CAME FROM SOMEWHERE ELSE. `layer.name` is the dropped
+  // file's name -- and for a zip member, the archive entry's own last path
+  // segment, which is whoever built the archive's to choose. `provenanceOf`
+  // answers with the source, the CRS, the citation and the format, each read
+  // out of an imported file or a project registry that may have been shared.
   host.innerHTML = stack.map((layer) => {
     const bits = provenanceOf(layer, { citation: true });
-    return `<div class="meta-entry"><b>${layer.name || "layer"}</b>`
-      + bits.map(([k, v]) => `<span><i>${k}</i> ${v}</span>`).join("")
+    return `<div class="meta-entry"><b>${escapeHtml(layer.name || "layer")}</b>`
+      + bits.map(([k, v]) => `<span><i>${escapeHtml(k)}</i> ${escapeHtml(v)}</span>`).join("")
       + `</div>`;
   }).join("");
   void renderProjectContents(host);
