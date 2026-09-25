@@ -7,10 +7,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="description" content="Your GeoID membership is set up. Here is what happens next.">
   <title>Welcome — GeoID Initiative</title>
-  <!-- Membership is off until an auth service is named here. With no tag, every
-       gate in the app stands open and this page says so rather than offering a
-       sign-in that cannot complete. -->
-  <!-- <meta name="geoid-auth" content="https://auth.geoidinitiative.com"> -->
+  <!-- The membership service. Naming it here is what makes SIGNING IN
+       possible; it is not what makes the gates exist, which are on by
+       default and stay on with no tag at all. With no tag these pages say
+       membership is not open rather than offering a door that cannot be
+       walked through, and the sign-in page says as much again if the
+       service is named and cannot be reached. -->
+  <meta name="geoid-auth" content="https://auth.geoidinitiative.com">
   <link rel="canonical" href="https://geoidinitiative.com/membership/welcome/">
   <meta name="robots" content="noindex, follow">
   <meta property="og:type" content="website">
@@ -23,7 +26,7 @@
   <link rel="icon" type="image/png" href="/assets/GeoID_mark.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="/styles/shared.css?v=20260925-ef2f43e">
+  <link rel="stylesheet" href="/styles/shared.css?v=20260925-0ea36d1">
   <style>
     /* ── The membership pages ──────────────────────────────────────────────
        Built on the site's own tokens and components: .glass-panel for a card,
@@ -204,10 +207,10 @@
 
     .footer-social-link:hover { color: var(--cyan); background: var(--cyan-soft); }
   </style>
-  <link rel="stylesheet" href="/styles/v2-site.css?v=20260925-ef2f43e">
-  <script src="/scripts/v2-site.js?v=20260925-ef2f43e" defer></script>
+  <link rel="stylesheet" href="/styles/v2-site.css?v=20260925-0ea36d1">
+  <script src="/scripts/v2-site.js?v=20260925-0ea36d1" defer></script>
   <link rel="stylesheet" href="/styles/skins/synthwave.css">
-  <link rel="stylesheet" href="/styles/site-nav.css?v=20260925-ef2f43e">
+  <link rel="stylesheet" href="/styles/site-nav.css?v=20260925-0ea36d1">
 </head>
 <body>
   <nav class="site-nav" role="navigation" aria-label="Primary navigation">
@@ -322,7 +325,7 @@
       </footer>
   </div>
 
-  <script type="module" src="/scripts/nav-membership.js?v=20260925-ef2f43e"></script>
-  <script src="/scripts/site.js?v=20260925-ef2f43e"></script>
+  <script type="module" src="/scripts/nav-membership.js?v=20260925-0ea36d1"></script>
+  <script src="/scripts/site.js?v=20260925-0ea36d1"></script>
 </body>
 </html>

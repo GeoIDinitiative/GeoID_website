@@ -316,8 +316,16 @@ check("microsoft: a guest's #EXT# UPN is refused",
     setCookie.slice(0, 120));
   check("the fragment carries display claims and NOT the signed token",
     !/token=/.test(to.hash) && shown.email === "mem@outlook.com" && shown.member === true
-      && shown.plan === "member" && !("sub" in shown) && !("iss" in shown),
+      && shown.plan === "member" && !("sub" in shown),
     to.hash.slice(0, 40));
+  // `iss` IS shown, and was deliberately not at first. The session is an
+  // httpOnly cookie only its issuer can clear, and the sign-out button is in
+  // the nav of every page while only a handful name the service -- so without
+  // this a sign-out anywhere else drops the display claim and leaves the
+  // session standing for the rest of the week. It is not a credential: the
+  // origin was in the address bar of the sign-in that produced it.
+  check("...and names the service that issued it, so a sign-out can reach it",
+    shown.iss === "https://auth.example.org", String(shown.iss));
   check("the display claim cannot be verified as a session",
     (await verify(decodeURIComponent(to.hash.replace(/^#claims=/, "")), SECRET)) === null);
   const f2 = await worker.fetch(new Request(link), env);
@@ -453,6 +461,46 @@ await sessionChecks();
     values.map((e) => `${e.kind} ${e.name}`).join(", ") || `${named.length} exports, all callable`);
   check("worker.js re-exports nothing from constants.js",
     !/^export\s*\{[^}]*\}\s*from\s*["']\.\/constants/m.test(src), "");
+}
+
+// ── The doors a deployment actually has ────────────────────────────────────
+//
+// A provider is configured by putting its client id on the service, so which
+// doors exist is a fact about the DEPLOYMENT. Offering one that is not set up
+// sends the reader to the provider's own error page -- somebody else's words,
+// about our service, with no way back -- so both halves are pinned: the list
+// the page reads, and the refusal if a door is asked for anyway.
+{
+  const one = { ...baseEnv(), GOOGLE_CLIENT_ID: "g-id", GITHUB_CLIENT_ID: "", MS_CLIENT_ID: "" };
+  const doors = await (await worker.fetch(
+    new Request("https://auth.example.org/auth/doors"), one)).json();
+  check("doors: a provider with no client id is not offered",
+    JSON.stringify(doors.providers) === JSON.stringify(["google"]), JSON.stringify(doors));
+  check("doors: email is offered when the mail service is set up", doors.email === true);
+
+  const noMail = { ...one };
+  delete noMail.RESEND_API_KEY;
+  const d2 = await (await worker.fetch(
+    new Request("https://auth.example.org/auth/doors"), noMail)).json();
+  check("doors: no mail key, no email door", d2.email === false, JSON.stringify(d2));
+
+  const all = { ...baseEnv(), GOOGLE_CLIENT_ID: "g", GITHUB_CLIENT_ID: "h", MS_CLIENT_ID: "m" };
+  const d3 = await (await worker.fetch(
+    new Request("https://auth.example.org/auth/doors"), all)).json();
+  check("doors: every configured provider is offered",
+    d3.providers.length === Object.keys(PROVIDERS).length, JSON.stringify(d3.providers));
+
+  const refused = await worker.fetch(new Request(
+    "https://auth.example.org/auth/start?provider=github&return=https://example.org/sign-in/"), one);
+  check("start: an unconfigured provider is refused in our own words, not redirected",
+    refused.status === 503 && !refused.headers.get("location"),
+    `${refused.status} ${refused.headers.get("location") || ""}`);
+
+  const sent = await worker.fetch(new Request(
+    "https://auth.example.org/auth/start?provider=google&return=https://example.org/sign-in/"), one);
+  check("start: a configured provider still redirects (the control)",
+    sent.status === 302 && new URL(sent.headers.get("location")).searchParams.get("client_id") === "g-id",
+    String(sent.status));
 }
 
 process.on("exit", () => {

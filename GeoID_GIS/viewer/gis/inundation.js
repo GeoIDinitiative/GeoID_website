@@ -37,7 +37,7 @@
  * deltas from a single river.
  */
 
-import { nearestSource, BANDS } from "./river-zones.js?v=20260925-ef2f43e";
+import { nearestSource, BANDS } from "./river-zones.js?v=20260925-0ea36d1";
 
 /** Leopold & Maddock (1953), the average at-a-station exponent of depth on discharge. */
 export const DEPTH_EXPONENT = 0.40;

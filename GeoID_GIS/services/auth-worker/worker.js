@@ -194,6 +194,23 @@ export function displayClaims(claims, holds) {
     member: !!holds,
     plan: holds?.plan || "explorer",
     exp: claims.exp,
+    /**
+     * WHICH SERVICE SIGNED THIS, so that signing out can reach it.
+     *
+     * The session is an httpOnly cookie and only the service that set it can
+     * unset it -- so a page that does not name a service can clear the
+     * display claim and nothing else, and somebody who pressed Sign out is
+     * left looking signed out at a browser that is still a member for the
+     * rest of the week. The sign-out button is in the nav of every page on
+     * the site and only a handful of them name the service, so that was the
+     * common case rather than the odd one.
+     *
+     * Carrying it here rather than adding the tag to twenty-three pages: the
+     * service that issued a session is a fact about THAT session, and the
+     * session is the thing being ended. It is not a credential -- the origin
+     * is in the address bar of the sign-in that produced it.
+     */
+    iss: claims.iss || "",
   };
 }
 
@@ -513,11 +530,44 @@ export default {
       }
     }
 
+    // ── which doors exist ──────────────────────────────────────────────────
+    /**
+     * WHAT THE SIGN-IN PAGE MAY OFFER, asked rather than assumed.
+     *
+     * A provider is configured by putting its client id in wrangler.toml, and
+     * the smallest useful deploy is Google alone -- so a page that draws all
+     * three buttons because all three are in its markup is offering two doors
+     * that open onto the provider's own error page. That is the worst kind of
+     * dead control: it looks live, it is somebody else's error, and nothing on
+     * this site says why.
+     *
+     * So the doors are a fact about the DEPLOYMENT and the page asks for them.
+     * Adding GITHUB_CLIENT_ID later makes the button appear with no change
+     * here and none on the site.
+     *
+     * Public and carries nothing: an id is public by construction (it travels
+     * in the sign-in URL for anyone to read) and this says only which of them
+     * are set. Cached for a minute so a page load is not a round trip in the
+     * common case.
+     */
+    if (url.pathname === "/auth/doors") {
+      const providers = Object.keys(PROVIDERS).filter((name) => PROVIDERS[name].idFor(env));
+      return json({ providers, email: !!(env.RESEND_API_KEY && env.MAIL_FROM) }, 200,
+        { ...head, "Cache-Control": "public, max-age=60" });
+    }
+
     // ── start ──────────────────────────────────────────────────────────────
     if (url.pathname === "/auth/start") {
       const name = url.searchParams.get("provider") || "google";
       const provider = PROVIDERS[name];
       if (!provider) return json({ error: "No such sign-in." }, 400, head);
+      // A PROVIDER WITH NO ID IS NOT A DOOR. Without this the redirect is
+      // built with an empty client_id and the reader lands on Google's or
+      // GitHub's own error page, which says nothing about this service and
+      // leaves them with no way back. Refuse here, in our own words.
+      if (!provider.idFor(env)) {
+        return json({ error: `${name} sign-in is not set up on this service.` }, 503, head);
+      }
       // The state IS a signed token carrying where to come back to, so there
       // is nothing to store and nothing to expire in KV; five minutes is
       // longer than any sign-in and shorter than any useful replay.

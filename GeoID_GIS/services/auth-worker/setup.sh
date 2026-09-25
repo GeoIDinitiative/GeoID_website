@@ -15,13 +15,15 @@
 # already filled in for local testing. So nothing is typed twice, nothing goes
 # through a clipboard, and nothing appears in a shell history.
 #
-# A DEPLOY THAT SUCCEEDS IS NOT A SERVICE THAT ANSWERS. `wrangler.toml` has a
-# [[routes]] block, so deploy attaches auth.geoidinitiative.com/* and reports
-# success -- and the hostname still does not resolve, because a ROUTE says
-# "run this Worker for traffic that arrives here" and nothing makes traffic
-# arrive. That needs a DNS record, which is what Cloudflare's "Custom Domain"
-# button creates alongside the binding. So this checks at the end rather than
-# letting a green deploy read as a working service.
+# A DEPLOY THAT SUCCEEDS IS NOT A SERVICE THAT ANSWERS, and this service sat
+# in exactly that state for a day. A [[routes]] block says "run this Worker
+# for traffic that arrives here" and makes nothing arrive: deploy reports
+# success, the binding is real, and the hostname does not resolve.
+# `wrangler.toml` now asks for a CUSTOM DOMAIN instead, which creates the DNS
+# record as well as the binding -- the dashboard's own Add -> Custom Domain
+# button, from here. The check at the end stays anyway: a record takes a
+# moment to propagate, and a green deploy should never be the last word on
+# whether a thing answers.
 
 set -euo pipefail
 cd "$(dirname "$0")"
@@ -93,9 +95,11 @@ if curl -s -o /dev/null --max-time 12 "$ORIGIN/auth/me" 2>/dev/null; then
   echo "    $ORIGIN answers"
 else
   echo "    $ORIGIN does NOT answer yet."
-  echo "    The deploy worked; the hostname has no DNS record. In the dashboard:"
-  echo "    Workers & Pages -> this worker -> Settings -> Domains & Routes"
-  echo "      -> Add -> Custom Domain. That makes the record AND the binding."
+  echo "    A custom domain takes a minute or two to propagate and for the"
+  echo "    certificate to be issued. Try again shortly:"
+  echo "      curl -sI $ORIGIN/auth/doors"
+  echo "    Still nothing after five minutes? Check the deploy said"
+  echo "    'Custom Domain' and not 'Route' -- a route makes no DNS record."
 fi
 
 cat <<NOTE
@@ -103,16 +107,14 @@ cat <<NOTE
 Done. Read it back with:
   npx wrangler kv key get --remote --binding=MEMBERS "member:$EMAIL"
 
-If it does not answer yet, that is DNS and nothing else -- the deploy and the
-route are already done. Cloudflare dashboard:
+If it does not answer yet, give it a minute: a custom domain has a record to
+propagate and a certificate to be issued. A ROUTE and a CUSTOM DOMAIN are not
+the same thing -- a route runs the Worker for traffic that arrives, a custom
+domain is what makes traffic able to arrive -- and wrangler.toml asks for the
+second, which is the one that includes the first.
 
-  Workers & Pages -> this worker -> Settings -> Domains & Routes
-    -> Add -> Custom Domain -> the hostname in SELF_ORIGIN
-
-A ROUTE and a CUSTOM DOMAIN are not the same thing and you want both: the
-route runs the Worker for traffic that arrives, the custom domain is what
-makes traffic able to arrive.
-
-Then, to make the SITE use it: uncomment the three geoid-auth meta tags
-(docs/security-runbook.md section 4) and re-run scripts/csp.py.
+Then, to make the SITE use it: uncomment the four geoid-auth meta tags --
+membership/, membership/welcome/, sign-in/ and account/, the last of which is
+where a sign-in LANDS -- and re-run scripts/csp.py.
+(docs/security-runbook.md section 4.)
 NOTE

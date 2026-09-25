@@ -103,7 +103,7 @@ function signInPage() {
   // handoff above has exactly one document to happen in.
   const back = new URL("/sign-in/", location.origin);
   back.searchParams.set("next", nextUrl());
-  for (const [id, provider] of [["go-google", "google"], ["go-github", "github"], ["go-microsoft", "microsoft"]]) {
+  for (const [id, provider] of PROVIDER_BUTTONS) {
     const link = byId(id);
     if (!link) continue;
     const go = new URL(`${service}/auth/start`);
@@ -112,6 +112,97 @@ function signInPage() {
     link.href = go.toString();
   }
   wireEmailLink(service, back);
+  drawDoors(service);
+}
+
+const PROVIDER_BUTTONS = [
+  ["go-google", "google"], ["go-github", "github"], ["go-microsoft", "microsoft"],
+];
+
+/**
+ * Which sign-ins this service actually has, asked rather than assumed.
+ *
+ * A provider is configured by putting its client id on the service, and the
+ * smallest useful deploy is Google alone -- so drawing all three buttons
+ * because all three are in the markup offers two doors that open onto
+ * Google's or GitHub's own error page. A dead control that looks live and
+ * fails in somebody else's words is the worst of the three ways this can go.
+ *
+ * `null` means the service could not be reached AT ALL, which is a different
+ * thing again and is said in different words: a hostname that does not
+ * resolve, a service that is down, a CORS policy that does not admit this
+ * origin. That case is why the page can carry its `geoid-auth` tag before
+ * the service is reachable -- it says so plainly instead of drawing four
+ * buttons that go nowhere.
+ *
+ * A 404 is an OLDER DEPLOYMENT that predates this endpoint, and an older
+ * deployment is a working one for whatever it has configured: the page keeps
+ * every door it has, exactly as it did before this existed.
+ */
+async function doorsOffered(service) {
+  try {
+    const reply = await fetch(`${service}/auth/doors`, { credentials: "omit" });
+    if (reply.status === 404) return { providers: PROVIDER_BUTTONS.map(([, p]) => p), email: true };
+    if (!reply.ok) return null;
+    const got = await reply.json();
+    return {
+      providers: Array.isArray(got.providers) ? got.providers : [],
+      email: !!got.email,
+    };
+  } catch (error) {
+    return null;                     // unreachable, which is not "none"
+  }
+}
+
+/** Say a service is unreachable in the page's own words, not a browser's. */
+function unreachable(service) {
+  show("choose", false);
+  const title = byId("not-ready-title");
+  const copy = byId("not-ready-copy");
+  if (title) title.textContent = "Sign-in is not answering just now";
+  if (copy) {
+    copy.textContent = `The membership service at ${new URL(service).host} could not be `
+      + "reached from this browser. Nothing is wrong with your account, and "
+      + "everything that is free stays open \u2014 the globes, the imagery, the "
+      + "surveys, the records and the feeds. Try again shortly.";
+  }
+  show("not-ready");
+}
+
+async function drawDoors(service) {
+  // Hidden BEFORE the answer, in the same tick the panel is shown: revealed
+  // first and corrected a moment later, the reader sees four doors and then
+  // two of them vanish, which reads as the page breaking.
+  const waiting = byId("doors-waiting");
+  for (const [id] of PROVIDER_BUTTONS) { const n = byId(id); if (n) n.hidden = true; }
+  const form0 = byId("email-form");
+  if (form0) form0.hidden = true;
+  if (waiting) waiting.hidden = false;
+
+  const doors = await doorsOffered(service);
+  if (waiting) waiting.hidden = true;
+  if (!doors) { unreachable(service); return; }
+
+  let offered = 0;
+  for (const [id, provider] of PROVIDER_BUTTONS) {
+    const link = byId(id);
+    if (!link) continue;
+    const on = doors.providers.includes(provider);
+    link.hidden = !on;
+    if (on) offered += 1;
+  }
+  const form = byId("email-form");
+  if (form) form.hidden = !doors.email;
+  if (doors.email) offered += 1;
+
+  // A panel headed "Choose how to sign in" over nothing to choose from is a
+  // page that has lost its subject.
+  if (!offered) {
+    show("choose", false);
+    const title = byId("not-ready-title");
+    if (title) title.textContent = "Sign-in is not switched on yet";
+    show("not-ready");
+  }
 }
 
 /**

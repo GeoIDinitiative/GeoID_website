@@ -183,14 +183,14 @@ signs in -- it looks the address up after Google has vouched for it.
 | | who |
 | --- | --- |
 | 1. Google Cloud Console → OAuth client → id + secret | you |
-| 2. DNS: `auth.geoidinitiative.com` → the Worker route | you |
+| 2. DNS: a CUSTOM DOMAIN, not a route (see below) | either |
 | 3. `npx wrangler login` (opens a browser) | you |
 | 4. `npx wrangler kv namespace create MEMBERS`, id into wrangler.toml | either |
 | 5. `wrangler secret put` JWT_SECRET, GOOGLE_CLIENT_SECRET | you (interactive) |
 | 6. `GOOGLE_CLIENT_ID` into `[vars]` | either |
 | 7. `npx wrangler deploy` | either |
 | 8. the KV entry below, `plan: "owner"` | either |
-| 9. uncomment the three `geoid-auth` meta tags | either |
+| 9. uncomment the four `geoid-auth` meta tags | either |
 
 **TO TEST THE FLOW WITHOUT DEPLOYING ANYTHING**, which is worth doing first
 -- and worth doing first because this Worker had never once been STARTED
@@ -283,21 +283,47 @@ curl -sSI 'https://auth.geoidinitiative.com/auth/callback/email?token=…' | gre
 The fragment on the redirect must read `#claims=…` and **must not** contain
 `token=`. If it does, the old Worker is still deployed.
 
-**Then turn it on in the pages.** Three carry the tag commented out, and
-until it is uncommented the site never calls the Worker at all — every
-membership gate stays the browser-side courtesy it is today:
+**A ROUTE IS NOT A DNS RECORD, and this is the step that looked done and was
+not.** A `[[routes]]` block says "run this Worker for traffic that arrives at
+this hostname" and makes nothing arrive: `wrangler deploy` is green, the
+binding is real, and the hostname does not resolve. What creates the record as
+well as the binding is a CUSTOM DOMAIN, which in `wrangler.toml` is
+
+```toml
+[[routes]]
+pattern = "auth.geoidinitiative.com"   # a hostname, so no /*
+custom_domain = true
+```
+
+and then `npx wrangler deploy`. One hostname cannot hold both, so the old
+route is removed on the way past (wrangler asks). Cloudflare issues the
+certificate; the record shows up within a minute or so. The dashboard's
+Workers & Pages → the worker → Settings → Domains & Routes → Add → Custom
+Domain is the same button.
+
+**Then turn it on in the pages.** FOUR carry the tag commented out — the
+runbook said three for a while and `account/index.html` is the fourth, which
+is the page somebody LANDS ON after signing in, so without it a sign-in
+completes and arrives at a page that says membership is not open:
 
 ```bash
-grep -rn 'geoid-auth' --include=index.html . | grep -v page_backups
-# membership/index.html, membership/welcome/index.html, sign-in/index.html
+grep -rln 'name="geoid-auth"' --include=index.html . | grep -v page_backups
+# membership/, membership/welcome/, sign-in/, account/
 sed -i 's|<!-- \(<meta name="geoid-auth"[^>]*>\) -->|\1|' \
-  membership/index.html membership/welcome/index.html sign-in/index.html
+  membership/index.html membership/welcome/index.html \
+  sign-in/index.html account/index.html
 python3 scripts/csp.py && node GeoID_GIS/tests/run.mjs
 ```
 
-`scripts/csp.py` afterwards because those three pages carry a policy whose
+`scripts/csp.py` afterwards because those pages carry a policy whose
 `connect-src` must name the Worker's origin, and the suite because
 `csp.test.mjs` fails if it does not.
+
+**The tag may go on before the service answers.** The sign-in page asks
+`/auth/doors` which sign-ins the deployment has, so an unreachable service is
+a sentence naming the host rather than four buttons that go nowhere, and a
+service with only Google configured draws only Google. That is why the order
+above is safe either way round.
 
 ### 5. The data gate Worker — `wrangler`
 

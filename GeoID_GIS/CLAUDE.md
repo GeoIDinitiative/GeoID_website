@@ -23165,3 +23165,59 @@ approach and the arrival sound keep their timings.
   gesture if the browser will not play before one, from wherever the
   sequence has got to. `geoid:transit-sound` = "off" (or the start screen's
   `geoid:boot-sound`) mutes it.
+
+## Membership, live: a route is not a record, and a door nobody set up
+
+The auth Worker was deployed, bound, secret-set and **unreachable for a day**,
+and every instrument said it was fine. A `[[routes]]` block says "run this
+Worker for traffic that arrives at this hostname" and makes nothing arrive:
+`wrangler deploy` is green, the binding is real, `getent hosts` finds nothing.
+What creates the DNS record AS WELL AS the binding is `custom_domain = true`
+on the route — the dashboard's Add → Custom Domain, from the CLI. One
+hostname cannot hold both, so the route goes.
+
+**The page drew four doors and the service had one.** `GITHUB_CLIENT_ID` and
+`MS_CLIENT_ID` are empty, so `/auth/start` built a redirect with an empty
+`client_id` and the reader landed on GitHub's own error page — somebody
+else's words, about our service, with no way back — and the email door
+answered 503 after a press because there is no mail key. Which doors exist is
+a fact about the DEPLOYMENT, so the page asks: `/auth/doors` lists the
+providers that have ids and whether mail is set up, `/auth/start` refuses an
+unconfigured one in our own words, and the page draws only what it is told.
+Filling in `GITHUB_CLIENT_ID` later makes the button appear with no change to
+the site. The copy names no provider either, or three names over one button
+reads as two of them having failed.
+
+**Unreachable is not "none", and saying so is what unblocks the ordering.**
+`doorsOffered` answers `null` for a service it cannot reach at all and the
+page names the host and says nothing is wrong with your account — so the meta
+tags can go on BEFORE the record propagates, instead of the old rule of
+holding them back. A 404 is an older deployment, which is a working one for
+whatever it has: every door is kept.
+
+**FOUR pages carry the tag, not the three the runbook said for months.**
+`account/index.html` is the page a sign-in LANDS on, so without it the round
+trip completed and arrived somewhere that said membership was not open.
+
+**SIGNING OUT MUST REACH THE SERVICE THAT SIGNED YOU IN.** The session is an
+httpOnly cookie only its issuer can clear; the sign-out button is in the nav
+of all twenty-three pages and four name a service — so the common case
+cleared the display claim and left the session standing for the rest of the
+week: signed out to look at, a member to the service. The display claim
+carries `iss` for it, checked as a URL (https, no path, no credentials, no
+query) and never looked up, because a display claim is a copy anybody can
+rewrite. The pin that asserted `iss` was absent was re-argued, not deleted.
+
+**Verify the provider's side by DRIVING IT, with a control.** Fetching
+Google's authorize URL with the real client id and redirect URI renders the
+consent page; the same with a callback path that is not registered renders
+`redirect_uri_mismatch` and "Access blocked". The clean result means nothing
+without the control — that pair is what proves the Google console is right
+before DNS exists.
+
+Three states were measured in the browser against a stub served from the
+site's own origin (`auth/doors`, CSP `'self'`): one provider offered and the
+rest hidden, no providers at all folding to the not-ready panel, and the real
+unreachable host naming itself. The KV holds both owner records, good to
+2036; `geoid-data-gate` is NOT deployed, so the bucket pass is not yet needed
+and the four baked grids are open.

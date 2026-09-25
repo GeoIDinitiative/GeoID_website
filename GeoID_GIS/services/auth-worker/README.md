@@ -92,18 +92,33 @@ each step signs in to an account only you hold.
    otherwise. It still expires: `until` is far out here, not absent, because a
    credential that never runs out is one nobody ever revokes.
 
+   **Only Google is set up today.** A provider whose client id is empty is
+   simply not a door: `/auth/doors` leaves it out and the sign-in page does
+   not draw its button, and `/auth/start` refuses it in our own words rather
+   than sending somebody to GitHub's error page with an empty `client_id`.
+   Fill in `GITHUB_CLIENT_ID` or `MS_CLIENT_ID` later and the button appears
+   with no change to the site.
+
 7. **Deploy, and point the site at it.**
 
        npx wrangler deploy
 
-   Then add to the pages that need it (the GIS viewer, the hub, the sign-in
-   page — `stamp.py` leaves a meta tag alone):
+   A `[[routes]]` block alone leaves the hostname with no DNS record — a
+   green deploy and nothing that answers. `custom_domain = true` on the route
+   is what creates the record as well as the binding; see the runbook.
+
+   Then uncomment the tag on the four membership pages (`membership/`,
+   `membership/welcome/`, `sign-in/`, `account/` — `stamp.py` leaves a meta
+   tag alone):
 
        <meta name="geoid-auth" content="https://auth.geoidinitiative.com">
 
-   **Until that tag exists, membership is off and every gate stands open.**
-   That is deliberate: asking somebody to sign in to a service that does not
-   exist would lock the app against everybody, including you.
+   **The tag is what makes SIGNING IN possible; it is not what makes the
+   gates exist.** Membership is enforced by default and stays enforced with
+   no tag at all — a lock nobody can see is not a lock. Without the tag the
+   pages say membership is not open rather than offering a door that cannot
+   be walked through, and `localStorage["geoid:unlock"] = "owner"` (Settings
+   ▸ Master key) is how the site is worked on with every gate on.
 
 ## Stripe writes the members list
 

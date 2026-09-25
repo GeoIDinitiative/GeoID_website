@@ -452,19 +452,50 @@ export function refresh() {
  * the cookie expires on its own within the week either way.
  */
 export function signOut() {
+  // THE SERVICE THAT ISSUED THE SESSION IS THE ONE THAT CAN END IT, and this
+  // page may not be one that names a service. The sign-out button is in the
+  // nav of every page on the site while only the membership pages carry the
+  // tag, so a sign-out from anywhere else cleared the display claim and left
+  // the httpOnly cookie standing -- signed out to look at, a member to the
+  // service, for the rest of the week. The claim says who signed it, so read
+  // it before dropping it.
+  const service = authBase || issuerOf(claims);
+
   claims = null;
   forgetPass();
   forget();
   token = null;   // uncached, so the next read comes off storage
 
-  if (authBase) {
+  if (service) {
     try {
-      fetch(`${authBase}/auth/signout`, { method: "POST", credentials: "include" })
+      fetch(`${service}/auth/signout`, { method: "POST", credentials: "include" })
         .catch(() => { /* the local half is already done */ });
     } catch (error) { /* no fetch, or a test */ }
   }
   announce();
   return state();
+}
+
+/**
+ * The service named by a claim, and only if it is one we would talk to.
+ *
+ * A claim is not trusted -- it is a display copy anybody could rewrite -- so
+ * this is a URL check rather than a lookup: https, no path, no credentials,
+ * no query. What it can do at worst is send one empty POST to a host of the
+ * forger's choosing from a browser that has just signed out, which is less
+ * than an <img> tag on the same page can do. What it buys is a session that
+ * really ends when somebody says so.
+ */
+function issuerOf(payload) {
+  const named = payload && typeof payload.iss === "string" ? payload.iss.trim() : "";
+  if (!named) return null;
+  try {
+    const url = new URL(named);
+    if (url.protocol !== "https:") return null;
+    if (url.username || url.password || url.search || url.hash) return null;
+    if (url.pathname !== "/") return null;
+    return url.origin;
+  } catch (error) { return null; }
 }
 
 /**

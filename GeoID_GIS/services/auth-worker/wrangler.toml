@@ -55,6 +55,17 @@ RATE_PER_MIN = "10"
 binding = "MEMBERS"
 id = "2141bace4d614b9d99d49f4fb05112d0"
 
+# A CUSTOM DOMAIN, NOT A ROUTE, AND THE DIFFERENCE IS A DNS RECORD.
+# A route says "run this Worker for traffic that arrives at this hostname" and
+# makes nothing arrive: with a route alone the deploy is green, the binding is
+# real, and the hostname does not resolve -- which is exactly the state this
+# service sat in. `custom_domain = true` is the dashboard's
+# Add -> Custom Domain button: it creates the DNS record AS WELL AS the
+# binding, and Cloudflare issues the certificate for it.
+#
+# The pattern loses its `/*`: a custom domain is a hostname, not a path match.
+# A hostname cannot hold both, so the old route is deleted on the way past
+# (wrangler asks; answer yes).
 [[routes]]
-pattern = "auth.geoidinitiative.com/*"
-zone_name = "geoidinitiative.com"
+pattern = "auth.geoidinitiative.com"
+custom_domain = true

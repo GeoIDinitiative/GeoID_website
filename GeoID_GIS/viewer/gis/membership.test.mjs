@@ -311,6 +311,54 @@ check("...and IS sent as a bearer token", m.bearer() === legacy);
 check("a claim of the wrong shape is refused rather than throwing",
   m.accept("not..a..token..at..all").signedIn === false);
 
+// ── Signing out reaches the service that signed you in ─────────────────────
+//
+// The sign-out button is in the nav of every page on this site and only the
+// membership pages name a service, so the common case is a sign-out with no
+// `authBase` at all. The session is an httpOnly cookie that only its issuer
+// can clear, so without this somebody who pressed Sign out looks signed out
+// and is still a member to the service for the rest of the week.
+{
+  const asked = [];
+  globalThis.fetch = async (url, init) => { asked.push({ url, init }); return { ok: true }; };
+  const ISSUER = "https://auth.geoidinitiative.com";
+  const OTHER = "https://auth.example.org";
+
+  reset();
+  asked.length = 0;
+  m.accept(displayFor({ email: "i@example.org", member: true, exp: inHours(24), iss: ISSUER }));
+  m.signOut();
+  eq("a sign-out with no service configured still reaches the issuer",
+    asked.map((a) => a.url), [`${ISSUER}/auth/signout`]);
+  check("...with the cookie, or it clears nothing",
+    asked[0]?.init?.credentials === "include" && asked[0]?.init?.method === "POST");
+  eq("...and is signed out here either way", m.state().signedIn, false);
+
+  // The page's own configuration wins: a deployment that has moved its
+  // service must not be told to sign out at the old one by an old claim.
+  reset();
+  asked.length = 0;
+  m.configure(OTHER);
+  m.accept(displayFor({ email: "i@example.org", member: true, exp: inHours(24), iss: ISSUER }));
+  m.signOut();
+  eq("the page's own service outranks the claim's",
+    asked.map((a) => a.url), [`${OTHER}/auth/signout`]);
+
+  // An issuer is a URL check, never a lookup: the claim is a display copy and
+  // anybody can rewrite it. Each of these is a shape we would not talk to.
+  for (const bad of ["http://auth.example.org", `${OTHER}/steal`, "https://u:p@auth.example.org",
+                     `${OTHER}/?x=1`, "not a url", "", null]) {
+    reset();
+    asked.length = 0;
+    m.accept(displayFor({ email: "i@example.org", member: true, exp: inHours(24), iss: bad }));
+    m.signOut();
+    check(`a claim naming ${JSON.stringify(bad)} is not called`, asked.length === 0,
+      JSON.stringify(asked.map((a) => a.url)));
+  }
+  delete globalThis.fetch;
+  reset();
+}
+
 process.on("exit", () => {
   console.log(`\n${failures ? `${failures} failed` : "all passed"}`);
   if (failures) process.exitCode = 1;
