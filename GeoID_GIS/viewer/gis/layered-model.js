@@ -32,10 +32,10 @@
  *   top[i]    max(solid, water): the floor of the atmosphere
  */
 
-import { channelDepth } from "./inundation.js?v=20260925-61682d8";
+import { channelDepth } from "./inundation.js?v=20260925-f7cb0d0";
 
 /** A TIN with a different z array, and its own extremes. */
-import { faultScriptLines } from "./fault-planes.js?v=20260925-61682d8";
+import { faultScriptLines } from "./fault-planes.js?v=20260925-f7cb0d0";
 
 /** The weathered skin allowed over rock the bedrock map shows at the surface, in metres. */
 export const REGOLITH_ON_ROCK_M = 2;
@@ -66,6 +66,8 @@ export function layerHeights(tin, {
   const wet = new Uint8Array(n);      // 0 dry, 1 sea, 2 lake, 3 river
   const bedrock = new Float64Array(n);
   const lakeMean = new Float64Array(n).fill(NaN);
+  // Lake nodes whose DEM is real bathymetry: the cone must not reshape them.
+  const surveyed = new Uint8Array(n);
   let sea = 0; let lake = 0; let river = 0; let modelled = 0; let thickSum = 0; let deepened = 0; let bathy = 0;
   for (let i = 0; i < n; i += 1) {
     const z = tin.z[i];
@@ -86,14 +88,33 @@ export function layerHeights(tin, {
         if (Number.isFinite(sb) && sb < solid[i]) { solid[i] = sb; bathy += 1; }
         if (solid[i] > seaLevel - minWaterM) { solid[i] = seaLevel - minWaterM; deepened += 1; }
       } else if (lk && Number.isFinite(lk.level)) {
-        // A LAKE's surface is the DEM, like every other surface here: a land
-        // DEM reads a lake's water, and the model's ground never moves off it
-        // (HydroLAKES' surveyed level, 30 m at Sapanca against the DEM's 29.1,
-        // is only what says the node IS a lake). The bed is shaped below that
-        // surface from the lake's MEAN depth after this loop (`lakeBasins`).
-        wet[i] = 2; waterTop[i] = z; lake += 1;
-        lakeMean[i] = Math.max(0.5, Number(lk.depth) || 2);
-        solid[i] = z - lakeMean[i];
+        // A LAKE, and the DEM means one of two things.
+        //
+        // A LAND DEM READS A LAKE'S WATER, not its bed: Mapzen gives Sapanca
+        // 29.1 m against HydroLAKES' surveyed 30, which is the SURFACE a
+        // metre out, not a metre of water. Taken for a bed that is a lake
+        // 1 m deep. So where the DEM sits at or just under the level it is
+        // the surface, and the bed is shaped below it from the published MEAN
+        // depth after this loop (`lakeBasins`).
+        //
+        // A DEM WELL BELOW THE LEVEL is the other case and is real
+        // bathymetry -- somebody surveyed that basin and the grid carries it.
+        // Then it IS the bed and the water stands at the surveyed level over
+        // it, and `lakeBasins` must leave it alone: a cone fitted to a
+        // published mean would overwrite a measurement with a guess, which on
+        // a deep lake moves the bed by tens of metres.
+        //
+        // "Well below" is max(3 m, a quarter of the mean depth): 3 m clears
+        // the metre or so a land DEM is out by, and the quarter keeps the
+        // test in proportion on a deep lake.
+        const level = Number(lk.level);
+        const mean = Math.max(0.5, Number(lk.depth) || 2);
+        wet[i] = 2; lake += 1; lakeMean[i] = mean;
+        if (z < level - Math.max(3, mean / 4)) {
+          waterTop[i] = level; solid[i] = z; surveyed[i] = 1; bathy += 1;
+        } else {
+          waterTop[i] = z; solid[i] = z - mean;
+        }
       } else if (rw > 0) {
         // A RIVER: the DEM reads the water surface; the bed is a channel
         // depth below it.
@@ -101,7 +122,8 @@ export function layerHeights(tin, {
       }
     }
   }
-  const basins = lake && tin.tris ? lakeBasins(tin, wet, lakeMean, waterTop, solid, minWaterM) : [];
+  const basins = lake && tin.tris
+    ? lakeBasins(tin, wet, lakeMean, waterTop, solid, minWaterM, surveyed) : [];
   // THE BEDROCK MAP DECIDES HOW MUCH OF THE MODELLED THICKNESS IS SOIL.
   // Pelletier's grid is a kilometre and knows nothing of what the survey
   // mapped: where the geology polygon is a loose deposit (alluvium, till,
@@ -147,7 +169,8 @@ export function layerHeights(tin, {
  * two to three times its mean, the usual order for real lakes. It is a
  * stand-in for a surveyed bed, carved down from the DEM's own surface.
  */
-export function lakeBasins(tin, wet, lakeMean, waterTop, solid, minWaterM = 1) {
+export function lakeBasins(tin, wet, lakeMean, waterTop, solid, minWaterM = 1,
+  surveyed = null) {
   const n = wet.length;
   const nbrs = Array.from({ length: n }, () => []);
   const link = (a, b) => {
@@ -204,11 +227,17 @@ export function lakeBasins(tin, wet, lakeMean, waterTop, solid, minWaterM = 1) {
       const nb = nbrs[members[q]];
       for (let k = 0; k < nb.length; k += 2) { const j = nb[k]; if (wet[j] === 2 && comp[j] < 0) { comp[j] = out.length; members.push(j); } }
     }
-    const shaped = members.filter((i) => Number.isFinite(dist[i]));
+    // A node whose DEM is real bathymetry keeps it: it is part of the lake
+    // and part of its deepest reading, and it is not reshaped.
+    const shaped = members.filter((i) => Number.isFinite(dist[i])
+      && !(surveyed && surveyed[i]));
     // An enclosed lake (no dry node reaches it inside the box) is flat at its mean.
     const meanD = shaped.length ? shaped.reduce((a, i) => a + dist[i], 0) / shaped.length : 0;
     const mean = lakeMean[s];
     let deepest = 0;
+    for (const i of members) {
+      if (surveyed && surveyed[i]) deepest = Math.max(deepest, waterTop[i] - solid[i]);
+    }
     for (const i of shaped) {
       const depth = Math.max(Math.max(0.5, minWaterM), meanD > 0 ? mean * (dist[i] / meanD) : mean);
       solid[i] = waterTop[i] - depth;

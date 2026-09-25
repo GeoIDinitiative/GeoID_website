@@ -100,6 +100,31 @@ for (const rel of PAGES) {
     !HANDLER.test(text.replace(/<!--[\s\S]*?-->/g, "")));
 }
 
+// AN INLINE SCRIPT MAY NOT CARRY A STAMP stamp.py WOULD REWRITE.
+//
+// Its hash is over the element's exact bytes, and `stamp.py` runs AFTER the
+// policy is written (the stamp is the commit's own sha, so the order cannot be
+// swapped). A stamp inside an inline script would therefore be rewritten after
+// its hash was taken, the browser would refuse that script, and on a viewer
+// page that script is the one that boots the globe -- a black page, with the
+// reason only in the console.
+//
+// It does not happen today, and only by luck: the viewer pages' inline stamps
+// are either another scheme (?v=84ebb99-a7f30c15, which stamp.py's pattern
+// does not match) or built at runtime from a template literal. This is that
+// luck written down. If an inline script ever needs a stamped URL, build it at
+// runtime as GeoID_GIS/viewer/index.html already does.
+const STAMP = /\?v=(?:gis-)?\d{8}[a-z]?(?:-[0-9a-z]{4,12})?/;
+const stamped = [];
+for (const rel of PAGES) {
+  const text = readFileSync(join(ROOT, rel), "utf8");
+  for (const [, body] of text.matchAll(INLINE)) {
+    if (STAMP.test(body)) { stamped.push(rel); break; }
+  }
+}
+check("no inline script carries a stamp stamp.py would rewrite",
+  stamped.length === 0, stamped.join(", "));
+
 // NO PAGE CODE MAY TURN A STRING INTO RUNNING CODE.
 //
 // `script-src` without 'unsafe-eval' refuses eval() and new Function(), so any

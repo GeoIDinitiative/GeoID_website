@@ -1,0 +1,74 @@
+{
+  "_": [
+    "Every third-party file this site ships, with the version it is, where it",
+    "came from and on what terms. It exists so that 'is our three.js affected",
+    "by CVE-X' is a question somebody can ANSWER. There is no package.json for",
+    "any of this -- the libraries are committed into the tree, fifteen copies",
+    "of three.js among them -- so without this file the only way to tell what",
+    "version is deployed is to read a minified bundle.",
+    "",
+    "GeoID_GIS/viewer/gis/vendor.test.mjs checks it on every suite run: every",
+    "tracked file under a vendor/ directory must be listed here with a",
+    "matching sha256, and copies of one library must agree with each other.",
+    "An upgrade is: replace the files, re-run the test, paste the new hash.",
+    "",
+    "version 'unknown' is honest rather than lazy. A guessed version is worse",
+    "than none, because an advisory match against it reads as fact."
+  ],
+  "libraries": [
+    {
+      "name": "three.js",
+      "version": "r165",
+      "version_source": "the REVISION constant in the file itself",
+      "upstream": "https://github.com/mrdoob/three.js",
+      "advisories": "https://github.com/mrdoob/three.js/security/advisories",
+      "licence": "MIT",
+      "sha256": "5916c8dfb5f4e3ee",
+      "copies": 14,
+      "note": "Never versioned with ?v= -- earth-viewer.js imports it unversioned and a second URL breaks class identity. All 14 copies are byte-identical; keep them so."
+    },
+    {
+      "name": "OrbitControls",
+      "version": "r165",
+      "version_source": "ships inside three.js; matched to the three.js above by provenance, not by a string in the file",
+      "upstream": "https://github.com/mrdoob/three.js/blob/dev/examples/jsm/controls/OrbitControls.js",
+      "advisories": "https://github.com/mrdoob/three.js/security/advisories",
+      "licence": "MIT",
+      "sha256": "3050ae4800eb865e",
+      "copies": 14
+    },
+    {
+      "name": "satellite.js",
+      "version": "5.0.0",
+      "version_source": "the banner in the minified file",
+      "upstream": "https://github.com/shashwatak/satellite-js",
+      "advisories": "https://github.com/shashwatak/satellite-js/security",
+      "licence": "MIT",
+      "sha256": "272c249d24483d4a",
+      "copies": 1,
+      "note": "v5 calls the mean motion `no`, not `no_kozai`."
+    },
+    {
+      "name": "geotiff.js",
+      "version": "unknown",
+      "version_source": "NONE -- the bundle carries no version string. Determine it before trusting any advisory match. It bundles Esri's LERC decoder (Apache 2.0), whose copyright line is the only date in the file (2015-2021).",
+      "upstream": "https://github.com/geotiffjs/geotiff.js",
+      "advisories": "https://github.com/geotiffjs/geotiff.js/security",
+      "licence": "MIT (bundling Apache-2.0 LERC)",
+      "sha256": "cb5c9731bfee1f8b",
+      "copies": 1,
+      "note": "A UMD bundle: it attaches to window.GeoTIFF and an ES import of it resolves to an EMPTY namespace."
+    },
+    {
+      "name": "STLLoader",
+      "version": "ours",
+      "version_source": "written in this repository, not vendored -- its own header says 'minimal Three.js ES module loader'. It sits under vendor/ by habit.",
+      "upstream": null,
+      "advisories": null,
+      "licence": "this repository's",
+      "sha256": ["9ee4f9ce4546eaa0", "6ee2b640eb303edf", "6a99cf3cd0a1459a"],
+      "copies": 9,
+      "note": "THREE DIFFERENT VERSIONS across nine copies, which is drift rather than a supply-chain risk -- it is our code. Recorded so the divergence is visible; converging them is its own change."
+    }
+  ]
+}
