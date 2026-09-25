@@ -64,8 +64,14 @@ id = "2141bace4d614b9d99d49f4fb05112d0"
 # binding, and Cloudflare issues the certificate for it.
 #
 # The pattern loses its `/*`: a custom domain is a hostname, not a path match.
-# A hostname cannot hold both, so the old route is deleted on the way past
-# (wrangler asks; answer yes).
+#
+# MEASURED after the switch: the old route survives, pointing at the same
+# script. Cloudflare took both without a word and the custom domain is what
+# serves -- so the route is redundant rather than wrong, and wrangler neither
+# asked about it nor removed it. Left in place: it aims at this same Worker,
+# so at worst it is a second way to the same answer. If it is ever tidied up,
+# tidy it in the dashboard (Workers Routes on the zone), not here -- this file
+# no longer names it, so a deploy will not recreate it either.
 [[routes]]
 pattern = "auth.geoidinitiative.com"
 custom_domain = true
