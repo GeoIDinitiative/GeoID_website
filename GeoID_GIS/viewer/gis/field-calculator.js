@@ -24,6 +24,7 @@ const FUNCTIONS = Object.assign(Object.create(null), {
   sqrt: [1, Math.sqrt], abs: [1, Math.abs], exp: [1, Math.exp], log: [1, Math.log], log10: [1, Math.log10],
   sin: [1, Math.sin], cos: [1, Math.cos], tan: [1, Math.tan], asin: [1, Math.asin], acos: [1, Math.acos], atan: [1, Math.atan],
   floor: [1, Math.floor], ceil: [1, Math.ceil], sign: [1, Math.sign],
+  round: [1, Math.round], trunc: [1, Math.trunc],
   atan2: [2, Math.atan2], pow: [2, Math.pow], min: [-2, Math.min], max: [-2, Math.max], hypot: [-1, Math.hypot],
 });
 // Null prototypes and own-property tests: `in` would find "constructor" and
@@ -44,7 +45,13 @@ export function tokenize(text) {
     if (num) { out.push({ type: "num", value: Number(num[0]), at: i }); i += num[0].length; continue; }
     const name = /^[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)?/.exec(src.slice(i));
     if (name) { out.push({ type: "name", value: name[0], at: i }); i += name[0].length; continue; }
-    if ("+-*/%^(),".includes(ch)) { out.push({ type: ch, at: i }); i += 1; continue; }
+    // Two characters first, or ">=" tokenizes as ">" then "=".
+    const two = src.slice(i, i + 2);
+    if ([">=", "<=", "==", "!=", "&&", "||"].includes(two)) {
+      out.push({ type: two, at: i }); i += 2; continue;
+    }
+    if ("+-*/%^(),<>?:".includes(ch)) { out.push({ type: ch, at: i }); i += 1; continue; }
+    if (ch === "=") throw new Error(`use '==' to compare, at ${i}`);
     throw new Error(`unexpected '${ch}' at ${i}`);
   }
   out.push({ type: "end", at: src.length });
@@ -61,6 +68,34 @@ export function parse(text) {
     if (t.type !== type) throw new Error(`expected '${type === "end" ? "end of expression" : type}' at ${t.at}`);
     k += 1;
     return t;
+  };
+  // A CONDITION IS A NUMBER HERE, 1 or 0, because every value in this
+  // language is. That is what lets `x > 100` stand alone as a 0/1 mask and
+  // `x > 100 ? a : b` read the way anybody writing a field calculator expects.
+  const ternary = () => {
+    const cond = orExpr();
+    if (peek().type !== "?") return cond;
+    k += 1;
+    const yes = ternary();
+    take(":");
+    return { op: "?:", args: [cond, yes, ternary()] };
+  };
+  const orExpr = () => {
+    let left = andExpr();
+    while (peek().type === "||") { k += 1; left = { op: "||", args: [left, andExpr()] }; }
+    return left;
+  };
+  const andExpr = () => {
+    let left = comparison();
+    while (peek().type === "&&") { k += 1; left = { op: "&&", args: [left, comparison()] }; }
+    return left;
+  };
+  const comparison = () => {
+    let left = additive();
+    while ([">", "<", ">=", "<=", "==", "!="].includes(peek().type)) {
+      const op = tokens[k++].type; left = { op, args: [left, additive()] };
+    }
+    return left;
   };
   const additive = () => {
     let left = multiplicative();
@@ -85,13 +120,13 @@ export function parse(text) {
   const primary = () => {
     const t = peek();
     if (t.type === "num") { k += 1; return { num: t.value }; }
-    if (t.type === "(") { k += 1; const inner = additive(); take(")"); return inner; }
+    if (t.type === "(") { k += 1; const inner = ternary(); take(")"); return inner; }
     if (t.type === "name") {
       k += 1;
       if (peek().type === "(") {
         k += 1;
         const args = [];
-        if (peek().type !== ")") { args.push(additive()); while (peek().type === ",") { k += 1; args.push(additive()); } }
+        if (peek().type !== ")") { args.push(ternary()); while (peek().type === ",") { k += 1; args.push(ternary()); } }
         take(")");
         return { call: t.value, args, at: t.at };
       }
@@ -100,7 +135,7 @@ export function parse(text) {
     throw new Error(t.type === "end" ? "the expression ends too soon" : `unexpected '${t.type}' at ${t.at}`);
   };
   if (peek().type === "end") throw new Error("the expression is empty");
-  const tree = additive();
+  const tree = ternary();
   take("end");
   return tree;
 }
@@ -136,8 +171,25 @@ export function compile(tree, resolve) {
       if (args.length === 2) { const [a, b] = args; return (i) => impl(a(i), b(i)); }
       return (i) => impl(...args.map((f) => f(i)));
     }
-    const [a, b] = n.args.map(build);
+    const [a, b, c] = n.args.map(build);
+    // A COMPARISON ON A MISSING VALUE ANSWERS NaN, NOT 0. An attribute that
+    // is absent is not "not greater than 100"; it is unknown, and `pop > 1000`
+    // over a feature with no pop must not quietly file it as a small town.
+    // Same reasoning as reading a null as NaN rather than Number(null)'s 0.
+    const cmp = (f) => (i) => {
+      const x = a(i); const y = b(i);
+      return Number.isNaN(x) || Number.isNaN(y) ? NaN : (f(x, y) ? 1 : 0);
+    };
     switch (n.op) {
+      case ">": return cmp((x, y) => x > y);
+      case "<": return cmp((x, y) => x < y);
+      case ">=": return cmp((x, y) => x >= y);
+      case "<=": return cmp((x, y) => x <= y);
+      case "==": return cmp((x, y) => x === y);
+      case "!=": return cmp((x, y) => x !== y);
+      case "&&": return (i) => { const x = a(i); if (Number.isNaN(x)) return NaN; if (!x) return 0; const y = b(i); return Number.isNaN(y) ? NaN : (y ? 1 : 0); };
+      case "||": return (i) => { const x = a(i); if (Number.isNaN(x)) return NaN; if (x) return 1; const y = b(i); return Number.isNaN(y) ? NaN : (y ? 1 : 0); };
+      case "?:": return (i) => { const x = a(i); return Number.isNaN(x) ? NaN : (x ? b(i) : c(i)); };
       case "+": return (i) => a(i) + b(i);
       case "-": return (i) => a(i) - b(i);
       case "*": return (i) => a(i) * b(i);

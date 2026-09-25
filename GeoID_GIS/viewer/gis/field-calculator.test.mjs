@@ -1,5 +1,5 @@
 /** The calculator against arithmetic whose answers are known. */
-import { tokenize, parse, compile, namesIn, variableTable, evaluate } from "./field-calculator.js";
+import { tokenize, parse, compile, namesIn, variableTable, evaluate, compileScalar } from "./field-calculator.js";
 
 let pass = 0;
 const failures = [];
@@ -7,6 +7,34 @@ function check(name, ok, detail = "") {
   if (ok) pass += 1; else failures.push(name);
   console.log(`${ok ? "PASS" : "FAIL"}  ${name}${!ok && detail ? `  — ${detail}` : ""}`);
 }
+// THE GRAMMAR A FIELD CALCULATOR NEEDS, added when five callers that used
+// `new Function` moved onto this parser. Before it they had all of JavaScript,
+// so an expression somebody had already typed could use round(), a comparison
+// or a ternary; losing those silently would be a worse trade than the eval it
+// bought us out of.
+{
+  const f = (e, v) => compileScalar(e, Object.keys(v))(v);
+  const V = { a: 2, b: 8, x: 2.6, pop: null };
+  check("round and trunc are here", `${f("round(x)", V)} ${f("trunc(x)", V)}`, "3 2");
+  check("Math. is stripped", f("Math.round(x)", V), 3);
+  check("a comparison is 1 or 0", `${f("a > 1", V)} ${f("a > 9", V)}`, "1 0");
+  check("the ternary picks a branch", f("a > 1 ? 10 : 20", V), 10);
+  check("and nests", f("a > 1 ? (b > 4 ? 3 : 2) : 1", V), 3);
+  check("boolean operators", `${f("b >= 8 && a < 3", V)} ${f("a > 9 || b > 9", V)}`, "1 0");
+  check("equality is == and != ", `${f("a == 2", V)} ${f("a != 2", V)}`, "1 0");
+  // A MISSING VALUE IS UNKNOWN, NOT FALSE. `pop > 1000` over a feature with no
+  // pop must not quietly file it as a small town -- the same reasoning as
+  // reading a null as NaN rather than letting Number(null) make it a zero.
+  check("a comparison on a missing value is unknown",
+    String(f("pop > 1000", V)), "NaN");
+  check("and the ternary propagates that",
+    String(f("pop > 1000 ? 1 : 0", V)), "NaN");
+  let refused = "";
+  try { f("a = 2", V); } catch (e) { refused = e.message; }
+  check("a single = is refused with the fix in the message",
+    /use '=='/.test(refused), true);
+}
+
 process.on("exit", () => {
   console.log(`\n${pass} passed, ${failures.length} failed`);
   if (failures.length) process.exitCode = 1;
