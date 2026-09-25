@@ -53,7 +53,7 @@ RATE_PER_MIN = "10"
 # An address that is not here is an explorer, which is a welcome state.
 [[kv_namespaces]]
 binding = "MEMBERS"
-id = "REPLACE-WITH-YOUR-KV-NAMESPACE-ID"
+id = "2141bace4d614b9d99d49f4fb05112d0"
 
 [[routes]]
 pattern = "auth.geoidinitiative.com/*"

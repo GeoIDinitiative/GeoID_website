@@ -15,19 +15,26 @@
 # already filled in for local testing. So nothing is typed twice, nothing goes
 # through a clipboard, and nothing appears in a shell history.
 #
-# IT DEPLOYS TO workers.dev FIRST, deliberately. A Workers route on
-# auth.geoidinitiative.com needs a DNS record on that zone, and a deploy that
-# fails for want of one looks exactly like a deploy that failed on code. Prove
-# the service runs on the subdomain Cloudflare gives you free, then attach the
-# domain. That is also why SELF_ORIGIN is left alone here: it is the one value
-# that must match wherever the Worker actually answers.
+# A DEPLOY THAT SUCCEEDS IS NOT A SERVICE THAT ANSWERS. `wrangler.toml` has a
+# [[routes]] block, so deploy attaches auth.geoidinitiative.com/* and reports
+# success -- and the hostname still does not resolve, because a ROUTE says
+# "run this Worker for traffic that arrives here" and nothing makes traffic
+# arrive. That needs a DNS record, which is what Cloudflare's "Custom Domain"
+# button creates alongside the binding. So this checks at the end rather than
+# letting a green deploy read as a working service.
 
 set -euo pipefail
 cd "$(dirname "$0")"
 
+# THE ADDRESS IS THE ONE YOU WILL SIGN IN WITH, which is not necessarily the
+# one your Cloudflare account uses -- membership is looked up by the address
+# the PROVIDER reports. Sign in with Google and it is the Google account's
+# address. Passing the wrong one leaves you an explorer with a member record
+# nobody can reach, which is what happened the first time this was run.
 EMAIL="${1:-}"
 if [ -z "$EMAIL" ]; then
   echo "usage: ./setup.sh you@example.com" >&2
+  echo "       the address your SIGN-IN provider reports, not your Cloudflare login" >&2
   exit 2
 fi
 if [ ! -f .dev.vars ]; then
@@ -80,15 +87,32 @@ until_s=$(date -u -d "+10 years" +%s)
 npx wrangler kv key put --remote --binding=MEMBERS \
   "member:$EMAIL" "{\"plan\":\"owner\",\"until\":$until_s,\"source\":\"founder\"}"
 
+ORIGIN=$(sed -n 's/^SELF_ORIGIN = "\(.*\)"/\1/p' wrangler.toml | head -1)
+echo "==> can it be reached?"
+if curl -s -o /dev/null --max-time 12 "$ORIGIN/auth/me" 2>/dev/null; then
+  echo "    $ORIGIN answers"
+else
+  echo "    $ORIGIN does NOT answer yet."
+  echo "    The deploy worked; the hostname has no DNS record. In the dashboard:"
+  echo "    Workers & Pages -> this worker -> Settings -> Domains & Routes"
+  echo "      -> Add -> Custom Domain. That makes the record AND the binding."
+fi
+
 cat <<NOTE
 
 Done. Read it back with:
   npx wrangler kv key get --remote --binding=MEMBERS "member:$EMAIL"
 
-Still yours, when you want the service on auth.geoidinitiative.com rather
-than the workers.dev subdomain:
-  1. a DNS record for auth.geoidinitiative.com on the zone, proxied
-  2. SELF_ORIGIN in wrangler.toml set to that origin, then redeploy
-  3. the same origin registered as a redirect URI in the Google console
-  4. uncomment the three geoid-auth meta tags (runbook section 4)
+If it does not answer yet, that is DNS and nothing else -- the deploy and the
+route are already done. Cloudflare dashboard:
+
+  Workers & Pages -> this worker -> Settings -> Domains & Routes
+    -> Add -> Custom Domain -> the hostname in SELF_ORIGIN
+
+A ROUTE and a CUSTOM DOMAIN are not the same thing and you want both: the
+route runs the Worker for traffic that arrives, the custom domain is what
+makes traffic able to arrive.
+
+Then, to make the SITE use it: uncomment the three geoid-auth meta tags
+(docs/security-runbook.md section 4) and re-run scripts/csp.py.
 NOTE
