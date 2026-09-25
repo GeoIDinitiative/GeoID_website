@@ -194,10 +194,11 @@ export async function verify(token, secret, { audience = null } = {}) {
 // Engine service verify that pass. Faking the display claim buys the
 // appearance of membership and none of it.
 //
-// `Domain=.geoidinitiative.com` so the site and this service share it;
-// `SameSite=Lax` is enough because they are the same site (one registrable
-// domain), and it still refuses a genuinely cross-site POST. `Secure` and
-// `HttpOnly` are not negotiable.
+// The cookie is HOST-ONLY -- no `Domain` -- and `sessionCookie` below says
+// why at length; this note said the opposite for a while and the function
+// was already right. `SameSite=Lax` is enough because the site and this
+// service are one registrable domain, and it still refuses a genuinely
+// cross-site POST. `Secure` and `HttpOnly` are not negotiable.
 
 const SESSION_COOKIE = "geoid_session";
 

@@ -68,10 +68,13 @@ Cross-Origin-Opener-Policy     same-origin-allow-popups
   GeoHUB shell frames its own viewers.
 - **`same-origin-allow-popups`, not `same-origin`**: the OAuth sign-in opens
   a provider in a popup, and the strict value breaks that handshake.
-- **Do not send a whole-site `Content-Security-Policy` here.** The pages that
-  should have one already carry it in a meta tag, measured page by page; a
-  blanket header would apply it to the viewers too, and their `connect-src`
-  is dozens of services.
+- **Do not send a whole-site `Content-Security-Policy` here.** All 35 pages
+  carry their own in a meta tag now — 19 content pages on a tight profile and
+  16 app pages on one whose `connect-src` is deliberately broad, because the
+  WFS importer, the sidecar and the Atlas hub fetch from addresses the reader
+  types. A blanket header would put one of those two profiles on the other's
+  pages. `frame-ancestors` is the exception and belongs here: a meta tag
+  cannot carry it.
 - Add HSTS `preload` to the browser preload list only after the header has
   been live and correct for a few months. It is very hard to undo.
 
@@ -85,9 +88,19 @@ for and never got.
 **Verify:**
 
 ```bash
-curl -sSI https://geoidinitiative.com/ | grep -iE 'strict-transport|x-content-type|referrer-policy|frame'
-curl -sSI https://geoidinitiative.com/sw.js | grep -i cache-control
+python3 scripts/headers-verify.py
 ```
+
+It scores all seven plus `/sw.js`, names what each one is for, and exits
+non-zero while any is missing, so it can gate a deploy once the rules are in.
+Measured on 2026-09-25, before the rules exist: **8 of 8 not set**, with
+`/sw.js` on `max-age=14400` — a released fix that cannot reach anybody for
+four hours, which is the thing `_headers` was asking for and never got.
+
+It sends a browser-shaped `User-Agent` on purpose: Cloudflare's bot rules
+answer `Python-urllib` with 403 on this zone, and a checker that read that as
+a missing header would send you into the dashboard after a fault that is not
+there.
 
 ### 2. Rate limiting at the edge — Cloudflare
 
@@ -166,11 +179,29 @@ Stripe → Developers → Webhooks add
 
 ```bash
 curl -sSI 'https://auth.geoidinitiative.com/auth/callback/email?token=…' | grep -i set-cookie
-# expect: HttpOnly; Secure; SameSite=Lax; Domain=.geoidinitiative.com
+# expect: HttpOnly; Secure; SameSite=Lax — and NO Domain=
+# A Domain would attach a week-long session to data.geoidinitiative.com,
+# which is the bucket: the credential would reach its access logs.
 ```
 
 The fragment on the redirect must read `#claims=…` and **must not** contain
 `token=`. If it does, the old Worker is still deployed.
+
+**Then turn it on in the pages.** Three carry the tag commented out, and
+until it is uncommented the site never calls the Worker at all — every
+membership gate stays the browser-side courtesy it is today:
+
+```bash
+grep -rn 'geoid-auth' --include=index.html . | grep -v page_backups
+# membership/index.html, membership/welcome/index.html, sign-in/index.html
+sed -i 's|<!-- \(<meta name="geoid-auth"[^>]*>\) -->|\1|' \
+  membership/index.html membership/welcome/index.html sign-in/index.html
+python3 scripts/csp.py && node GeoID_GIS/tests/run.mjs
+```
+
+`scripts/csp.py` afterwards because those three pages carry a policy whose
+`connect-src` must name the Worker's origin, and the suite because
+`csp.test.mjs` fails if it does not.
 
 ### 5. The data gate Worker — `wrangler`
 
