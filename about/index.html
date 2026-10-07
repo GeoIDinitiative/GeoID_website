@@ -2,11 +2,11 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; script-src 'self' 'sha256-EKu4hK2Q38ZYYTuH519CwFv1fgAPzGNnuAtBBD/q8xw='; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https:; media-src 'self' data: blob: https://data.geoidinitiative.com; connect-src 'self' https://data.geoidinitiative.com https://auth.geoidinitiative.com https://formspree.io; frame-src 'self' https://docs.google.com; form-action 'self' https://formspree.io https://buy.stripe.com https://docs.google.com; upgrade-insecure-requests">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; script-src 'self' https://static.cloudflareinsights.com 'sha256-EKu4hK2Q38ZYYTuH519CwFv1fgAPzGNnuAtBBD/q8xw='; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https:; media-src 'self' data: blob: https://data.geoidinitiative.com; connect-src 'self' https://data.geoidinitiative.com https://auth.geoidinitiative.com https://formspree.io https://cloudflareinsights.com; frame-src 'self' https://docs.google.com; form-action 'self' https://formspree.io https://buy.stripe.com https://docs.google.com; upgrade-insecure-requests">
   <meta name="referrer" content="strict-origin-when-cross-origin">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <meta name="description" content="About the GeoID Initiative — GeoHUB, a free hazard GIS on a 3D globe; Earth Explorer's close-up site models; and six modelled hazard maps open to members, with the methods published.">
-  <title>About GeoID | Open 3D Geoscience &amp; Natural Hazard Platform</title>
+  <meta name="description" content="GeoHUB, a free hazard GIS on a 3D globe; Earth Explorer's close-up site models; and six modelled hazard maps for members, with the methods published.">
+  <title>About GeoID | Open 3D Geoscience &amp; Hazard Platform</title>
   <!-- Social / search preview. Without an og:image, search engines pick an
        arbitrary image off the page — which is why results showed a stray
        Earth icon instead of the GeoID logo. -->
@@ -34,16 +34,17 @@
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="GeoID Initiative">
   <meta property="og:url" content="https://geoidinitiative.com/about/">
-  <meta property="og:title" content="About GeoID | Open 3D Geoscience &amp; Natural Hazard Platform">
-  <meta property="og:description" content="About the GeoID Initiative — GeoHUB, a free hazard GIS on a 3D globe; Earth Explorer's close-up site models; and six modelled hazard maps open to members, with the methods published.">
-  <meta property="og:image" content="https://geoidinitiative.com/assets/og_geoid.jpg">
+  <meta property="og:title" content="About GeoID | Open 3D Geoscience &amp; Hazard Platform">
+  <meta property="og:description" content="GeoHUB, a free hazard GIS on a 3D globe; Earth Explorer's close-up site models; and six modelled hazard maps for members, with the methods published.">
+  <meta property="og:image" content="https://geoidinitiative.com/assets/social/about.jpg">
   <meta property="og:image:width" content="1200">
-  <meta property="og:image:height" content="1200">
-  <meta property="og:image:alt" content="GeoID Initiative logo">
-  <meta name="twitter:card" content="summary">
-  <meta name="twitter:title" content="About GeoID | Open 3D Geoscience &amp; Natural Hazard Platform">
-  <meta name="twitter:description" content="About the GeoID Initiative — GeoHUB, a free hazard GIS on a 3D globe; Earth Explorer's close-up site models; and six modelled hazard maps open to members, with the methods published.">
-  <meta name="twitter:image" content="https://geoidinitiative.com/assets/og_geoid.jpg">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="Basalt escarpment at Binevenagh, Northern Ireland">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="About GeoID | Open 3D Geoscience &amp; Hazard Platform">
+  <meta name="twitter:description" content="GeoHUB, a free hazard GIS on a 3D globe; Earth Explorer's close-up site models; and six modelled hazard maps for members, with the methods published.">
+  <meta name="twitter:image" content="https://geoidinitiative.com/assets/social/about.jpg">
+  <meta name="twitter:image:alt" content="Basalt escarpment at Binevenagh, Northern Ireland">
   <link rel="icon" type="image/png" href="/assets/GeoID_mark.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -342,7 +343,7 @@
 
     .solution-card {
       border: 1px solid var(--cyan);
-      border-radius: 1.1rem;
+      border-radius: 0.9rem;
       padding: 2rem;
       text-align: left;
       background:
@@ -486,7 +487,7 @@
     /* ── Program cards ── */
     .program-card {
       border: 1px solid var(--cyan);
-      border-radius: 1.1rem;
+      border-radius: 0.9rem;
       overflow: hidden;
       background: var(--panel);
       backdrop-filter: blur(18px);
@@ -905,7 +906,7 @@
       text-align: left;
     }
     .track-card {
-      border-radius: 1rem;
+      border-radius: 0.9rem;
       padding: 1.75rem;
     }
     .track-card--explorer {
@@ -943,11 +944,29 @@
       color: rgba(154, 184, 189, 0.6);
       margin-top: 0.75rem !important;
     }
-    .track-card-links {
-      margin-top: 1.1rem;
+    /* ONE ROW, EQUAL WIDTHS, BOTTOM-ALIGNED ACROSS BOTH CARDS.
+       This was `flex` + `flex-wrap`, so each link took its own label's width:
+       "Open GeoHUB / What's inside / Earth Explorer" happened to fit and
+       "Become a member / The six models / The methods" did not, so one card
+       showed three buttons in a row and its neighbour showed two and a
+       widow. Equal grid tracks make the row independent of label length, and
+       `margin-top:auto` in a column-flex card drops both rows onto the same
+       baseline however much copy sits above them. */
+    .track-card {
       display: flex;
+      flex-direction: column;
+    }
+    .track-card-links {
+      margin-top: auto;
+      padding-top: 1.1rem;
+      display: grid;
+      grid-auto-flow: column;
+      grid-auto-columns: 1fr;
       gap: 0.5rem;
-      flex-wrap: wrap;
+    }
+    .track-card-links a { text-align: center; white-space: nowrap; min-width: 0; }
+    @media (max-width: 620px) {
+      .track-card-links { grid-auto-flow: row; }
     }
     .track-card-links a {
       font-size: 0.78rem;
@@ -1034,10 +1053,9 @@
       <!-- ── What is GeoID ── -->
       <div class="cyan-tile" id="what">
         <div class="cyan-tile-content">
-          <span class="tile-label">The GeoID Initiative</span>
           <h2 class="tile-title">One Workspace, Two Ways In</h2>
           <div class="tile-desc">
-            <p>Everything opens in the same window. What is free is the globe, the records, the tools and the ten worlds — enough to teach from, research with, or simply explore. What a membership buys is the hazard maps GeoID computes on top of them, and the tools to carry a study area through to a solver.</p>
+            <p>Everything opens in the same window. The globe, the records, the tools and the ten worlds are free. Membership buys the hazard maps GeoID computes on top of them, and the tools to carry a study area through to a solver.</p>
           </div>
 
           <div class="two-tracks-grid">
@@ -1049,12 +1067,12 @@
                 <span class="status-live">Free · no account</span>
               </div>
               <h3>GeoHUB and Earth Explorer</h3>
-              <p><strong style="color:var(--text);">The globe and everything on it.</strong> 312,500 earthquakes back to 1008, 13,513 cyclone tracks since 1842, Macrostrat geology, Smithsonian volcanoes with hazard buffers, live EONET and USGS events, live satellites, weather radar; drawing, measuring, sampling and export; the Meshing Studio and the Research Hub; <strong style="color:rgba(200,220,236,0.8);">ten worlds</strong> on mission data; and <strong style="color:rgba(200,220,236,0.8);">Earth Explorer</strong>'s Etna model and ASCENT.</p>
+              <p><strong style="color:var(--text);">The globe and everything on it.</strong> 312,500 earthquakes back to 1008, 13,513 cyclone tracks since 1842, Macrostrat geology, Smithsonian volcanoes, live events and satellites; drawing, sampling and export; the Meshing Studio and the Research Hub; and <strong style="color:rgba(200,220,236,0.8);">ten worlds</strong> on mission data.</p>
               <p class="track-card-note">For students, educators, researchers and anyone curious. <strong style="color:rgba(200,220,236,0.7);">Not a hazard warning system.</strong></p>
               <div class="track-card-links">
-                <a href="/" class="btn-ghost">Open GeoHUB →</a>
-                <a href="/about_geohub/" class="btn-ghost">What's inside →</a>
-                <a href="/earth_explorer/" class="btn-ghost">Earth Explorer →</a>
+                <a href="/" class="btn-ghost">Open GeoHUB</a>
+                <a href="/about_geohub/" class="btn-ghost">What's inside</a>
+                <a href="/earth_explorer/" class="btn-ghost">Earth Explorer</a>
               </div>
             </div>
             <!-- myGeoID track -->
@@ -1064,12 +1082,12 @@
                 <span class="status-collab">Membership · £49.99 a year</span>
               </div>
               <h3>The hazard models</h3>
-              <p><strong style="color:var(--text);">Six modelled hazard maps on the same globe.</strong> Landslide and slope stability driven by sixteen days of NOAA GFS rainfall over DEM slope and mapped geology; flood inundation by scenario and discharge; cyclone, seismic and volcanic ashfall from the full historical record; and sea level — each stating its method and sources beside the map. Plus rock properties, the Model Builder, Earth Engine, and saving projects to your own disk.</p>
+              <p><strong style="color:var(--text);">Six modelled hazard maps on the same globe.</strong> Landslide and slope stability from sixteen days of GFS rainfall over DEM slope and mapped geology; flood by scenario and discharge; cyclone, seismic and ashfall from the full historical record; and sea level — each stating its method beside the map.</p>
               <p class="track-card-note">Screening-level research tools, each with its method stated beside the map. <strong style="color:rgba(200,220,236,0.7);">Not a certified or operational warning system.</strong> Methods published in the Journal.</p>
               <div class="track-card-links">
-                <a href="/membership/" class="btn-ghost">Become a member →</a>
-                <a href="/about_geohub/#models" class="btn-ghost">The six models →</a>
-                <a href="/updates/" class="btn-ghost">The methods →</a>
+                <a href="/membership/" class="btn-ghost">Membership</a>
+                <a href="/about_geohub/#models" class="btn-ghost">The six models</a>
+                <a href="/updates/" class="btn-ghost">The methods</a>
               </div>
             </div>
           </div>
@@ -1081,9 +1099,8 @@
         <div class="photo-tile-bg" style="background-image: url('/assets/opt/malaga.webp');"></div>
         <div class="photo-tile-overlay"></div>
         <div class="photo-tile-content" style="text-align:center;">
-          <span class="tile-label">How it works</span>
           <h2 class="tile-title">The Record, the Ground, and the Forecast</h2>
-          <p class="tile-desc" style="margin:0 auto 1.75rem;">The catalogues research institutions work from are public but scattered. GeoHUB merges them onto one globe, adds the terrain and geology underneath, and runs its hazard models on that ground with the next sixteen days of forecast rainfall.</p>
+          <p class="tile-desc" style="margin:0 auto 1.75rem;">The catalogues research institutions work from are public but scattered. GeoHUB merges them onto one globe, adds the terrain and geology underneath, and runs its hazard models on that ground.</p>
           <div class="cards-grid-3">
             <article class="solution-card">
               <div class="solution-card-header">
@@ -1092,7 +1109,7 @@
                 </div>
                 <h3>The record, merged</h3>
               </div>
-              <p>USGS ComCat, ISC-GEM and GEM GHEC merged into one earthquake record of 312,500 events; every IBTrACS cyclone track; Macrostrat geology; Smithsonian volcanoes — each layer keeping its licence and its DOI.</p>
+              <p>USGS ComCat, ISC-GEM and GEM GHEC merged into 312,500 events; every IBTrACS cyclone track; Macrostrat geology; Smithsonian volcanoes — each keeping its licence and DOI.</p>
             </article>
             <article class="solution-card">
               <div class="solution-card-header">
@@ -1101,7 +1118,7 @@
                 </div>
                 <h3>Forecast-driven by design</h3>
               </div>
-              <p>Sixteen days of hourly NOAA GFS rainfall drive a water balance over the real drainage and an infinite-slope <strong>Factor of Safety</strong> per cell — a stack of maps the clock plays through, not one susceptibility picture.</p>
+              <p>Sixteen days of hourly GFS rainfall drive a water balance over the real drainage and an infinite-slope <strong>Factor of Safety</strong> per cell — a stack of maps the clock plays through, not one susceptibility picture.</p>
             </article>
             <article class="solution-card">
               <div class="solution-card-header">
@@ -1110,7 +1127,7 @@
                 </div>
                 <h3>Methods you can check</h3>
               </div>
-              <p>Every model states its assumptions and sources beside the map, and the methods are written up as technical notes in the Journal, with a citation and a DOI where one exists.</p>
+              <p>Every model states its assumptions and sources beside the map, with the methods written up in the Journal.</p>
             </article>
           </div>
         </div>
@@ -1121,9 +1138,8 @@
         <div class="photo-tile-bg" style="background-image: url('/assets/opt/signal.webp');"></div>
         <div class="photo-tile-overlay"></div>
         <div class="photo-tile-content">
-          <span class="tile-label">Our Approach</span>
           <h2 class="tile-title">The GeoID Ecosystem</h2>
-          <p class="tile-desc"><strong>GeoHUB</strong> is the platform, and everything GeoID builds is part of it: one window and one project, with three facets working on the same ground. A study area drawn on the globe is the model in the studio and the figure in the write-up, with no export in between. The globe, the studio and the hub are free; <strong>membership</strong> adds the six hazard models, rock properties, the Model Builder and Earth Engine inside it.</p>
+          <p class="tile-desc"><strong>GeoHUB</strong> is the platform and everything GeoID builds is part of it: one window, one project, three facets on the same ground. A study area drawn on the globe is the model in the studio and the figure in the write-up. The globe, the studio and the hub are free; <strong>membership</strong> adds the six hazard models inside it.</p>
 
           <div class="ecosystem-tree">
             <a class="eco-root" href="/" aria-label="Open GeoHUB">
@@ -1144,7 +1160,7 @@
                       <span class="status-collab">Hazard models · membership</span>
                     </div>
                     <h3>Earth &amp; Planet Explorer</h3>
-                    <p>A GIS on a 3D globe, with the same tools on Earth and nine more worlds. Many features on one sphere: the earthquake and cyclone record played through time, world geology, live events and satellites, weather radar, Earth Engine layers and the hazard maps, drawn over study areas you define, clicked into, sampled and exported.</p>
+                    <p>A GIS on a 3D globe, with the same tools on Earth and nine more worlds: the earthquake and cyclone record played through time, world geology, live events and satellites — drawn over study areas you define, clicked into, sampled and exported.</p>
                     <p>Close-up models of Etna and Everest open from the globe.</p>
                   </div>
                 </article>
@@ -1160,7 +1176,7 @@
                       <span class="status-live">Live · free</span>
                     </div>
                     <h3>Meshing Studio</h3>
-                    <p>A study area becomes a finite-element model in the same tab: the terrain sampled into subsurface and atmosphere volumes, or a model built from primitives; faces flagged, meshed with gmsh, materials and boundary conditions set.</p>
+                    <p>A study area becomes a finite-element model in the same tab: terrain sampled into subsurface and atmosphere volumes, meshed with gmsh, materials and boundary conditions set.</p>
                     <p>Solved with GALES on your machine or a server, and read back as slices, stresses, InSAR fringes and fits to observations.</p>
                   </div>
                 </article>
@@ -1191,7 +1207,6 @@
         <div class="photo-tile-bg" style="background-image: url('/GeoID_initiative/photos/raised.jpg');"></div>
         <div class="photo-tile-overlay"></div>
         <div class="cta-content cta-content--wide">
-          <span class="tile-label">Work with GeoID</span>
           <h2>Use It, Check It, Build On It</h2>
           <p>A membership keeps the globe free for everyone else. Beyond that, the roadmap — continuous hosted forecasting and region-by-region validation — is built with partners.</p>
           <div class="involve-block">

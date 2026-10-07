@@ -2,11 +2,11 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https:; media-src 'self' data: blob: https://data.geoidinitiative.com; connect-src 'self' https://data.geoidinitiative.com https://auth.geoidinitiative.com https://formspree.io; frame-src 'self' https://docs.google.com; form-action 'self' https://formspree.io https://buy.stripe.com https://docs.google.com; upgrade-insecure-requests">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; script-src 'self' https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https:; media-src 'self' data: blob: https://data.geoidinitiative.com; connect-src 'self' https://data.geoidinitiative.com https://auth.geoidinitiative.com https://formspree.io https://cloudflareinsights.com; frame-src 'self' https://docs.google.com; form-action 'self' https://formspree.io https://buy.stripe.com https://docs.google.com; upgrade-insecure-requests">
   <meta name="referrer" content="strict-origin-when-cross-origin">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <meta name="description" content="The data GeoHUB is built from: the merged earthquake and cyclone records, world geology, volcano catalogue, live feeds, forecast rainfall, terrain and imagery — each with its source and licence.">
-  <title>Data Sources | Earthquake, Cyclone, Geology &amp; Earth Observation Data</title>
+  <meta name="description" content="What GeoHUB is built from: the merged earthquake and cyclone records, world geology, volcano catalogue and live feeds — each with its source and licence.">
+  <title>Data Sources | Earthquake, Cyclone &amp; Geology Data | GeoID</title>
   <!-- Social / search preview. Without an og:image, search engines pick an
        arbitrary image off the page — which is why results showed a stray
        Earth icon instead of the GeoID logo. -->
@@ -34,16 +34,17 @@
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="GeoID Initiative">
   <meta property="og:url" content="https://geoidinitiative.com/data/">
-  <meta property="og:title" content="Data Sources | Earthquake, Cyclone, Geology &amp; Earth Observation Data">
-  <meta property="og:description" content="The data GeoHUB is built from: the merged earthquake and cyclone records, world geology, volcano catalogue, live feeds, forecast rainfall, terrain and imagery — each with its source and licence.">
-  <meta property="og:image" content="https://geoidinitiative.com/assets/og_geoid.jpg">
+  <meta property="og:title" content="Data Sources | Earthquake, Cyclone &amp; Geology Data | GeoID">
+  <meta property="og:description" content="What GeoHUB is built from: the merged earthquake and cyclone records, world geology, volcano catalogue and live feeds — each with its source and licence.">
+  <meta property="og:image" content="https://geoidinitiative.com/assets/social/data.jpg">
   <meta property="og:image:width" content="1200">
-  <meta property="og:image:height" content="1200">
-  <meta property="og:image:alt" content="GeoID Initiative logo">
-  <meta name="twitter:card" content="summary">
-  <meta name="twitter:title" content="Data Sources | Earthquake, Cyclone, Geology &amp; Earth Observation Data">
-  <meta name="twitter:description" content="The data GeoHUB is built from: the merged earthquake and cyclone records, world geology, volcano catalogue, live feeds, forecast rainfall, terrain and imagery — each with its source and licence.">
-  <meta name="twitter:image" content="https://geoidinitiative.com/assets/og_geoid.jpg">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="Earthquake hypocentres beneath Mount Etna as a 3D cloud">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Data Sources | Earthquake, Cyclone &amp; Geology Data | GeoID">
+  <meta name="twitter:description" content="What GeoHUB is built from: the merged earthquake and cyclone records, world geology, volcano catalogue and live feeds — each with its source and licence.">
+  <meta name="twitter:image" content="https://geoidinitiative.com/assets/social/data.jpg">
+  <meta name="twitter:image:alt" content="Earthquake hypocentres beneath Mount Etna as a 3D cloud">
   <link rel="icon" type="image/png" href="/assets/GeoID_mark.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -66,7 +67,7 @@
     .source-card,
     .catalog-card {
       border: 1px solid var(--line);
-      border-radius: 1.35rem;
+      border-radius: 0.9rem;
       background: var(--panel);
       backdrop-filter: blur(18px);
       box-shadow: var(--shadow);
@@ -294,10 +295,9 @@
 
       <section class="hero" id="hazards">
         <article class="hero-panel">
-          <span class="eyebrow">Data Sources</span>
           <h1>What <span>GeoHUB</span> Is Built From</h1>
           <p>
-            Every layer on the globe comes from a published catalogue, a public feed or a mission dataset, and keeps its source, its licence and its DOI in the legend — so anything you derive from it inherits the same terms. This page lists them. The <a href="/">globe</a> is where they are used; the <a href="/updates/">Journal</a> is where the models built on them are written up.
+            Every layer keeps its source, licence and DOI in the legend, so anything you derive inherits the same terms. This page lists them; the <a href="/">globe</a> is where they are used, and the <a href="/updates/">Journal</a> is where the models built on them are written up.
           </p>
           <div class="hero-actions">
             <a class="btn-primary" href="/">Open GeoHUB →</a>
@@ -326,12 +326,12 @@
           <article class="hazard-card">
             <div class="hazard-icon">🌧️</div>
             <h3>Flood, cyclone &amp; sea level</h3>
-            <p>Mapped channels and the DEM for inundation by discharge; every IBTrACS best-track since 1842 for cyclone return periods; the real coastline through the streamed heights for sea level. RainViewer radar and GFS forecast rainfall overlay the same ground live.</p>
+            <p>Mapped channels and the DEM for inundation by discharge; every IBTrACS best-track since 1842 for cyclone return periods; the real coastline for sea level.</p>
           </article>
           <article class="hazard-card">
             <div class="hazard-icon">🌋</div>
             <h3>Seismic &amp; volcanic</h3>
-            <p>USGS ComCat, ISC-GEM and GEM GHEC merged into one record of 312,500 earthquakes for shaking by magnitude; the Smithsonian Global Volcanism Program Holocene catalogue, with its eruption sizes, for ashfall and hazard buffers.</p>
+            <p>USGS ComCat, ISC-GEM and GEM GHEC merged into 312,500 earthquakes for shaking by magnitude; the Smithsonian Holocene catalogue, with eruption sizes, for ashfall.</p>
           </article>
         </div>
       </section>

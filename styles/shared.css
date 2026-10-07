@@ -500,7 +500,7 @@ body {
 
 .glass-panel {
   border: 1px solid var(--line);
-  border-radius: var(--radius);
+  border-radius: 1.35rem;
   background: var(--panel);
   backdrop-filter: blur(12px);
   box-shadow: var(--shadow);
@@ -1574,4 +1574,15 @@ img { max-width: 100%; height: auto; }
     max-width: 100%;
     height: auto;
   }
+}
+
+/* The trader identity block on the legal pages. Required by the E-Commerce
+   Regulations to be there and easy to find, which is not the same as loud. */
+.legal-identity {
+  font-size: 0.94rem;
+  line-height: 1.75;
+  color: var(--muted, rgba(206, 184, 250, 0.66));
+  border-left: 2px solid var(--line-strong, rgba(255, 62, 200, 0.38));
+  padding-left: 1rem;
+  margin: 0.9rem 0 1.2rem;
 }

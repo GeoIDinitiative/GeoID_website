@@ -2,10 +2,10 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; script-src 'self' 'sha256-DcI9CmcIwbCfoRlTtKBm+7xUVOKDOfK92fpP+YiCN1Q=' 'sha256-SrwCRJOAVNAAEVTXVXlCdAyLn7ASvxolYab3tSFNlzE='; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https: http://localhost:* http://127.0.0.1:*; media-src 'self' data: blob: https:; connect-src 'self' data: blob: https: http://localhost:* http://127.0.0.1:*; frame-src 'self' blob: https://docs.google.com https://drive.google.com; form-action 'self' https://formspree.io https://buy.stripe.com https://docs.google.com; worker-src 'self' blob:; child-src 'self' blob:; upgrade-insecure-requests">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; script-src 'self' https://static.cloudflareinsights.com 'sha256-DcI9CmcIwbCfoRlTtKBm+7xUVOKDOfK92fpP+YiCN1Q=' 'sha256-SrwCRJOAVNAAEVTXVXlCdAyLn7ASvxolYab3tSFNlzE='; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https: http://localhost:* http://127.0.0.1:*; media-src 'self' data: blob: https:; connect-src 'self' data: blob: https: http://localhost:* http://127.0.0.1:*; frame-src 'self' blob: https://docs.google.com https://drive.google.com; form-action 'self' https://formspree.io https://buy.stripe.com https://docs.google.com; worker-src 'self' blob:; child-src 'self' blob:; upgrade-insecure-requests">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <meta name="description" content="Interactive 3D geological models of volcanoes, faults and mountain belts, built from real geoscience data. Explore Mount Etna and Mount Everest free in your browser.">
-  <title>Earth Explorer | 3D Geological Models &amp; Earth Science GIS | GeoID</title>
+  <meta name="description" content="Interactive 3D models of volcanoes, faults and mountains from real geoscience data. Explore Mount Etna and climb Mount Everest, free in your browser.">
+  <title>Earth Explorer | Interactive 3D Geological Models | GeoID</title>
   <!-- Social / search preview. Without an og:image, search engines pick an
        arbitrary image off the page — which is why results showed a stray
        Earth icon instead of the GeoID logo. -->
@@ -33,16 +33,17 @@
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="GeoID Initiative">
   <meta property="og:url" content="https://geoidinitiative.com/earth_explorer/">
-  <meta property="og:title" content="Earth Explorer | 3D Geological Models &amp; Earth Science GIS | GeoID">
-  <meta property="og:description" content="Interactive 3D geological models of volcanoes, faults and mountain belts, built from real geoscience data. Explore Mount Etna and Mount Everest free in your browser.">
-  <meta property="og:image" content="https://geoidinitiative.com/assets/og_geoid.jpg">
+  <meta property="og:title" content="Earth Explorer | Interactive 3D Geological Models | GeoID">
+  <meta property="og:description" content="Interactive 3D models of volcanoes, faults and mountains from real geoscience data. Explore Mount Etna and climb Mount Everest, free in your browser.">
+  <meta property="og:image" content="https://geoidinitiative.com/assets/social/earth-explorer.jpg">
   <meta property="og:image:width" content="1200">
-  <meta property="og:image:height" content="1200">
-  <meta property="og:image:alt" content="GeoID Initiative logo">
-  <meta name="twitter:card" content="summary">
-  <meta name="twitter:title" content="Earth Explorer | 3D Geological Models &amp; Earth Science GIS | GeoID">
-  <meta name="twitter:description" content="Interactive 3D geological models of volcanoes, faults and mountain belts, built from real geoscience data. Explore Mount Etna and Mount Everest free in your browser.">
-  <meta name="twitter:image" content="https://geoidinitiative.com/assets/og_geoid.jpg">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="Lava channels on the snow-covered flank of Mount Etna">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Earth Explorer | Interactive 3D Geological Models | GeoID">
+  <meta name="twitter:description" content="Interactive 3D models of volcanoes, faults and mountains from real geoscience data. Explore Mount Etna and climb Mount Everest, free in your browser.">
+  <meta name="twitter:image" content="https://geoidinitiative.com/assets/social/earth-explorer.jpg">
+  <meta name="twitter:image:alt" content="Lava channels on the snow-covered flank of Mount Etna">
   <link rel="icon" type="image/png" href="/assets/GeoID_mark.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -159,7 +160,7 @@
       display: flex;
       flex-direction: column;
       height: 100%;
-      border-radius: 1.45rem;
+      border-radius: 1.35rem;
       border: 1.5px solid rgba(0,225,210,0.70);
       background: rgba(4, 8, 18, 0.94);
       box-shadow:
@@ -593,7 +594,7 @@
     /* ── Etna info tile — About-explorer style, teal-themed ─────────────────── */
     .earth-info-tile {
       position: relative;
-      border-radius: 1.2rem;
+      border-radius: 1.35rem;
       border: 1.5px solid rgba(0,225,210,0.60);
       background: rgba(3, 7, 24, 0.99);
       overflow: hidden;
@@ -682,31 +683,33 @@
     }
 
     .earth-info-body {
-      padding: 1.6rem 2rem 1.6rem 2.4rem;
-      display: flex;
-      flex-direction: column;
-      gap: 0;
+      padding: 1.6rem 2.4rem 1.9rem 2.4rem;
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 1.5rem 2.8rem;
+      align-items: start;
+    }
+    .earth-info-body > .earth-info-lede { grid-column: 1 / -1; }
+    @media (max-width: 860px) {
+      .earth-info-body { grid-template-columns: 1fr; }
     }
 
+    /* TWO COLUMNS, AND A MEASURE. These blocks ran full width in one long
+       column, so every line was ~190 characters and the page read as a wall
+       of text rather than the spec sheet it is. Two tracks bring the measure
+       into range on their own and halve the height. */
     .earth-info-block {
       display: flex;
       flex-direction: column;
-      gap: 0.55rem;
-      padding-bottom: 1.3rem;
-      margin-bottom: 1.3rem;
-    }
-    .earth-info-block:last-child {
-      padding-bottom: 0;
-      margin-bottom: 0;
+      gap: 0.45rem;
     }
 
     .earth-info-heading {
       font-family: "Public Sans", sans-serif;
-      font-size: 0.60rem;
-      font-weight: 800;
-      letter-spacing: 0.14em;
-      text-transform: uppercase;
-      color: rgba(0,225,210,0.88);
+      font-size: 0.82rem;
+      font-weight: 600;
+      letter-spacing: 0.01em;
+      color: rgba(0,225,210,0.92);
       margin: 0;
       padding-left: 0.65rem;
       border-left: 2px solid rgba(0,225,210,0.45);
@@ -715,9 +718,10 @@
     .earth-info-body p {
       font-family: "Public Sans", sans-serif;
       font-size: 0.88rem;
-      line-height: 1.75;
+      line-height: 1.7;
       color: rgba(210,230,240,0.82);
       margin: 0;
+      max-width: 62ch;
     }
 
     .earth-info-image {
@@ -870,7 +874,7 @@
     }
 
     .viewer-card {
-      border-radius: 1rem;
+      border-radius: 0.9rem;
       border: 1px solid var(--panel-border);
       background: var(--panel-bg);
       backdrop-filter: blur(12px);
@@ -981,7 +985,7 @@
     }
 
     .about-tile {
-      border-radius: 1.2rem;
+      border-radius: 1.35rem;
       border: 1px solid var(--panel-border);
       background: var(--panel-bg);
       backdrop-filter: blur(16px);
@@ -1024,7 +1028,7 @@
 
     .about-explorer-tile {
       position: relative;
-      border-radius: 1.2rem;
+      border-radius: 1.35rem;
       border: 1.5px solid rgba(0,225,210,0.45);
       background: rgba(5, 10, 38, 0.98);
       overflow: hidden;
@@ -1292,7 +1296,7 @@
     .earth-access-tile {
       position: relative;
       overflow: hidden;
-      border-radius: 1.2rem;
+      border-radius: 1.35rem;
       border: 1.5px solid rgba(0,225,210,0.60);
       background: rgba(5, 10, 38, 0.98);
     }
@@ -2065,7 +2069,7 @@
         </div>
         <div class="earth-whatis-body">
           <p>Earth Explorer is the close-up. GeoHUB's globe carries the whole hazard record; Earth Explorer goes deep into one site — a volcano, a fault zone, a mountain — as a high-resolution 3D environment built from the datasets researchers publish from.</p>
-          <p>Two environments are live and free: the Mount Etna viewer — 12,000 INGV earthquakes over the magma plumbing, regional faults, the geological map and a live cross-section — and ASCENT, a first-person climb of Mount Everest on real imagery and elevation data. Krafla, Campi Flegrei and Katla are in development; Stromboli, Vatnajökull, the San Andreas and others are planned. No account, no install.</p>
+          <p>Two are live and free: the Mount Etna viewer — 12,000 INGV earthquakes over the magma plumbing, regional faults and a live cross-section — and ASCENT, a first-person climb of Everest on real terrain. Krafla, Campi Flegrei and Katla are in development.</p>
         </div>
       </article>
     </section>
@@ -2086,19 +2090,19 @@
             <div class="about-explorer-body">
               <div class="about-explorer-section-block">
                 <p class="about-col-heading">A different kind of geoscience interface</p>
-                <p>Professional GIS demands institutional access and training; educational apps reduce geology to passive imagery. Earth Explorer is neither: peer-reviewed datasets — tomography, geological maps, faults, earthquake catalogues, satellite terrain — toggled, stacked, and explored in one session.</p>
+                <p>Professional GIS demands institutional access; educational apps reduce geology to passive imagery. Earth Explorer is neither: peer-reviewed datasets, toggled, stacked and explored in one session.</p>
               </div>
               <div class="about-explorer-section-block">
                 <p class="about-col-heading">Real science, directly interactive</p>
-                <p>Magmatic structures from seismic tomography and geodetic inversion models, faults from national survey databases, hypocentres from the INGV catalogue, ESRI World Imagery basemaps at ~7 m. Not approximations — the datasets researchers publish from, live in your browser.</p>
+                <p>Magmatic structures from seismic tomography and geodetic inversion, faults from national survey databases, hypocentres from the INGV catalogue — the datasets researchers publish from, live in your browser.</p>
               </div>
               <div class="about-explorer-section-block">
                 <p class="about-col-heading">Full 3D terrain navigation in the browser</p>
-                <p>A full WebGL terrain model, summit to coastline. Orbit, zoom, and pan; adjust vertical exaggeration; switch satellite, hillshade, and slope-angle basemaps in a click; open the cross-section to expose the magmatic plumbing below. All in real time.</p>
+                <p>A full WebGL terrain model, summit to coastline. Orbit and zoom, adjust vertical exaggeration, switch between satellite, hillshade and slope-angle basemaps, and open the cross-section to expose the plumbing below.</p>
               </div>
               <div class="about-explorer-section-block">
                 <p class="about-col-heading">A platform that scales with your curiosity</p>
-                <p>A researcher cross-referencing fault kinematics uses the same viewer as a student learning what a stratovolcano is — by design. Labelled features open descriptions written for both; layer controls let you build your own picture of the landscape.</p>
+                <p>A researcher cross-referencing fault kinematics uses the same viewer as a student learning what a stratovolcano is — by design. Labelled features open descriptions written for both.</p>
               </div>
             </div>
           </div>
@@ -2188,17 +2192,17 @@
         <!-- Body: section blocks full width -->
         <div class="earth-info-body" style="padding:0.6rem 2.4rem 1rem;">
 
-          <p style="font-family:'Public Sans',sans-serif;font-size:0.92rem;line-height:1.72;color:rgba(210,230,240,0.88);margin:0 0 1.6rem;border-left:2px solid rgba(0,225,210,0.3);padding-left:1rem;">
-            Mount Etna is Europe's tallest and most active volcano, erupting almost continuously since 2011. The viewer puts the whole system in one interactive environment — summit to coastline, surface to deep conduit — on the datasets researchers publish from.
+          <p class="earth-info-lede" style="font-family:'Public Sans',sans-serif;font-size:0.95rem;line-height:1.7;color:rgba(210,230,240,0.88);margin:0;max-width:78ch;border-left:2px solid rgba(0,225,210,0.3);padding-left:1rem;">
+            Europe's tallest and most active volcano, erupting almost continuously since 2011 — the whole system in one environment, summit to coastline, surface to deep conduit.
           </p>
 
           <div class="earth-info-block">
             <p class="earth-info-heading">Subsurface Structure</p>
-            <p>Three resolved magma chambers — shallow (~3 km), intermediate (~8 km), deep (12–16 km) — connected by conduits from published tomography and inversion models. Toggle each body and section through the edifice with the cross-section tool.</p>
+            <p>Three resolved magma chambers — shallow (~3 km), intermediate (~8 km), deep (12–16 km) — from published tomography. Toggle each and section through the edifice.</p>
           </div>
           <div class="earth-info-block">
             <p class="earth-info-heading">Fault Architecture &amp; Seismicity</p>
-            <p>All major active faults mapped at surface and depth — including the Timpe system, the region's highest seismic hazard — plus the INGV earthquake catalogue (2011–2023, 12,000+ events) as depth-coloured spheres, filterable by magnitude and time.</p>
+            <p>Every major active fault at surface and depth, including the Timpe system — plus 12,000+ INGV earthquakes (2011–2023) as depth-coloured spheres, filterable by magnitude and time.</p>
           </div>
           <div class="earth-info-block">
             <p class="earth-info-heading">Geological Map &amp; Lava Flows</p>
@@ -2249,8 +2253,8 @@
 
         <div class="earth-info-body" style="padding:0.6rem 2.4rem 1rem;">
 
-          <p style="font-family:'Public Sans',sans-serif;font-size:0.92rem;line-height:1.72;color:rgba(210,230,240,0.88);margin:0 0 1.6rem;border-left:2px solid rgba(0,225,210,0.3);padding-left:1rem;">
-            ASCENT is a first-person climb of the real Mount Everest: Esri satellite imagery streamed to half a metre per pixel over a live elevation model. The route wasn't drawn by hand — the terrain was asked for the least-effort line to the summit, and it answered with the South Col route. Free to play.
+          <p class="earth-info-lede" style="font-family:'Public Sans',sans-serif;font-size:0.95rem;line-height:1.7;color:rgba(210,230,240,0.88);margin:0;max-width:78ch;border-left:2px solid rgba(0,225,210,0.3);padding-left:1rem;">
+            A first-person climb of the real Everest: Esri imagery streamed to half a metre per pixel over a live elevation model. The route was not drawn by hand — the terrain was asked for the least-effort line to the summit, and answered with the South Col.
           </p>
 
           <div class="earth-info-block">
@@ -2271,7 +2275,7 @@
           </div>
           <div class="earth-info-block">
             <p class="earth-info-heading">Data Sources</p>
-            <p>Esri World Imagery (streamed for viewing under the Esri Master License Agreement — nothing cached to disk), Mapzen Terrain Tiles on AWS Open Data (SRTM, ASTER and national sources), and Copernicus Sentinel-2 for the navigation orthophoto. It is a game, not a route description — but every layer in it is real.</p>
+            <p>Esri World Imagery (streamed under the Esri Master License Agreement, nothing cached), Mapzen Terrain Tiles on AWS Open Data, and Copernicus Sentinel-2. It is a game, not a route description — but every layer in it is real.</p>
           </div>
         </div>
 

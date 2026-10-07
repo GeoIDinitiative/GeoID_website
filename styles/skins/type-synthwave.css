@@ -11,6 +11,22 @@
    the last @font-face wins.
    ═══════════════════════════════════════════════════════════════════════ */
 
+/* THE TYPE IS NOT PART OF THE SKIN ANY MORE, the palette is.
+
+   This file used to re-point "Public Sans", "Archivo" and "Source Sans 3" at
+   Audiowide and Chakra Petch, and every one of the eleven site pages loads it
+   -- so v2-site.css retiring "Orbitron" and "Exo 2" to Archivo and Inter was
+   undone here, one sheet later, and every heading AND all running text came
+   back as arcade lettering. That was the whole "looks generated" read, and it
+   was never the palette: the deep violet, the hot pink and the cyan below are
+   the character and they stay exactly as they were.
+
+   The three names now point at the same Archivo and Inter files the rest of
+   the site already downloads. "Audiowide W" and "Chakra W" are left defined
+   but unreferenced -- an unused @font-face is never fetched -- so the arcade
+   set can be put back on one page by naming it, without this decision being
+   invisible. */
+
 @font-face {
   font-family: "Audiowide W";
   font-style: normal; font-weight: 400; font-display: swap;
@@ -34,20 +50,20 @@
 
 /* Chrome lettering: the display families this page already asks for. */
 @font-face { font-family: "Archivo"; font-style: normal; font-weight: 100 900; font-display: swap;
-  src: url(https://fonts.gstatic.com/s/audiowide/v22/l7gdbjpo0cum0ckerWCdlg_O.woff2) format('woff2'); }
+  src: url(https://fonts.gstatic.com/s/archivo/v25/k3kPo8UDI-1M0wlSV9XAw6lQkqWY8Q82sLydOxI.woff2) format('woff2'); }
 @font-face { font-family: "Public Sans"; font-style: normal; font-weight: 100 900; font-display: swap;
-  src: url(https://fonts.gstatic.com/s/audiowide/v22/l7gdbjpo0cum0ckerWCdlg_O.woff2) format('woff2'); }
+  src: url(https://fonts.gstatic.com/s/archivo/v25/k3kPo8UDI-1M0wlSV9XAw6lQkqWY8Q82sLydOxI.woff2) format('woff2'); }
 @font-face { font-family: "Orbitron"; font-style: normal; font-weight: 100 900; font-display: swap;
-  src: url(https://fonts.gstatic.com/s/audiowide/v22/l7gdbjpo0cum0ckerWCdlg_O.woff2) format('woff2'); }
+  src: url(https://fonts.gstatic.com/s/archivo/v25/k3kPo8UDI-1M0wlSV9XAw6lQkqWY8Q82sLydOxI.woff2) format('woff2'); }
 
 /* Body copy. "Exo 2" is this page's body face (v2-site.css points it at
    Inter); re-point it at Chakra so running text matches the arcade set. */
 @font-face { font-family: "Exo 2"; font-style: normal; font-weight: 100 900; font-display: swap;
-  src: url(https://fonts.gstatic.com/s/chakrapetch/v13/cIf6MapbsEk7TDLdtEz1BwkWn6pg.woff2) format('woff2'); }
+  src: url(https://fonts.gstatic.com/s/inter/v20/UcC73FwrK3iLTeHuS_nVMrMxCp50SjIa1ZL7.woff2) format('woff2'); }
 @font-face { font-family: "Source Sans 3"; font-style: normal; font-weight: 100 900; font-display: swap;
-  src: url(https://fonts.gstatic.com/s/chakrapetch/v13/cIf6MapbsEk7TDLdtEz1BwkWn6pg.woff2) format('woff2'); }
+  src: url(https://fonts.gstatic.com/s/inter/v20/UcC73FwrK3iLTeHuS_nVMrMxCp50SjIa1ZL7.woff2) format('woff2'); }
 
 :root {
-  --display: "Audiowide W", "Chakra W", sans-serif;
-  --body:    "Chakra W", system-ui, sans-serif;
+  --display: "Archivo", system-ui, sans-serif;
+  --body:    "Source Sans 3", system-ui, sans-serif;
 }

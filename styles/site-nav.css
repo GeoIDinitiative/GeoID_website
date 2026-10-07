@@ -24,25 +24,29 @@
 /* Private family names: the page-level names ("Public Sans", "Archivo",
    var(--display)…) resolve differently per page, which is what caused the
    drift. Same woff2 URLs as the rest of the site, so no extra download. */
+/* BOTH OF THESE WERE SCI-FI FACES, and they were the last two left. The
+   page-level names were retired to Archivo and Inter long ago (see the remaps
+   at the top of v2-site.css: "Orbitron" and "Exo 2" are both aliases now), but
+   the header kept its own private copies and so kept its own look: Audiowide
+   for the wordmark, Chakra Petch for every link, button and jump-bar item.
+   Uppercase and tracked out, on every page, that is the whole "generated
+   space app" read — and it was the one part of the chrome the retirement
+   never reached.
+
+   They now point at the SAME Archivo file the rest of the site already
+   downloads, so the header matches the headings under it, and four font files
+   (one Audiowide, three Chakra Petch) stop being fetched at all. The private
+   family names are kept deliberately: they are what stopped the header
+   drifting per page, and every rule below still refers to them. */
 @font-face {
   font-family: "GeoID Nav Display";
-  font-style: normal; font-weight: 400; font-display: swap;
-  src: url(https://fonts.gstatic.com/s/audiowide/v22/l7gdbjpo0cum0ckerWCdlg_O.woff2) format('woff2');
+  font-style: normal; font-weight: 100 900; font-display: swap;
+  src: url(https://fonts.gstatic.com/s/archivo/v25/k3kPo8UDI-1M0wlSV9XAw6lQkqWY8Q82sLydOxI.woff2) format('woff2');
 }
 @font-face {
   font-family: "GeoID Nav Body";
-  font-style: normal; font-weight: 400; font-display: swap;
-  src: url(https://fonts.gstatic.com/s/chakrapetch/v13/cIf6MapbsEk7TDLdtEz1BwkWn6pg.woff2) format('woff2');
-}
-@font-face {
-  font-family: "GeoID Nav Body";
-  font-style: normal; font-weight: 500; font-display: swap;
-  src: url(https://fonts.gstatic.com/s/chakrapetch/v13/cIflMapbsEk7TDLdtEz1BwkebIl1R5_F.woff2) format('woff2');
-}
-@font-face {
-  font-family: "GeoID Nav Body";
-  font-style: normal; font-weight: 600; font-display: swap;
-  src: url(https://fonts.gstatic.com/s/chakrapetch/v13/cIflMapbsEk7TDLdtEz1BwkeQI51R5_F.woff2) format('woff2');
+  font-style: normal; font-weight: 100 900; font-display: swap;
+  src: url(https://fonts.gstatic.com/s/archivo/v25/k3kPo8UDI-1M0wlSV9XAw6lQkqWY8Q82sLydOxI.woff2) format('woff2');
 }
 
 /* One bar height everywhere. Page layouts already offset content by

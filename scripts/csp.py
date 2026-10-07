@@ -71,6 +71,23 @@ PAGES = SITE_PAGES + APP_PAGES
 # the contact form's action and its fetch, buy.stripe.com for the membership
 # links, docs.google.com for the Get Involved questionnaire, and the two
 # geoidinitiative subdomains for the data bucket and the membership service.
+# CLOUDFLARE WEB ANALYTICS, and the reason it is in the POLICY rather than in
+# a <script> tag. The zone is proxied (cf-ray on every response, GitHub Pages
+# behind it), so Cloudflare injects the beacon at the edge once Web Analytics
+# is switched on in the dashboard -- no snippet, no token in the repo, nothing
+# to keep in step across thirteen pages. What that injection CANNOT do is
+# defeat this policy: `script-src 'self' 'sha256-...'` refuses an external
+# host, so an edge-injected beacon is blocked and the dashboard shows zero
+# while the tag is demonstrably on the page. That failure is silent, which is
+# why it is written down here.
+#
+# `beacon.min.js` is served from static.cloudflareinsights.com and POSTs its
+# sample to cloudflareinsights.com/cdn-cgi/rum. Both are named. It sets no
+# cookie and stores no identifier, so it needs no consent banner -- the reason
+# it was chosen over an analytics product that would have.
+CF_BEACON = "https://static.cloudflareinsights.com"
+CF_RUM = "https://cloudflareinsights.com"
+
 BASE = [
     "default-src 'self'",
     "base-uri 'self'",
@@ -80,7 +97,7 @@ BASE = [
     "img-src 'self' data: blob: https:",
     "media-src 'self' data: blob: https://data.geoidinitiative.com",
     "connect-src 'self' https://data.geoidinitiative.com "
-    "https://auth.geoidinitiative.com https://formspree.io",
+    "https://auth.geoidinitiative.com https://formspree.io " + CF_RUM,
     "frame-src 'self' https://docs.google.com",
     "form-action 'self' https://formspree.io https://buy.stripe.com "
     "https://docs.google.com",
@@ -151,7 +168,7 @@ def hashes_for(text):
 
 
 def policy_for(text, app=False):
-    scripts = " ".join(["'self'", *hashes_for(text)])
+    scripts = " ".join(["'self'", CF_BEACON, *hashes_for(text)])
     parts = list(BASE)
     parts.insert(3, f"script-src {scripts}")
     if app:

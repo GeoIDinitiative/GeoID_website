@@ -61,6 +61,18 @@ jobs:
           python3 GeoID_GIS/services/port-draw-tools.py --check
           python3 GeoID_GIS/services/port-viewer-seam.py --check
 
+      # The generators that write parts of pages they do not own. csp.py and
+      # breadcrumbs.py both already claimed "--check runs in the test suite";
+      # neither did. social-cards.py is the one with teeth: a share card that
+      # silently goes missing is invisible on the site and only shows up when
+      # somebody posts a link.
+      - name: Generated page furniture is current
+        run: |
+          python3 scripts/social-cards.py --check
+          python3 scripts/csp.py --check
+          python3 scripts/breadcrumbs.py --check
+          python3 scripts/noindex.py --check
+
   pages:
     name: Research Hub pages mount
     runs-on: ubuntu-latest

@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; script-src 'self' 'sha256-rreV8OrbFTvBCJSwCHRz/kE1DHai8MEB1OUCIQgBo/A=' 'sha256-7ysNQt8aHqXOFgkciCqCdanHLji0rVnRpww8OVJTETY=' 'sha256-z1MbM73GEIm2TW0KXHbmzyglFqmnihlRdwUJwk/oWaE='; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https: http://localhost:* http://127.0.0.1:*; media-src 'self' data: blob: https:; connect-src 'self' data: blob: https: http://localhost:* http://127.0.0.1:*; frame-src 'self' blob: https://docs.google.com https://drive.google.com; form-action 'self' https://formspree.io https://buy.stripe.com https://docs.google.com; worker-src 'self' blob:; child-src 'self' blob:; upgrade-insecure-requests">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; script-src 'self' https://static.cloudflareinsights.com 'sha256-rreV8OrbFTvBCJSwCHRz/kE1DHai8MEB1OUCIQgBo/A=' 'sha256-7ysNQt8aHqXOFgkciCqCdanHLji0rVnRpww8OVJTETY=' 'sha256-z1MbM73GEIm2TW0KXHbmzyglFqmnihlRdwUJwk/oWaE='; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https: http://localhost:* http://127.0.0.1:*; media-src 'self' data: blob: https:; connect-src 'self' data: blob: https: http://localhost:* http://127.0.0.1:*; frame-src 'self' blob: https://docs.google.com https://drive.google.com; form-action 'self' https://formspree.io https://buy.stripe.com https://docs.google.com; worker-src 'self' blob:; child-src 'self' blob:; upgrade-insecure-requests">
 <!-- The modules bust their own cache via ?v= (tools/stamp.py), but this
      page has no stamp on its own URL — so it must revalidate, or the
      browser serves a cached copy still pointing at the old stamps. -->
@@ -42,12 +42,13 @@
 <meta property="og:url" content="https://geoidinitiative.com/everest/">
 <meta property="og:title" content="ASCENT | Interactive Mount Everest 3D Explorer | GeoID">
 <meta property="og:description" content="An interactive 3D explorer of Mount Everest on real satellite imagery and elevation data — the route, the terrain, the weather and the death zone.">
-<meta property="og:image" content="https://geoidinitiative.com/assets/og_geoid.jpg">
-<meta property="og:image:width" content="1200">
-<meta property="og:image:height" content="1200">
-<meta property="og:image:alt" content="GeoID Initiative logo">
-<meta name="twitter:card" content="summary">
-<meta name="twitter:image" content="https://geoidinitiative.com/assets/og_geoid.jpg">
+  <meta property="og:image" content="https://geoidinitiative.com/assets/social/everest.jpg">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="The summit of Mount Everest above the surrounding peaks">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://geoidinitiative.com/assets/social/everest.jpg">
+<meta name="twitter:image:alt" content="The summit of Mount Everest above the surrounding peaks">
 <meta name="twitter:title" content="ASCENT | Interactive Mount Everest 3D Explorer | GeoID">
 <meta name="twitter:description" content="An interactive 3D explorer of Mount Everest on real satellite imagery and elevation data — the route, the terrain, the weather and the death zone.">
 <link rel="icon" type="image/png" href="/assets/logo.png?v=geoid-2026">

@@ -2,11 +2,11 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; script-src 'self' 'sha256-UXmzs69z6K0S8nvEMmPDTZMWN18t8+zJAB1keKn04Us=' 'sha256-HLteDuJP1H4uHqED4K8pYF9kJO+A2407sOm8U3/mOjc='; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https:; media-src 'self' data: blob: https://data.geoidinitiative.com; connect-src 'self' https://data.geoidinitiative.com https://auth.geoidinitiative.com https://formspree.io; frame-src 'self' https://docs.google.com; form-action 'self' https://formspree.io https://buy.stripe.com https://docs.google.com; upgrade-insecure-requests">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; script-src 'self' https://static.cloudflareinsights.com 'sha256-UXmzs69z6K0S8nvEMmPDTZMWN18t8+zJAB1keKn04Us=' 'sha256-HLteDuJP1H4uHqED4K8pYF9kJO+A2407sOm8U3/mOjc='; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https:; media-src 'self' data: blob: https://data.geoidinitiative.com; connect-src 'self' https://data.geoidinitiative.com https://auth.geoidinitiative.com https://formspree.io https://cloudflareinsights.com; frame-src 'self' https://docs.google.com; form-action 'self' https://formspree.io https://buy.stripe.com https://docs.google.com; upgrade-insecure-requests">
   <meta name="referrer" content="strict-origin-when-cross-origin">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <meta name="description" content="An interactive 3D globe for geoscience: 312,500 earthquakes back to 1008, every cyclone track since 1842, world geology, live events and ten worlds. Free in your browser; membership adds six hazard models.">
-  <title>GeoID Dashboard | Interactive 3D Globe &amp; Geoscience Workspace</title>
+  <meta name="description" content="An interactive 3D globe for geoscience: 312,500 earthquakes back to 1008, every cyclone track since 1842, world geology, live events and ten worlds.">
+  <title>GeoID Dashboard | Interactive 3D Geoscience Globe</title>
   <!-- Social / search preview. Without an og:image, search engines pick an
        arbitrary image off the page — which is why results showed a stray
        Earth icon instead of the GeoID logo. -->
@@ -34,16 +34,17 @@
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="GeoID Initiative">
   <meta property="og:url" content="https://geoidinitiative.com/dashboard/">
-  <meta property="og:title" content="GeoID | Interactive 3D Globe &amp; Geoscience Workspace">
-  <meta property="og:description" content="GeoHUB is a free hazard GIS in your browser — the earthquake and cyclone record played through time, world geology, live events and ten worlds. Membership opens six modelled hazard maps, the Model Builder and Earth Engine.">
-  <meta property="og:image" content="https://geoidinitiative.com/assets/og_geoid.jpg">
+  <meta property="og:title" content="GeoID Dashboard | Interactive 3D Geoscience Globe">
+  <meta property="og:description" content="An interactive 3D globe for geoscience: 312,500 earthquakes back to 1008, every cyclone track since 1842, world geology, live events and ten worlds.">
+  <meta property="og:image" content="https://geoidinitiative.com/assets/social/dashboard.jpg">
   <meta property="og:image:width" content="1200">
-  <meta property="og:image:height" content="1200">
-  <meta property="og:image:alt" content="GeoID Initiative logo">
-  <meta name="twitter:card" content="summary">
-  <meta name="twitter:title" content="GeoID | Interactive 3D Globe &amp; Geoscience Workspace">
-  <meta name="twitter:description" content="GeoHUB is a free hazard GIS in your browser — the earthquake and cyclone record played through time, world geology, live events and ten worlds. Membership opens six modelled hazard maps, the Model Builder and Earth Engine.">
-  <meta name="twitter:image" content="https://geoidinitiative.com/assets/og_geoid.jpg">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="Global cloud and weather imagery over the Earth">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="GeoID Dashboard | Interactive 3D Geoscience Globe">
+  <meta name="twitter:description" content="An interactive 3D globe for geoscience: 312,500 earthquakes back to 1008, every cyclone track since 1842, world geology, live events and ten worlds.">
+  <meta name="twitter:image" content="https://geoidinitiative.com/assets/social/dashboard.jpg">
+  <meta name="twitter:image:alt" content="Global cloud and weather imagery over the Earth">
   <!-- Organization structured data. Gives search engines an explicit logo to
        associate with the site rather than inferring one from page content. -->
   <script type="application/ld+json">
@@ -777,7 +778,7 @@
       <div class="hs-body"><div class="shell"><div class="hs-copy">
         <span class="hs-tag">Live · GeoHUB · free</span>
         <h1 class="hs-title">Pre-built geoscience workflows, <em>available to all</em>.</h1>
-        <p class="hs-lede">GeoHUB is a hazard GIS in your browser: 312,500 earthquakes back to 1008, every cyclone track since 1842, world geology, live events and satellites. Draw an area, sample every layer under it, mesh it and model it. Nothing to install, no account.</p>
+        <p class="hs-lede">A hazard GIS in your browser: 312,500 earthquakes back to 1008, every cyclone track since 1842, world geology and live feeds. Draw an area, sample every layer under it, mesh it and model it.</p>
         <div class="hs-actions">
           <a class="btn btn-solid" href="/">Open GeoHUB <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
           <a class="btn btn-line" href="/about_geohub/">What's inside</a>
@@ -791,7 +792,7 @@
       <div class="hs-body"><div class="shell"><div class="hs-copy">
         <span class="hs-tag">Membership · £49.99 a year</span>
         <h2 class="hs-title">Become a member for <em>full access</em>.</h2>
-        <p class="hs-lede">Full access to GeoID's six hazard maps — landslide and slope stability from sixteen days of GFS rainfall, flood by discharge, cyclone, seismic, volcanic ashfall and sea level — plus rock properties, the Model Builder, Earth Engine and saving to your own disk.</p>
+        <p class="hs-lede">All six hazard maps — landslide, flood, cyclone, seismic, ashfall and sea level — plus rock properties, the Model Builder, Earth Engine and saving to your own disk.</p>
         <div class="hs-actions">
           <a class="btn btn-solid" href="/membership/">Become a member <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
           <a class="btn btn-line" href="/about_geohub/#models">See the models</a>
@@ -864,7 +865,7 @@
         <div class="sec-head-copy">
           <span class="eyebrow">GeoHUB · ten worlds · free</span>
           <h2 class="sec-title">Ten worlds on mission data, one set of tools.</h2>
-          <p class="sec-lede">Mercury to Pluto and the Moon, each on the datasets its missions returned — MOLA relief and the CTX mosaic for Mars, Magellan radar for Venus, MESSENGER for Mercury, LROC and LOLA for the Moon — with geology overlays, named-feature search, distance and elevation profiles and a core cutaway on every one.</p>
+          <p class="sec-lede">Mercury to Pluto, each on the datasets its missions returned — MOLA and CTX for Mars, Magellan for Venus, MESSENGER for Mercury — with geology overlays, named-feature search, elevation profiles and a core cutaway on every one.</p>
         </div>
         <a class="btn btn-line btn-sm" href="/about_geohub/#worlds">All ten worlds</a>
       </div>
@@ -962,7 +963,7 @@
         <div class="sec-head-copy">
           <span class="eyebrow">GeoHUB · free, no account</span>
           <h2 class="sec-title">A hazard GIS with the record already loaded.</h2>
-          <p class="sec-lede">Open the globe and the catalogues are on it, merged and symbolised: earthquakes, cyclones, volcanoes, geology, live events. Add your own shapefiles, GeoTIFFs and meshes, draw a study area, and take it through to a mesh, a solve and a write-up in the same tab.</p>
+          <p class="sec-lede">The catalogues arrive merged and symbolised. Add your own shapefiles, GeoTIFFs and meshes, draw a study area, and take it through to a mesh, a solve and a write-up in the same tab.</p>
         </div>
         <a class="btn btn-line btn-sm" href="/">Open GeoHUB</a>
       </div>
@@ -984,11 +985,11 @@
             </li>
             <li>
               <span class="hub-pane-n">Research Hub</span>
-              <span class="hub-pane-d">A project is a folder on your own disk: ingest, signal processing, statistics, figures and notes, in the layout the desktop app reads. The solver runs on your machine or on a server you point it at.</span>
+              <span class="hub-pane-d">A project is a folder on your own disk — ingest, statistics, figures and notes — in the layout the desktop app reads.</span>
             </li>
           </ul>
           <p class="hub-note">
-            <span><strong>Membership</strong> adds the hazard models on the same globe — landslide, flood, cyclone, seismic, volcanic ashfall and sea level, each stating its method and sources — plus rock properties, the Model Builder, Earth Engine and saving projects to disk. £49.99 a year; everything above stays free.</span>
+            <span><strong>Membership</strong> adds the six hazard models on the same globe, each stating its method and sources, plus rock properties, the Model Builder and Earth Engine. £49.99 a year; everything above stays free.</span>
           </p>
           <div class="hs-actions">
             <a class="btn btn-solid" href="/">Open GeoHUB <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
@@ -1018,7 +1019,7 @@
       <div class="mission-copy rise">
         <span class="eyebrow">Our mission</span>
         <h2 class="mission-title">The data already exists. <em>Access is the problem.</em></h2>
-        <p class="mission-desc">We put the catalogues on one free globe, publish the methods behind every model in the Journal, and sell the models rather than the data — because the people most exposed to geohazards are usually the last to see it.</p>
+        <p class="mission-desc">We put the catalogues on one free globe, publish the methods in the Journal, and sell the models rather than the data — because the people most exposed to geohazards are usually the last to see it.</p>
         <div class="mission-stats">
           <div><div class="mstat-n">312,500</div><div class="mstat-l">Earthquakes on the globe</div></div>
           <div><div class="mstat-n">13,513</div><div class="mstat-l">Cyclone tracks</div></div>

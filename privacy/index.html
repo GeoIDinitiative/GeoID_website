@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https:; media-src 'self' data: blob: https://data.geoidinitiative.com; connect-src 'self' https://data.geoidinitiative.com https://auth.geoidinitiative.com https://formspree.io; frame-src 'self' https://docs.google.com; form-action 'self' https://formspree.io https://buy.stripe.com https://docs.google.com; upgrade-insecure-requests">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; script-src 'self' https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https:; media-src 'self' data: blob: https://data.geoidinitiative.com; connect-src 'self' https://data.geoidinitiative.com https://auth.geoidinitiative.com https://formspree.io https://cloudflareinsights.com; frame-src 'self' https://docs.google.com; form-action 'self' https://formspree.io https://buy.stripe.com https://docs.google.com; upgrade-insecure-requests">
   <meta name="referrer" content="strict-origin-when-cross-origin">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="description" content="GeoID Initiative Privacy Policy — how we collect, use, and protect your data.">
@@ -172,7 +172,10 @@
         <div class="legal-body">
 
           <h2>Who We Are</h2>
-          <p>The GeoID Initiative is an open science project led by Owen McCluskey and operated at <strong>geoidinitiative.com</strong>. We can be contacted at <a href="mailto:geoid.initiative@gmail.com">geoid.initiative@gmail.com</a>.</p>
+          <p>The GeoID Initiative is an open science project run by <strong>Owen McCluskey, trading as the GeoID Initiative</strong> &mdash; a sole trader established in the United Kingdom, and the <strong>data controller</strong> for the personal data described below.</p>
+            <p class="legal-identity">Postal address: 22 Boyle Avenue, Limavady, Co. Derry, BT49&nbsp;9FH, Northern Ireland<br>
+            Email: <a href="mailto:geoid.initiative@gmail.com">geoid.initiative@gmail.com</a><br>
+            Site: <strong>geoidinitiative.com</strong></p>
 
           <h2>What Data We Collect</h2>
           <p>We collect only the data necessary to operate the site and fulfil your requests:</p>
@@ -194,13 +197,22 @@
           </ul>
           <p>We do not sell your data, share it with advertisers, or use it for profiling.</p>
 
+          <h2>Our Lawful Basis</h2>
+          <p>UK GDPR requires us to name the legal ground for each use of your data, so here they are. Your <strong>membership record</strong> &mdash; email address and expiry date &mdash; is processed to <em>perform the contract</em> you entered when you subscribed (Article 6(1)(b)); without it we cannot tell whether your membership is current. Anything you send us by email, and the aggregate page counts described above, rest on our <em>legitimate interests</em> (Article 6(1)(f)) in answering you and in knowing which pages are read &mdash; interests we consider proportionate because neither identifies you to us. Payment and tax records are kept to meet a <em>legal obligation</em> (Article 6(1)(c)). We do not rely on consent for anything, which is why there is nothing here to opt in or out of.</p>
+
+          <h2>Where Your Data Goes</h2>
+          <p>Some of the providers listed below are based outside the United Kingdom, or process data on servers outside it &mdash; Stripe, Google, GitHub and Cloudflare among them. Where personal data is transferred out of the UK, that transfer relies either on UK adequacy regulations for the country concerned, or on the UK International Data Transfer Addendum to the European Commission&rsquo;s Standard Contractual Clauses, which each of these providers operates. We hold no personal data of our own outside the membership record described above, and we transfer none of it to anyone for their own purposes.</p>
+
+          <h2>Analytics</h2>
+          <p>We use <strong>Cloudflare Web Analytics</strong> to count page views. It sets <strong>no cookie</strong>, stores no identifier in your browser, and does not follow you between sites or sessions &mdash; there is nothing to opt out of and no banner to dismiss, which is why we chose it. What it records is aggregate: which pages were viewed, roughly where in the world from (country level), the referring site, and broad browser and device type. None of it identifies you, and none of it is combined with your membership record if you have one. <a href="https://www.cloudflare.com/web-analytics/" target="_blank" rel="noopener">How Cloudflare Web Analytics works</a></p>
+
           <h2>Cookies &amp; Local Storage</h2>
           <p>GeoID uses a small number of strictly necessary browser local-storage entries: your membership session if you sign in, and your own settings and preferences &mdash; which layers you had on, your chosen theme, the folder you last opened. Those preferences stay in your browser and are never sent to us. No third-party advertising or tracking cookies are set. Clearing your browser&rsquo;s storage signs you out and forgets your preferences; it does not touch any project you have saved to disk.</p>
 
           <h2>Third-Party Services</h2>
           <ul>
             <li><strong>Google</strong> and <strong>GitHub</strong> &mdash; sign-in, if you use it. You authenticate with them directly and they tell us your verified email address and display name. <a href="https://policies.google.com/privacy" target="_blank" rel="noopener">Google Privacy Policy</a> &middot; <a href="https://docs.github.com/en/site-policy/privacy-policies/github-privacy-statement" target="_blank" rel="noopener">GitHub Privacy Statement</a></li>
-            <li><strong>Cloudflare</strong> &mdash; hosts the small service that handles sign-in and holds the membership record (your email address and its expiry date), and serves the site&rsquo;s map data. <a href="https://www.cloudflare.com/privacypolicy/" target="_blank" rel="noopener">Cloudflare Privacy Policy</a></li>
+            <li><strong>Cloudflare</strong> &mdash; hosts the small service that handles sign-in and holds the membership record (your email address and its expiry date), serves the site&rsquo;s map data, and provides the cookieless page-view analytics described above. <a href="https://www.cloudflare.com/privacypolicy/" target="_blank" rel="noopener">Cloudflare Privacy Policy</a></li>
             <li><strong>Supabase</strong> — historical only. Used for account authentication while GeoID Explorer briefly required sign-in; no new data is sent to it. <a href="https://supabase.com/privacy" target="_blank" rel="noopener">Supabase Privacy Policy</a></li>
             <li><strong>Stripe</strong> — payment processing. <a href="https://stripe.com/privacy" target="_blank" rel="noopener">Stripe Privacy Policy</a></li>
             <li><strong>Google Fonts</strong> — web fonts loaded from Google's CDN. <a href="https://policies.google.com/privacy" target="_blank" rel="noopener">Google Privacy Policy</a></li>

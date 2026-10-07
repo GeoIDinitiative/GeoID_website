@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https:; media-src 'self' data: blob: https://data.geoidinitiative.com; connect-src 'self' https://data.geoidinitiative.com https://auth.geoidinitiative.com https://formspree.io; frame-src 'self' https://docs.google.com; form-action 'self' https://formspree.io https://buy.stripe.com https://docs.google.com; upgrade-insecure-requests">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; script-src 'self' https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https:; media-src 'self' data: blob: https://data.geoidinitiative.com; connect-src 'self' https://data.geoidinitiative.com https://auth.geoidinitiative.com https://formspree.io https://cloudflareinsights.com; frame-src 'self' https://docs.google.com; form-action 'self' https://formspree.io https://buy.stripe.com https://docs.google.com; upgrade-insecure-requests">
   <meta name="referrer" content="strict-origin-when-cross-origin">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="description" content="The GeoID Initiative team — meet the researchers and find out how to collaborate.">
@@ -42,14 +42,15 @@
   <meta property="og:url" content="https://geoidinitiative.com/team/">
   <meta property="og:title" content="Team | The Geoscientists Behind GeoID">
   <meta property="og:description" content="The GeoID Initiative team — meet the researchers and find out how to collaborate.">
-  <meta property="og:image" content="https://geoidinitiative.com/assets/og_geoid.jpg">
+  <meta property="og:image" content="https://geoidinitiative.com/assets/social/team.jpg">
   <meta property="og:image:width" content="1200">
-  <meta property="og:image:height" content="1200">
-  <meta property="og:image:alt" content="GeoID Initiative logo">
-  <meta name="twitter:card" content="summary">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="A volcanic crater floor during fieldwork">
+  <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="Team | The Geoscientists Behind GeoID">
   <meta name="twitter:description" content="The GeoID Initiative team — meet the researchers and find out how to collaborate.">
-  <meta name="twitter:image" content="https://geoidinitiative.com/assets/og_geoid.jpg">
+  <meta name="twitter:image" content="https://geoidinitiative.com/assets/social/team.jpg">
+  <meta name="twitter:image:alt" content="A volcanic crater floor during fieldwork">
   <link rel="icon" type="image/png" href="/assets/GeoID_mark.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -198,7 +199,7 @@
 
     .team-card {
       border: 1px solid var(--line);
-      border-radius: 1.1rem;
+      border-radius: 0.9rem;
       overflow: hidden;
       background: var(--panel);
       backdrop-filter: blur(18px);
@@ -455,7 +456,6 @@
         <div class="hero-overlay"></div>
         <img class="hero-logo-bg" src="/assets/GeoID_mark.png" alt="" aria-hidden="true" loading="lazy" decoding="async">
         <div class="hero-content">
-          <span class="eyebrow">Our Team</span>
           <h1>Meet the <span>Researchers</span></h1>
           <p>One founder, a free globe with the hazard record on it, and six hazard models with their methods published. The rest is built with collaborators.</p>
           <div class="hero-actions">
@@ -478,7 +478,7 @@
             <div class="team-body">
               <h3>Owen McCluskey</h3>
               <span class="team-role">Founder &amp; Principal Investigator</span>
-              <p>Computational geoscientist (PhD, University of Pisa / INGV): finite-element modelling with the GALES solver — magma dynamics at Etna, glaciology, volcanogenic floods — at INGV Pisa, Queen's University Belfast and the University of Portsmouth. Built GeoHUB and its hazard models.</p>
+              <p>Computational geoscientist (PhD, Pisa / INGV): finite-element modelling with the GALES solver — magma dynamics at Etna, glaciology, volcanogenic floods. Built GeoHUB and its hazard models.</p>
             </div>
           </article>
 
@@ -489,7 +489,7 @@
             <div class="team-body">
               <h3>Join Our Team</h3>
               <span class="team-role">Seeking Collaborators</span>
-              <p>Computational scientists, developers and geoscientists who want to test a hazard model against a real inventory, add a catalogue to the globe, or build a site model in the Etna lineage — if that's you, reach out.</p>
+              <p>Scientists and developers who want to test a hazard model against a real inventory, add a catalogue to the globe, or build a site model in the Etna lineage.</p>
               <a class="btn-ghost" href="/contact/" style="margin-top:0.75rem;font-size:0.82rem;display:inline-block;">Get in Touch →</a>
             </div>
           </article>

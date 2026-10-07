@@ -215,7 +215,7 @@ h1, h2, h3, h4 { letter-spacing: -0.03em; }
 }
 .badge { border-radius: 2px; letter-spacing: 0.14em; }
 .glass-panel, .section-panel {
-  border-radius: 2px;
+  border-radius: 1.35rem;
   background: var(--bg-1);
   backdrop-filter: none;
 }
@@ -226,7 +226,7 @@ h1, h2, h3, h4 { letter-spacing: -0.03em; }
 .feature-card, .doc-card, .solver-card, .hazard-card, .source-card,
 .catalog-card, .course-card, .resource-card, .result-card, .stat-card,
 .module-card, .metric-card, .mission-card, .panel-card, .launch-card {
-  border-radius: 2px;
+  border-radius: 0.9rem;
   background: var(--bg-1);
   transition: background .3s var(--v2-ease), border-color .3s var(--v2-ease),
               transform .3s var(--v2-ease);

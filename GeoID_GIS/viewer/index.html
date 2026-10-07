@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; script-src 'self' 'sha256-BuvSyAGfOmm3oQRI0xuW8dXdK1R/EPQ/vRt7/64+mUQ=' 'sha256-mH24M4jOScFabkmAKkoOc2iC5IjaCL6zfyzTZvL1nRo='; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https: http://localhost:* http://127.0.0.1:*; media-src 'self' data: blob: https:; connect-src 'self' data: blob: https: http://localhost:* http://127.0.0.1:*; frame-src 'self' blob: https://docs.google.com https://drive.google.com; form-action 'self' https://formspree.io https://buy.stripe.com https://docs.google.com; worker-src 'self' blob:; child-src 'self' blob:; upgrade-insecure-requests">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; script-src 'self' https://static.cloudflareinsights.com 'sha256-BuvSyAGfOmm3oQRI0xuW8dXdK1R/EPQ/vRt7/64+mUQ=' 'sha256-mH24M4jOScFabkmAKkoOc2iC5IjaCL6zfyzTZvL1nRo='; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https: http://localhost:* http://127.0.0.1:*; media-src 'self' data: blob: https:; connect-src 'self' data: blob: https: http://localhost:* http://127.0.0.1:*; frame-src 'self' blob: https://docs.google.com https://drive.google.com; form-action 'self' https://formspree.io https://buy.stripe.com https://docs.google.com; worker-src 'self' blob:; child-src 'self' blob:; upgrade-insecure-requests">
   <!-- The stamped modules/CSS bust their own cache, but this shell HTML has
        no stamp on its own URL, so a browser was serving a cached tab with an
        old iframe stamp -- which read as "nothing changed" after every edit.
@@ -12,6 +12,7 @@
   <meta http-equiv="Expires" content="0">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>Earth</title>
+  <meta name="robots" content="noindex, follow">
   <link rel="icon" href="/assets/GeoID_mark.png" type="image/png">
   <!-- crossorigin is LOAD-BEARING: three.js requests every texture with
        crossOrigin="anonymous", and a preload without it fetches in no-CORS

@@ -2,10 +2,10 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https:; media-src 'self' data: blob: https://data.geoidinitiative.com; connect-src 'self' https://data.geoidinitiative.com https://auth.geoidinitiative.com https://formspree.io; frame-src 'self' https://docs.google.com; form-action 'self' https://formspree.io https://buy.stripe.com https://docs.google.com; upgrade-insecure-requests">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; script-src 'self' https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https:; media-src 'self' data: blob: https://data.geoidinitiative.com; connect-src 'self' https://data.geoidinitiative.com https://auth.geoidinitiative.com https://formspree.io https://cloudflareinsights.com; frame-src 'self' https://docs.google.com; form-action 'self' https://formspree.io https://buy.stripe.com https://docs.google.com; upgrade-insecure-requests">
   <meta name="referrer" content="strict-origin-when-cross-origin">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <meta name="description" content="GeoHUB is a free 3D GIS and geohazard mapping platform: 312,500 earthquakes back to 1008, every cyclone track since 1842, world geology, live events, ten worlds, meshing and a research workspace.">
+  <meta name="description" content="A free 3D GIS and geohazard mapping platform: 312,500 earthquakes back to 1008, every cyclone track since 1842, world geology, live feeds and ten worlds.">
   <title>GeoHUB | 3D GIS &amp; Geohazard Mapping Platform | GeoID</title>
   <!-- Social / search preview. Without an og:image, search engines pick an
        arbitrary image off the page — which is why results showed a stray
@@ -41,8 +41,8 @@
     "applicationSubCategory": "3D GIS and geohazard mapping",
     "operatingSystem": "Any modern web browser",
     "browserRequirements": "Requires WebGL 2",
-    "description": "A free 3D GIS and geohazard mapping platform: 312,500 earthquakes back to 1008, every cyclone track since 1842, world geology, live events, ten worlds, a meshing studio and a research workspace.",
-    "image": "https://geoidinitiative.com/assets/og_geoid.jpg",
+    "description": "A free 3D GIS and geohazard mapping platform: 312,500 earthquakes back to 1008, every cyclone track since 1842, world geology, live feeds and ten worlds.",
+    "image": "https://geoidinitiative.com/assets/social/geohub.jpg",
     "publisher": { "@id": "https://geoidinitiative.com/#organization" },
     "offers": {
       "@type": "Offer",
@@ -56,15 +56,16 @@
   <meta property="og:site_name" content="GeoID Initiative">
   <meta property="og:url" content="https://geoidinitiative.com/about_geohub/">
   <meta property="og:title" content="GeoHUB | 3D GIS &amp; Geohazard Mapping Platform | GeoID">
-  <meta property="og:description" content="GeoHUB is a free 3D GIS and geohazard mapping platform: 312,500 earthquakes back to 1008, every cyclone track since 1842, world geology, live events, ten worlds, meshing and a research workspace.">
-  <meta property="og:image" content="https://geoidinitiative.com/assets/og_geoid.jpg">
+  <meta property="og:description" content="A free 3D GIS and geohazard mapping platform: 312,500 earthquakes back to 1008, every cyclone track since 1842, world geology, live feeds and ten worlds.">
+  <meta property="og:image" content="https://geoidinitiative.com/assets/social/geohub.jpg">
   <meta property="og:image:width" content="1200">
-  <meta property="og:image:height" content="1200">
-  <meta property="og:image:alt" content="GeoID Initiative logo">
-  <meta name="twitter:card" content="summary">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="The GeoHUB globe, world geology painted over 3D terrain">
+  <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="GeoHUB | 3D GIS &amp; Geohazard Mapping Platform | GeoID">
-  <meta name="twitter:description" content="GeoHUB is a free 3D GIS and geohazard mapping platform: 312,500 earthquakes back to 1008, every cyclone track since 1842, world geology, live events, ten worlds, meshing and a research workspace.">
-  <meta name="twitter:image" content="https://geoidinitiative.com/assets/og_geoid.jpg">
+  <meta name="twitter:description" content="A free 3D GIS and geohazard mapping platform: 312,500 earthquakes back to 1008, every cyclone track since 1842, world geology, live feeds and ten worlds.">
+  <meta name="twitter:image" content="https://geoidinitiative.com/assets/social/geohub.jpg">
+  <meta name="twitter:image:alt" content="The GeoHUB globe, world geology painted over 3D terrain">
   <link rel="icon" type="image/png" href="/assets/GeoID_mark.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -265,7 +266,7 @@
     .cyan-tile {
       position: relative;
       overflow: hidden;
-      border: 1.5px solid rgba(88, 198, 179, 0.55);
+      border: 1.5px solid rgba(var(--accent-rgb), 0.55);
       border-radius: 1.35rem;
       box-shadow: var(--shadow);
       margin-bottom: 1.25rem;
@@ -366,7 +367,7 @@
 
     .solution-card {
       border: 1px solid var(--cyan);
-      border-radius: 1.1rem;
+      border-radius: 0.9rem;
       padding: 2rem;
       text-align: left;
       background:
@@ -520,7 +521,7 @@
     /* ── Program cards ── */
     .program-card {
       border: 1px solid var(--cyan);
-      border-radius: 1.1rem;
+      border-radius: 0.9rem;
       overflow: hidden;
       background: var(--panel);
       backdrop-filter: blur(18px);
@@ -781,7 +782,7 @@
 
     .shot-card {
       border: 1px solid var(--line);
-      border-radius: 1rem;
+      border-radius: 0.9rem;
       overflow: hidden;
       background: rgba(10, 18, 30, 0.75);
       transition: border-color 0.2s, transform 0.2s;
@@ -923,13 +924,11 @@
         <div class="hero-content">
           <img class="hero-logo-img" src="/assets/GeoID_logo_icon.png" alt="" loading="lazy" decoding="async">
           <h1><span class="hero-mark">GeoHUB</span>
-            <span class="hero-sub">A 3D GIS and geohazard mapping platform on a global globe. Free, in your browser, with nothing to install.</span></h1>
-          <p class="hero-desc">Open the globe and the whole hazard record is already on it — 312,500 earthquakes back to 1008, every cyclone track since 1842, world geology, live events, live satellites, and ten worlds beyond Earth. Draw an area, sample every layer under it, take the table away. Then mesh it, model it, and write it up in the same window. Membership adds the six hazard models GeoID computes itself.</p>
+            <span class="hero-sub">A 3D GIS and geohazard mapping platform. Free in your browser, nothing to install.</span></h1>
+          <p class="hero-desc">312,500 earthquakes back to 1008, every cyclone track since 1842, world geology and live feeds — already merged, already on the globe. Draw an area and take everything under it away.</p>
           <div class="hero-actions">
             <a class="btn-primary" href="/">Open GeoHUB</a>
-            <a class="btn-ghost" href="#features">See what's inside</a>
             <a class="btn-ghost" href="#models">The hazard models</a>
-            <a class="btn-ghost" href="#worlds">Ten worlds</a>
           </div>
         </div>
       </div>
@@ -937,11 +936,10 @@
       <!-- ── Why ── -->
       <div class="cyan-tile" id="why">
         <div class="cyan-tile-content">
-          <span class="tile-label">Why GeoHUB</span>
           <h2 class="tile-title">Geoscience Without Gatekeepers</h2>
           <div class="tile-desc">
-            <p>The data that describes our hazards is public. Getting at it is not: the catalogues are scattered across a dozen agencies in a dozen formats, and the software that reads them is a licensed desktop install with a learning curve to match.</p>
-            <p>GeoHUB collapses that into a URL. The catalogues arrive already merged, already symbolised and already on a globe you can spin — and everything behind them stays open, so you can <strong style="color:var(--text);">switch a layer on, recolour it, click into it and export it</strong> rather than take our word for what it says. The globe, the records and the tools are free with no account. The hazard maps GeoID computes on top of them are what a membership buys.</p>
+            <p>The data that describes our hazards is public. Getting at it is not: the catalogues are scattered across a dozen agencies in a dozen formats, and the software that reads them is a licensed desktop install.</p>
+            <p>GeoHUB collapses that into a URL — merged, symbolised, on a globe you can spin, and open enough to <strong style="color:var(--text);">recolour, click into and export</strong> rather than take our word for. The globe and the tools are free, with no account. The hazard maps GeoID computes on top of them are what membership buys.</p>
           </div>
         </div>
       </div>
@@ -949,16 +947,15 @@
       <!-- ── Feature: the record, played through time ── -->
       <div class="cyan-tile feature-tile" id="features">
         <div class="feature-body">
-          <span class="tile-label">The record</span>
           <h2 class="tile-title">Three Centuries of Hazard, on a Timeline</h2>
           <div class="tile-desc">
-            <p>Not a susceptibility picture — the actual events, merged from the source catalogues and played back frame by frame.</p>
+            <p>Not a susceptibility picture — the actual events, merged and played back frame by frame.</p>
           </div>
           <ul class="feature-list">
-            <li><strong>312,500 earthquakes</strong>, magnitude 4.5 and up, from the year 1008 to today — USGS ComCat, ISC-GEM and GEM GHEC merged into one record.</li>
+            <li><strong>312,500 earthquakes</strong>, M4.5+, from 1008 to today — USGS ComCat, ISC-GEM and GEM GHEC in one record.</li>
             <li><strong>13,513 tropical cyclones</strong>, every track on file from 1842 to 2026, coloured by peak wind.</li>
-            <li>Filter by magnitude or basin, then scrub the clock: 63 frames by year, or season by season.</li>
-            <li>Every layer keeps its licence and its DOI, so anything you derive from it inherits the same terms.</li>
+            <li>Filter by magnitude or basin, then scrub the clock — 63 frames by year, or season by season.</li>
+            <li>Every layer keeps its licence and DOI, so anything you derive inherits the same terms.</li>
           </ul>
           <p class="shot-credit">Earthquakes: USGS ComCat; ISC-GEM and GEM GHEC, CC BY-SA 3.0. Cyclone tracks: IBTrACS v04r01, NOAA NCEI (Knapp et al. 2010). Imagery: Sentinel-2 cloudless 2025 by EOX IT Services GmbH.</p>
         </div>
@@ -970,17 +967,16 @@
       <!-- ── Feature: draw and sample ── -->
       <div class="cyan-tile feature-tile is-flipped" id="study-area">
         <div class="feature-body">
-          <span class="tile-label">Study areas</span>
           <h2 class="tile-title">Draw a Study Area, Pull the Data Inside It</h2>
           <div class="tile-desc">
-            <p>A study area is the question every dataset on the globe is asked. Draw a polygon and GeoHUB fetches what lies inside it — live weather, Earth Engine archives and time series — instead of a picture of the whole world.</p>
+            <p>A study area is the question every dataset on the globe is asked. Draw a polygon and GeoHUB fetches what lies inside it, instead of a picture of the whole world.</p>
           </div>
           <ul class="feature-list">
-            <li>Draw a polygon, box or circle anywhere, or use any polygon layer as the study area — your own shapefile included. GeoHUB reports its true area.</li>
-            <li>Fetch the latest <strong>weather maps</strong> inside it: the RainViewer radar composite, and GFS and ICON precipitation, temperature and wind fields.</li>
-            <li>Pull <strong>Earth Engine</strong> datasets over it — rainfall, land surface temperature, vegetation, soil moisture, imagery — as a single map or a time-lapse across a range of dates.</li>
-            <li>Record <strong>time series</strong> at stations inside it: forecast rainfall and every term of the slope and flood models, plotted and exported as CSV.</li>
-            <li>Clip geology, elevation and every other active layer to it, exactly, as CSV, GeoJSON or shapefile, or take the terrain under it into the Meshing Studio.</li>
+            <li>Draw a polygon, box or circle anywhere, or use any polygon layer — your own shapefile included.</li>
+            <li>Fetch the <strong>weather</strong> inside it: RainViewer radar, plus GFS and ICON precipitation, temperature and wind.</li>
+            <li>Pull <strong>Earth Engine</strong> datasets over it — rainfall, temperature, vegetation, soil moisture — as a map or a time-lapse.</li>
+            <li>Record <strong>time series</strong> at stations inside it, plotted and exported as CSV.</li>
+            <li>Clip geology, elevation and every active layer to it exactly — CSV, GeoJSON or shapefile — or take the terrain into the Meshing Studio.</li>
           </ul>
           <p class="shot-credit">Radar composite: RainViewer. Imagery: Sentinel-2 cloudless 2025 by EOX IT Services GmbH (contains modified Copernicus Sentinel data 2025), CC BY-NC-SA 4.0.</p>
         </div>
@@ -992,16 +988,15 @@
       <!-- ── Feature: the meshing studio ── -->
       <div class="cyan-tile feature-tile" id="studio">
         <div class="feature-body">
-          <span class="tile-label">Meshing Studio</span>
           <h2 class="tile-title">From Terrain to Finite Elements</h2>
           <div class="tile-desc">
-            <p>A GIS tells you what is there. A model tells you what it will do. The studio is the bridge, and it runs in the same tab.</p>
+            <p>A GIS tells you what is there. A model tells you what it will do. The studio is the bridge, in the same tab.</p>
           </div>
           <ul class="feature-list">
-            <li>Pull the real terrain under your study area and build it into a solid — surface, subsurface and atmosphere as named volumes.</li>
+            <li>Pull the real terrain under your study area into a solid — surface, subsurface and atmosphere as named volumes.</li>
             <li>Boolean geometry, physical groups, structured or unstructured meshing, and a clip plane to see inside.</li>
-            <li>Assign materials and boundary conditions, then hand the mesh to a finite-element solve.</li>
-            <li>The browser configures the run; the solver runs where it can — locally, or on a machine you point it at.</li>
+            <li>Assign materials and boundary conditions, then hand the mesh to a solve.</li>
+            <li>The browser configures the run; the solver runs locally or on a machine you point it at.</li>
           </ul>
         </div>
         <div class="feature-shot">
@@ -1016,64 +1011,63 @@
         <div class="photo-tile-bg" style="background-image: url('/assets/opt/geohub-geology.webp'); opacity: 0.2;"></div>
         <div class="photo-tile-overlay"></div>
         <div class="photo-tile-content" style="text-align:center;">
-          <span class="tile-label">What else is on the globe</span>
           <h2 class="tile-title">A Multidisciplinary Workspace</h2>
-          <p class="tile-desc" style="margin:0 auto 0;">Seismology, volcanology, geology, rock mechanics, storms, orbits and the planet's interior, side by side on one globe. Every one is shipped, live and one click from the layer catalogue — no account, no install, no quota.</p>
+          <p class="tile-desc" style="margin:0 auto 0;">Seismology, volcanology, geology, storms, orbits and the planet's interior on one globe — every one shipped, live and one click from the layer catalogue.</p>
           <div class="shot-grid">
             <article class="shot-card">
               <img src="/assets/opt/geohub-events.webp" alt="The globe with live wildfire and earthquake markers and an events panel listing them by category" loading="lazy" decoding="async">
               <div class="shot-card-body">
                 <h3>Live events, as they are reported</h3>
-                <p>Wildfires, storms, floods, volcanic activity and earthquakes streaming from NASA EONET and USGS — browsed by category or as a live feed, each one clickable through to the source record.</p>
+                <p>Wildfires, storms, floods and eruptions streaming from NASA EONET and USGS, each clickable through to its source record.</p>
               </div>
             </article>
             <article class="shot-card">
               <img src="/assets/opt/geohub-seismogram.webp" alt="An earthquake popup showing a seismogram trace and spectrogram from the nearest station, with modelled P and S arrivals marked" loading="lazy" decoding="async">
               <div class="shot-card-body">
                 <h3>Seismograms in the popup</h3>
-                <p>Click a quake and GeoHUB fetches the nearest station's waveform, draws the trace and its spectrogram, and marks the modelled P and S arrivals — then saves it to your project.</p>
+                <p>Click a quake and GeoHUB draws the nearest station's waveform and spectrogram, with the modelled P and S arrivals marked.</p>
               </div>
             </article>
             <article class="shot-card">
               <img src="/assets/opt/geohub-geology.webp" alt="World geology from Macrostrat painted over the globe, with a rock-unit popup showing area and rock properties" loading="lazy" decoding="async">
               <div class="shot-card-body">
                 <h3>World geology, clickable</h3>
-                <p>Macrostrat's global map streams as vector tiles. Click any unit for its age, lithology, area and rock properties — with coastlines, rivers, boundaries, plate boundaries and active faults shipped alongside.</p>
+                <p>Macrostrat streams as vector tiles: click any unit for its age, lithology, area and rock properties. Faults, plate boundaries and rivers ship alongside.</p>
               </div>
             </article>
             <article class="shot-card">
               <img src="/assets/opt/geohub-gsi.webp" alt="The globe coloured by Geological Strength Index derived from mapped lithology, with a binned legend" loading="lazy" decoding="async">
               <div class="shot-card-body">
                 <h3>Rock strength from the map</h3>
-                <p>Geological Strength Index derived from mapped lithology, banded into typical field ranges — an engineering property painted straight onto the geology, with the unmapped cases named rather than guessed.</p>
+                <p>Geological Strength Index derived from mapped lithology and banded into field ranges — with the unmapped cases named, not guessed.</p>
               </div>
             </article>
             <article class="shot-card">
               <img src="/assets/opt/geohub-volcanoes.webp" alt="Iceland with graduated volcanic hazard buffers around each Smithsonian-catalogued volcano and a fissure-vent popup" loading="lazy" decoding="async">
               <div class="shot-card-body">
                 <h3>Volcanic hazard buffers</h3>
-                <p>Every volcano in the Smithsonian GVP catalogue, ringed by graduated hazard zones from ballistics and pyroclastic flows at the vent out to trace ash at 50 km — each with its rock type, region and eruptive history.</p>
+                <p>Every Smithsonian GVP volcano, ringed by graduated hazard zones from ballistics at the vent out to trace ash at 50 km.</p>
               </div>
             </article>
             <article class="shot-card">
               <img src="/assets/opt/geohub-cyclones.webp" alt="Every tropical cyclone track on record drawn over the globe and coloured by peak wind, with a playback timeline" loading="lazy" decoding="async">
               <div class="shot-card-body">
                 <h3>Every storm that ever tracked</h3>
-                <p>The full IBTrACS archive drawn at once, coloured by peak wind — or played back season by season to watch basins fire in turn.</p>
+                <p>The full IBTrACS archive at once, coloured by peak wind — or played back season by season.</p>
               </div>
             </article>
             <article class="shot-card">
               <img src="/assets/opt/geohub-satellites.webp" alt="Live satellite orbits drawn around the Earth in colour by constellation, with a popup describing XMM-Newton's orbit" loading="lazy" decoding="async">
               <div class="shot-card-body">
                 <h3>What's overhead right now</h3>
-                <p>Space stations, science, weather, navigation and geostationary satellites propagated from CelesTrak elements, drawn at true altitude and refreshed every 1.5 seconds.</p>
+                <p>Science, weather, navigation and geostationary satellites propagated from CelesTrak elements at true altitude, refreshed every 1.5 seconds.</p>
               </div>
             </article>
             <article class="shot-card">
               <img src="/assets/opt/geohub-core.webp" alt="The Earth cut open to show crust, mantle, outer core and inner core as labelled shells" loading="lazy" decoding="async">
               <div class="shot-card-body">
                 <h3>Cut the planet open</h3>
-                <p>Core View slices the globe to crust, mantle, outer core and inner core — and every layer you have switched on is cut with it, so your data goes down the wall of the cut.</p>
+                <p>Core View slices the globe to crust, mantle and core — and every layer you switched on is cut with it.</p>
               </div>
             </article>
           </div>
@@ -1083,10 +1077,9 @@
       <!-- ── One workspace, four modes ── -->
       <div class="cyan-tile" id="modes">
         <div class="cyan-tile-content">
-          <span class="tile-label">How it fits together</span>
           <h2 class="tile-title">One Workspace, Four Modes</h2>
           <div class="tile-desc">
-            <p>GeoHUB is not four apps behind one menu. It is one window with one project, and the three mode buttons in the header — GIS, Model, Research — change what you are doing to the same ground, so a study area drawn in the GIS is the mesh in the studio and the figure in the write-up, without an export in between. The ten worlds open in the same window, with the same tools.</p>
+            <p>Not four apps behind one menu. One window, one project: the mode buttons change what you are doing to the same ground, so a study area drawn in the GIS is the mesh in the studio and the figure in the write-up — no export in between.</p>
           </div>
           <div class="cards-grid-4">
             <article class="solution-card">
@@ -1094,28 +1087,28 @@
                 <div class="solution-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M3 12h18"></path><path d="M12 3a15 15 0 0 1 0 18 15 15 0 0 1 0-18z"></path></svg></div>
                 <h3>GIS</h3>
               </div>
-              <p>The globe everything else runs on. The shipped catalogue and your own data on one sphere, with drawing, measurement, elevation profiles, sampling and export — and a legend that tells you where every number came from.</p>
+              <p>The globe everything else runs on: the shipped catalogue and your own data on one sphere, with drawing, measurement, profiles, sampling and export.</p>
             </article>
             <article class="solution-card">
               <div class="solution-card-header">
                 <div class="solution-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3.2"></circle><ellipse cx="12" cy="12" rx="10" ry="4.4" transform="rotate(-24 12 12)"></ellipse></svg></div>
                 <h3>Explorers</h3>
               </div>
-              <p>Ten worlds in the same window with the same tools on each: distance and elevation profiles, named-feature search, geology and palaeo sea-level overlays, a core cutaway. Mars adds the flight simulator over the CTX mosaic. <a href="#worlds" style="color:var(--cyan);">Every world, below.</a></p>
+              <p>Ten worlds, same window, same tools: elevation profiles, named-feature search, geology and palaeo sea-level overlays, a core cutaway. <a href="#worlds" style="color:var(--cyan);">Every world, below.</a></p>
             </article>
             <article class="solution-card">
               <div class="solution-card-header">
                 <div class="solution-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 3 7.5v9L12 21l9-4.5v-9L12 3z"></path><path d="M3 7.5 12 12l9-4.5M12 12v9"></path></svg></div>
                 <h3>Mesh Studio</h3>
               </div>
-              <p>Turn a study area into a mesh — pull the terrain, build the volume, set materials and boundary conditions, and hand it to a finite-element solve. The studio is free; the Model Builder, which samples the real ground into the domain, is part of membership.</p>
+              <p>Turn a study area into a mesh: pull the terrain, build the volume, set materials and boundary conditions, hand it to a solve. The studio is free; the Model Builder is part of membership.</p>
             </article>
             <article class="solution-card">
               <div class="solution-card-header">
                 <div class="solution-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h9l3 3h4v13H4z"></path><path d="M8 13h8M8 17h5"></path></svg></div>
                 <h3>Research Hub</h3>
               </div>
-              <p>A project is a real folder on disk — ingest, analysis, figures, notes and provenance — in the same layout our desktop application reads, so work moves between the two without export. Signal processing, statistics and event correlation run in the page; a GALES solve runs on your machine or a server you point it at.</p>
+              <p>A project is a real folder on disk — ingest, analysis, figures, notes and provenance — in the layout our desktop application reads, so work moves between the two without export.</p>
             </article>
           </div>
         </div>
@@ -1135,7 +1128,7 @@
           display: flex; flex-direction: column; gap: 0.35rem;
           padding: 1rem 1rem 1.1rem;
           border: 1px solid var(--line);
-          border-radius: 1rem;
+          border-radius: 0.9rem;
           background: rgba(10, 18, 30, 0.75);
           color: inherit; text-decoration: none;
           transition: border-color 0.2s, transform 0.2s;
@@ -1150,10 +1143,9 @@
       </style>
       <div class="cyan-tile feature-tile is-flipped" id="worlds">
         <div class="feature-body">
-          <span class="tile-label">Ten worlds</span>
           <h2 class="tile-title">Mercury to Pluto, on Mission Data</h2>
           <div class="tile-desc">
-            <p>The same window, the same tools, a different world: every viewer is built from the datasets its missions returned, and every one has distance and elevation profiles, named-feature search with a description behind each label, geology overlays and a core cutaway.</p>
+            <p>Every viewer is built from the datasets its missions returned, and every one has elevation profiles, named-feature search, geology overlays and a core cutaway.</p>
               <a href="/geohub/venus/">Venus</a>,
               <a href="/geohub/earth/">Earth</a>,
               <a href="/geohub/moon/">Moon</a>,
@@ -1165,7 +1157,7 @@
               <a href="/geohub/pluto/">Pluto</a>.</p>
           </div>
           <ul class="feature-list">
-            <li><strong>Mars is a flight simulator</strong> as well as a map: pick a launch site and heading anywhere on the planet and fly MOLA relief with the CTX mosaic streamed beneath you, from an 8 km low pass to 300 km orbit, shuttle or saucer, chase or cockpit view.</li>
+            <li><strong>Mars is a flight simulator</strong> as well as a map: pick a launch site anywhere and fly MOLA relief with the CTX mosaic beneath you, from an 8 km low pass to 300 km orbit.</li>
             <li><strong>Twenty-four moons</strong> carry clickable surface features — 2,087 on the Moon alone — and each planet's moon system opens in its own orbital view.</li>
             <li><strong>Palaeo sea level</strong> on the rocky worlds: raise or lower a simulated ocean in real time and trace the coastlines scientists still argue over.</li>
             <li>Free, no account, and reached from the GeoHUB header or the cards below.</li>
@@ -1183,7 +1175,6 @@
         <div class="photo-tile-bg" style="background-image: url('/assets/opt/planet_explorer.webp'); opacity: 0.22;"></div>
         <div class="photo-tile-overlay"></div>
         <div class="photo-tile-content" style="text-align:center;">
-          <span class="tile-label">Pick a world</span>
           <h2 class="tile-title">Every Viewer, and What It Is Built From</h2>
           <p class="tile-desc" style="margin:0 auto 0;">Feature counts are IAU-recognised names mapped in each viewer.</p>
           <div class="worlds-grid">
@@ -1258,7 +1249,7 @@
         <div class="photo-tile-content" style="text-align:center;">
           <span class="tile-label">Membership · £49.99 a year</span>
           <h2 class="tile-title">Six Ready-to-Use Hazard Models, Computed in the Same Platform</h2>
-          <p class="tile-desc" style="margin:0 auto 0;">The reason GeoHUB exists. Each model runs over the area you choose, on the terrain and geology already on the globe, and states its method, assumptions and sources beside the map. The methods are written up in the <a href="/updates/" style="color:var(--cyan);">Journal</a> so they can be checked and cited.</p>
+          <p class="tile-desc" style="margin:0 auto 0;">Each model runs over the area you choose, on the terrain and geology already on the globe, and states its method, assumptions and sources beside the map — written up in the <a href="/updates/" style="color:var(--cyan);">Journal</a> so they can be checked and cited.</p>
           <div class="cards-grid-3 models-row">
             <article class="solution-card">
               <div class="solution-card-header">
@@ -1267,7 +1258,7 @@
                 </div>
                 <h3>Landslides &amp; slope stability</h3>
               </div>
-              <p>Sixteen days of hourly NOAA GFS rainfall, a water balance over the real drainage, and an infinite-slope Factor of Safety per cell from DEM slope and the strength of the mapped geology — a stack of rasters the clock plays through. Rockfall alongside. <a href="/updates/?p=forecast-landslide-flood-fos" style="color:var(--cyan);">Method</a></p>
+              <p>Sixteen days of hourly GFS rainfall, a water balance over the real drainage, and an infinite-slope Factor of Safety per cell — a stack of rasters the clock plays through. <a href="/updates/?p=forecast-landslide-flood-fos" style="color:var(--cyan);">Method</a></p>
             </article>
             <article class="solution-card">
               <div class="solution-card-header">
@@ -1276,7 +1267,7 @@
                 </div>
                 <h3>Flood inundation</h3>
               </div>
-              <p>River flood extent by scenario and by discharge, spread over the streamed terrain and the mapped channels, with the same forecast rainfall driving the channel model. <a href="/updates/?p=forecast-landslide-flood-fos" style="color:var(--cyan);">Method</a></p>
+              <p>River flood extent by scenario and discharge, spread over the streamed terrain and mapped channels. <a href="/updates/?p=forecast-landslide-flood-fos" style="color:var(--cyan);">Method</a></p>
             </article>
             <article class="solution-card">
               <div class="solution-card-header">
@@ -1315,7 +1306,7 @@
               <p>Where the sea stands at a level you choose, spread from the real coastline through the streamed heights rather than by a flat threshold on elevation.</p>
             </article>
           </div>
-          <p class="tile-desc" style="margin:1.5rem auto 0;">Membership also opens <strong style="color:var(--text);">rock properties</strong> — strength, permeability and the rest of the geotechnical database mapped onto the world's geology — the <strong style="color:var(--text);">Model Builder</strong>, which samples the real ground into a domain and packages the mesh for a solver, <strong style="color:var(--text);">Earth Engine</strong> over any area you draw, and <strong style="color:var(--text);">saving and exporting</strong> projects to your own disk. These are screening-level research tools with their methods stated; none is a certified warning service, and the <a href="/disclaimer/" style="color:var(--cyan);">disclaimer</a> applies.</p>
+          <p class="tile-desc" style="margin:1.5rem auto 0;">Membership also opens <strong style="color:var(--text);">rock properties</strong> mapped onto the world's geology, the <strong style="color:var(--text);">Model Builder</strong>, <strong style="color:var(--text);">Earth Engine</strong> over any area you draw, and <strong style="color:var(--text);">saving projects</strong> to your own disk. These are screening-level research tools with their methods stated; none is a certified warning service, and the <a href="/disclaimer/" style="color:var(--cyan);">disclaimer</a> applies.</p>
           <div class="hero-actions" style="margin-top:1.25rem;">
             <a class="btn-primary" href="/membership/">Become a member — £49.99 a year</a>
             <a class="btn-ghost" href="/">Open the free globe first</a>
@@ -1326,13 +1317,12 @@
       <!-- ── Vision ── -->
       <div class="cyan-tile vision-tile" id="vision">
         <div class="vision-left">
-          <span class="tile-label">Our Vision</span>
           <h2 class="tile-title">Democratizing Geohazard Science</h2>
           <p class="tile-desc">Critical hazard data — accessible, portable, and globally distributed.</p>
           <div class="vision-text">
             <h3>Open by construction, not by policy</h3>
             <p>Exposure to geohazards is rising; access to risk intelligence is not. People still depend on black-box assessments, delayed alerts and fragmented systems — and on being told what the ground under them is worth.</p>
-            <p>GeoHUB is the answer we can actually build: the catalogues on a free globe anyone can spin, the methods behind every model published in the Journal, and the models themselves sold for the price of a textbook — so a hazard map can be <strong style="color:var(--text);">challenged</strong> rather than simply received.</p>
+            <p>The catalogues on a free globe anyone can spin, the methods behind every model published, and the models sold for the price of a textbook — so a hazard map can be <strong style="color:var(--text);">challenged</strong> rather than simply received.</p>
             <div class="vision-stats">
               <div class="stat-item">
                 <span class="stat-number">312,500</span>
@@ -1363,9 +1353,8 @@
         <div class="photo-tile-bg" style="background-image: url('/assets/opt/binevenagh.webp');"></div>
         <div class="photo-tile-overlay"></div>
         <div class="photo-tile-content">
-          <span class="tile-label">Roadmap</span>
           <h2 class="tile-title">What Comes Next</h2>
-          <p class="tile-desc">The models above run in your browser over the area you choose. The next step moves them onto hosted compute so they run continuously — and that is the one part of GeoID that still needs partners and infrastructure. <a href="/fund.html" style="color:var(--cyan);">The roadmap and partnership routes →</a></p>
+          <p class="tile-desc">The models above run in your browser. The next step moves them onto hosted compute so they run continuously — the one part of GeoID that still needs partners. <a href="/fund.html" style="color:var(--cyan);">The roadmap and partnership routes →</a></p>
           <div class="cards-grid-3" style="margin-top:1.25rem;">
             <article class="program-card">
               <div class="program-media">
@@ -1374,7 +1363,7 @@
               <div class="program-content">
                 <span class="program-tag">Next</span>
                 <h3>Continuous forecasting, hosted</h3>
-                <p>A GFS-to-Factor-of-Safety pipeline that runs every forecast cycle on a server rather than on demand in a tab, with saved locations and alerts. Needs always-on hosting and HPC or GPU time for the finite-element runs.</p>
+                <p>A GFS-to-Factor-of-Safety pipeline running every forecast cycle on a server rather than on demand, with saved locations and alerts.</p>
               </div>
             </article>
             <article class="program-card">
@@ -1384,7 +1373,7 @@
               <div class="program-content">
                 <span class="program-tag">Validation</span>
                 <h3>Region-by-region checks</h3>
-                <p>Every hazard model tested against landslide inventories, flood records and historical events wherever the data is open, and written up in the Journal as each check is done — the bar a layer has to clear before it is called operational.</p>
+                <p>Every hazard model tested against landslide inventories, flood records and historical events wherever the data is open — the bar a layer clears before it is called operational.</p>
               </div>
             </article>
             <article class="program-card">
@@ -1394,7 +1383,7 @@
               <div class="program-content">
                 <span class="program-tag">Earth Explorer</span>
                 <h3>More sites in close-up</h3>
-                <p>Krafla, Campi Flegrei and Katla are in development as 3D site models in the Etna lineage — subsurface, faults, seismicity and terrain in one viewer — with Stromboli, Vatnajökull and the San Andreas planned.</p>
+                <p>Krafla, Campi Flegrei and Katla are in development in the Etna lineage, with Stromboli, Vatnajökull and the San Andreas planned.</p>
               </div>
             </article>
           </div>
