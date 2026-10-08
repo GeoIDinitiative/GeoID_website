@@ -28,7 +28,7 @@
   border: 1.5px solid rgba(var(--skin-chrome-rgb, 255, 43, 214), 0.75);
   box-shadow: 0 0 18px -2px rgba(var(--skin-chrome-rgb, 255, 43, 214), 0.55),
     0 4px 16px rgba(0, 0, 0, 0.45);
-  color: rgb(var(--skin-chrome, 255, 43, 214));
+  color: var(--skin-chrome, #ff2bd6);
   transition: transform .15s ease, box-shadow .15s ease, background .15s ease;
 }
 .atlas-launcher:hover {
@@ -79,7 +79,7 @@
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.55),
     0 0 22px -8px rgba(var(--skin-chrome-rgb, 255, 43, 214), 0.5);
   font-family: "Exo 2", "Segoe UI", system-ui, sans-serif;
-  color: rgb(var(--skin-ink, 253, 247, 255));
+  color: var(--skin-ink, #fdf7ff);
 }
 .atlas-panel[hidden] { display: none !important; }
 
@@ -95,7 +95,7 @@
   font-family: "Orbitron", "Exo 2", system-ui, sans-serif;
   font-size: 0.95rem;
   letter-spacing: 0.06em;
-  color: rgb(var(--skin-chrome, 255, 43, 214));
+  color: var(--skin-chrome, #ff2bd6);
 }
 .atlas-sub {
   flex: 1;
@@ -105,16 +105,28 @@
   opacity: 0.6;
 }
 .atlas-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: auto;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border-radius: 8px;
+  border: 1px solid transparent;
   background: none;
-  border: none;
   cursor: pointer;
-  font-size: 0.9rem;
+  font-size: 0.85rem;
   line-height: 1;
-  padding: 2px 4px;
   color: inherit;
-  opacity: 0.6;
+  opacity: 0.55;
+  transition: opacity .18s, background .18s, border-color .18s;
 }
-.atlas-close:hover { opacity: 1; }
+.atlas-close:hover {
+  opacity: 1;
+  background: rgba(var(--skin-chrome-rgb, 255, 43, 214), 0.1);
+  border-color: rgba(var(--skin-chrome-rgb, 255, 43, 214), 0.28);
+}
 
 .atlas-log {
   flex: 1;
@@ -136,7 +148,7 @@
   line-height: 1.45;
   word-wrap: break-word;
 }
-.atlas-msg strong { color: rgb(var(--skin-data, 0, 229, 255)); font-weight: 600; }
+.atlas-msg strong { color: var(--skin-data, #00e5ff); font-weight: 600; }
 .atlas-atlas {
   align-self: flex-start;
   background: rgba(255, 255, 255, 0.05);
@@ -147,6 +159,17 @@
   background: rgba(var(--skin-chrome-rgb, 255, 43, 214), 0.16);
   border: 1px solid rgba(var(--skin-chrome-rgb, 255, 43, 214), 0.38);
 }
+
+/* The opening suggestion chips and the header subtitle.
+ *
+ * Hidden rather than deleted from atlas-assistant.js, so this is one line to
+ * undo and the behaviour behind them is untouched. The chips are addressed
+ * by POSITION, not class: bubble() writes the greeting and actionRow() the
+ * chips straight after, so they are always .atlas-log's second child.
+ * Action rows that arrive ON an answer sit at higher indices and still show
+ * -- those DO something, where these only typed a question for you. */
+.atlas-log > .atlas-actions:nth-child(2) { display: none; }
+.atlas-sub { display: none; }
 
 .atlas-actions {
   display: flex;
@@ -160,29 +183,30 @@
   border-radius: 999px;
   font-size: 0.74rem;
   font-family: inherit;
-  color: rgb(var(--skin-data, 0, 229, 255));
+  color: var(--skin-data, #00e5ff);
   background: rgba(var(--skin-data-rgb, 0, 229, 255), 0.08);
   border: 1px solid rgba(var(--skin-data-rgb, 0, 229, 255), 0.4);
   transition: background .12s, color .12s;
 }
 .atlas-action:hover {
-  background: rgb(var(--skin-data, 0, 229, 255));
+  background: var(--skin-data, #00e5ff);
   color: #04121a;
 }
 
 .atlas-form {
   display: flex;
-  gap: 6px;
+  align-items: flex-end;
+  gap: 8px;
   padding: 10px;
   border-top: 1px solid rgba(var(--skin-chrome-rgb, 255, 43, 214), 0.24);
 }
 .atlas-input {
   flex: 1;
   min-width: 0;
-  padding: 7px 10px;
-  border-radius: 7px;
+  padding: 8px 10px;
+  border-radius: 8px;
   font-family: inherit;
-  font-size: 0.82rem;
+  font-size: 0.8125rem;
   color: inherit;
   background: rgba(0, 0, 0, 0.3);
   border: 1px solid rgba(var(--skin-chrome-rgb, 255, 43, 214), 0.3);
@@ -193,14 +217,32 @@
 }
 .atlas-send {
   cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
   width: 34px;
-  border-radius: 7px;
-  font-size: 1rem;
+  height: 34px;
+  padding: 0;
+  border-radius: 8px;
+  font-size: 0;           /* the glyph is drawn by the mask below */
   color: #12001f;
-  background: rgb(var(--skin-chrome, 255, 43, 214));
+  background: var(--skin-chrome, #ff2bd6);
   border: none;
 }
+/* A paper plane rather than a typed arrow, masked so it takes the button's
+   colour and stays crisp at any zoom. */
+.atlas-send::after {
+  content: "";
+  width: 15px;
+  height: 15px;
+  background: currentColor;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22m22%202-7%2020-4-9-9-4Z%22%2F%3E%3Cpath%20d%3D%22M22%202%2011%2013%22%2F%3E%3C%2Fsvg%3E") center / 15px 15px no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22m22%202-7%2020-4-9-9-4Z%22%2F%3E%3Cpath%20d%3D%22M22%202%2011%2013%22%2F%3E%3C%2Fsvg%3E") center / 15px 15px no-repeat;
+}
 .atlas-send:hover { filter: brightness(1.15); }
+/* Set by the page when the field is empty; harmless until something does. */
+.atlas-send:disabled { opacity: 0.35; cursor: default; }
 
 /* On a phone the panel takes the width it needs and sits clear of the mark. */
 @media (max-width: 520px) {
