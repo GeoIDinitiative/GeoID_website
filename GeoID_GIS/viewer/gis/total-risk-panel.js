@@ -6,22 +6,29 @@
  * model on the page that can answer for a place, and says plainly which ones
  * could not and what would let them.
  *
- *   weather       a point forecast from GFS (Open-Meteo), fetched here
+ *   weather       a point forecast from GFS (Open-Meteo), fetched here, and
+ *                 the GFS ensemble's 31 members, each scored as one future
+ *   coast         the marine forecast's waves at the nearest sea, and a
+ *                 storm-surge screen from the pressure and the onshore wind
+ *   ash           an open vent's plume down the 500 hPa wind
+ *   people        WorldPop within 1 and 5 km, for the risk-to-people matrix
  *   cyclone       GeoIDCycloneForecast.threatAt (GDACS)
  *   aftershocks   the live USGS feed (GeoIDEvents)
  *   eruption/fire the live EONET feed (GeoIDEvents)
  *   slope         myGeoID's FoS run (GeoIDMode.fosNear) and the forecast
  *                 landslide run (GeoIDLandslidePipeline.lowestAt)
  *   flood         the same run's channel flood wave (…floodAt)
- *   background    any risk map on the globe whose cells carry p_yr
+ *   background    the cyclone, seismic and volcanic risk grids — the map on
+ *                 the globe where it is ticked, else the published grid
  *
  * Weights are kept per browser; changing one recombines without refetching.
  */
 
 import {
   weatherTerms, cycloneTerm, aftershockTerm, proximityTerm, fosTerm, backgroundTerm,
-  combine, combineInTime, floodTerm, mainDangerSentence, DEFAULT_WEIGHTS, distanceKm,
-} from "./total-risk.js?v=20261011-f9a70c9";
+  combine, combineInTime, combineEnsemble, floodTerm, mainDangerSentence, DEFAULT_WEIGHTS, distanceKm,
+  ensembleMembers, seawardBearing, waveTerm, ashTerm, peopleWithin, exposureClass, hazardLevel, riskMatrix,
+} from "./total-risk.js?v=20261011-cca6030";
 
 const byId = (id) => document.getElementById(id);
 const WEIGHTS_KEY = "geoid-gis:total-risk-weights";
@@ -67,27 +74,118 @@ function placeFor(mode) {
   return { lat: c.lat, lon: c.lon > 180 ? c.lon - 360 : c.lon, what: "the middle of the view" };
 }
 
-async function fetchWeather(place, horizonHours) {
-  const params = new URLSearchParams({
-    latitude: place.lat.toFixed(3), longitude: place.lon.toFixed(3),
-    hourly: "precipitation,wind_gusts_10m,apparent_temperature,snowfall,cape,relative_humidity_2m,wind_speed_10m",
-    forecast_hours: String(horizonHours + 24), past_hours: "1",
-    wind_speed_unit: "ms", timezone: "GMT", models: "gfs_seamless",
+const HOURLY = "precipitation,wind_gusts_10m,apparent_temperature,snowfall,cape,relative_humidity_2m,wind_speed_10m,wind_direction_10m,pressure_msl";
+const ENSEMBLE = "https://ensemble-api.open-meteo.com/v1/ensemble";
+const MARINE = "https://marine-api.open-meteo.com/v1/marine";
+const asList = (json) => (Array.isArray(json) ? json : [json]);
+
+function forecastParams(lat, lon, horizonHours, hourly, extra = {}) {
+  return new URLSearchParams({
+    latitude: Array.isArray(lat) ? lat.map((v) => v.toFixed(3)).join(",") : lat.toFixed(3),
+    longitude: Array.isArray(lon) ? lon.map((v) => v.toFixed(3)).join(",") : lon.toFixed(3),
+    hourly, forecast_hours: String(horizonHours + 24), past_hours: "1",
+    wind_speed_unit: "ms", timezone: "GMT", ...extra,
   });
-  const res = await fetch(`${FORECAST}?${params}`);
-  if (!res.ok) throw new Error(`the forecast answered ${res.status}`);
-  return (await res.json()).hourly;
 }
 
+async function fetchJson(url) {
+  const res = await fetch(url);
+  if (!res.ok) {
+    let reason = `HTTP ${res.status}`;
+    try { reason = (await res.json()).reason || reason; } catch { /* the status will do */ }
+    throw new Error(reason);
+  }
+  return res.json();
+}
+
+async function fetchWeather(place, horizonHours) {
+  return (await fetchJson(`${FORECAST}?${forecastParams(place.lat, place.lon, horizonHours, HOURLY, { models: "gfs_seamless" })}`)).hourly;
+}
+
+/** The GFS ensemble (31 members) at the place, or null where it does not answer. */
+async function fetchEnsemble(place, horizonHours) {
+  const json = await fetchJson(`${ENSEMBLE}?${forecastParams(place.lat, place.lon, horizonHours, HOURLY, { models: "gfs025" })}`);
+  return ensembleMembers(json.hourly);
+}
+
+/**
+ * The sea near the place: the marine model asked at the place and at eight
+ * points 10 km round it. A land cell answers nulls, so the cells that answer
+ * say where the sea is — the bearing for the surge's onshore wind and the
+ * nearest one's waves.
+ */
+const PROBE_KM = 10;
+async function fetchCoast(place, horizonHours) {
+  const pts = [{ lat: place.lat, lon: place.lon, bearing: null, km: 0 }];
+  for (let b = 0; b < 360; b += 45) {
+    const r = Math.PI / 180;
+    const dLat = (PROBE_KM / 111.195) * Math.cos(b * r);
+    const dLon = (PROBE_KM / (111.195 * Math.max(0.1, Math.cos(place.lat * r)))) * Math.sin(b * r);
+    pts.push({ lat: place.lat + dLat, lon: place.lon + dLon, bearing: b, km: PROBE_KM });
+  }
+  const json = asList(await fetchJson(`${MARINE}?${forecastParams(pts.map((p) => p.lat), pts.map((p) => p.lon), horizonHours, "wave_height")}`));
+  const probes = pts.map((p, i) => {
+    const hourly = json[i]?.hourly;
+    const sea = Array.isArray(hourly?.wave_height) && hourly.wave_height.some((v) => Number.isFinite(v));
+    return { ...p, sea, hourly };
+  });
+  if (!probes.some((p) => p.sea)) return null;
+  const nearest = probes.filter((p) => p.sea).sort((a, b) => a.km - b.km)[0];
+  return { bearing: probes[0].sea ? null : seawardBearing(probes.slice(1)), nearest, atSea: probes[0].sea };
+}
+
+/** The 500 hPa wind over each open vent, hour by hour. */
+async function fetchVentWinds(vents, horizonHours) {
+  const json = asList(await fetchJson(`${FORECAST}?${forecastParams(vents.map((v) => v.lat), vents.map((v) => v.lon), horizonHours,
+    "wind_speed_500hPa,wind_direction_500hPa", { models: "gfs_seamless" })}`));
+  return vents.map((_, i) => {
+    const h = json[i]?.hourly || {};
+    return { time: h.time || [], speed: h.wind_speed_500hPa || [], direction: h.wind_direction_500hPa || [] };
+  });
+}
+
+/** People within 1 and 5 km, from WorldPop's own counts. */
+async function fetchExposure(place) {
+  // WorldPop is loaded on demand; import it under this module's own stamp,
+  // as the risk reader does, so there is one instance of it.
+  const wp = window.GeoIDWorldPop?.readCounts ? window.GeoIDWorldPop : await import(`./worldpop.js${new URL(import.meta.url).search}`);
+  if (!wp?.readCounts) return null;
+  const dLat = 5.5 / 111.195; const dLon = 5.5 / (111.195 * Math.max(0.1, Math.cos((place.lat * Math.PI) / 180)));
+  const counts = await wp.readCounts({ west: place.lon - dLon, east: place.lon + dLon, south: place.lat - dLat, north: place.lat + dLat });
+  if (!counts) return null;
+  return { within1: peopleWithin(counts, place.lat, place.lon, 1), within5: peopleWithin(counts, place.lat, place.lon, 5), credit: counts.credit };
+}
+
+/**
+ * Everything that can answer for the place. Weather comes in two forms: the
+ * deterministic run (`terms`) and, where the ensemble answers, one set of
+ * weather terms per member (`memberTerms`); everything that is not weather
+ * is `shared` — the same in every member's future.
+ */
 export async function gather(place, horizonHours, { nowMs = Date.now() } = {}) {
-  const terms = [];
+  const shared = [];
   const missing = [];
   const opts = { horizonHours, nowMs };
 
-  try {
-    terms.push(...weatherTerms(await fetchWeather(place, horizonHours), opts));
-  } catch (error) {
-    missing.push(["Weather", `the GFS point forecast did not answer (${error.message})`]);
+  const [weather, ensemble, coast, exposure] = await Promise.allSettled([
+    fetchWeather(place, horizonHours), fetchEnsemble(place, horizonHours), fetchCoast(place, horizonHours), fetchExposure(place),
+  ]);
+  const sea = coast.status === "fulfilled" ? coast.value : null;
+  if (coast.status === "rejected") missing.push(["The coast", `the marine forecast did not answer (${coast.reason?.message})`]);
+  const seaBearing = sea && Number.isFinite(sea.bearing) ? sea.bearing : null;
+  const wopts = { ...opts, sea: seaBearing };
+  let terms = [];
+  if (weather.status === "fulfilled") terms = weatherTerms(weather.value, wopts);
+  else missing.push(["Weather", `the GFS point forecast did not answer (${weather.reason?.message})`]);
+  let memberTerms = [];
+  if (ensemble.status === "fulfilled" && ensemble.value.length > 1) {
+    memberTerms = ensemble.value.map((m) => weatherTerms(m, { ...wopts, source: `GFS ensemble member ${m.member}` }));
+  } else {
+    missing.push(["Forecast uncertainty", `the GFS ensemble did not answer${ensemble.reason ? ` (${ensemble.reason.message})` : ""}, so the single GFS run is read as certain`]);
+  }
+  if (sea?.nearest?.hourly) {
+    const w = waveTerm(sea.nearest.hourly, { ...opts, km: sea.nearest.km });
+    if (w) shared.push(w);
   }
 
   const cyc = window.GeoIDCycloneForecast;
@@ -98,7 +196,7 @@ export async function gather(place, horizonHours, { nowMs = Date.now() } = {}) {
     // whatever else is happening WHILE it passes, not at some other time.
     const track = threat ? (cyc.storms?.() || []).find((s) => s.name === threat.storm)?.track : null;
     const t = cycloneTerm(threat, { ...opts, track, place });
-    if (t) terms.push(t);
+    if (t) shared.push(t);
     else if (!cyc.storms?.()?.length) missing.push(["Tropical cyclones", "no active storm reported by GDACS (or GDACS did not answer)"]);
   }
 
@@ -108,13 +206,26 @@ export async function gather(place, horizonHours, { nowMs = Date.now() } = {}) {
     && Number.isFinite(e.timeMs) && nowMs - e.timeMs < 30 * 86_400_000);
   const after = quakes.map((q) => aftershockTerm(q, place.lat, place.lon, opts)).filter(Boolean)
     .sort((a, b) => b.h - a.h)[0];
-  if (after) terms.push(after);
-  const nearest = (cat) => events.filter((e) => e.categoryId === cat && Number.isFinite(e.lat))
-    .sort((a, b) => distanceKm(place.lat, place.lon, a.lat, a.lon) - distanceKm(place.lat, place.lon, b.lat, b.lon))[0];
-  const volc = proximityTerm("eruption", nearest("volcanoes"), place.lat, place.lon, 15);
-  if (volc) terms.push(volc);
-  const fire = proximityTerm("wildfire", nearest("wildfires"), place.lat, place.lon, 5);
-  if (fire) terms.push(fire);
+  if (after) shared.push(after);
+  const byDistance = (cat) => events.filter((e) => e.categoryId === cat && Number.isFinite(e.lat))
+    .map((e) => ({ e, km: distanceKm(place.lat, place.lon, e.lat, e.lon) })).sort((a, b) => a.km - b.km);
+  // An open vent: the ground near it (ballistics, flows) as a proximity
+  // screen, and its ash down the forecast wind out to 500 km.
+  const vents = byDistance("volcanoes");
+  const near = proximityTerm("eruption", vents[0]?.e, place.lat, place.lon, 10);
+  if (near) shared.push({ ...near, model: `Near the vent of ${near.model}` });
+  const upwind = vents.filter((v) => v.km <= 500).slice(0, 3).map((v) => v.e);
+  if (upwind.length) {
+    try {
+      const winds = await fetchVentWinds(upwind, horizonHours);
+      const ash = upwind.map((v, i) => ashTerm(v, place, winds[i], opts)).filter(Boolean).sort((a, b) => b.h - a.h)[0];
+      if (ash) shared.push(ash);
+    } catch (error) {
+      missing.push(["Volcanic ash", `the wind over the vent did not answer (${error.message})`]);
+    }
+  }
+  const fire = proximityTerm("wildfire", byDistance("wildfires")[0]?.e, place.lat, place.lon, 5);
+  if (fire) shared.push(fire);
 
   const slopes = [];
   const fs = window.GeoIDMode?.fosNear?.(place.lat, place.lon, opts);
@@ -125,24 +236,42 @@ export async function gather(place, horizonHours, { nowMs = Date.now() } = {}) {
   const slope = slopes.filter(Boolean).sort((a, b) => b.h - a.h)[0];
   const reach = window.GeoIDLandslidePipeline?.floodAt?.(place.lat, place.lon);
   const flood = floodTerm(reach, opts);
-  if (flood) terms.push(flood);
-  else if (!window.GeoIDLandslidePipeline?.lowestAt?.(place.lat, place.lon)) {
+  if (flood) shared.push(flood);
+  else if (!ls) {
     missing.push(["River flood", "run Hazards ▸ Landslides ▸ Forecast landslide risk over this place — its flood wave gives each river its channel factor of safety"]);
   }
-  if (slope) terms.push(slope);
+  if (slope) shared.push(slope);
   else missing.push(["Slope stability", "enter myGeoID mode, or run Hazards ▸ Landslides ▸ Forecast landslide risk, over this place"]);
 
-  const seen = new Set();
+  // The long-term maps: a map ON the globe is read where it is drawn (it may
+  // be a finer or newer reading); the rest are read from their published
+  // grids, so the score does not depend on what happens to be ticked.
+  const counted = new Set();
+  const grids = window.GeoIDBackgroundRisk?.GRIDS || [];
   (window.GeoIDFeaturePopup?.featuresAt?.(place.lat, place.lon) || []).forEach(({ layer, feature }) => {
     const p = Number(feature?.properties?.p_yr);
-    if (!(p > 0) || seen.has(layer.name)) return;
-    seen.add(layer.name);
-    const t = backgroundTerm(layer.name, p, { horizonHours, source: layer.name });
-    if (t) terms.push(t);
+    const grid = grids.find((g) => g.layer.test(layer.name || ""));
+    if (!(p > 0) || counted.has(grid?.id || layer.name)) return;
+    counted.add(grid?.id || layer.name);
+    const t = backgroundTerm(layer.name, p, { horizonHours, source: `${layer.name} (on the globe)` });
+    if (t) shared.push(t);
   });
-  if (!seen.size) missing.push(["Long-term risk maps", "tick a cyclone, seismic or volcanic risk map in Hazards to count it"]);
+  if (window.GeoIDBackgroundRisk?.backgroundAt) {
+    const got = await window.GeoIDBackgroundRisk.backgroundAt(place.lat, place.lon, { skip: [...counted] });
+    for (const g of got) {
+      if (g.error) { missing.push([g.model, `the published grid could not be read (${g.error})`]); continue; }
+      const t = backgroundTerm(g.model, g.p, { horizonHours, source: "published risk grid" });
+      if (t) shared.push(t);
+    }
+  }
 
-  return { terms, missing, nowMs };
+  const people = exposure.status === "fulfilled" ? exposure.value : null;
+  if (!people) missing.push(["People here", `WorldPop could not be read${exposure.reason ? ` (${exposure.reason.message})` : ""}, so the risk to people is not scored`]);
+
+  return {
+    terms: [...terms, ...shared], memberTerms, shared, missing, nowMs, people,
+    coast: sea ? { bearing: seaBearing, atSea: sea.atSea, km: sea.nearest?.km } : null,
+  };
 }
 
 function whenText(atMs, leadH) {
@@ -165,12 +294,19 @@ function curveCanvas(r) {
   const g = c.getContext("2d");
   if (!g || !r.curve?.length) return c;
   g.scale(dpr, dpr);
-  const top = Math.max(1.2, ...r.curve.map((p) => p.demand)) * 1.08;
+  const top = Math.max(1.2, ...r.curve.map((p) => p.demand), ...(r.band || []).map((b) => b.p90)) * 1.08;
   const x = (k) => 2 + (k / (r.curve.length - 1 || 1)) * (W - 4);
   const y = (v) => H - 12 - (v / top) * (H - 18);
   g.strokeStyle = "rgba(229,50,45,.55)"; g.setLineDash([3, 3]); g.lineWidth = 1;
   g.beginPath(); g.moveTo(0, y(1)); g.lineTo(W, y(1)); g.stroke(); g.setLineDash([]);
   g.fillStyle = "rgba(229,50,45,.8)"; g.font = "9px system-ui, sans-serif"; g.fillText("act", W - 18, y(1) - 3);
+  if (r.band?.length === r.curve.length) {
+    // The ensemble's middle 80%: where nine futures in ten put the hour.
+    g.fillStyle = "rgba(95,225,255,.18)"; g.beginPath();
+    r.band.forEach((b, k) => { if (k) g.lineTo(x(k), y(b.p90)); else g.moveTo(x(k), y(b.p90)); });
+    for (let k = r.band.length - 1; k >= 0; k -= 1) g.lineTo(x(k), y(r.band[k].p10));
+    g.closePath(); g.fill();
+  }
   g.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue("--nav-accent").trim() || "#ff2bd6";
   g.lineWidth = 1.5; g.beginPath();
   r.curve.forEach((p, k) => { if (k) g.lineTo(x(k), y(p.demand)); else g.moveTo(x(k), y(p.demand)); });
@@ -183,6 +319,28 @@ function curveCanvas(r) {
   return c;
 }
 
+/**
+ * Who is there. The score is a HAZARD; this is the step to RISK — the same
+ * hazard over an empty hillside and over a town are different decisions.
+ */
+function peopleBlock(r) {
+  const box = document.createElement("div");
+  box.className = "total-risk-people";
+  const pp = last.people;
+  if (!pp || !Number.isFinite(pp.within5)) {
+    box.innerHTML = "<small>People here: not read (WorldPop did not answer), so the risk to people is not scored.</small>";
+    return box;
+  }
+  const exp = exposureClass(pp.within5);
+  const hz = hazardLevel(r.fos);
+  const risk = riskMatrix(hz, exp);
+  const n = (v) => (v < 10 ? "fewer than 10" : `about ${Math.round(v).toLocaleString()}`);
+  box.innerHTML = `<span class="total-risk-chip" style="border-color:${risk.colour};color:${risk.colour}">${risk.label}</span>
+    <small>${n(pp.within1)} people within 1 km and ${n(pp.within5)} within 5 km (WorldPop 2020) — ${exp.label}.
+    Hazard level ${hz} × exposure level ${exp.id} = ${risk.score} on the 5 × 5 risk matrix.</small>`;
+  return box;
+}
+
 const pct = (x) => `${(x * 100).toFixed(x < 0.1 ? 1 : 0)}%`;
 const fmtFos = (f) => (f === Infinity ? "∞" : f >= 100 ? "100+" : f.toFixed(2));
 
@@ -190,13 +348,26 @@ function render() {
   const out = byId("total-risk-result");
   if (!out || !last) return;
   const weights = loadWeights();
-  const r = combineInTime(last.terms, weights, { nowMs: last.nowMs, horizonHours: last.horizon });
+  const timing = { nowMs: last.nowMs, horizonHours: last.horizon };
+  const quantile = Number(byId("total-risk-quantile")?.value) || 0.9;
+  const deterministic = combineInTime(last.terms, weights, timing);
+  const ens = last.memberTerms?.length > 1 ? combineEnsemble(last.memberTerms, last.shared, weights, { ...timing, quantile }) : null;
+  const r = ens || deterministic;
   out.innerHTML = "";
   const head = document.createElement("div");
   head.className = "total-risk-head";
   head.innerHTML = `<span class="total-risk-fos" style="border-color:${r.class.colour};color:${r.class.colour}">${fmtFos(r.fos)}</span>
     <span><strong>${r.class.label}</strong><br><small>Total-risk FoS at ${last.place.lat.toFixed(3)}°, ${last.place.lon.toFixed(3)}° (${last.place.what}), worst hour ${whenText(r.atMs, r.lead)} of the next ${last.horizon} h</small></span>`;
   out.appendChild(head);
+  if (ens) {
+    const e = document.createElement("p");
+    e.className = "compact-copy total-risk-ensemble";
+    const which = quantile >= 1 ? "the worst member" : quantile <= 0.5 ? "the median member" : `the ${Math.round(quantile * 100)}th-percentile member — one future in ${Math.round(1 / (1 - quantile))} is worse`;
+    e.textContent = `GFS ensemble, ${ens.members} forecasts: ${pct(ens.pAct)} of them reach act. `
+      + `The score is ${which}; the median reads ${fmtFos(ens.medianFos)}, the single GFS run ${fmtFos(deterministic.fos)}.`
+      + (last.shared.some((t) => t.key === "waves") ? " The waves are the single marine run, the same in every future." : "");
+    out.appendChild(e);
+  }
   out.appendChild(curveCanvas(r));
   if (r.peaksFos < r.fos - 0.005) {
     const peaks = document.createElement("p");
@@ -209,6 +380,7 @@ function render() {
   main.className = "compact-copy";
   main.textContent = mainDangerSentence(r);
   out.appendChild(main);
+  out.appendChild(peopleBlock(r));
 
   const table = document.createElement("table");
   table.className = "total-risk-table";
@@ -284,11 +456,13 @@ export async function compute() {
   if (button) button.disabled = true;
   say("Asking every model that can answer for this place…");
   try {
-    const { terms, missing, nowMs } = await gather(place, horizon);
-    last = { terms, missing, place, horizon, nowMs };
+    const { terms, memberTerms, shared, missing, nowMs, people, coast } = await gather(place, horizon);
+    last = { terms, memberTerms, shared, missing, place, horizon, nowMs, people, coast };
     render();
     say(`${terms.length} model reading${terms.length === 1 ? "" : "s"} combined.`);
-    return combineInTime(terms, loadWeights(), { nowMs, horizonHours: horizon });
+    return memberTerms.length > 1
+      ? combineEnsemble(memberTerms, shared, loadWeights(), { nowMs, horizonHours: horizon, quantile: Number(byId("total-risk-quantile")?.value) || 0.9 })
+      : combineInTime(terms, loadWeights(), { nowMs, horizonHours: horizon });
   } catch (error) {
     say(`Could not compute: ${error.message}`);
     return null;
@@ -328,6 +502,8 @@ const STYLE = `
 #total-risk-card .total-risk-bar i{display:block;height:100%;background:var(--nav-accent,#ff2bd6);border-radius:.2rem}
 #total-risk-card .total-risk-curve{display:block;width:100%;height:64px;margin:.15rem 0 .35rem}
 #total-risk-card .total-risk-peak{opacity:.6}
+#total-risk-card .total-risk-people{display:flex;flex-direction:column;gap:.25rem;margin:.3rem 0 .5rem}
+#total-risk-card .total-risk-chip{align-self:flex-start;border:1.5px solid;border-radius:999px;padding:.1rem .55rem;font:600 .74rem/1.4 'Exo 2',system-ui,sans-serif}
 #total-risk-card .total-risk-missing{margin:.2rem 0 .4rem 1rem;padding:0;font-size:.7rem;opacity:.8}
 `;
 
@@ -359,6 +535,13 @@ function buildCard() {
           <option value="168">The next 7 days</option>
         </select>
       </label>
+      <label class="row"><span>Design for</span>
+        <select id="total-risk-quantile" class="input" title="Which of the ensemble's forecasts the score is read from">
+          <option value="0.9" selected>One future in ten worse (90%)</option>
+          <option value="0.5">The median future</option>
+          <option value="1">The worst forecast</option>
+        </select>
+      </label>
       <div class="gis-btn-row">
         <button id="total-risk-run" class="button primary" type="button">Compute</button>
         <button id="total-risk-reset" class="button secondary" type="button">Default weights</button>
@@ -371,6 +554,7 @@ function buildCard() {
     if (byId("total-risk-place").value === "picked") armPick();
     else void compute();
   });
+  byId("total-risk-quantile").addEventListener("change", () => render());
   byId("total-risk-reset").addEventListener("click", () => { saveWeights({}); render(); say("Weights back to their defaults."); });
   return true;
 }

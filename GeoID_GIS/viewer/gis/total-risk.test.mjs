@@ -4,6 +4,8 @@ import {
   horizonProbability, imminence, windAt, magnitudeReaching, aftershockProbability, weatherTerms,
   cycloneTerm, fosTerm, backgroundTerm, combine, riskClass, WEATHER_LEVELS, mainDangerSentence,
   combineInTime, demandAt, fireWeatherSeries, floodTerm, cycloneSeries,
+  ensembleMembers, combineEnsemble, seawardBearing, surgeSeries, waveTerm, plumeDemand, ashTerm, bearingDeg,
+  peopleWithin, exposureClass, hazardLevel, riskMatrix, SHELF,
 } from "./total-risk.js";
 
 let pass = 0; let fail = 0;
@@ -124,4 +126,86 @@ ok(near(magnitudeReaching(20), 6.0, 0.01), "an M 6 reaches 20 km");
   ok(/combineInTime\(last\.terms/.test(panel) && !/combine\(last\.terms/.test(panel), "the card scores the worst HOUR, not the sum of peaks");
   ok(/floodAt: \(lat, lon/.test(pipe.slice(pipe.indexOf("window.GeoIDLandslidePipeline"))) && /floodAt\?\.\(place\.lat, place\.lon\)/.test(panel), "the river flood comes from the forecast's own flood wave");
   ok(/fl\.open\?\.\[i\]/.test(pipe.slice(pipe.indexOf("floodAt: (lat, lon"))), "an open reach is passed over, as the map passes over it");
+}
+
+{
+  // The ensemble: members are whole forecasts.
+  const time = ["2026-10-01T00:00", "2026-10-01T01:00"];
+  const m = ensembleMembers({ time, precipitation: [1, 2], precipitation_member01: [3, 4], precipitation_member02: [null, null],
+    wind_gusts_10m: [5, 6], wind_gusts_10m_member01: [7, 8], wind_gusts_10m_member02: [9, 10] });
+  ok(m.length === 3 && m[0].member === 0 && m[1].member === 1 && m[2].member === 2, "control and two members");
+  ok(m[1].precipitation[0] === 3 && m[1].wind_gusts_10m[0] === 7, "a member's variables come from its own suffix");
+  ok(m[2].precipitation === undefined && m[2].wind_gusts_10m[0] === 9, "a variable a member does not carry is absent, not borrowed");
+
+  const now = Date.UTC(2026, 9, 1, 0); const H = 3_600_000;
+  const hours = Array.from({ length: 73 }, (_, k) => now + k * H);
+  const at = (h, v) => ({ tMs: hours, h: hours.map((t) => (t === now + h * H ? v : 0)) });
+  // Ten futures: in two the storm reaches 1.5, in eight it is 0.5; a river shared by all at 0.2.
+  const members = Array.from({ length: 10 }, (_, i) => [{ key: "rain", model: "Rain", h: 1, raw: 1, series: at(10, i < 2 ? 1.5 : 0.5) }]);
+  const shared = [{ key: "background", model: "Map", h: 0.2, raw: 0.2 }];
+  const e9 = combineEnsemble(members, shared, {}, { nowMs: now, horizonHours: 72, quantile: 0.9 });
+  ok(e9.members === 10 && near(e9.pAct, 0.2, 1e-12), "two futures in ten reach act");
+  ok(near(e9.medianFos, 1 / 0.7, 1e-9), "the median future: 0.5 + 0.2");
+  ok(near(e9.designFos, 1 / 1.7, 1e-9) && near(e9.fos, 1 / 1.7, 1e-9), "the 90th-percentile future is a storm one");
+  ok(near(e9.terms.reduce((s2, t) => s2 + t.share, 0), 1, 1e-12), "the design member's shares sum to one");
+  ok(e9.band.length === 73 && near(e9.band[10].p90, 1.7, 1e-9) && near(e9.band[10].p10, 0.7, 1e-9), "the band carries the hour's spread");
+  const e5 = combineEnsemble(members, shared, {}, { nowMs: now, horizonHours: 72, quantile: 0.5 });
+  ok(near(e5.fos, 1 / 0.7, 1e-9), "designing for the median reads the median");
+}
+{
+  // The coast.
+  ok(near(seawardBearing([{ sea: true, bearing: 90 }, { sea: true, bearing: 135 }, { sea: false, bearing: 0 }]), 112.5, 1e-9), "the sea lies between the probes that found it");
+  ok(seawardBearing([{ sea: false, bearing: 0 }]) === null, "no sea, no bearing");
+  ok(seawardBearing([0, 90, 180, 270].map((b) => ({ sea: true, bearing: b }))) === null, "sea all round has no single bearing");
+  const ib = surgeSeries([993.25], [0], [0], 90);
+  ok(near(ib[0], 0.198, 1e-9), "20 hPa below standard raises the sea by 0.2 m");
+  const on = surgeSeries([1013.25], [30], [90], 90)[0];
+  const expected = (SHELF.cd * 1.225 * 900 * SHELF.fetchKm * 1000) / (1025 * 9.81 * SHELF.depthM);
+  ok(near(on, expected, 1e-9) && on > 0.4 && on < 0.7, `a 30 m/s onshore wind sets up ${on.toFixed(2)} m over the shelf`);
+  ok(near(surgeSeries([1013.25], [30], [270], 90)[0], -expected, 1e-9), "the same wind offshore sets the sea down");
+  ok(near(surgeSeries([1013.25], [30], [0], 90)[0], 0, 1e-9), "a wind along the coast sets up nothing");
+  const t0 = Date.UTC(2026, 9, 1, 0);
+  const marine = { time: [0, 1, 2].map((k) => new Date(t0 + k * 3_600_000).toISOString().slice(0, 16)), wave_height: [2, 6, null] };
+  const w = waveTerm(marine, { nowMs: t0, horizonHours: 24, km: 10 });
+  ok(near(w.raw, 1.5, 1e-12) && Math.round(w.lead) === 1 && Number.isNaN(w.series.h[2]), "6 m waves are 1.5 × the overtopping level");
+  const time = Array.from({ length: 30 }, (_, k) => new Date(t0 + k * 3_600_000).toISOString().slice(0, 16));
+  const flat = time.map(() => 0);
+  const withSurge = weatherTerms({ time, precipitation: flat, pressure_msl: time.map((_, k) => (k === 8 ? 973.25 : 1013)),
+    wind_speed_10m: time.map(() => 5), wind_direction_10m: time.map(() => 270) }, { nowMs: t0, horizonHours: 24, sea: 270 });
+  const s8 = withSurge.find((t) => t.key === "surge");
+  ok(s8 && Math.round(s8.lead) === 8 && s8.raw > 0.39, "a deep low with an onshore wind is the surge's worst hour");
+  ok(!weatherTerms({ time, precipitation: flat, pressure_msl: time.map(() => 973) }, { nowMs: t0, horizonHours: 24 }).some((t) => t.key === "surge"), "inland there is no surge");
+}
+{
+  // Ash down the wind.
+  const vent = { lat: 37.75, lon: 15.0, title: "Etna" };
+  ok(near(bearingDeg(0, 0, 1, 0), 0, 1e-9) && near(bearingDeg(0, 0, 0, 1), 90, 1e-9), "bearings");
+  const east50 = { lat: 37.75, lon: 15.0 + 50 / (111.195 * Math.cos(37.75 * Math.PI / 180)) };
+  const fromWest = plumeDemand(vent, east50, 15, 270);
+  ok(fromWest > 0.95 && fromWest < 1.05, `50 km downwind on the axis reads about 1 (${fromWest.toFixed(3)})`);
+  ok(plumeDemand(vent, east50, 15, 90) === 0, "upwind nothing falls");
+  ok(plumeDemand(vent, east50, 15, 300) < 0.2 * fromWest, "30° off the wind it is mostly missed");
+  const t0 = Date.UTC(2026, 9, 1, 0);
+  const wind = { time: [0, 6, 12].map((h) => new Date(t0 + h * 3_600_000).toISOString().slice(0, 16)), speed: [15, 15, 15], direction: [90, 270, 90] };
+  const a = ashTerm(vent, east50, wind, { nowMs: t0, horizonHours: 24 });
+  ok(a && Math.round(a.lead) === 6 && a.series.h[0] === 0, "the place is under the plume only while the wind blows toward it");
+}
+{
+  // People, and risk to them.
+  const counts = { band: Float32Array.from([10, 20, 30, 40, NaN, 60, 70, 80, 90]), width: 3, height: 3,
+    bounds: { west: -0.015, east: 0.015, south: -0.015, north: 0.015 } };
+  ok(peopleWithin(counts, 0, 0, 0.6) === 0 + 0, "the centre cell is no-data: nobody counted, not an error");
+  ok(peopleWithin(counts, 0, 0, 2) === 400, "every cell within 2 km, the gap skipped");
+  ok(exposureClass(50).id === 1 && exposureClass(5000).id === 3 && exposureClass(2e6).id === 5, "exposure classes");
+  ok(hazardLevel(0.4) === 5 && hazardLevel(0.8) === 4 && hazardLevel(1.2) === 3 && hazardLevel(2) === 2 && hazardLevel(5) === 1 && hazardLevel(Infinity) === 0, "hazard levels");
+  ok(riskMatrix(4, exposureClass(5e5)).id === "very-high" && riskMatrix(4, exposureClass(10)).id === "medium", "a crowd under an act-level hazard is very high; the same hazard over nobody is medium");
+  ok(riskMatrix(0, exposureClass(5e5)).id === "none", "no hazard, no risk");
+}
+{
+  const panel = readFileSync(new URL("./total-risk-panel.js", import.meta.url), "utf8");
+  const page = readFileSync(new URL("../index.html", import.meta.url), "utf8");
+  ok(/models: "gfs025"/.test(panel) && /ensemble-api\.open-meteo\.com/.test(panel), "the ensemble is GFS's own");
+  ok(/marine-api\.open-meteo\.com/.test(panel) && /wave_height/.test(panel), "the coast is the marine forecast's");
+  ok(/wind_speed_500hPa,wind_direction_500hPa/.test(panel), "the ash rides the 500 hPa wind");
+  ok(page.indexOf("gis/background-risk.js") > 0 && page.indexOf("gis/background-risk.js") < page.indexOf("gis/total-risk-panel.js"), "the background grids load before the panel");
 }

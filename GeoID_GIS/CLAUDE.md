@@ -23548,3 +23548,42 @@ deterministic run is read as certain (Open-Meteo's ensemble API is the way);
 seismic and volcanic background count only if their risk maps are ticked;
 ash fall from an open eruption is a 15 km circle, not a plume down the wind;
 and the score is HAZARD, not risk — it does not know who or what is there.
+
+### The rest of the gaps: the ensemble, the coast, ash, every risk map, people
+
+- **The GFS ensemble** (`ensemble-api.open-meteo.com`, `models=gfs025`, 31
+  members): `ensembleMembers` splits the `_memberNN` suffixes into whole
+  forecasts, and `combineEnsemble` scores EVERY member hour by hour with the
+  non-weather terms every future shares. A member's rain and wind are one
+  storm, which is what keeps their co-occurrence honest. The card reads the
+  member at a chosen quantile (90% by default — one future in ten worse, the
+  characteristic value a code designs for; or the median, or the worst), says
+  what share of futures reach act, and shades the ensemble's 10–90% band on
+  the curve. Without the ensemble the single run is used and the card says it
+  is being read as certain.
+- **The coast**: the marine API asked at the place and eight points 10 km
+  round it in one request; a land cell answers nulls, so the cells that answer
+  say where the sea is. Waves: Hs / 4 m at the nearest sea cell. Surge
+  SCREEN, per hour and per member: inverse barometer 0.0099 m/hPa below
+  1013.25 plus the onshore wind's set-up C_d ρ_a u|u| L / (ρ_w g d) over a
+  50 km × 25 m shelf, against 1 m; no tide. The waves are a single marine run
+  shared by every member, and the card says so.
+- **Ash**: an open EONET vent within 500 km is read down its forecast 500 hPa
+  wind, hour by hour — a plume widening at 2 km + 0.15x, R/x on its axis with
+  R = 50 km (1 mm from a VEI 3), nothing upwind. The 15 km circle became a
+  10 km near-vent screen for ballistics and flows.
+- **Every risk map, ticked or not** (`background-risk.js`): the cyclone,
+  seismic and volcanic collectives from the bucket (fingerprinted, so cached
+  after the first read), indexed by whole degree, the smallest containing
+  cell answering. A map ticked on the globe is read where it is drawn and
+  its grid is skipped, so a map is never counted twice.
+- **People**: WorldPop within 1 and 5 km (`readCounts`, imported on demand
+  under the module's own stamp, as the risk reader does), an exposure class
+  from 5 km, and RISK = hazard level × exposure level on the 5 × 5 matrix.
+
+Verified with every service mocked (no network in the sandbox): 13 readings,
+ten storm futures in 31, the 90th-percentile member 0.24 against a median of
+0.43 and the single run's 0.31, waves 1.1 at the nearest sea to the west, a
+0.6 m surge screen, ash 1.25 while the wind blew toward the place, the seismic
+and volcanic grids read untickled, and "Very high risk to people" at 21,900
+within 5 km.
