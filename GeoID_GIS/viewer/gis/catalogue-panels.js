@@ -29,14 +29,14 @@
 
 import {
   HOMES, MIRRORS, grouped, addDataset, layerForDataset, loadLaunchDefaults,
-} from "./global-data.js?v=20261011-42568d8";
-import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20261011-42568d8";
-import { holdLaunch } from "./launch-ready.js?v=20261011-42568d8";
-import { mathsFor } from "./equations.js?v=20261011-42568d8";
+} from "./global-data.js?v=20261011-f6c969d";
+import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20261011-f6c969d";
+import { holdLaunch } from "./launch-ready.js?v=20261011-f6c969d";
+import { mathsFor } from "./equations.js?v=20261011-f6c969d";
 import { bandOf, bandRows, bandSymbology, describeFilter, magOf }
-  from "./seismic-magnitude.js?v=20261011-42568d8";
+  from "./seismic-magnitude.js?v=20261011-f6c969d";
 import { filterVolcanoes, yearRankOf, yearWords, DEFAULT_YEAR_RANK }
-  from "./volcano-filter.js?v=20261011-42568d8";
+  from "./volcano-filter.js?v=20261011-f6c969d";
 
 const byId = (id) => document.getElementById(id);
 
@@ -233,10 +233,12 @@ const TILED = {
     // needs none: it writes its own, richer, line when its tiles have landed.
     added: "World contacts and faults added. Macrostrat, CC BY 4.0.",
     unload: (layer) => {
-      // A tiled layer holds GPU buffers for every tile it has built, and
-      // removing the record does not free them.
-      layer?.tiled?.dispose?.();
-      if (layer) window.GeoIDImportManager?.removeLayer?.(layer.id);
+      if (!layer) return;
+      // Parked rather than destroyed, so a re-tick is a re-attach -- see
+      // `unloadTiledLayer` in geology-panel.js.
+      if (window.GeoIDGeology?.unload) { window.GeoIDGeology.unload(layer); return; }
+      layer.tiled?.dispose?.();
+      window.GeoIDImportManager?.removeLayer?.(layer.id);
     },
   }],
   "geology-soil": [{
@@ -260,10 +262,9 @@ const TILED = {
     load: () => window.GeoIDSoilCover.load(),
     // None: the layer writes its own richer line once its tiles have landed,
     // the way the glacier inventory does.
-    unload: (layer) => {
-      // A tiled layer holds GPU buffers for every tile it has built, and
-      // removing the record does not free them.
-      layer?.tiled?.dispose?.();
+    unload: () => {
+      // `remove` parks the built tiles for a quick re-tick and frees them
+      // later -- see `unloadTiledLayer` in geology-panel.js.
       window.GeoIDSoilCover?.remove?.();
       window.GeoIDSoilCover?.say?.("");
     },
@@ -330,8 +331,8 @@ const TILED = {
     ready: () => Boolean(window.GeoIDGlimCover?.load),
     layerOf: () => window.GeoIDGlimCover?.layerOf?.() || null,
     load: () => window.GeoIDGlimCover.load(),
-    unload: (layer) => {
-      layer?.tiled?.dispose?.();
+    unload: () => {
+      // Parked by `remove`, as the soils are.
       window.GeoIDGlimCover?.remove?.();
       window.GeoIDGlimCover?.say?.("");
     },

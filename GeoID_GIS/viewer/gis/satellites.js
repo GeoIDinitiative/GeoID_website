@@ -1413,10 +1413,18 @@ function modelStep(camera, date, gmst) {
   }
 }
 
-/** Keep the camera over the followed satellite, at the follow distance. */
+/**
+ * Keep the camera on the followed satellite, at the follow distance, looking
+ * at it from the direction the reader has turned to.
+ *
+ * The direction is held in the SATELLITE'S OWN FRAME -- up the local radial,
+ * east and north beside it -- as a pitch from overhead and a yaw round it,
+ * so the view stays fixed relative to the satellite and the ground under it
+ * while both race round the planet at 7.7 km/s. Pitch 0 is straight down,
+ * which is where the flight lands.
+ */
 function followStep(camera, date, gmst) {
   const follow = active.follow;
-  const viewer = window.GeoIDViewer;
   const now = performance.now();
   const record = follow.record;
   if (active.selected !== record || record.dead || record.hidden || !groupShown()) { endFollow(); return; }
@@ -1429,7 +1437,8 @@ function followStep(camera, date, gmst) {
   const world = _scratch.world.copy(_scratch.pos).applyMatrix4(active.group.matrixWorld);
   const radius = world.length();
   if (!(radius > 0)) return;
-  const desired = world.clone().multiplyScalar((radius + follow.dist) / radius);
+  const frame = followFrame(world, follow.yaw || 0, follow.pitch || 0);
+  const desired = world.clone().addScaledVector(frame.dir, follow.dist);
   const blend = Math.min(1, (now - follow.landedAt) / 700);
   if (blend < 1 && follow.blendFrom) {
     const eased = 1 - ((1 - blend) ** 3);
@@ -1437,14 +1446,51 @@ function followStep(camera, date, gmst) {
   } else {
     camera.position.copy(desired);
   }
-  camera.lookAt(viewer?.controls?.target || new THREE.Vector3(0, 0, 0));
+  camera.up.copy(frame.up);
+  camera.lookAt(world);
   camera.updateMatrixWorld();
+  // The orbit target stays on the planet's centre: the render loop still
+  // calls OrbitControls' update(), and the camera it reads between that and
+  // this frame is what the tile refine and the near plane are measured from.
 }
+
+/**
+ * The satellite's local frame and the view direction in it. Up is the
+ * radial; east is the pole crossed with it (X where the pole is the radial);
+ * `dir` points from the satellite to the camera and `up` is the screen's up,
+ * `sin p * radial - cos p * horizontal`, which never meets `dir` -- so the
+ * view has no singular pitch, overhead included.
+ */
+export function followFrame(world, yaw, pitch) {
+  const u = world.clone().normalize();
+  let east = new THREE.Vector3(0, 1, 0).cross(u);
+  if (east.lengthSq() < 1e-8) east = new THREE.Vector3(1, 0, 0).cross(u);
+  east.normalize();
+  const north = u.clone().cross(east);
+  const h = east.multiplyScalar(Math.cos(yaw)).addScaledVector(north, Math.sin(yaw));
+  const dir = u.clone().multiplyScalar(Math.cos(pitch)).addScaledVector(h, Math.sin(pitch)).normalize();
+  const up = u.clone().multiplyScalar(Math.sin(pitch)).addScaledVector(h, -Math.cos(pitch)).normalize();
+  return { dir, up };
+}
+
+/** Pitch is held short of the satellite's own horizon from below. */
+export const FOLLOW_PITCH_MAX = THREE.MathUtils.degToRad(170);
 
 function endFollow() {
   if (!active?.follow) return;
+  const follow = active.follow;
   active.follow = null;
   window.removeEventListener("wheel", onFollowWheel, true);
+  orbitDrag = null;
+  const viewer = window.GeoIDViewer;
+  const controls = viewer?.controls;
+  if (follow.heldControls && controls) {
+    // The globe's own orbit comes back centred on the planet, as it was.
+    controls.enabled = follow.controlsWere !== false;
+    controls.target.set(0, 0, 0);
+    viewer.camera?.up?.set?.(0, 1, 0);
+    controls.update?.();
+  }
 }
 
 /**
@@ -1464,10 +1510,51 @@ function onFollowWheel(event) {
   follow.dist = Math.max(followMinKm(follow.record) * KM_TO_UNITS, next);
 }
 
-/** A press on the globe (the start of a drag) hands the camera back. */
+/**
+ * While following, a drag on the globe turns the view ROUND THE SATELLITE.
+ *
+ * It used to hand the camera back -- and a satellite let go of at close range
+ * leaves the frame at 7.7 km/s, so the first nudge of the mouse made it
+ * vanish. The reader lets go by closing its card, by Escape, or by scrolling
+ * out past the follow's reach. OrbitControls is held off for the follow so
+ * the drag is not also read as a turn of the planet; the press is never
+ * stopped (the viewer's click handling still sees it).
+ */
+let orbitDrag = null;
 function onFollowPointerDown(event) {
   const canvas = window.GeoIDViewer?.renderer?.domElement;
-  if (active?.follow?.phase === "follow" && event.target === canvas) endFollow();
+  const follow = active?.follow;
+  if (!follow || follow.phase !== "follow" || event.target !== canvas || event.button !== 0) return;
+  orbitDrag = { x: event.clientX, y: event.clientY, id: event.pointerId };
+}
+
+function onFollowPointerMove(event) {
+  const follow = active?.follow;
+  if (!orbitDrag || !follow || follow.phase !== "follow") return;
+  if (event.pointerId !== orbitDrag.id || !(event.buttons & 1)) { orbitDrag = null; return; }
+  const canvas = window.GeoIDViewer?.renderer?.domElement;
+  const height = canvas?.clientHeight || 800;
+  const k = (2 * Math.PI) / height;
+  follow.yaw = (follow.yaw || 0) - (event.clientX - orbitDrag.x) * k;
+  follow.pitch = THREE.MathUtils.clamp(
+    (follow.pitch || 0) - (event.clientY - orbitDrag.y) * k, 0, FOLLOW_PITCH_MAX);
+  orbitDrag.x = event.clientX;
+  orbitDrag.y = event.clientY;
+  // The blend from the flight is over once the reader moves the view.
+  follow.blendFrom = null;
+}
+
+function onFollowPointerUp(event) {
+  if (orbitDrag && event.pointerId === orbitDrag.id) orbitDrag = null;
+}
+
+function onFollowKey(event) {
+  if (event.key !== "Escape" || !active?.follow) return;
+  const tag = event.target?.tagName;
+  if (tag === "INPUT" || tag === "TEXTAREA" || event.target?.isContentEditable) return;
+  const name = active.follow.record?.name;
+  endFollow();
+  if (name) say(`Let go of ${name}.`);
 }
 
 /**
@@ -1521,7 +1608,19 @@ function flyToSatellite(record) {
       follow.phase = "follow";
       follow.landedAt = performance.now();
       follow.blendFrom = camera.position.clone();
-      say(`Following ${record.name} at true size (${Math.round(halfSpanKm(record) * 2000)} m across) — scroll to zoom, drag the globe to let go.`);
+      follow.yaw = 0;
+      follow.pitch = 0;
+      // Held off for the follow: a drag turns the view round the satellite,
+      // and the planet's own orbit would read the same drag as a turn of
+      // the globe and fight the follow for the camera.
+      const controls = viewer.controls;
+      if (controls) {
+        follow.controlsWere = controls.enabled;
+        follow.heldControls = true;
+        controls.enabled = false;
+      }
+      say(`Following ${record.name} at true size (${Math.round(halfSpanKm(record) * 2000)} m across) — `
+        + "drag to look round it, scroll to zoom, Escape or close its card to let go.");
     },
   });
   if (!ok) { endFollow(); return false; }
@@ -1864,6 +1963,9 @@ async function start() {
   window.addEventListener("click", onClick, true);
   window.addEventListener("pointermove", onMove, true);
   window.addEventListener("pointerdown", onFollowPointerDown, true);
+  window.addEventListener("pointermove", onFollowPointerMove, true);
+  window.addEventListener("pointerup", onFollowPointerUp, true);
+  window.addEventListener("keydown", onFollowKey, true);
   installFrameHook();
   window.GeoIDLayerHierarchy?.render?.();
   const cacheNote = cachedGroups
@@ -1905,6 +2007,9 @@ function stop() {
   window.removeEventListener("click", onClick, true);
   window.removeEventListener("pointermove", onMove, true);
   window.removeEventListener("pointerdown", onFollowPointerDown, true);
+  window.removeEventListener("pointermove", onFollowPointerMove, true);
+  window.removeEventListener("pointerup", onFollowPointerUp, true);
+  window.removeEventListener("keydown", onFollowKey, true);
   endFollow();
   active.models?.meshes.forEach((mesh) => { mesh.material.dispose?.(); mesh.dispose?.(); });
   if (active.pulseFrame) window.cancelAnimationFrame(active.pulseFrame);
@@ -2000,7 +2105,7 @@ function init() {
       say("Turn the tracker on first — symbology colours the live layer.");
       return;
     }
-    const dialog = await import("./symbology-dialog.js?v=20261011-42568d8");
+    const dialog = await import("./symbology-dialog.js?v=20261011-f6c969d");
     dialog.openSymbologyDialog(layer);
   });
   // The layer box can remove the layer without asking: the tracker must not

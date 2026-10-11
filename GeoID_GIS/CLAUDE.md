@@ -23388,3 +23388,56 @@ one float32 step is half a metre, so the model group sits AT THE CAMERA (in
 the tracker's frame) and each instance is its offset from it; the large
 translation cancels in double precision on the CPU. Verified headless: ISS
 followed at 436 m, wheel to 87 m, models gone at 23,000 km.
+
+### A drag turns the view round a followed satellite; it does not let go
+
+"Once we move the cursor, it disappears": a press on the canvas ended the
+follow, and a satellite let go of at 436 m leaves the frame at 7.7 km/s. The
+follow now holds a yaw and pitch in the SATELLITE'S OWN FRAME (up = the local
+radial, east = pole × radial) and a drag turns them, with OrbitControls held
+off for the follow (`controls.enabled = false`, given back by `endFollow`).
+Escape, closing the card, or scrolling out past the follow's reach lets go.
+`followFrame` gives the view direction and a screen-up of
+`sin p · radial − cos p · horizontal`, which is never parallel to the view, so
+there is no singular pitch, overhead included (pinned in
+`layer-park.test.mjs`). The orbit TARGET stays on the planet's centre: the
+render loop still calls `controls.update()`, and the camera between that and
+the satellite's `onBeforeRender` is what the tile refine and the near plane
+measure from. Verified headless: two drags and 2.5 s later, the ISS model
+still 436 m away and dead centre (NDC 0, 0).
+
+## Toggling a layer is a visibility flip; unticking parks, not destroys
+
+Measured on a 13,102-polygon geology sheet (synthetic MVT, software GL):
+
+| | before | after |
+| --- | --- | --- |
+| eye on | 1,517 ms frozen | 151 ms first, 20 ms after |
+| untick → re-tick | 16 fetches, 3.9 s, a 3.3 s long task | 0 fetches, 1.1 s |
+| DEM sheet re-tick | ~1.3 s | ~20 ms |
+
+- **Every visibility change on the page rebuilt geology's click catalogue**
+  (`publishInteractive` on `layers-changed`/visibility), and the cost was
+  `rockClass` building a RegExp per term per call for every polygon. The
+  patterns are compiled once and the answer memoised by text; the catalogue is
+  cached per layer, keyed by the feature array, colour field, key, name and
+  credit (`CATALOGUE_CACHE`, a WeakMap).
+- **Unticking a tiled map PARKS its controller** (`unloadTiledLayer`): the
+  group is detached from the record before `removeLayer` so it is not
+  disposed, held up to 4 minutes (3 maps at most), and `loadTiled` reclaims it
+  if the entry is the same entry (paint, filter, pyramid). The row still goes
+  at once. Every tiled unload goes through it: the geology tick and master,
+  `removeDerivedGeologyMap` (soil, GLiM, ice, rock properties), hydrology, the
+  contacts layer.
+- **The DEM's terrain readings park the same way** (elevation, slope,
+  hillshade, temperature, pressure), re-attached only over the same view and,
+  for hillshade, the same light. The models (sea level, floods, corridor
+  zones) carry settings and are always rebuilt.
+- The ~700 ms tasks that remain while a sheet is visible are FRAMES on the
+  software rasteriser ((program) in the profile, no JS of note) — not a
+  toggle cost. Profile before blaming a toggle for a slow frame.
+
+The sandbox reaches neither the bucket nor Macrostrat; measure tiled layers
+with synthetic MVT served through `page.route` (an encoder in the shape of
+`mvt.test.mjs`'s, a jittered shared-vertex grid with the columns the layer
+reads).

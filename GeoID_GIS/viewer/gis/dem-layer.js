@@ -18,22 +18,22 @@
  * the displaced surface, and the raster every terrain tool wants as an input.
  */
 
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20261011-42568d8";
-import { mathsFor } from "./equations.js?v=20261011-42568d8";
-import { featureForModel, may, refusal } from "./membership.js?v=20261011-42568d8";
-import { visibleBounds, viewChangedEnough, onViewSettled } from "./view-extent.js?v=20261011-42568d8";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20261011-f6c969d";
+import { mathsFor } from "./equations.js?v=20261011-f6c969d";
+import { featureForModel, may, refusal } from "./membership.js?v=20261011-f6c969d";
+import { visibleBounds, viewChangedEnough, onViewSettled } from "./view-extent.js?v=20261011-f6c969d";
 import { makeRaster, slope as slopeOf, hillshade as hillshadeOf }
-  from "./raster-analysis.js?v=20261011-42568d8";
-import * as dem from "./dem-tiles.js?v=20261011-42568d8";
-import { rampColour } from "./symbology.js?v=20261011-42568d8";
-import * as climate from "./climate-normals.js?v=20261011-42568d8";
+  from "./raster-analysis.js?v=20261011-f6c969d";
+import * as dem from "./dem-tiles.js?v=20261011-f6c969d";
+import { rampColour } from "./symbology.js?v=20261011-f6c969d";
+import * as climate from "./climate-normals.js?v=20261011-f6c969d";
 import { waterMasks, waterFeatures, floodFromSea, classAreas, edgeSeeds, contextBox, WORLD_BOX,
-  FLOODED, EXPOSED, CUT_OFF, LAKE } from "./water-mask.js?v=20261011-42568d8";
+  FLOODED, EXPOSED, CUT_OFF, LAKE } from "./water-mask.js?v=20261011-f6c969d";
 import { burnRivers, riverZones, zoneAreas, mergeOuterZones, ZONES }
-  from "./river-zones.js?v=20261011-42568d8";
+  from "./river-zones.js?v=20261011-f6c969d";
 import { DEFAULTS as FLOOD_DEFAULTS, sourceFields, inundate, mergeOuterDepth, depthColour,
   floodAreas, DEPTH_CLASSES, selectRiver, riverField, meanFlowFromWidth, flowRatio,
-  stageRise } from "./inundation.js?v=20261011-42568d8";
+  stageRise } from "./inundation.js?v=20261011-f6c969d";
 
 /**
  * Which corridor zones are drawn. State, like the sea level, so the drawer's
@@ -1125,6 +1125,9 @@ async function build(kind, { onStatus = () => {} } = {}) {
     const message = spec.status?.(bands, bounds, ctx)
       || [spec.label, ": ", range, "about ", posts,
         " m posts where nothing finer has streamed. ", dem.TERRARIUM.credit].join("");
+    layer.sheetBounds = bounds;
+    layer.sheetMessage = message;
+    if (parked.has(kind)) freeParked(kind);
     onStatus(message);
     // The watcher rebuilds with no status callback, so a drawer that reports
     // what the last build found (the discharge river's width, its mean flow)
@@ -1168,6 +1171,56 @@ function watch() {
   }, { settleMs: 900, pollMs: 150 });
 }
 
+/**
+ * A TERRAIN READING PUT AWAY IS PARKED, NOT THROWN AWAY.
+ *
+ * Unticking removed the sheet and ticking it again re-sampled half a million
+ * cells and rebuilt the drape -- for a picture of the same ground at the same
+ * light. The row still goes the moment it is unticked; the built sheet is
+ * kept, detached, for PARK_MS, and a re-tick over the same view re-attaches
+ * it. Only the readings whose inputs are the ground itself are parked: the
+ * sea level, the floods and the corridor zones carry settings that change
+ * what they draw, so those are always rebuilt.
+ */
+const PARKABLE = new Set(["elevation", "slope", "hillshade", "temperature", "pressure"]);
+const PARK_MS = 4 * 60 * 1000;
+const parked = new Map();
+
+function parkSignature(kind) {
+  if (kind !== "hillshade") return "";
+  return `${readLight("hillshade-azimuth", 315)}|${readLight("hillshade-altitude", 45)}`;
+}
+
+function disposeTree(object3D) {
+  object3D?.traverse?.((node) => {
+    node.geometry?.dispose?.();
+    const mats = Array.isArray(node.material) ? node.material : [node.material];
+    mats.forEach((m) => { m?.map?.dispose?.(); m?.dispose?.(); });
+  });
+}
+
+function freeParked(kind) {
+  const held = parked.get(kind);
+  if (!held) return;
+  parked.delete(kind);
+  globalThis.clearTimeout?.(held.timer);
+  disposeTree(held.object3D);
+}
+
+/** The parked sheet for this kind, if it still describes this view. */
+function reclaim(kind) {
+  const held = parked.get(kind);
+  if (!held) return null;
+  const next = targetBounds();
+  const asView = (b) => ({ minLon: b.west, maxLon: b.east, minLat: b.south, maxLat: b.north });
+  const sameGround = held.bounds === next || (held.bounds !== WORLD && next !== WORLD
+    && !viewChangedEnough(asView(held.bounds), asView(next)));
+  if (!sameGround || held.signature !== parkSignature(kind)) { freeParked(kind); return null; }
+  parked.delete(kind);
+  globalThis.clearTimeout?.(held.timer);
+  return held;
+}
+
 export async function addSheet(kind, onStatus = () => {}) {
   const spec = SHEETS[kind];
   if (!spec) return { ok: false, message: "No such elevation sheet." };
@@ -1182,6 +1235,21 @@ export async function addSheet(kind, onStatus = () => {}) {
   }
   if (sheetLayer(kind)) return { ok: true, message: `${spec.label} is already on the globe.` };
   if (!three) three = await import("../vendor/three.module.js");
+  const held = reclaim(kind);
+  if (held) {
+    const layer = window.GeoIDImportManager?.addDerivedLayer?.(spec.label,
+      { ...held.record, object3D: held.object3D }, "tiles");
+    if (layer) {
+      Object.assign(layer, held.extras);
+      window.GeoIDLayerHierarchy?.setOpacity?.(layer, held.opacity);
+      window.GeoIDLayerHierarchy?.render?.();
+      lastBuilt = held.bounds;
+      onStatus(held.message || "");
+      watch();
+      return { ok: true, layer, message: held.message || "" };
+    }
+    disposeTree(held.object3D);
+  }
   const out = await build(kind, { onStatus });
   if (out.ok) watch();
   return out;
@@ -1189,6 +1257,27 @@ export async function addSheet(kind, onStatus = () => {}) {
 
 export function removeSheet(kind) {
   const layer = sheetLayer(kind);
+  if (layer && PARKABLE.has(kind) && layer.object3D && layer.sheetBounds) {
+    freeParked(kind);
+    const object3D = layer.object3D;
+    // Detached from the record, so removing the row does not dispose it.
+    layer.object3D = null;
+    object3D.parent?.remove(object3D);
+    parked.set(kind, {
+      object3D,
+      record: { ...layer, object3D: null },
+      extras: {
+        info: layer.info, metadata: layer.metadata, legendHidden: layer.legendHidden,
+        mapEntryId: layer.mapEntryId, sheetBounds: layer.sheetBounds,
+        sheetMessage: layer.sheetMessage,
+      },
+      opacity: Number.isFinite(layer.opacity) ? layer.opacity : SHEETS[kind].opacity,
+      bounds: layer.sheetBounds,
+      message: layer.sheetMessage,
+      signature: parkSignature(kind),
+      timer: globalThis.setTimeout?.(() => freeParked(kind), PARK_MS),
+    });
+  }
   if (layer) window.GeoIDImportManager?.removeLayer?.(layer.id);
   // The watcher stands down only when the LAST sheet goes: it rebuilds all of
   // them together, and stopping it while one is still drawn would leave that

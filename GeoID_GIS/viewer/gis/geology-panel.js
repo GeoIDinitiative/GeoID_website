@@ -28,18 +28,18 @@
  *   to the one the list has, not a second source of truth.
  */
 
-import { QUALITATIVE_RAMP } from "./symbology.js?v=20261011-42568d8";
-import { currentBodyId } from "./bodies.js?v=20261011-42568d8";
-import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20261011-42568d8";
-import { rockClass } from "./rock-class.js?v=20261011-42568d8";
-import { AREA_OPACITY } from "./layer-opacity.js?v=20261011-42568d8";
-import { datasetInfoButton } from "./catalogue-list.js?v=20261011-42568d8";
-import { isIceCover, isNotIceCover } from "./ice-cover.js?v=20261011-42568d8";
-import { isIceFeature, iceCard } from "./ice-card.js?v=20261011-42568d8";
-import { isSoilFeature, soilCard } from "./soil-card.js?v=20261011-42568d8";
-import { waterCard, WATER_SAID } from "./water-card.js?v=20261011-42568d8";
+import { QUALITATIVE_RAMP } from "./symbology.js?v=20261011-f6c969d";
+import { currentBodyId } from "./bodies.js?v=20261011-f6c969d";
+import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20261011-f6c969d";
+import { rockClass } from "./rock-class.js?v=20261011-f6c969d";
+import { AREA_OPACITY } from "./layer-opacity.js?v=20261011-f6c969d";
+import { datasetInfoButton } from "./catalogue-list.js?v=20261011-f6c969d";
+import { isIceCover, isNotIceCover } from "./ice-cover.js?v=20261011-f6c969d";
+import { isIceFeature, iceCard } from "./ice-card.js?v=20261011-f6c969d";
+import { isSoilFeature, soilCard } from "./soil-card.js?v=20261011-f6c969d";
+import { waterCard, WATER_SAID } from "./water-card.js?v=20261011-f6c969d";
 
-import { openSymbologyDialog } from "./symbology-dialog.js?v=20261011-42568d8";
+import { openSymbologyDialog } from "./symbology-dialog.js?v=20261011-f6c969d";
 
 /* ── The catalogue ───────────────────────────────────────────────────────────
  *
@@ -417,6 +417,79 @@ function bakedTiles(url = GEOLOGY_MANIFEST) {
  * the symbology somebody chose, the opacity they set, its place in the stack,
  * its row in the legend — is lost because the camera moved.
  */
+/**
+ * A TILED MAP PUT AWAY IS PARKED, NOT DESTROYED.
+ *
+ * Unticking used to dispose every tile the controller had built and drop its
+ * record, so ticking it again fetched, decoded and re-triangulated the whole
+ * world sheet from nothing -- measured on a 13,000-polygon sheet, sixteen
+ * tile fetches and a three-second freeze to put back a map that had been on
+ * screen a moment earlier. The list still loses the row the moment it is
+ * unticked (a row for something the tab has put away is a claim nobody made);
+ * what is kept, detached from the scene, is the built geometry, so a re-tick
+ * within a few minutes is a re-attach.
+ *
+ * Kept only while the entry is the same entry -- the same paint, the same
+ * filter, the same pyramid -- and for PARK_MS, after which the GPU buffers
+ * are freed as they always were. At most PARK_MAX maps are held.
+ */
+const PARKED = new Map();
+const PARK_MS = 4 * 60 * 1000;
+const PARK_MAX = 3;
+
+function entryFingerprint(entry) {
+  return [entry.colourFor || null, entry.featureFilter || null,
+    entry.tiles?.manifest || null, Boolean(entry.sourceColours), entry.dynamic || null];
+}
+
+function freeParked(id) {
+  const held = PARKED.get(id);
+  if (!held) return;
+  PARKED.delete(id);
+  window.clearTimeout(held.timer);
+  try { held.controller.dispose?.(); } catch { /* freeing must not throw */ }
+}
+
+/** Take a tiled layer off the globe, keeping what it built for a re-tick. */
+export function unloadTiledLayer(layer) {
+  if (!layer) return false;
+  const manager = window.GeoIDImportManager;
+  const controller = layer.tiled;
+  const id = layer.geologyDataset;
+  if (!controller || !id || !layer.parkKey) {
+    controller?.dispose?.();
+    manager?.removeLayer?.(layer.id);
+    return true;
+  }
+  freeParked(id);
+  // Detached from the record, so removing the row does not dispose it.
+  const group = layer.object3D;
+  layer.object3D = null;
+  group?.parent?.remove(group);
+  manager?.removeLayer?.(layer.id);
+  PARKED.set(id, {
+    controller,
+    key: layer.parkKey,
+    timer: window.setTimeout(() => freeParked(id), PARK_MS),
+  });
+  while (PARKED.size > PARK_MAX) freeParked(PARKED.keys().next().value);
+  return true;
+}
+
+/** A parked controller for this entry, if it is still the same entry. */
+function reclaimParked(entry) {
+  const held = PARKED.get(entry.id);
+  if (!held) return null;
+  const key = entryFingerprint(entry);
+  PARKED.delete(entry.id);
+  window.clearTimeout(held.timer);
+  if (held.key.length !== key.length || held.key.some((v, i) => v !== key[i])) {
+    try { held.controller.dispose?.(); } catch { /* freeing must not throw */ }
+    return null;
+  }
+  return held.controller;
+}
+
 async function loadTiled(entry, { toView = false, quiet = false } = {}) {
   const manager = window.GeoIDImportManager;
   const search = new URL(import.meta.url).search;
@@ -469,7 +542,13 @@ async function loadTiled(entry, { toView = false, quiet = false } = {}) {
     return null;
   }
   const existing = loadedLayers().find((l) => l.geologyDataset === entry.id);
-  const controller = existing?.tiled || tilesModule.createTiledVectorLayer({
+  const reclaimed = existing?.tiled ? null : reclaimParked(entry);
+  if (reclaimed && entry.contacts === undefined) {
+    // The Boundaries choice may have moved while the map was put away.
+    const wanted = CONTACT_STYLES[contactChoice()] || null;
+    if (reclaimed.getContacts?.() !== wanted) reclaimed.setContacts?.(wanted);
+  }
+  const controller = existing?.tiled || reclaimed || tilesModule.createTiledVectorLayer({
     name: entry.name,
     kind: ownTiles?.kind || entry.dynamic,
     /**
@@ -577,7 +656,9 @@ async function loadTiled(entry, { toView = false, quiet = false } = {}) {
       if (!quiet && !ownTiles) say(`${entry.label}: world tile ${done} of ${total}…`);
     },
   });
-  if (!existing?.tiled) {
+  // A reclaimed controller already holds its world; pinning again is free but
+  // it is still a pass over the tiles, so it is skipped.
+  if (!existing?.tiled && !reclaimed) {
     if (ownTiles) void pinWorld().catch(() => {});
     else await pinWorld();
   }
@@ -688,6 +769,7 @@ async function loadTiled(entry, { toView = false, quiet = false } = {}) {
     layer.credit = entry.credit;
     layer.dynamicGeology = entry.dynamic;
     layer.tiled = controller;
+    layer.parkKey = entryFingerprint(entry);
   }
   // The features a tiled layer HAS are the ones in view — which is what makes
   // extraction, clipping and export mean something when they run on it.
@@ -1136,10 +1218,11 @@ function datasetLabel(name) {
  * is the unit named in the legend -- if they were chosen separately they would
  * disagree the first time somebody recoloured the map.
  */
+const CATALOGUE_CACHE = new WeakMap();
+
 function toInteractiveCatalogue(layers) {
   const features = {};
   const unitSeen = new Map();
-  let n = 0;
   layers.forEach((layer) => {
     const field = layer.geologyField || "lex_d";
     // The colour a unit is PAINTED in, looked up by the value it was painted
@@ -1148,6 +1231,25 @@ function toInteractiveCatalogue(layers) {
     // count -- a key that disagrees with the map it is a key to.
     const paint = new Map((layer.legendInfo?.values || [])
       .map((value, i) => [String(value), `#${String(layer.legendInfo.palette?.[i] || "8a8a8a").replace("#", "")}`]));
+    /**
+     * THE CATALOGUE IS REMEMBERED PER LAYER. Every visibility change on the
+     * page rebuilds it, and rebuilding meant re-measuring and re-classifying
+     * every polygon of every geological map -- thirteen thousand of them on
+     * a refined world sheet, two seconds of a frozen page each time an eye was
+     * pressed. What it depends on is the layer's feature list, the column it
+     * is coloured by, its key and its name, so while those are the same
+     * objects the entries are the same entries.
+     */
+    const cacheKey = [layer.features, field, layer.legendInfo, layer.name, layer.credit];
+    const cached = CATALOGUE_CACHE.get(layer);
+    if (cached && cached.key.length === cacheKey.length
+      && cached.key.every((value, i) => value === cacheKey[i])) {
+      cached.made.forEach((feature) => { features[feature.id] = feature; });
+      cached.units.forEach((colour, label) => { if (!unitSeen.has(label)) unitSeen.set(label, colour); });
+      return;
+    }
+    const layerUnits = new Map();
+    let n = 0;
     const made = [];
     (layer.features || []).forEach((f) => {
       const geometry = f?.geometry;
@@ -1232,8 +1334,8 @@ function toInteractiveCatalogue(layers) {
               && value !== null && value !== undefined && String(value).trim() !== "")
             .map(([key, value]) => [attributeLabel(key), String(value)])],
         });
-        if (!unitSeen.has(ice.title)) {
-          unitSeen.set(ice.title, paint.get(String(props[field])) || "#cfe8f5");
+        if (!layerUnits.has(ice.title)) {
+          layerUnits.set(ice.title, paint.get(String(props[field])) || "#cfe8f5");
         }
         return;
       }
@@ -1276,8 +1378,8 @@ function toInteractiveCatalogue(layers) {
                 && value !== null && value !== undefined && String(value).trim() !== "")
               .map(([key, value]) => [attributeLabel(key), String(value)])],
         });
-        if (!unitSeen.has(soil.title)) {
-          unitSeen.set(soil.title, props.colour || "#cfe8f5");
+        if (!layerUnits.has(soil.title)) {
+          layerUnits.set(soil.title, props.colour || "#cfe8f5");
         }
         return;
       }
@@ -1321,8 +1423,8 @@ function toInteractiveCatalogue(layers) {
                 && value !== null && value !== undefined && String(value).trim() !== "")
               .map(([key, value]) => [attributeLabel(key), String(value)])],
         });
-        if (!unitSeen.has(water.title)) {
-          unitSeen.set(water.title, props.colour || "#3d8fd1");
+        if (!layerUnits.has(water.title)) {
+          layerUnits.set(water.title, props.colour || "#3d8fd1");
         }
         return;
       }
@@ -1395,8 +1497,8 @@ function toInteractiveCatalogue(layers) {
           .map(([key, value]) => [attributeLabel(key), String(value)])
           .slice(0, 24),
       });
-      if (!unitSeen.has(name)) {
-        unitSeen.set(name, paint.get(String(props[field])) || "#8a8a8a");
+      if (!layerUnits.has(name)) {
+        layerUnits.set(name, paint.get(String(props[field])) || "#8a8a8a");
       }
     });
     // Smallest first WITHIN the layer, so a polygon lying inside a larger one
@@ -1404,6 +1506,8 @@ function toInteractiveCatalogue(layers) {
     // point, and a big unit listed ahead of an inlier answers for it forever.
     made.sort((a, b) => (a.mapped_area_km2 || 0) - (b.mapped_area_km2 || 0));
     made.forEach((feature) => { features[feature.id] = feature; });
+    layerUnits.forEach((colour, label) => { if (!unitSeen.has(label)) unitSeen.set(label, colour); });
+    CATALOGUE_CACHE.set(layer, { key: cacheKey, made, units: layerUnits });
   });
   return {
     features,
@@ -1734,7 +1838,7 @@ export async function loadDerivedGeologyMap({ id, label, colourFor, legendInfo,
 /** Take one of those maps off the globe again. */
 export function removeDerivedGeologyMap(id) {
   const layer = loadedLayers().find((l) => l.geologyDataset === id);
-  if (layer) window.GeoIDImportManager?.removeLayer?.(layer.id);
+  if (layer) unloadTiledLayer(layer);
   return Boolean(layer);
 }
 
@@ -1808,10 +1912,10 @@ async function setActive(on) {
   } else {
     const manager = window.GeoIDImportManager;
     loadedLayers().forEach((layer) => {
-      // A tiled layer holds GPU buffers for every tile it has built, and
-      // removing the record does not free them.
-      layer.tiled?.dispose?.();
-      manager?.removeLayer?.(layer.id);
+      // Parked rather than destroyed -- see `unloadTiledLayer`. A layer that
+      // is not tiled is simply removed.
+      if (layer.tiled) unloadTiledLayer(layer);
+      else manager?.removeLayer?.(layer.id);
     });
     stopWatchingView();
   }
@@ -1933,10 +2037,8 @@ export function init() {
       holdGlobeStill(true);
     } else {
       const layer = unitsLayer();
-      // A tiled layer holds GPU buffers for every tile it has built, and
-      // removing the record does not free them.
-      layer?.tiled?.dispose?.();
-      if (layer) window.GeoIDImportManager?.removeLayer?.(layer.id);
+      // Parked, so ticking it again is a re-attach -- see `unloadTiledLayer`.
+      if (layer) unloadTiledLayer(layer);
       if (!loadedLayers().length) stopWatchingView();
       say("World geology put away — tick the box to bring it back.");
     }
@@ -1979,5 +2081,6 @@ if (typeof window !== "undefined") {
     setActive,
     globalBase: () => GLOBAL_BASE,
     load: (id) => { const e = entryById(id); return e ? loadDataset(e) : null; },
+    unload: unloadTiledLayer,
   };
 }

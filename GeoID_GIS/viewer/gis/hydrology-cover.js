@@ -23,7 +23,7 @@
  */
 
 import { loadDerivedGeologyMap, removeDerivedGeologyMap }
-  from "./geology-panel.js?v=20261011-42568d8";
+  from "./geology-panel.js?v=20261011-f6c969d";
 
 const STAMP = new URL(import.meta.url).search || "";
 const FALLBACK_COLOUR = "#3d8fd1";
@@ -182,10 +182,8 @@ async function load(id) {
 }
 
 function remove(id) {
-  const layer = layerOf(id);
-  // A tiled layer holds GPU buffers for every tile it has built, and removing
-  // the record does not free them.
-  layer?.tiled?.dispose?.();
+  // Parked for a quick re-tick, freed later -- see `unloadTiledLayer` in
+  // geology-panel.js, which `removeDerivedGeologyMap` goes through.
   removeDerivedGeologyMap(id);
 }
 

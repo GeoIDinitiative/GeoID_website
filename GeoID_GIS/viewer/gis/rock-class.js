@@ -106,10 +106,18 @@ const MODIFIER_WEIGHT = 0.5;
 const META_TERMS = [...IGNEOUS, ...METAMORPHIC, ...SEDIMENTARY,
   ...Object.values(MODIFIERS).flat()];
 
+/**
+ * The patterns are COMPILED ONCE. Building a RegExp per term per call made
+ * this the whole cost of showing the geology again: an eye toggle classifies
+ * every polygon on the map, and at 13,000 polygons that was two seconds of
+ * constructing the same few hundred patterns over and over.
+ */
+const escapeTerm = (term) => term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+const META_PATTERNS = META_TERMS.map((term) => new RegExp(`(^|[^a-z])meta-?${escapeTerm(term)}`, "g"));
+
 function metaPrefixHits(text) {
   let count = 0;
-  for (const term of META_TERMS) {
-    const pattern = new RegExp(`(^|[^a-z])meta-?${term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`, "g");
+  for (const pattern of META_PATTERNS) {
     const found = text.match(pattern);
     if (found) count += found.length;
   }
@@ -122,9 +130,19 @@ const CLASSES = [
   ["Sedimentary", SEDIMENTARY],
 ];
 
+const TERM_PATTERNS = new Map();
+function patternsFor(terms) {
+  let list = TERM_PATTERNS.get(terms);
+  if (!list) {
+    list = terms.map((term) => new RegExp(`(^|[^a-z])${escapeTerm(term)}s?($|[^a-z])`, "g"));
+    TERM_PATTERNS.set(terms, list);
+  }
+  return list;
+}
+
 function hits(text, terms) {
   let count = 0;
-  for (const term of terms) {
+  for (const pattern of patternsFor(terms)) {
     /**
      * Word boundaries on both ends, with hyphens treated as boundaries so
      * "meta-limestone" and "igneous-rock" match the way a reader reads them —
@@ -132,7 +150,6 @@ function hits(text, terms) {
      * consolidated" as readily as "carbonate" and a boundary after the `e`
      * refuses the first.
      */
-    const pattern = new RegExp(`(^|[^a-z])${term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}s?($|[^a-z])`, "g");
     const found = text.match(pattern);
     if (found) count += found.length;
   }
@@ -149,9 +166,25 @@ function hits(text, terms) {
  * basalt is genuinely both, and "Sedimentary" over it would be a claim the
  * source does not support.
  */
+/**
+ * A map holds a few hundred distinct lithology strings over thousands of
+ * polygons, so the answer is remembered by its text. Bounded, because the
+ * strings come from whatever surveys are loaded.
+ */
+const CLASS_MEMO = new Map();
+const CLASS_MEMO_MAX = 8192;
+
 export function rockClass(...sources) {
   const text = sources.map((s) => String(s ?? "").toLowerCase()).join(" ; ");
   if (!text.trim()) return null;
+  if (CLASS_MEMO.has(text)) return CLASS_MEMO.get(text);
+  const answer = classify(text);
+  if (CLASS_MEMO.size >= CLASS_MEMO_MAX) CLASS_MEMO.clear();
+  CLASS_MEMO.set(text, answer);
+  return answer;
+}
+
+function classify(text) {
   const scores = CLASSES.map(([label, terms]) => ({
     label,
     score: hits(text, terms)
