@@ -142,9 +142,11 @@ check("a season with no named storms says only the count", () => {
   /* The whole-record layer would draw every storm behind the one season being
      shown — the web the animation exists to take apart. */
   check("the full layer stands down while a season is on screen", () => {
-    ok(/setVisible\?\.\(layer, whole \? wasVisible : false\)/.test(code),
+    // Shown on All unless the reader hid the sequence in Workspace, and put
+    // back as the reader last left it rather than as it was when the bar opened.
+    ok(/setVisible\?\.\(layer, whole \? !off : false\)/.test(code),
       "hidden on a season");
-    ok(/setVisible\?\.\(back, wasVisible\)/.test(code), "and put back as it was");
+    ok(/setVisible\?\.\(back, !lastOff\)/.test(code), "and put back as the reader left it");
   });
 
   /**

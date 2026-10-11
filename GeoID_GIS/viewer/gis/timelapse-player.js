@@ -79,7 +79,7 @@ body.studio-open .geoid-timelapse, body.research-open .geoid-timelapse { display
    to 1205 against a bar ending at 1036. They are compact squares now, the
    pill's own border and fill, named for a screen reader as well as on hover. */
 .geoid-timelapse button.tl-icon {
-  min-width: 0; width: 1.55rem; height: 1.55rem; padding: 0;
+  min-width: 0; width: 1.55rem; height: 1.55rem; padding: 0; flex: 0 0 auto;
   display: inline-grid; place-items: center;
   border-radius: 0.45rem; font-size: 0.78rem; line-height: 1;
   background: rgba(var(--nav-accent-rgb), 0.08);
@@ -125,6 +125,7 @@ body.studio-open .geoid-timelapse, body.research-open .geoid-timelapse { display
    wanted to be. A centred track is not worth a shorter one, and what the
    reader reads as the centre is the date pill, which is placed over the
    track's own middle rather than the bar's. */
+.geoid-timelapse .tl-lead button { flex: 0 0 auto; }
 .geoid-timelapse .tl-lead,
 .geoid-timelapse .tl-trail {
   display: flex; align-items: center; gap: 0.55rem; flex: 0 0 auto;
@@ -669,6 +670,7 @@ function buildBar() {
     speed.textContent = rate === 1 ? "1x" : `${rate}x`;
     const ms = Math.round((state?.baseInterval || 1200) / rate);
     speed.title = `Playing a frame every ${ms} ms. Press for the next rate.`;
+    speed.setAttribute("aria-label", `Rate ${speed.textContent}: ${speed.title}`);
   };
   speed.addEventListener("click", () => {
     speedAt = (speedAt + 1) % SPEEDS.length;
@@ -971,6 +973,10 @@ export async function startPlayer({ bounds, epochs, source = "auto", frames = nu
   pendingToggle = null;
   watchWorkspace();
   // A sequence opened over a layer already hidden in Workspace opens hidden.
+  // Its rows are recorded NOW: a driver registers its plot before the bar
+  // opens, so no change may arrive between the two to record it, and a row
+  // never recorded cannot be missed when it is removed.
+  ownedLayers().forEach((layer) => state.ownedIds.add(layer.id));
   state.hidden = ownedLayers().some((layer) => layer.userHidden);
   syncHiddenBar();
   syncOverlay();

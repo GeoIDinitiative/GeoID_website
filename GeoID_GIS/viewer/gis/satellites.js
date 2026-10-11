@@ -763,7 +763,13 @@ function updateLabels() {
     const t = Math.max(0, Math.min(1, (candidate.distance - 0.2) / 6.2));
     const easedT = Math.pow(t, 0.85);
     let labelScale = 0.12 + (1.35 - 0.12) * easedT;
-    const spritePxPerUnit = fovScale / Math.max(candidate.distance - 0.24, 0.05);
+    // The engine's own floor (0.05) is for a curated chip seen from orbit;
+    // a satellite the camera has flown to can be far closer than that, and
+    // with the floor the 24 px cap stopped binding — measured, a pill the
+    // width of the screen beside a followed ISS. Below 0.05 the true distance
+    // is used; at every farther distance the law is unchanged.
+    const spritePxPerUnit = fovScale
+      / Math.max(candidate.distance - 0.24, Math.min(0.05, candidate.distance));
     labelScale = Math.min(labelScale,
       24 / Math.max(base.y * spritePxPerUnit, 1e-6));
     sprite.scale.set(base.x * labelScale, base.y * labelScale, 1);

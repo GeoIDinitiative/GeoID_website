@@ -112,8 +112,10 @@ check("and its scratch is under a gitignored work directory",
     /stopPlayer\(\{ reason: "dismiss" \}\)/.test(player), true);
   check("and every stop announces its reason",
     /geoid-gis:timelapse-stopped.*detail: \{ reason \}/.test(player), true);
+  // A row removed from Workspace is the reader's decision too, so "removed"
+  // joins the ✕ -- still announced, still never inferred.
   check("animated-layers marks a dismissal from that announcement",
-    /reason !== "dismiss" \|\| !owner\) return;\s*dismissed\.add\(owner\)/.test(animated), true);
+    /\(reason !== "dismiss" && reason !== "removed"\) \|\| !owner\) return;\s*dismissed\.add\(owner\)/.test(animated), true);
   check("and no longer infers one from an empty poll",
     !/watchBar/.test(animated) && !/Gone without the layer going/.test(animated), true);
 }

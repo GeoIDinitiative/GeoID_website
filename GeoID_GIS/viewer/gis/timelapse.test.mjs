@@ -240,6 +240,8 @@ ok("and the sensor-by-year rule is one function",
   ok("a reader's eye press on an owned row hides the sequence and pauses it",
     /layer-user-visibility", layerHiddenByUser/.test(playerSrc)
     && /if \(hidden && state\.playing\) play\(false\)/.test(playerSrc));
+  ok("the rows are recorded when the bar opens, before any change could record them",
+    /ownedLayers\(\)\.forEach\(\(layer\) => state\.ownedIds\.add\(layer\.id\)\);/.test(playerSrc));
   ok("a row removed from Workspace stops the sequence and hands it to the driver",
     /stopPlayer\(\{ reason: "removed" \}\)[\s\S]{0,40}removed\?\.\(gone\)/.test(playerSrc));
   ok("only the eye and the Hide/Show action announce a READER's press",

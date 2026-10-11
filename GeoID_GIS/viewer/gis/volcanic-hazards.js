@@ -466,8 +466,8 @@ export async function build() {
       };
     }
     current = { layer, group, volcanoes };
-    say(`${ZONES.length} zones around ${volcanoes.toLocaleString("en-GB")} volcanoes `
-      + `(${yearWords(state.minRank)}), merged where they meet.`
+    say(`${ZONES.length} zones around ${volcanoes.toLocaleString("en-GB")} volcanoes, merged where they meet. `
+      + `Time frame: ${yearWords(state.minRank)}.`
       + (pleistocene ? ` ${pleistocene.toLocaleString("en-GB")} Pleistocene volcano${pleistocene === 1 ? "" : "es"} in the time frame get none.` : ""));
     return layer;
   } finally {
