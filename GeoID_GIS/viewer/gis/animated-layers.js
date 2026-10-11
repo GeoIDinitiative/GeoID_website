@@ -98,7 +98,13 @@ async function sync() {
  * is a decision about the sequence that was up.
  */
 function onStopped(event) {
-  if (event.detail?.reason !== "dismiss" || !owner) return;
+  /**
+   * A row REMOVED from Workspace is the reader's decision too: the player
+   * stops the sequence and the driver takes its dataset off where it should,
+   * and whatever is left must not have the bar thrown back at it.
+   */
+  const reason = event.detail?.reason;
+  if ((reason !== "dismiss" && reason !== "removed") || !owner) return;
   dismissed.add(owner);
   owner = null;
 }

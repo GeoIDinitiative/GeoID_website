@@ -86,11 +86,51 @@ check("the legend names the hazard beside the distance, as Etna's legend does", 
   ok(legend.labels.some((l) => /Ash fall, lahars/.test(l)), legend.labels.join(" | "));
   ok(legend.labels.every((l, i) => l.startsWith(vh.ZONES[i].label)), "one row per zone, in order");
 });
-check("every Holocene volcano is buffered by default", () => {
+check("every Holocene volcano is buffered by default: the plot opens on every volcano, the buffers take rank 1 up", () => {
   const src = readFileSync(new URL("./volcanic-hazards.js", import.meta.url), "utf8");
   const html = readFileSync(new URL("../index.html", import.meta.url), "utf8");
-  ok(/\|\| 1;/.test(src.slice(src.indexOf("const chosenRank"))), "the module's own default is rank 1");
-  ok(/<option value="1" selected>Every Holocene volcano<\/option>/.test(html), "and the select opens there");
+  ok(/zonesFor\(inFrame, 1,/.test(src), "the buffers are built round the plotted set at rank 1 and up");
+  ok(/<option value="0" selected>Every volcano \(Holocene and Pleistocene\)<\/option>/.test(html), "and the year filter opens on every volcano");
+});
+
+/* ── the year filter decides the plot, and the buffers follow the plot ────── */
+check("the buffers have no time frame of their own: the old Around select is gone", () => {
+  const src = readFileSync(new URL("./volcanic-hazards.js", import.meta.url), "utf8");
+  const html = readFileSync(new URL("../index.html", import.meta.url), "utf8");
+  ok(!/volcano-buffers-around/.test(html) && !/volcano-buffers-around/.test(src), "no second select");
+  ok(!/chosenRank|AROUND/.test(src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/[^\n]*/g, "")), "no second time frame in the module");
+});
+check("the year filter sits ABOVE the buffer control in the drawer", () => {
+  const html = readFileSync(new URL("../index.html", import.meta.url), "utf8");
+  const drawer = html.slice(html.indexOf('<div id="volcano-hazard-buffers" hidden>'));
+  const years = drawer.indexOf('id="volcano-years"'), buffers = drawer.indexOf('id="volcano-buffers-on"');
+  ok(years > 0 && buffers > years, `years at ${years}, buffers at ${buffers}`);
+});
+check("buffers are built only round the PLOTTED set, never a filtered-out volcano", () => {
+  const fs = [volcano("Recent", 5, 15, 37.75), volcano("Old", 2, 20, 40), volcano("Pleist", 0, 25, 42)];
+  const source = { _allFeatures: fs, features: fs };
+  const since1900 = vh.plottedVolcanoes(source, { minRank: 4, typesOff: null });
+  ok(since1900.inFrame.length === 1 && since1900.inFrame[0].properties.name === "Recent", "the frame keeps only the recent one");
+  const zones = vh.zonesFor(since1900.inFrame, 1).features;
+  ok(zones.length === vh.ZONES.length && zones.every((f) => f.properties.volcano === "Recent"), "and only it is buffered");
+  const every = vh.plottedVolcanoes(source, { minRank: 0, typesOff: null });
+  ok(every.inFrame.length === 3, "every volcano plotted at rank 0");
+  ok(vh.zonesFor(every.inFrame, 1).volcanoes === 2, "but a Pleistocene volcano is never buffered");
+  const typed = vh.plottedVolcanoes({ _allFeatures: [
+    { ...volcano("Strato", 5), properties: { name: "Strato", label_rank: 5, type_group: "Stratovolcano" } },
+    { ...volcano("Shield", 5), properties: { name: "Shield", label_rank: 5, type_group: "Shield" } },
+  ] }, { minRank: 0, typesOff: new Set(["Shield"]) });
+  ok(typed.inFrame.length === 1 && typed.inFrame[0].properties.name === "Strato", "a type toggled off is not buffered either");
+  ok(vh.plottedVolcanoes({ _allFeatures: fs, features: [] }, { minRank: 0 }).inFrame.length === 3,
+    "the master list is read, not a snapshot that may not have been filtered yet");
+});
+check("the buffers rebuild live on every filter pass, and the plot announces each pass", () => {
+  const src = readFileSync(new URL("./volcanic-hazards.js", import.meta.url), "utf8");
+  const panels = readFileSync(new URL("./catalogue-panels.js", import.meta.url), "utf8");
+  ok(/addEventListener\("geoid-gis:volcano-filter", \(\) => \{\s*if \(wanted && volcanoLayer\(\)\) void build\(\);/.test(src), "the buffers listen");
+  ok(/new CustomEvent\("geoid-gis:volcano-filter"/.test(panels) && /announceVolcanoFilter\(layer\)/.test(panels), "the plot announces");
+  ok(/if \(building\) \{ rebuildAgain = true; return null; \}/.test(src), "a filter moved mid-build is honoured, not dropped");
+  ok(/window\.GeoIDVolcanoFilter = \{ state: volcanoFilterState \}/.test(panels), "the plot's filter is published for the buffers");
 });
 
 /* ── the card ─────────────────────────────────────────────────────────────── */
@@ -178,7 +218,8 @@ check("the layer draws its own highlight, and the popup defers to it", () => {
     ok(/dataType: "model"/.test(code), "model");
   });
   check("the buffers follow the volcanoes off the globe, through the manager's own seam", () => {
-    ok(/if \(current && !volcanoLayer\(\)\) remove\(\);/.test(code), "removed with them");
+    // Wanted-but-empty buffers (a time frame with no Holocene volcano) go too.
+    ok(/if \(\(current \|\| wanted\) && !volcanoLayer\(\)\) remove\(\);/.test(code), "removed with them");
     // A catalogue removal never dispatches the DOM event; `onChange` is the
     // list every catalogue subscribes to, and it was measured to be the one
     // that fires.

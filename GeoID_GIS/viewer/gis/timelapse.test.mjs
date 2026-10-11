@@ -229,6 +229,36 @@ ok("the player's own season rule is the one the drivers use",
 ok("and the sensor-by-year rule is one function",
   player.datasetForYear(2020).id === "COPERNICUS/S2_SR_HARMONIZED");
 
+// --- Workspace governs a sequence: a hidden row hides it, a removed row ends it ---
+{
+  const read = (f) => fs.readFileSync(path.join(here, f), "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
+  const playerSrc = read("timelapse-player.js");
+  const hier = read("layer-hierarchy.js");
+  ok("with nothing playing, nothing is hidden", player.playerHidden() === false);
+  ok("the frames the player owns are drawn only while not hidden",
+    /node\.visible = i === index && !state\.hidden/.test(playerSrc));
+  ok("a reader's eye press on an owned row hides the sequence and pauses it",
+    /layer-user-visibility", layerHiddenByUser/.test(playerSrc)
+    && /if \(hidden && state\.playing\) play\(false\)/.test(playerSrc));
+  ok("a row removed from Workspace stops the sequence and hands it to the driver",
+    /stopPlayer\(\{ reason: "removed" \}\)[\s\S]{0,40}removed\?\.\(gone\)/.test(playerSrc));
+  ok("only the eye and the Hide/Show action announce a READER's press",
+    (hier.match(/setVisibleByReader\(layer, (?:e\.target\.checked|!visible)\)/g) || []).length === 2
+    && /function setVisibleByReader[\s\S]{0,120}layer\.userHidden = !visible/.test(hier));
+  ok("a driver's own frame-by-frame writes do not",
+    !/function setVisible\([^)]*\) \{[^}]*layer-user-visibility/.test(hier));
+  for (const f of ["seismic-timelapse.js", "cyclone-timelapse.js", "risk-frames.js"]) {
+    const src = read(f);
+    ok(`${f} names its Workspace rows and obeys a hidden one`,
+      /owns: \(\) => \[/.test(src) && /onRemoved:/.test(src) && /const off = playerHidden\(\)/.test(src));
+    ok(`${f} puts back what the reader chose, not what the layer was at open`,
+      !/wasVisible/.test(src));
+  }
+  ok("the risk raster's removed row closes its bar", /owns: \(\) =>/.test(read("cyclone-risk-raster.js")));
+  ok("a removed row is a dismissal to the bar's owner, like the close button",
+    /reason !== "dismiss" && reason !== "removed"/.test(read("animated-layers.js")));
+}
+
 console.log(`${pass} passed`);
 if (fail) console.log(`${fail} FAILED`);
 process.exit(fail ? 1 : 0);

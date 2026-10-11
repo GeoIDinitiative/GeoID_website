@@ -279,6 +279,18 @@ const STYLE = `
   border-radius: 0.38rem;
 }
 .layer-dock-head .gis-add-row-icons .button svg { width: 100%; height: 100%; display: block; }
+/* Reset, armed: the square widens to say what a second press will do, in the
+   layer drawer's own danger colours (its Remove button's "Sure?"). */
+.layer-dock-head .gis-add-row-icons .button.gis-reset-button.is-armed {
+  width: auto;
+  padding: 0 0.42rem;
+  font: 600 0.62rem/1 "Exo 2", system-ui, sans-serif;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  border-color: rgba(255, 110, 110, 0.9) !important;
+  background: rgba(220, 70, 70, 0.16) !important;
+  color: #fff !important;
+}
 .gis-add-row .button {
   flex: 1 1 0;
   justify-content: center;
@@ -874,6 +886,68 @@ const GEE_HOME_BY_PANEL = {
   "modelled-data-section": "geohazards",
 };
 
+/**
+ * RESET WORKSPACE, the fourth door in the Workspace header.
+ *
+ * It removes everything the reader loaded and puts the launch's own layers
+ * back (gis/workspace-reset.js), so it asks once before acting -- in this
+ * file's own idiom for a loss with no undo, the layer drawer's Remove → "Sure?":
+ * the first press ARMS the button (it widens to read "Reset?"), a second press
+ * within four seconds resets, and it stands down on its own so an armed button
+ * is never left lying under the pointer. A modal would weigh more than losing a
+ * working set deserves; no confirmation at all would make a misfire beside
+ * Export a disaster.
+ */
+function resetButton() {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "button secondary gis-reset-button";
+  button.textContent = "Reset";
+  button.title = "Reset the workspace to how the page opened — removes every layer you added";
+  let armedAt = 0;
+  let icon = "";
+  let timer = null;
+  const standDown = () => {
+    window.clearTimeout(timer);
+    timer = null;
+    armedAt = 0;
+    button.classList.remove("is-armed");
+    if (icon) button.innerHTML = icon;
+    button.title = button.dataset.restTitle || button.title;
+    button.setAttribute("aria-label", button.title);
+  };
+  button.addEventListener("click", async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (button.disabled) return;
+    if (!armedAt) {
+      armedAt = Date.now();
+      icon = button.innerHTML;
+      button.dataset.restTitle = button.title;
+      button.classList.add("is-armed");
+      button.textContent = "Reset?";
+      button.title = "Click again to reset the workspace — every added layer is removed";
+      button.setAttribute("aria-label", button.title);
+      timer = window.setTimeout(standDown, 4000);
+      return;
+    }
+    standDown();
+    button.disabled = true;
+    const status = document.getElementById("polygon-status");
+    const say = (text) => { if (status) status.textContent = text; };
+    try {
+      const mod = await import(`./workspace-reset.js${new URL(import.meta.url).search}`);
+      await mod.resetWorkspace({ onStatus: say });
+      window.setTimeout(() => { if (status && /^Workspace reset/.test(status.textContent)) say(""); }, 5000);
+    } catch (error) {
+      say(`The workspace could not be reset: ${error.message}`);
+    } finally {
+      button.disabled = false;
+    }
+  });
+  return button;
+}
+
 function addButtonFor(role) {
   /**
    * The vector role's home is the WORKSPACE BOX, not a tab: the corner
@@ -953,6 +1027,7 @@ function addButtonFor(role) {
       if (sp?.isOpen?.("export")) sp.close?.("export"); else sp?.open?.("export");
     });
     row.appendChild(exp);
+    row.appendChild(resetButton());
     // The gear rides here on EVERY world — Settings left the rail for the
     // Workspace header (side-panels' entry is rail: false).
     {
@@ -985,6 +1060,8 @@ function addButtonFor(role) {
         + '<path d="M12 13v6.4m-2.4-2.4 2.4 2.4 2.4-2.4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>',
       Export: '<path d="M12 15.4V4.8M7.8 9 12 4.8 16.2 9" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>'
         + '<path d="M4.8 19.2h14.4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>',
+      Reset: '<path d="M5.6 12a6.4 6.4 0 1 0 1.9-4.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>'
+        + '<path d="M5.2 4.4v3.8H9" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>',
       Settings: '<circle cx="12" cy="12" r="3.2" fill="none" stroke="currentColor" stroke-width="1.7"/>'
         + '<path d="M12 3.4v2.4M12 18.2v2.4M20.6 12h-2.4M5.8 12H3.4M18.1 5.9l-1.7 1.7M7.6 16.4l-1.7 1.7M18.1 18.1l-1.7-1.7M7.6 7.6 5.9 5.9" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>',
     };

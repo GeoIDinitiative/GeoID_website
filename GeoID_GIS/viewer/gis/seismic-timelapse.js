@@ -9,7 +9,7 @@
  */
 
 import { colourOf, legendInfoFrom } from "./symbology.js?v=20261011-174399e";
-import { startPlayer } from "./timelapse-player.js?v=20261011-174399e";
+import { startPlayer, playerHidden } from "./timelapse-player.js?v=20261011-174399e";
 /**
  * The bands live in their own module because the PANEL needs them too, and
  * `catalogue-panels.js` must not drag the player in behind them. What is
@@ -314,7 +314,7 @@ async function build(from, startAt, step = DEFAULT_STEP) {
     return node;
   };
 
-  const wasVisible = layer.object3D ? layer.object3D.visible : true;
+  let lastOff = Boolean(layer.userHidden);
   const derived = window.GeoIDImportManager?.addDerivedLayer?.(`Earthquakes plotted — ${plan.spec.label.toLowerCase()}`, {
     object3D: group, georeferenced: true,
     bounds: { minX: -180, maxX: 180, minY: -90, maxY: 90 },
@@ -338,15 +338,31 @@ async function build(from, startAt, step = DEFAULT_STEP) {
     bounds: { west: -180, south: -90, east: 180, north: 90 },
     epochs, source: "none", noteFor, noteTitle, onStatus: say, interval: plan.spec.interval,
     startAt: startAt === null ? ALL : startAt,
+    /**
+     * The dataset's own layer and the plot are the sequence's two rows in
+     * Workspace: hiding either hides the animation, removing either ends it.
+     */
+    owns: () => [eventsLayer(), held()],
+    onRemoved: () => {
+      // Removed from Workspace: take the dataset off too, so its nav-bar tick
+      // goes with it rather than leaving a ticked row over nothing.
+      const base = eventsLayer();
+      if (base) window.GeoIDImportManager?.removeLayer?.(base.id);
+    },
     onShow: (index) => {
       const whole = index === ALL;
+      const off = playerHidden();
       const plot = held();
-      if (plot) plot.legendHidden = whole;
-      window.GeoIDLayerHierarchy?.setVisible?.(layer, whole ? wasVisible : false);
-      built.forEach((node, i) => { node.visible = !whole && i === index; });
-      if (!whole) nodeFor(index).visible = true;
       if (plot) {
-        if (plot.object3D) plot.object3D.visible = !whole;
+        plot.legendHidden = whole;
+        plot.visible = !off;
+      }
+      lastOff = off;
+      window.GeoIDLayerHierarchy?.setVisible?.(layer, whole ? !off : false);
+      built.forEach((node, i) => { node.visible = !whole && !off && i === index; });
+      if (!whole && !off) nodeFor(index).visible = true;
+      if (plot) {
+        if (plot.object3D) plot.object3D.visible = !whole && !off;
         const shown = whole ? [] : plan.groups[index].features;
         plot.features = shown;
         plot.collection = { type: "FeatureCollection", features: shown };
@@ -357,8 +373,10 @@ async function build(from, startAt, step = DEFAULT_STEP) {
       const now = held();
       if (now) window.GeoIDImportManager?.removeLayer?.(now.id);
       group.traverse?.((n) => { n.geometry?.dispose?.(); n.material?.dispose?.(); });
+      // Put back what the reader last chose in Workspace, not what the layer
+      // was when the bar opened.
       const back = eventsLayer();
-      if (back) window.GeoIDLayerHierarchy?.setVisible?.(back, wasVisible);
+      if (back) window.GeoIDLayerHierarchy?.setVisible?.(back, !lastOff);
       say("");
     },
   });

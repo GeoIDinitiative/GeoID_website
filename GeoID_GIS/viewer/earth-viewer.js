@@ -13594,6 +13594,18 @@ function fmtProp(value) {
 		         */
 		        if (window.GeoIDModeManager?.getMode?.() === "model") return;
 		        if (performance.now() < suppressEmbeddedFrameCameraUntil) return;
+		        /**
+		         * NOT OVER A myGeoID SELECTION. Every click in myGeoID opens the
+		         * Analysis Hub drawer, the shell answers with `geoid:resize`
+		         * (hubExpanded) -- twice, the second 360 ms later and often far
+		         * later on a busy main thread -- and this pushed the camera out
+		         * to 1.42x the default distance. The time window above was the
+		         * only guard and it lost the race, so the altitude the user had
+		         * chosen "reverted" a beat after every click. The camera is
+		         * centred on the selected point (focusGeoSelectorTarget), so the
+		         * point stays in frame without a refit; the altitude is theirs.
+		         */
+		        if (hasGeoSelectorSelection()) return;
 		        // This refits the globe inside the embedded frame by pulling the
 		        // camera along a radius and staring at the origin. Model mode has
 		        // no globe -- it frames a model sitting out on a surface -- so
@@ -13984,7 +13996,9 @@ function fmtProp(value) {
       const SUN_MODEL_DISTANCE = 180;
       const sunVisual = new THREE.Mesh(
         new THREE.SphereGeometry(1.8, 20, 20),
-        new THREE.MeshBasicMaterial({ color: 0xffd27c, transparent: true, opacity: 0.9 }),
+        // White, not the old amber: the Sun seen from space is white, and the
+        // warm tint read as a lamp rather than a star.
+        new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.95 }),
       );
       sunVisual.userData.nonInteractive = true;
       sunVisual.raycast = () => {};
@@ -16181,6 +16195,10 @@ uniform float uViewportWidth;`,
 	          embeddedFrameAnimation = null;
 	        }
 	        activeMoonViewerFeature = null;
+	        // Read BEFORE the floor below is written: the render loop keeps
+	        // minDistance at the terrain-safe floor, which close in is under
+	        // 3.25, and clamping to the fixed one would lift a close view.
+	        const keepRadius = camera.position.length();
 	        controls.minDistance = 3.25;
 	        controls.maxDistance = DEFAULT_CONTROL_MAX_DISTANCE;
 	        syncMoonViewerControls(null);
@@ -16191,9 +16209,53 @@ uniform float uViewportWidth;`,
 	        if (direction.lengthSq() < 0.0001) {
 	          direction.set(0, 0.15, 1).normalize();
 	        }
-	        const cameraPosition = target.clone().addScaledVector(direction, 1.05);
+	        /**
+	         * CENTRE ON THE PLACE, KEEP THE ALTITUDE.
+	         *
+	         * This used to park the camera 1.05 units above the clicked point,
+	         * so every click in myGeoID snapped the view to one fixed altitude:
+	         * zoom in on a valley, click it, and be thrown back out (or zoom out
+	         * to pick a region, click, and be dived in). A selection is a
+	         * question about a place, not a request to change the zoom, so the
+	         * camera keeps its own distance from the globe's centre and only
+	         * swings round to look at the point.
+	         *
+	         * Swung along the sphere, not lerped: a straight line between two
+	         * points at the same radius cuts the chord, which dips the camera
+	         * toward (and on a long swing, into) the globe mid-flight.
+	         */
+	        const radius = Number.isFinite(keepRadius) && keepRadius > 0
+	          ? Math.min(keepRadius, controls.maxDistance)
+	          : 4.25;
 	        camera.up.set(0, 1, 0);
-	        animateCameraFlight(camera, controls, cameraPosition, new THREE.Vector3(0, 0, 0), 1200);
+	        cancelCameraFlight();
+	        const startDir = camera.position.clone().normalize();
+	        const startRadius = camera.position.length();
+	        const startTarget = controls.target.clone();
+	        const endTarget = new THREE.Vector3(0, 0, 0);
+	        const quat = new THREE.Quaternion().setFromUnitVectors(startDir, direction);
+	        const identity = new THREE.Quaternion();
+	        const flight = { cancelled: false };
+	        activeCameraFlight = flight;
+	        const startAt = performance.now();
+	        const durationMs = 1200;
+	        const step = (now) => {
+	          if (flight.cancelled) return;
+	          const t = Math.min(1, (now - startAt) / durationMs);
+	          const eased = 1 - ((1 - t) ** 3);
+	          const q = identity.clone().slerp(quat, eased);
+	          const r = startRadius + (radius - startRadius) * eased;
+	          camera.position.copy(startDir).applyQuaternion(q).multiplyScalar(r);
+	          controls.target.lerpVectors(startTarget, endTarget, eased);
+	          controls.object.position.copy(camera.position);
+	          controls.update();
+	          if (t < 1) {
+	            requestAnimationFrame(step);
+	            return;
+	          }
+	          if (activeCameraFlight === flight) activeCameraFlight = null;
+	        };
+	        requestAnimationFrame(step);
 	      }
 
 	      function clearGeoSelectorPins() {
@@ -22126,7 +22188,13 @@ uniform float uViewportWidth;`,
             ...raycaster.intersectObjects(baseSiteLayer.interactiveObjects, false),
           ];
           const hit = hits.find((e) => e.object.visible && e.object.userData.feature);
-          if (hit) { openFeature(hit.object.userData.feature, hit.object.parent === cutawayResult.labelsGroup || hit.object.parent === cutawayResult.group); }
+          if (hit) {
+            // A label on the globe is a control like any button in the panel,
+            // so it answers with the same click the UI sound system plays for
+            // those -- a canvas pointerup is not a DOM click it would hear.
+            window.GeoIDUiSound?.playClick?.();
+            openFeature(hit.object.userData.feature, hit.object.parent === cutawayResult.labelsGroup || hit.object.parent === cutawayResult.group);
+          }
           return;
         }
 
@@ -22135,6 +22203,7 @@ uniform float uViewportWidth;`,
           const moonFeatureHit = raycaster.intersectObjects(moonFeatureLabelLayer.interactiveObjects, false)
             .find((e) => isObjectActuallyVisible(e.object) && e.object.userData.feature);
           if (moonFeatureHit) {
+            window.GeoIDUiSound?.playClick?.();
             openFeature(moonFeatureHit.object.userData.feature, false);
             return;
           }
@@ -22151,6 +22220,9 @@ uniform float uViewportWidth;`,
         ].sort((a, b) => a.distance - b.distance);
         const priorityHit = priorityIntersections.find((entry) => isObjectActuallyVisible(entry.object) && entry.object.userData.feature);
         if (priorityHit) {
+          // The label click sounds like every other control: see the cutaway
+          // branch above.
+          window.GeoIDUiSound?.playClick?.();
           openFeature(priorityHit.object.userData.feature, false);
           return;
         }
@@ -22449,6 +22521,26 @@ uniform float uViewportWidth;`,
           scheduleFeatureFlight(feature, camera, controls, statusPrefix);
           return true;
         },
+        /**
+         * Tour mode's own camera flight, for a destination that is not a
+         * named feature -- the satellite tracker flies to a satellite with
+         * it rather than keeping a second copy of the arc. `tourHop` is the
+         * tour's lift-off / glide / land arc for a long hop; without it, the
+         * short cubic glide. The target stays the planet's centre, as every
+         * surface flight here keeps it.
+         */
+        flyCameraTo: (position, { tourHop = false, durationMs, onComplete } = {}) => {
+          if (!position || !Number.isFinite(position.x)) return false;
+          const end = new THREE.Vector3(position.x, position.y, position.z);
+          clearPendingTourFlight();
+          if (tourHop) {
+            animateTourFlight(camera, controls, end, new THREE.Vector3(0, 0, 0), durationMs ?? 2800, onComplete);
+          } else {
+            animateCameraFlight(camera, controls, end, new THREE.Vector3(0, 0, 0), durationMs ?? 1400, onComplete);
+          }
+          return true;
+        },
+        cancelCameraFlight: () => { cancelCameraFlight(); return true; },
         elevationSampler,
         manifest,
         /**

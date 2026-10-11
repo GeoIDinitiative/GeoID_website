@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; script-src 'self' https://static.cloudflareinsights.com 'sha256-CHStN5aumdZslyig+d34+HhwCOFul57trdZo1nh1wL4=' 'sha256-Mkko0pn4e0P2d6royTo0QRnyLQsuvZpD81Q+vsflrV4=' 'sha256-jB/dsW0YaXsWbPVRE7F9xHRvIh+Ea4NRDCvJfSqLUIg=' 'sha256-P5t7fahtZS4B8dpMoy77LoehKL9chrSg0R93NXvFWpo=' 'sha256-XW0ed2zjfK36eMKRU36H1A4VAkWGmo5YiK5ER2hrp3U=' 'sha256-Uky8coMigjWSZXzY2Q1IRtb6LeN4hBkzzaxZsi9urJ0=' 'sha256-HiVohRX9XRx7XlG+uGLN87ZCK6f+N99QWTlTY0ceRmU='; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https: http://localhost:* http://127.0.0.1:*; media-src 'self' data: blob: https:; connect-src 'self' data: blob: https: http://localhost:* http://127.0.0.1:*; frame-src 'self' blob: https://docs.google.com https://drive.google.com; form-action 'self' https://formspree.io https://buy.stripe.com https://docs.google.com; worker-src 'self' blob:; child-src 'self' blob:; upgrade-insecure-requests">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; script-src 'self' https://static.cloudflareinsights.com 'sha256-yPXcJC6xz5zk+kdwYEZ9cpEoKH6naZ9e7jqZMfgxuM4=' 'sha256-Mkko0pn4e0P2d6royTo0QRnyLQsuvZpD81Q+vsflrV4=' 'sha256-jB/dsW0YaXsWbPVRE7F9xHRvIh+Ea4NRDCvJfSqLUIg=' 'sha256-27/lBx2Kg/kR4MCxolNw5IwAQ+TVmqnGzhDhPTsh3i0=' 'sha256-XW0ed2zjfK36eMKRU36H1A4VAkWGmo5YiK5ER2hrp3U=' 'sha256-Uky8coMigjWSZXzY2Q1IRtb6LeN4hBkzzaxZsi9urJ0=' 'sha256-HiVohRX9XRx7XlG+uGLN87ZCK6f+N99QWTlTY0ceRmU='; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https: http://localhost:* http://127.0.0.1:*; media-src 'self' data: blob: https:; connect-src 'self' data: blob: https: http://localhost:* http://127.0.0.1:*; frame-src 'self' blob: https://docs.google.com https://drive.google.com; form-action 'self' https://formspree.io https://buy.stripe.com https://docs.google.com; worker-src 'self' blob:; child-src 'self' blob:; upgrade-insecure-requests">
   <!-- The stamped modules/CSS bust their own cache, but this shell HTML has
        no stamp on its own URL, so a browser was serving a cached tab with an
        old iframe stamp -- which read as "nothing changed" after every edit.
@@ -2429,9 +2429,23 @@
         });
       });
 
+      /**
+       * EXIT LEAVES myGeoID, not just the hub.
+       *
+       * This cleared the pin and folded the drawer, and that was all: the
+       * viewer's myGeoID control stayed lit and the mode stayed armed, so the
+       * next click on the globe brought the hub straight back. It now stands
+       * the mode down through the same seam as the disclaimer's "Leave
+       * myGeoID" -- `geoid:mygeoid-cancel`, which mode-manager answers with
+       * `setHubArmed(false)`. That reports `geoid:mode` back, and the listener
+       * below hides the hub off that report, so the nav-bar control, the mode
+       * and the hub stand down together. No loop: mode-manager only acts while
+       * armed, and the `geoid:mode` handler here posts nothing.
+       */
       exitSelectionBtn?.addEventListener("click", () => {
         clearHubSelection(true);
         setDrawerOpen(false);
+        postViewerMessage({ type: "geoid:mygeoid-cancel" });
       });
 
       document.addEventListener("keydown", (event) => {

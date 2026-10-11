@@ -420,7 +420,7 @@ export const RIVER_ZONE_SCHEME = {
 /** Volcanic hazard buffers: zone 0 (0–5 km) worst, zone 4 (35–50 km) least. */
 export const VOLCANIC_ZONE_SCHEME = {
   id: "volcanicZones", hazard: "Volcanic", measure: "Distance zone from a vent", unit: "km",
-  definition: "Schematic hazard zones round every Holocene volcano, after Etna Explorer's INGV-based bands. A distance ring, not a model: where a volcano's zones overlap the worst zone reaching a place is counted.",
+  definition: "Schematic hazard zones round the Holocene volcanoes the year filter keeps on the map (Hazards ▸ Volcanic hazards), after Etna Explorer's INGV-based bands. A distance ring, not a model: where a volcano's zones overlap the worst zone reaching a place is counted.",
   classes: [
     { level: "Very high", label: "Extreme Risk", threshold: "0–5 km", test: (v) => v === 0 },
     { level: "High", label: "Very High Risk", threshold: "5–10 km", test: (v) => v === 1 },

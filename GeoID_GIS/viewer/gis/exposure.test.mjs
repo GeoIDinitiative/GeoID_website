@@ -86,7 +86,8 @@ ok("expected people a year is Σ people × p", close(re.expectedPerYear, westHal
 ok("everyone falls in the class their p is in", close(re.byClass[1].people, westHalf) && re.byClass[0].people === 0);
 ok("nobody is uncovered where the map covers the area", re.uncovered === 0);
 
-ok("formatPeople says thousands", formatPeople(12345) === "12 thousand" && formatPeople(1234) === "1.2 thousand");
+ok("formatPeople writes the number with separators, never words", formatPeople(12345) === "12,345" && formatPeople(1234) === "1,234" && formatPeople(100000) === "100,000" && formatPeople(1234567.4) === "1,234,567");
+ok("formatPeople never abbreviates", ![999, 1000, 54321, 1.2e6, 3.4e8].some((n) => /thousand|million|billion|[0-9][kKmMbB]\b/.test(formatPeople(n))));
 ok("formatPeople says fewer than one", formatPeople(0.3) === "<1");
 const csv = seriesCsv({ times: ["2026-01-01T00:00"], total: 100.4, series: [{ label: "FoS < 1", values: [12.6] }] });
 ok("the CSV has a row per map and a column per class", csv.trim().split("\n")[1] === "2026-01-01T00:00,100,13");

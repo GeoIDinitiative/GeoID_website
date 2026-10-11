@@ -200,6 +200,98 @@ export function viewChangedEnough(previous, next, { moveFraction = 0.35, zoomRat
 }
 
 /**
+ * Where the camera is looking: the lat/lon its CENTRE ray meets the globe, in
+ * the same frame `visibleBounds` answers in. Null when the ray misses (the
+ * globe is off-centre at extreme zoom-out). The box carries a ring of context
+ * and more of it on the far side of an oblique view, so its middle is not this.
+ */
+export function viewFocus(viewer, THREE) {
+  const camera = viewer?.camera;
+  if (!camera || !THREE) return null;
+  const radius = viewer.GLOBE_RADIUS || 3.2;
+  const sphere = new THREE.Sphere(new THREE.Vector3(0, 0, 0), radius);
+  const ray = new THREE.Raycaster();
+  const hit = new THREE.Vector3();
+  ray.setFromCamera(new THREE.Vector2(0, 0), camera);
+  if (!ray.ray.intersectSphere(sphere, hit)) return null;
+  viewer.globe?.updateMatrixWorld(true);
+  const local = viewer.globe
+    ? hit.clone().applyMatrix4(new THREE.Matrix4().copy(viewer.globe.matrixWorld).invert())
+    : hit.clone();
+  local.set(-local.x, local.y, -local.z);
+  const r = local.length() || 1;
+  return {
+    lat: Math.asin(Math.max(-1, Math.min(1, local.y / r))) * DEG,
+    lon: Math.atan2(local.z, -local.x) * DEG,
+  };
+}
+
+/**
+ * The timing half of `onViewChange`, pure so it can be tested without a clock.
+ *
+ * Feed it one sample per poll: `step(now, moved)`. It answers "move" at most
+ * once every `moveMs` WHILE the camera is moving (so a pan streams the ground
+ * it is crossing), and "settle" once when it has been still for `settleMs`.
+ * The first movement after rest answers "move" at once -- waiting a whole
+ * throttle period before reacting to a drag is the lag being removed.
+ */
+export function makeMotionGate({ settleMs = 250, moveMs = 400 } = {}) {
+  let moving = false;
+  let lastMove = -Infinity;
+  let stillSince = 0;
+  let settled = true;
+  return {
+    step(now, moved) {
+      if (moved) {
+        stillSince = now;
+        settled = false;
+        if (!moving || now - lastMove >= moveMs) {
+          moving = true;
+          lastMove = now;
+          return "move";
+        }
+        return null;
+      }
+      if (settled) return null;
+      if (now - stillSince >= settleMs) {
+        settled = true;
+        moving = false;
+        return "settle";
+      }
+      return null;
+    },
+  };
+}
+
+/**
+ * Watch the camera: `onMove` throttled while it moves, `onSettle` once it
+ * stops. Polls the camera like `onViewSettled` (the render loop moves it too).
+ * Returns an unsubscribe.
+ */
+export function onViewChange(viewer, { onMove, onSettle } = {}, { settleMs = 250, moveMs = 400, pollMs = 100 } = {}) {
+  const gate = makeMotionGate({ settleMs, moveMs });
+  let last = null;
+  const key = () => {
+    const p = viewer?.camera?.position;
+    const q = viewer?.camera?.quaternion;
+    return p ? `${p.x.toFixed(5)},${p.y.toFixed(5)},${p.z.toFixed(5)},${q ? q.w.toFixed(4) : ""}` : "";
+  };
+  const timer = setInterval(() => {
+    const now = key();
+    // The first sample counts as movement, so a watcher started over a still
+    // camera still refines once, as onViewSettled always has.
+    const moved = now !== last;
+    last = now;
+    const what = gate.step(Date.now(), moved);
+    try {
+      if (what === "move") onMove?.();
+      else if (what === "settle") onSettle?.();
+    } catch (error) { /* a bad listener must not stop the poll */ }
+  }, pollMs);
+  return () => clearInterval(timer);
+}
+
+/**
  * Call `fn` when the camera comes to rest, and not before.
  *
  * Polls the camera rather than listening to `controls`: the viewer's own render

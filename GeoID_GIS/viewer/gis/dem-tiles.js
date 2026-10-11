@@ -432,13 +432,106 @@ export function heightAt(lat, lon) {
   // Deepest first, and only the levels something is actually held at.
   for (const z of zoomsDeep) {
     const { x, y } = mercatorTile(lat, wrapped, z);
-    const tile = held(keyOf({ z, x: Math.floor(x), y: Math.floor(y) }));
-    if (!tile) continue;
-    const px = (x - Math.floor(x)) * tile.size;
-    const py = (y - Math.floor(y)) * tile.size;
-    return sampleGrid(tile.heights, tile.size, px, py);
+    const v = sampleMosaic(z, x, y, 0);
+    if (v != null) return v;
   }
   return null;
+}
+
+/**
+ * THE HELD TILES OF ONE ZOOM ARE ONE MOSAIC, NOT A SET OF ISLANDS.
+ *
+ * `heightAt` used to read a single tile at `frac * size` and clamp at its
+ * edge, which was wrong twice over and both faults showed as a SEAM along
+ * every tile boundary in anything sampled off the DEM (the Model Builder's
+ * surface, the landslide grid, the extraction's elevation column, the DEM
+ * sheet):
+ *
+ * - **Half a post out.** A Terrarium pixel covers `[i, i+1)` of the tile and
+ *   its value belongs to its CENTRE, `i + 0.5`. Reading pixel `i` at `i`
+ *   shifted the whole surface half a post north-west — 4 m at z14, 300 m at
+ *   z8 — and differently at each zoom, so two levels meeting disagreed.
+ * - **Clamped at the edge.** The last half post of every tile read its own
+ *   edge pixel flat, then the next tile started on ITS edge pixel: a step and
+ *   a terrace along every boundary, which a slope or a hillshade turns into a
+ *   visible grid line and a mesher into a ridge of slivers.
+ *
+ * So the read is in GLOBAL post coordinates at the zoom (`x * size - 0.5`),
+ * and each of the four corners is fetched from whichever tile holds it — the
+ * neighbour across a boundary rather than a clamp. Longitude wraps (the tile
+ * east of x = 2^z − 1 is x = 0). A corner whose tile is not held falls back to
+ * a COARSER held level at that post's own centre — so where a study area's
+ * fine cover meets the coarse world the surface ramps between them over one
+ * post instead of stepping — and only if nothing at all is held there to the
+ * tile's own nearest post. `coverFor` pads a study area by four posts, so
+ * inside one the neighbours are always held at the same zoom and the mosaic is
+ * exactly continuous.
+ *
+ * The fast path is the ordinary case: all four corners inside the tile the
+ * point falls in, one lookup, which keeps a half-million-sample sheet at the
+ * cost `HELD_ZOOMS` bought it.
+ */
+function sampleMosaic(z, tx, ty, depth) {
+  const scale = 2 ** z;
+  const wrappedX = ((tx % scale) + scale) % scale;
+  const clampedY = Math.max(0, Math.min(scale - 1e-9, ty));
+  const ix = Math.floor(wrappedX);
+  const iy = Math.floor(clampedY);
+  const tile = held(keyOf({ z, x: ix, y: iy }));
+  if (!tile) return null;
+  const size = tile.size;
+  const fx = (wrappedX * size) - 0.5;
+  const fy = (clampedY * size) - 0.5;
+  const x0 = Math.floor(fx);
+  const y0 = Math.floor(fy);
+  const ax = fx - x0;
+  const ay = fy - y0;
+  const lx = x0 - (ix * size);
+  const ly = y0 - (iy * size);
+  if (lx >= 0 && ly >= 0 && lx + 1 < size && ly + 1 < size) {
+    const h = tile.heights;
+    const i = (ly * size) + lx;
+    return (h[i] * (1 - ax) * (1 - ay)) + (h[i + 1] * ax * (1 - ay))
+      + (h[i + size] * (1 - ax) * ay) + (h[i + size + 1] * ax * ay);
+  }
+  const post = (gx, gy) => {
+    const n = scale * size;
+    const px = ((gx % n) + n) % n;
+    const py = Math.max(0, Math.min(n - 1, gy));
+    const nx = Math.floor(px / size);
+    const ny = Math.floor(py / size);
+    const t = (nx === ix && ny === iy) ? tile : held(keyOf({ z, x: nx, y: ny }));
+    if (t && t.size === size) {
+      const v = t.heights[((py - (ny * size)) * size) + (px - (nx * size))];
+      if (Number.isFinite(v)) return v;
+    }
+    // Not held at this zoom: a coarser level at this post's own centre.
+    if (depth < 2) {
+      for (const zc of zoomsDeep) {
+        if (zc >= z) continue;
+        const f = 2 ** (z - zc);
+        const v = sampleMosaic(zc, (gx + 0.5) / size / f, (gy + 0.5) / size / f, depth + 1);
+        if (v != null) return v;
+      }
+    }
+    // Nothing anywhere: this tile's own nearest post, which is the old clamp.
+    const cx = Math.max(0, Math.min(size - 1, gx - (ix * size)));
+    const cy = Math.max(0, Math.min(size - 1, gy - (iy * size)));
+    return tile.heights[(cy * size) + cx];
+  };
+  return (post(x0, y0) * (1 - ax) * (1 - ay)) + (post(x0 + 1, y0) * ax * (1 - ay))
+    + (post(x0, y0 + 1) * (1 - ax) * ay) + (post(x0 + 1, y0 + 1) * ax * ay);
+}
+
+/**
+ * Hold a decoded tile as though it had been fetched — for a test, or for a
+ * caller that decoded Terrarium itself. `{ z, x, y, size, heights }`.
+ */
+export function holdTile(tile, { pin = false } = {}) {
+  if (!tile || !Number.isFinite(tile.z) || !tile.heights) return false;
+  const size = tile.size || TERRARIUM.size;
+  remember(keyOf(tile), { ...tile, size }, pin);
+  return true;
 }
 
 /**

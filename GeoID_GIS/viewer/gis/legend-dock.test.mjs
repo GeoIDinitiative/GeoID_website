@@ -11,7 +11,7 @@
  * Run: node GeoID_GIS/viewer/gis/legend-dock.test.mjs
  */
 
-import { mergeSources, entryKey, arrivals, dedupe, signatureOf, SOURCE_ORDER } from "./legend-dock.js";
+import { mergeSources, entryKey, arrivals, dedupe, signatureOf, SOURCE_ORDER, isSingleSymbolCard } from "./legend-dock.js";
 import { readFileSync } from "node:fs";
 
 let failures = 0;
@@ -163,6 +163,33 @@ const cardSrc = hierarchy.slice(hierarchy.indexOf("function basemapCard()"),
 check("the basemap card asks for it", /legendFold = "collapsed"/.test(cardSrc));
 check("and never springs the panel open when the basemap changes",
   /legendAutoOpen = "never"/.test(cardSrc));
+
+/* ── a single-symbol entry is one row: mark on the left, nothing under it ─ */
+
+/**
+ * The Plate Boundaries shape -- mark beside the name in the head, no row
+ * below -- is what EVERY single-symbol entry wears. A one-colour repaint
+ * arrived as a class list of one row reading "4,023 lines", and an overlay as
+ * a head, a symbol row and a paragraph; both are one symbol and both are
+ * collapsed by the dock, at the one place every source passes through.
+ */
+check("one symbol row is a single-symbol card", isSingleSymbolCard({ rows: 1 }));
+check("so is one class of a classed legend", isSingleSymbolCard({ classes: 1 }));
+check("a head already carrying the mark with nothing left under it is single",
+  isSingleSymbolCard({ headMark: true }));
+check("two classes are a key, not a symbol", !isSingleSymbolCard({ classes: 2 }));
+check("a ramp is a scale, never one symbol", !isSingleSymbolCard({ rows: 1, ramps: 1 }));
+check("nor is a gradient block", !isSingleSymbolCard({ rows: 1, gradients: 1 }));
+check("a head mark over a class list is not collapsed into one row",
+  !isSingleSymbolCard({ headMark: true, classes: 3 }));
+check("the basemap card, which asked to start folded, is left alone",
+  !isSingleSymbolCard({ rows: 1, foldCollapsed: true }));
+check("an empty card is not a symbol", !isSingleSymbolCard({}));
+check("the dock collapses every card before it folds any",
+  /nodes\.forEach\(collapseSingleSymbol\);\s*nodes\.forEach\(makeFoldable\);/.test(dock));
+check("and a collapsed card keeps nothing under its head",
+  /let node = badge\.nextSibling;[\s\S]{0,120}node\.remove\(\);/.test(
+    dock.slice(dock.indexOf("function collapseSingleSymbol"), dock.indexOf("function makeFoldable"))));
 
 console.log(failures ? `\n${failures} check(s) failed` : "\nall checks passed");
 process.exit(failures ? 1 : 0);

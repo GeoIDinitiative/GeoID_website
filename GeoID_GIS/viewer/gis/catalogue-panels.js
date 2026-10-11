@@ -35,6 +35,8 @@ import { holdLaunch } from "./launch-ready.js?v=20261011-174399e";
 import { mathsFor } from "./equations.js?v=20261011-174399e";
 import { bandOf, bandRows, bandSymbology, describeFilter, magOf }
   from "./seismic-magnitude.js?v=20261011-174399e";
+import { filterVolcanoes, yearRankOf, yearWords, DEFAULT_YEAR_RANK }
+  from "./volcano-filter.js?v=20261011-174399e";
 
 const byId = (id) => document.getElementById(id);
 
@@ -626,12 +628,15 @@ function drawAll() {
  * untouched — the swatches beside these ticks stay meaningful while a class
  * is hidden, which is what makes the control readable at all.
  */
-function applyClassFilter(layer, { classOf, colourFor, off, after = null }) {
+function applyClassFilter(layer, { classOf, colourFor, off, keep = null, after = null }) {
   if (!layer) return null;
   if (!layer._allFeatures) layer._allFeatures = layer.features;
   const all = layer._allFeatures || [];
-  const filtered = off.size
+  // `keep` is a second, independent test (the volcanoes' year filter): a
+  // feature is drawn only when its class is on AND it passes.
+  const filtered = off.size || keep
     ? all.filter((f) => {
+      if (keep && !keep(f)) return false;
       const key = classOf(f);
       return key === null || key === undefined || !off.has(String(key));
     })
@@ -670,25 +675,120 @@ function drawClassRows(host, classes, off, onToggle, idPrefix) {
   });
 }
 
-/** Per-type toggles for the volcano layer. */
+/**
+ * THE VOLCANOES' TWO FILTERS: a YEAR filter (the drawer's first control) and
+ * the per-type toggles under it, applied together to ONE plotted set.
+ *
+ * The year filter used to be a separate "Around" select belonging to the
+ * hazard buffers, while the points stayed drawn whatever it said — so the map
+ * showed volcanoes the buffers ignored, and two time frames had to be
+ * reconciled by eye. Now the filter decides what is PLOTTED first: a volcano
+ * outside the time frame leaves the dots, the labels and the click pick (the
+ * same master-list filter the type toggles have always used), and the hazard
+ * buffers are then drawn only around what is left. After every pass this
+ * announces `geoid-gis:volcano-filter`, which is what makes the buffers — and
+ * the people-at-risk readings taken off them — follow the filter live.
+ */
 const volcanoTypesOff = new Set();
+
+/** The year filter's time frame: the lowest `label_rank` kept (0 = every volcano). */
+const volcanoYearRank = () => yearRankOf(byId("volcano-years")?.value ?? DEFAULT_YEAR_RANK);
+
+/** What the plotted set is filtered by, now. Published for the buffers. */
+export function volcanoFilterState() {
+  return { minRank: volcanoYearRank(), typesOff: new Set(volcanoTypesOff) };
+}
+const filterKey = () => `${volcanoYearRank()}|${[...volcanoTypesOff].sort().join("\u0001")}`;
+
+/**
+ * A colour per feature off the layer's OWN legend, never re-derived (the
+ * class-filter rule above). Categorical legends match by value (or by label
+ * where a declared style carries no values); a classed range by its breaks.
+ * Null when the legend cannot say — the filter then waits rather than
+ * repainting the dots in colours the key does not explain.
+ */
+function legendColourFor(legend) {
+  const field = legend?.field;
+  const palette = Array.isArray(legend?.palette) ? legend.palette.map((c) => `#${String(c).replace("#", "")}`) : null;
+  if (!field || !palette?.length) return null;
+  const values = Array.isArray(legend.values) ? legend.values
+    : legend.categorical && Array.isArray(legend.labels) ? legend.labels : null;
+  if (values) {
+    const lookup = new Map(values.map((value, i) => [String(value), palette[i]]));
+    return (f) => lookup.get(String(f?.properties?.[field])) || "#8a8a8a";
+  }
+  const breaks = Array.isArray(legend.breaks) ? legend.breaks : null;
+  if (breaks && breaks.length >= 2) {
+    return (f) => {
+      const raw = f?.properties?.[field];
+      const v = raw === null || raw === undefined || raw === "" ? NaN : Number(raw);
+      if (!Number.isFinite(v)) return null;
+      let k = 0;
+      while (k < breaks.length - 2 && v >= breaks[k + 1]) k += 1;
+      return palette[Math.min(palette.length - 1, k)];
+    };
+  }
+  return null;
+}
 
 function volcanoLayerBits() {
   const layer = layerForDataset("volcanoes");
-  const legend = layer?.legendInfo;
-  if (!layer || legend?.field !== "type_group") return null;
-  return { layer, legend };
+  if (!layer) return null;
+  const legend = layer.legendInfo;
+  return { layer, legend, colourFor: legendColourFor(legend), byType: legend?.field === "type_group" };
 }
 
-function applyVolcanoTypes() {
+function announceVolcanoFilter(layer) {
+  if (typeof document === "undefined") return;
+  document.dispatchEvent(new CustomEvent("geoid-gis:volcano-filter", {
+    detail: { ...volcanoFilterState(), layerId: layer?.id ?? null },
+  }));
+}
+
+function sayVolcanoYears(layer) {
+  const node = byId("volcano-years-status");
+  if (!node) return;
+  const all = layer?._allFeatures || layer?.features;
+  if (!layer || !all) { node.textContent = ""; return; }
+  const drawn = (layer.features || []).length;
+  const rank = volcanoYearRank();
+  node.textContent = rank === DEFAULT_YEAR_RANK && !volcanoTypesOff.size
+    ? `All ${all.length.toLocaleString("en-GB")} volcanoes drawn.`
+    : `${drawn.toLocaleString("en-GB")} of ${all.length.toLocaleString("en-GB")} volcanoes drawn — ${yearWords(rank)}${volcanoTypesOff.size ? `, ${volcanoTypesOff.size} type${volcanoTypesOff.size === 1 ? "" : "s"} hidden` : ""}. The hazard buffers follow this filter.`;
+}
+
+/** Apply BOTH filters to the plotted set, then tell the buffers. */
+function applyVolcanoFilters({ force = false } = {}) {
   const bits = volcanoLayerBits();
   if (!bits) return;
-  const { layer, legend } = bits;
-  const lookup = new Map(legend.values.map((value, i) => [value, `#${legend.palette[i]}`]));
+  const { layer, colourFor, byType } = bits;
+  const key = filterKey();
+  if (!force && layer._volcanoFilterKey === key) { sayVolcanoYears(layer); return; }
+  // An unfiltered layer that was never filtered needs no repaint: what is on
+  // the globe is already every volcano.
+  if (layer._volcanoFilterKey === undefined && key === `${DEFAULT_YEAR_RANK}|` && !force) {
+    layer._volcanoFilterKey = key;
+    sayVolcanoYears(layer);
+    return;
+  }
+  if (!colourFor) {
+    const node = byId("volcano-years-status");
+    if (node) node.textContent = "Waiting for the layer's colours before filtering…";
+    return;
+  }
+  const minRank = volcanoYearRank();
+  // Recorded BEFORE the repaint: a repaint can announce a layer change, which
+  // redraws this list and calls back in here; with the key already set that
+  // nested call is a no-op instead of a loop.
+  layer._volcanoFilterKey = key;
   applyClassFilter(layer, {
-    off: volcanoTypesOff,
+    off: byType ? volcanoTypesOff : new Set(),
     classOf: (f) => String(f?.properties?.type_group),
-    colourFor: (f) => lookup.get(String(f?.properties?.type_group)) || "#8a8a8a",
+    // The year filter is the same test the buffers apply (volcano-filter.js),
+    // so the plot and the buffers cannot disagree about who is in the frame.
+    keep: minRank === DEFAULT_YEAR_RANK ? null
+      : (f) => filterVolcanoes([f], { minRank }).length === 1,
+    colourFor,
     // The labels rebuild from the filtered features; off-then-on keeps the
     // chosen detail level because point-labels remembers it by layer name.
     after: (l) => {
@@ -699,21 +799,38 @@ function applyVolcanoTypes() {
       }
     },
   });
+  sayVolcanoYears(layer);
+  announceVolcanoFilter(layer);
 }
 
 function drawVolcanoTypes() {
   const host = byId("volcano-types");
-  if (!host) return;
   const bits = volcanoLayerBits();
-  if (!bits) { host.replaceChildren(); return; }
+  // A layer that arrived (or re-arrived) since the filter was set wears the
+  // filter as soon as its legend can colour it — and the buffers follow.
+  if (bits) applyVolcanoFilters();
+  else sayVolcanoYears(null);
+  if (!host) return;
+  if (!bits?.byType) { host.replaceChildren(); return; }
   const { legend } = bits;
   drawClassRows(
     host,
     legend.values.map((value, i) => ({ key: value, label: value, colour: `#${legend.palette[i]}` })),
     volcanoTypesOff,
-    applyVolcanoTypes,
+    () => applyVolcanoFilters(),
     "volcano-type",
   );
+}
+
+/** The year filter is page markup docked under the row; wired by delegation. */
+function wireVolcanoYears() {
+  if (typeof document === "undefined" || wireVolcanoYears.done) return;
+  wireVolcanoYears.done = true;
+  document.addEventListener("change", (event) => {
+    if (event.target?.id !== "volcano-years") return;
+    if (!layerForDataset("volcanoes")) return;
+    applyVolcanoFilters({ force: true });
+  });
 }
 
 /**
@@ -805,6 +922,10 @@ function init() {
   if (!Object.values(HOMES).some((hostId) => byId(hostId))) return;
   drawAll();
   wireVolcanoDetail();
+  wireVolcanoYears();
+  // The buffers read the plotted set's filter through this seam, so they can
+  // never be drawn round a volcano the plot has removed.
+  window.GeoIDVolcanoFilter = { state: volcanoFilterState };
   // Whoever took a layer off — one of these lists or the layer box — the tick
   // follows, because the list asks the catalogue rather than remembering.
   window.GeoIDImportManager?.onChange?.(drawAll);

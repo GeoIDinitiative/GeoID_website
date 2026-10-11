@@ -104,6 +104,14 @@ process.on("exit", () => {
 // ── Saying it ──────────────────────────────────────────────────────────────
 {
   check("counts: fewer than one person is <1, not 0", formatCount(0.4) === "<1" && formatCount(0) === "0" && formatCount(12345.6) === "12,346");
+  check("counts are numbers with separators at any size, never words or exponents", formatCount(1.2e7) === "12,000,000" && formatCount(100000) === "100,000"
+    && ![999, 54321, 1.65e6, 3.4e8].some((n) => /thousand|million|e\+|[0-9][kKmM]\b/.test(formatCount(n))));
+  // A people count must never reach formatNumber, which turns 1e7 and up into
+  // an exponent ("1.65e+7 people"): every expected-people figure is a count.
+  for (const f of ["risk-assessment.js", "risk-reader-view.js"]) {
+    const src = readFileSync(new URL(`./${f}`, import.meta.url), "utf8");
+    check(`${f}: expected people a year are written as counts`, !/formatNumber\(\s*b0?\.expectedPerYear/.test(src) && /formatCount\(\s*b0?\.expectedPerYear/.test(src));
+  }
   check("shares", formatShare(0.1234) === "12.3%" && formatShare(0.0004) === "0.04%");
   check("return periods from a chance", returnPeriod(0) === "never on record" && returnPeriod(1 - Math.exp(-0.01)) === "1 in 100 years" && /a year/.test(returnPeriod(0.95)));
 

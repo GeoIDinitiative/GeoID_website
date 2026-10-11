@@ -474,7 +474,7 @@ export function reportHtml(a, { mapImage = null } = {}) {
     card(formatCount(b0.exposed), `people exposed (${formatShare(b0.exposedShare)})`),
     card(formatCount(b0.veryHighHigh), b0.scheme.bands ? "people in the top two bands" : "people at very high or high risk"),
     b0.expectedPerYear !== null
-      ? card(formatNumber(b0.expectedPerYear, b0.expectedPerYear), "people reached in an average year")
+      ? card(formatCount(b0.expectedPerYear), "people reached in an average year")
       : card(`${formatNumber(b0.areaKm2, b0.areaKm2)} km²`, "area assessed"),
   ].join("");
   const table = (b) => `
@@ -495,7 +495,7 @@ export function reportHtml(a, { mapImage = null } = {}) {
       <tr><th>People-weighted mean ${esc(b.scheme.measure.toLowerCase())}</th><td>${f(s.mean)}</td><th>Median</th><td>${f(s.median)}</td></tr>
       <tr><th>10th percentile</th><td>${f(s.p10)}</td><th>90th percentile</th><td>${f(s.p90)}</td></tr>
       <tr><th>Lowest reading in area</th><td>${f(s.min)}</td><th>Highest reading in area</th><td>${f(s.max)}</td></tr>
-      ${b.expectedPerYear !== null ? `<tr><th>Expected people reached a year</th><td>${formatNumber(b.expectedPerYear, b.expectedPerYear)}</td><th>Population-weighted chance</th><td>${s.mean === null ? "—" : returnPeriod(s.mean)}</td></tr>` : ""}
+      ${b.expectedPerYear !== null ? `<tr><th>Expected people reached a year</th><td>${formatCount(b.expectedPerYear)}</td><th>Population-weighted chance</th><td>${s.mean === null ? "—" : returnPeriod(s.mean)}</td></tr>` : ""}
     </tbody></table>`;
   };
   const definitions = (b) => `<p class="def">${esc(b.scheme.definition)}</p>`;
@@ -517,7 +517,7 @@ export function reportHtml(a, { mapImage = null } = {}) {
         <thead><tr><th>Polygon</th><th class="n">People</th><th class="n">Area km²</th><th class="n">Exposed</th><th class="n">% exposed</th>${a.breakdowns[0].byClass.map((c) => `<th class="n">${esc(c.level || c.label)}</th>`).join("")}${a.breakdowns[0].expectedPerYear !== null ? '<th class="n">Per year</th>' : ""}</tr></thead>
         <tbody>${[...a.byPolygon].sort((x, y) => y.breakdown.veryHighHigh - x.breakdown.veryHighHigh || y.breakdown.exposed - x.breakdown.exposed).map((row) => {
           const b = row.breakdown;
-          return `<tr><td>${esc(row.name)}</td><td class="n">${formatCount(b.total)}</td><td class="n">${formatNumber(b.areaKm2, 100)}</td><td class="n">${formatCount(b.exposed)}</td><td class="n">${formatShare(b.exposedShare)}</td>${b.byClass.map((c) => `<td class="n">${formatCount(c.people)}</td>`).join("")}${b.expectedPerYear !== null ? `<td class="n">${formatNumber(b.expectedPerYear, b.expectedPerYear)}</td>` : ""}</tr>`;
+          return `<tr><td>${esc(row.name)}</td><td class="n">${formatCount(b.total)}</td><td class="n">${formatNumber(b.areaKm2, 100)}</td><td class="n">${formatCount(b.exposed)}</td><td class="n">${formatShare(b.exposedShare)}</td>${b.byClass.map((c) => `<td class="n">${formatCount(c.people)}</td>`).join("")}${b.expectedPerYear !== null ? `<td class="n">${formatCount(b.expectedPerYear)}</td>` : ""}</tr>`;
         }).join("")}</tbody>
       </table>
       <p class="quiet">Sorted by people at very high or high risk, then by people exposed.</p>
@@ -684,7 +684,7 @@ export function summarySentence(a) {
     const top = b.byClass.find((c) => c.people >= 0.5);
     if (top) parts.push(`The most severe class with people in it is ${top.level.toLowerCase()} (${top.label.toLowerCase()}, ${top.threshold}): ${formatCount(top.people)} people.`);
   }
-  if (b.expectedPerYear !== null) parts.push(`In an average year about ${formatNumber(b.expectedPerYear, b.expectedPerYear)} people are reached.`);
+  if (b.expectedPerYear !== null) parts.push(`In an average year about ${formatCount(b.expectedPerYear)} people are reached.`);
   if (b.noReading >= 0.5) parts.push(`${formatCount(b.noReading)} live where the layer has no reading.`);
   return parts.join(" ");
 }

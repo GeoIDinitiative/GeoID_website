@@ -25,7 +25,7 @@ import {
   buildSymbology, colourOf, legendInfoFrom,
 } from "./symbology.js?v=20261011-174399e";
 import { SAFFIR_SIMPSON_KTS } from "./event-sources.js?v=20261011-174399e";
-import { startPlayer, stopPlayer } from "./timelapse-player.js?v=20261011-174399e";
+import { startPlayer, stopPlayer, playerHidden } from "./timelapse-player.js?v=20261011-174399e";
 import {
   showSeason, showClimatology, riskLayer,
 } from "./cyclone-risk.js?v=20261011-174399e";
@@ -338,7 +338,7 @@ async function build({ from, startAt, step }) {
     return node;
   };
 
-  const wasVisible = layer.object3D ? layer.object3D.visible : true;
+  let lastOff = Boolean(layer.userHidden);
 
   const derived = window.GeoIDImportManager?.addDerivedLayer?.(
     `Cyclone tracks plotted — ${plan.spec.label.toLowerCase()}`, {
@@ -374,8 +374,17 @@ async function build({ from, startAt, step }) {
     onStatus: say,
     interval: plan.spec.interval,
     startAt: startAt === null ? ALL : startAt,
+    // Workspace hides or removes the sequence through either of its rows --
+    // see `playerHidden` in the player.
+    owns: () => [tracksLayer(), held()],
+    onRemoved: () => {
+      const base = tracksLayer();
+      if (base) window.GeoIDImportManager?.removeLayer?.(base.id);
+    },
     onShow: (index) => {
       const whole = index === ALL;
+      const off = playerHidden();
+      lastOff = off;
       /**
        * THE WHOLE-RECORD LAYER AND THE PLOT ARE NEVER BOTH UP. Left visible
        * together the archive draws every storm behind the ones being plotted,
@@ -390,9 +399,9 @@ async function build({ from, startAt, step }) {
        * one describing what was drawn was the second of them.
        */
       const plot = held();
-      if (plot) plot.legendHidden = whole;
-      window.GeoIDLayerHierarchy?.setVisible?.(layer, whole ? wasVisible : false);
-      if (whole) {
+      if (plot) { plot.legendHidden = whole; plot.visible = !off; }
+      window.GeoIDLayerHierarchy?.setVisible?.(layer, whole ? !off : false);
+      if (whole || off) {
         built.forEach((node) => { node.visible = false; });
       } else {
         // THIS FRAME ONLY: the one before it goes in its wake.
@@ -401,7 +410,7 @@ async function build({ from, startAt, step }) {
       }
       const now = plot;
       if (now) {
-        if (now.object3D) now.object3D.visible = !whole;
+        if (now.object3D) now.object3D.visible = !whole && !off;
         /**
          * THE FEATURE LIST FOLLOWS THE FRAME, the glacier driver's own lesson:
          * `featuresAt` walks `layer.features`, so a list left on the whole
@@ -422,7 +431,7 @@ async function build({ from, startAt, step }) {
       if (now) window.GeoIDImportManager?.removeLayer?.(now.id);
       group.traverse?.((n) => { n.geometry?.dispose?.(); n.material?.dispose?.(); });
       const back = tracksLayer();
-      if (back) window.GeoIDLayerHierarchy?.setVisible?.(back, wasVisible);
+      if (back) window.GeoIDLayerHierarchy?.setVisible?.(back, !lastOff);
       if (riskLayer()) showClimatology();
       say("");
     },

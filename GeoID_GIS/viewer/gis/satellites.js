@@ -28,6 +28,9 @@
  */
 
 import * as THREE from "../vendor/three.module.js";
+// Unversioned, as stl-loader-adapter imports it: STLLoader pulls in
+// "./three.module.js" itself, and that must stay the one copy of three.
+import { STLLoader } from "../vendor/STLLoader.js";
 
 /**
  * Seven CelesTrak groups now — roughly 1,700 objects. Fetched SEQUENTIALLY,
@@ -997,13 +1000,25 @@ function onClick(event) {
   if (!layer || layer.visible === false) return;
   const record = recordAt(event.clientX, event.clientY);
   if (!record) return;
+  if (!openRecord(record)) return;
+  // The same click every control and location label answers with.
+  window.GeoIDUiSound?.playClick?.();
+  window.GeoIDFeaturePopup?.suppress?.(500);
+  event.stopPropagation();
+}
+
+/** Open a satellite's card, select it, fly to it and follow it. */
+function openRecord(record) {
+  const viewer = window.GeoIDViewer;
+  if (!active || !record || !viewer) return false;
   const item = window.GeoIDPointLabels?.featureToItem?.(record.feature, active.legendInfo);
-  if (!item || !viewer.openSceneFeature?.(item)) return;
+  if (!item || !viewer.openSceneFeature?.(item)) return false;
   // The card goes when the tracker's layer does -- see card-owner.js.
   window.GeoIDCardOwner?.own?.("viewer", LAYER_NAME, () => window.GeoIDViewer?.closeCards?.());
   select(record);
-  window.GeoIDFeaturePopup?.suppress?.(500);
-  event.stopPropagation();
+  // And the camera goes to it, as tour mode goes to a stop, then follows it.
+  flyToSatellite(record);
+  return true;
 }
 
 /**
@@ -1046,6 +1061,456 @@ function onMove(event) {
       canvas.style.cursor = record ? "pointer" : "";
     }
   }, 70);
+}
+
+/* ── the close-in model, and the flight to a satellite ───────────────────── */
+
+/**
+ * A satellite seen from nearby is drawn as a MODEL; from afar it stays the
+ * dot it always was. The model is `assets/models/satellite_*.stl`, baked by
+ * services/bake-satellite-model.py — four parts because STL carries no
+ * colour: gold-foil body, solar wings, white dish, and a band tinted with the
+ * satellite's own category colour. Each part is ONE InstancedMesh of
+ * `MODEL_MAX`, so a hundred satellites close in cost four draw calls, and
+ * only the nearest `MODEL_MAX` within `MODEL_FAR_KM` of the camera are ever
+ * placed.
+ *
+ * NOT TO SCALE, and deliberately. A real satellite is tens of metres; from
+ * the hundreds of kilometres the camera can sensibly be from one it would be
+ * under a pixel. The model is held at an angular size that grows as the
+ * camera closes (and grows in from nothing past `MODEL_FAR_KM`, so the swap
+ * from dot to model is a growth rather than a pop), and only reaches its
+ * true size inside a kilometre or so.
+ *
+ * Placed EVERY FRAME, from SGP4 at the viewer's clock, in the scene's
+ * `onBeforeRender` — the dots move every 1.5 s, which from 150 km away is a
+ * visible jump of ten kilometres. The colour-coded dot of a modelled
+ * satellite is lifted above the model in the SCREEN's up direction, so it
+ * floats just over it from any view rather than sitting on its middle.
+ */
+const MODEL_PARTS = [
+  { file: "satellite_bus.stl", colour: 0xc9a24a, metalness: 0.55, roughness: 0.38, emissive: 0x2b2008 },
+  { file: "satellite_wings.stl", colour: 0x22397a, metalness: 0.35, roughness: 0.3, emissive: 0x060d26 },
+  { file: "satellite_dish.stl", colour: 0xe9edf2, metalness: 0.1, roughness: 0.55, emissive: 0x1c1e22 },
+  { file: "satellite_accent.stl", colour: 0xffffff, metalness: 0.2, roughness: 0.5, emissive: 0x161616, tinted: true },
+];
+const MODEL_VERSION = "1";
+const MODEL_FAR_KM = 2500;      // the model starts to grow in here
+const MODEL_FULL_KM = 1900;     // and is fully grown here
+const MODEL_MAX = 24;
+const MODEL_REAL_HALF_KM = 0.012;
+/** Angular half-size of the model, in radians, at a camera distance. */
+function modelAngularHalf(distanceKm) {
+  return Math.min(0.2, Math.max(0.032,
+    0.032 * Math.pow(MODEL_FAR_KM / Math.max(distanceKm, 1e-6), 0.38)));
+}
+/** Where the flight to a satellite lands, and the follow's limits. */
+const LAND_KM = 160;
+const FOLLOW_MS = 20000;
+const FOLLOW_MIN_KM = 0.5;
+const FOLLOW_MAX_KM = 6000;
+
+let modelPromise = null;
+let modelData = null;
+function loadModel() {
+  if (modelPromise) return modelPromise;
+  const loader = new STLLoader();
+  modelPromise = Promise.all(MODEL_PARTS.map((part) => new Promise((resolve, reject) => {
+    // Anchored to the module, never to the document: the viewer's page is a
+    // directory up from gis/, so a document-relative path would miss.
+    const url = new URL(`../assets/models/${part.file}?v=${MODEL_VERSION}`, import.meta.url).href;
+    loader.load(url, resolve, undefined, reject);
+  }))).then((geometries) => {
+    let radius = 0;
+    geometries.forEach((geometry) => {
+      geometry.computeBoundingSphere();
+      const s = geometry.boundingSphere;
+      radius = Math.max(radius, s.center.length() + s.radius);
+    });
+    modelData = { geometries, radius: radius || 1 };
+    return modelData;
+  }).catch(() => {
+    // A model that cannot load leaves the dots exactly as they were.
+    modelData = { failed: true };
+    return null;
+  });
+  return modelPromise;
+}
+
+function ensureModelMeshes() {
+  if (!active || active.models || !modelData?.geometries) return;
+  const group = new THREE.Group();
+  group.name = "satellite-models";
+  // The dots' own trick: a nested band group with keepRenderOrder, and the
+  // materials in the transparent pass (at full opacity), so a drape painted
+  // with the depth test off cannot draw over a model.
+  group.renderOrder = 197;
+  group.userData.keepRenderOrder = true;
+  const meshes = MODEL_PARTS.map((part, k) => {
+    const material = new THREE.MeshStandardMaterial({
+      color: part.colour,
+      metalness: part.metalness,
+      roughness: part.roughness,
+      emissive: part.emissive,
+      side: THREE.DoubleSide,
+      transparent: true,
+      opacity: 1,
+      depthWrite: true,
+    });
+    const mesh = new THREE.InstancedMesh(modelData.geometries[k], material, MODEL_MAX);
+    mesh.name = `satellite-model-${part.file.replace(/\.stl$/, "")}`;
+    mesh.count = 0;
+    mesh.frustumCulled = false;
+    mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    if (part.tinted) {
+      mesh.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(MODEL_MAX * 3).fill(1), 3);
+      mesh.instanceColor.setUsage(THREE.DynamicDrawUsage);
+    }
+    // Picks go through this module's own dot/tag/ring picker.
+    mesh.raycast = () => {};
+    group.add(mesh);
+    return mesh;
+  });
+  active.group.add(group);
+  active.models = { group, meshes };
+}
+
+/** Is the tracker's group actually drawn — every ancestor visible? */
+function groupShown() {
+  if (!active || active.layer?.visible === false) return false;
+  for (let node = active.group; node; node = node.parent) {
+    if (!node.visible) return false;
+  }
+  return true;
+}
+
+/** Where a record is, in the group's own (Earth-fixed) frame, at a moment. */
+function placeOf(record, date, gmst, outPos, outVel) {
+  const satellite = window.satellite;
+  let state;
+  try { state = satellite.propagate(record.satrec, date); } catch (error) { return false; }
+  if (!state?.position || !Number.isFinite(state.position.x)) return false;
+  ecfToScene(satellite.eciToEcf(state.position, gmst), outPos);
+  if (outVel && state.velocity) ecfToScene(satellite.eciToEcf(state.velocity, gmst), outVel);
+  return true;
+}
+
+/**
+ * How fast the viewer's clock and the globe run, measured rather than
+ * asked: simulated ms per wall ms, and radians of spin per wall ms. The
+ * flight predicts where the satellite WILL be when it lands from these, so
+ * it lands on a moving target in real time, in time-lapse and paused alike.
+ */
+const clockRate = { sim: 1, spin: 0, lastWall: 0, lastSim: 0, lastRot: null };
+function trackClock(nowSimMs) {
+  const wall = performance.now();
+  const rot = active?.group?.parent?.rotation?.y;
+  if (clockRate.lastWall && wall - clockRate.lastWall > 1) {
+    const dt = wall - clockRate.lastWall;
+    const sim = (nowSimMs - clockRate.lastSim) / dt;
+    if (Number.isFinite(sim)) clockRate.sim += (sim - clockRate.sim) * 0.2;
+    if (Number.isFinite(rot) && Number.isFinite(clockRate.lastRot)) {
+      let d = rot - clockRate.lastRot;
+      d = Math.atan2(Math.sin(d), Math.cos(d));
+      clockRate.spin += (d / dt - clockRate.spin) * 0.2;
+    }
+  }
+  clockRate.lastWall = wall;
+  clockRate.lastSim = nowSimMs;
+  clockRate.lastRot = Number.isFinite(rot) ? rot : null;
+}
+
+const _scratch = {
+  pos: new THREE.Vector3(),
+  vel: new THREE.Vector3(),
+  camLocal: new THREE.Vector3(),
+  upLocal: new THREE.Vector3(),
+  along: new THREE.Vector3(),
+  normal: new THREE.Vector3(),
+  zenith: new THREE.Vector3(),
+  matrix: new THREE.Matrix4(),
+  inverse: new THREE.Matrix4(),
+  rotation: new THREE.Matrix3(),
+  colour: new THREE.Color(),
+  world: new THREE.Vector3(),
+};
+
+/** The models, the lifted dots and the near plane, for this frame. */
+function modelStep(camera, date, gmst) {
+  const models = active.models;
+  const shown = groupShown();
+  const lifted = active.lifted || (active.lifted = new Map());
+  const positions = active.geometry.attributes.position;
+  const array = positions.array;
+  let dirty = false;
+
+  const restore = (keep) => {
+    lifted.forEach((_, i) => {
+      if (keep?.has(i)) return;
+      lifted.delete(i);
+      const record = active.records[i];
+      if (record && !record.dead && !record.hidden && placeOf(record, date, gmst, _scratch.pos)) {
+        positions.setXYZ(i, _scratch.pos.x, _scratch.pos.y, _scratch.pos.z);
+      } else {
+        positions.setXYZ(i, 0, 0, 0);
+      }
+      dirty = true;
+    });
+  };
+
+  if (!shown || modelData?.failed) {
+    if (models) models.meshes.forEach((mesh) => { mesh.count = 0; });
+    restore(null);
+    if (dirty) positions.needsUpdate = true;
+    return;
+  }
+
+  // The camera, in the group's own frame (the dots' frame).
+  _scratch.inverse.copy(active.group.matrixWorld).invert();
+  const camLocal = _scratch.camLocal.copy(camera.position).applyMatrix4(_scratch.inverse);
+  const farUnits = MODEL_FAR_KM * KM_TO_UNITS;
+  const far2 = farUnits * farUnits;
+  const candidates = [];
+  const followed = active.follow?.record || null;
+  for (let i = 0; i < active.records.length; i += 1) {
+    const record = active.records[i];
+    if (record.dead || record.hidden) continue;
+    const dx = array[i * 3] - camLocal.x;
+    const dy = array[i * 3 + 1] - camLocal.y;
+    const dz = array[i * 3 + 2] - camLocal.z;
+    const d2 = dx * dx + dy * dy + dz * dz;
+    if (d2 < far2 || record === followed) candidates.push({ i, d2: record === followed ? -1 : d2 });
+  }
+  if (candidates.length && !modelData) { loadModel(); }
+  if (!models) {
+    ensureModelMeshes();
+    if (!active.models) { restore(null); if (dirty) positions.needsUpdate = true; return; }
+  }
+  candidates.sort((a, b) => a.d2 - b.d2);
+  if (candidates.length > MODEL_MAX) candidates.length = MODEL_MAX;
+
+  // The screen's up, in the group's frame: where a lifted dot goes.
+  _scratch.rotation.setFromMatrix4(_scratch.inverse);
+  const upLocal = _scratch.upLocal.set(0, 1, 0).applyQuaternion(camera.quaternion)
+    .applyMatrix3(_scratch.rotation).normalize();
+
+  const keep = new Set();
+  let count = 0;
+  let nearestClear = Infinity;
+  const { meshes } = active.models;
+  for (const { i } of candidates) {
+    const record = active.records[i];
+    if (!placeOf(record, date, gmst, _scratch.pos, _scratch.vel)) continue;
+    const pos = _scratch.pos;
+    const distance = pos.distanceTo(camLocal);
+    const distanceKm = distance / KM_TO_UNITS;
+    const t = Math.min(1, Math.max(0, (MODEL_FAR_KM - distanceKm) / (MODEL_FAR_KM - MODEL_FULL_KM)));
+    const grow = record === followed ? 1 : t * t * (3 - 2 * t);
+    if (grow <= 0.001) continue;
+    const half = Math.max(MODEL_REAL_HALF_KM * KM_TO_UNITS,
+      distance * modelAngularHalf(distanceKm)) * grow;
+
+    // Nadir-pointing, flying along its velocity: +Z zenith, +X along-track,
+    // +Y the orbit normal (the wings' axis).
+    const zenith = _scratch.zenith.copy(pos).normalize();
+    const along = _scratch.along.copy(_scratch.vel).addScaledVector(zenith, -_scratch.vel.dot(zenith));
+    if (along.lengthSq() < 1e-18) along.set(zenith.y, -zenith.x, 0);
+    along.normalize();
+    const normal = _scratch.normal.crossVectors(zenith, along).normalize();
+    const scale = half / modelData.radius;
+    _scratch.matrix.set(
+      along.x * scale, normal.x * scale, zenith.x * scale, pos.x,
+      along.y * scale, normal.y * scale, zenith.y * scale, pos.y,
+      along.z * scale, normal.z * scale, zenith.z * scale, pos.z,
+      0, 0, 0, 1,
+    );
+    _scratch.colour.set(colourFor(record));
+    meshes.forEach((mesh) => {
+      mesh.setMatrixAt(count, _scratch.matrix);
+      if (mesh.instanceColor) mesh.setColorAt(count, _scratch.colour);
+    });
+    count += 1;
+
+    // The colour-coded dot floats just over the model, on screen.
+    const lift = half * 1.3;
+    positions.setXYZ(i, pos.x + upLocal.x * lift, pos.y + upLocal.y * lift, pos.z + upLocal.z * lift);
+    lifted.set(i, true);
+    keep.add(i);
+    dirty = true;
+    const tag = active.labels.get(record.norad);
+    if (tag?.visible) tag.position.set(positions.getX(i), positions.getY(i), positions.getZ(i));
+    nearestClear = Math.min(nearestClear, distance - half * 1.6);
+  }
+  meshes.forEach((mesh) => {
+    mesh.count = count;
+    mesh.instanceMatrix.needsUpdate = true;
+    if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+  });
+  restore(keep);
+  if (dirty) positions.needsUpdate = true;
+
+  /**
+   * The near plane. The render loop sets it from the distance to the ground
+   * — 0.08 units (160 km) at a LEO satellite's height — which would clip a
+   * model the camera is closer to than that. The renderer runs a logarithmic
+   * depth buffer, so a near plane well inside the closest model is safe; the
+   * loop sets it afresh next frame, so this cannot leak.
+   */
+  if (count && Number.isFinite(nearestClear)) {
+    const wanted = Math.max(1e-7, nearestClear * 0.5);
+    if (wanted < camera.near) {
+      camera.near = wanted;
+      camera.updateProjectionMatrix();
+    }
+  }
+}
+
+/** Keep the camera over the followed satellite, at the follow distance. */
+function followStep(camera, date, gmst) {
+  const follow = active.follow;
+  const viewer = window.GeoIDViewer;
+  const now = performance.now();
+  const record = follow.record;
+  if (active.selected !== record || record.dead || record.hidden || !groupShown()) { endFollow(); return; }
+  if (follow.phase === "flying") {
+    // A flight somebody else started cancels ours without calling back.
+    if (now - follow.flyStarted > follow.flyMs + 1500) endFollow();
+    return;
+  }
+  if (now > follow.until) { endFollow(); return; }
+  if (!placeOf(record, date, gmst, _scratch.pos)) return;
+  const world = _scratch.world.copy(_scratch.pos).applyMatrix4(active.group.matrixWorld);
+  const radius = world.length();
+  if (!(radius > 0)) return;
+  const desired = world.clone().multiplyScalar((radius + follow.dist) / radius);
+  const blend = Math.min(1, (now - follow.landedAt) / 700);
+  if (blend < 1 && follow.blendFrom) {
+    const eased = 1 - ((1 - blend) ** 3);
+    camera.position.lerpVectors(follow.blendFrom, desired, eased);
+  } else {
+    camera.position.copy(desired);
+  }
+  camera.lookAt(viewer?.controls?.target || new THREE.Vector3(0, 0, 0));
+  camera.updateMatrixWorld();
+}
+
+function endFollow() {
+  if (!active?.follow) return;
+  active.follow = null;
+  window.removeEventListener("wheel", onFollowWheel, true);
+}
+
+/**
+ * While following, the wheel zooms on the SATELLITE, not on the ground. The
+ * viewer's own wheel zoom moves the camera by a fraction of its height above
+ * the surface — from 160 km over a LEO satellite one notch is past it.
+ */
+function onFollowWheel(event) {
+  const follow = active?.follow;
+  const canvas = window.GeoIDViewer?.renderer?.domElement;
+  if (!follow || follow.phase !== "follow" || event.target !== canvas) return;
+  event.preventDefault();
+  event.stopPropagation();
+  const unit = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? 400 : 1;
+  const next = follow.dist * Math.exp(event.deltaY * unit * 0.0015);
+  if (next > FOLLOW_MAX_KM * KM_TO_UNITS) { endFollow(); return; }
+  follow.dist = Math.max(FOLLOW_MIN_KM * KM_TO_UNITS, next);
+  follow.until = performance.now() + FOLLOW_MS;
+}
+
+/** A press on the globe (the start of a drag) hands the camera back. */
+function onFollowPointerDown(event) {
+  const canvas = window.GeoIDViewer?.renderer?.domElement;
+  if (active?.follow?.phase === "follow" && event.target === canvas) endFollow();
+}
+
+/**
+ * Fly to a satellite with tour mode's own flight — the seam's
+ * `flyCameraTo` — and then follow it for a while as it moves.
+ *
+ * The target moves, so the landing point is PREDICTED: the satellite where
+ * SGP4 puts it when the flight ends, on a globe turned by the spin it will
+ * have by then (both rates measured off the running clock). The follow then
+ * blends out whatever the prediction missed.
+ */
+function flyToSatellite(record) {
+  const viewer = window.GeoIDViewer;
+  const camera = viewer?.camera;
+  if (!active || !camera || typeof viewer.flyCameraTo !== "function") return false;
+  if (record.dead || record.hidden) return false;
+  loadModel();
+  active.group.updateWorldMatrix(true, false);
+  const now = simNow().getTime();
+  const satellite = window.satellite;
+  // Where it is now, for the choice of flight.
+  if (!placeOf(record, new Date(now), satellite.gstime(new Date(now)), _scratch.pos)) return false;
+  const nowWorld = _scratch.pos.clone().applyMatrix4(active.group.matrixWorld);
+  const camDistKm = camera.position.distanceTo(nowWorld) / KM_TO_UNITS;
+  const angle = camera.position.clone().normalize().angleTo(nowWorld.clone().normalize());
+  const tourHop = angle > THREE.MathUtils.degToRad(25) || camDistKm > 8000;
+  const durationMs = tourHop ? 2800 : 1400;
+  // Where it will be when the flight lands.
+  const endSim = new Date(now + durationMs * clockRate.sim);
+  if (!placeOf(record, endSim, satellite.gstime(endSim), _scratch.pos)) return false;
+  const local = _scratch.pos.clone().applyAxisAngle(new THREE.Vector3(0, 1, 0), clockRate.spin * durationMs);
+  const endWorld = local.applyMatrix4(active.group.matrixWorld);
+  const landDist = LAND_KM * KM_TO_UNITS;
+  const endPosition = endWorld.clone().multiplyScalar((endWorld.length() + landDist) / endWorld.length());
+  endFollow();
+  viewer.clearZoomTarget?.();
+  active.follow = {
+    record,
+    phase: "flying",
+    dist: landDist,
+    flyStarted: performance.now(),
+    flyMs: durationMs,
+    until: 0,
+  };
+  window.addEventListener("wheel", onFollowWheel, { capture: true, passive: false });
+  const ok = viewer.flyCameraTo(endPosition, {
+    tourHop,
+    durationMs,
+    onComplete: () => {
+      const follow = active?.follow;
+      if (!follow || follow.record !== record) return;
+      follow.phase = "follow";
+      follow.landedAt = performance.now();
+      follow.blendFrom = camera.position.clone();
+      follow.until = performance.now() + FOLLOW_MS;
+      say(`Following ${record.name} — scroll to zoom on it, drag the globe to let go.`);
+    },
+  });
+  if (!ok) { endFollow(); return false; }
+  return true;
+}
+
+/**
+ * The per-frame step, chained onto the scene's `onBeforeRender` — the top of
+ * the frame being drawn, after the camera has moved and before the frustum
+ * is taken, so the follow, the models and the near plane all land in the
+ * same frame they are drawn in. Chained, never replaced: the relief sync is
+ * already there.
+ */
+let frameHookScene = null;
+function installFrameHook() {
+  const scene = window.GeoIDViewer?.scene;
+  if (!scene || frameHookScene === scene) return;
+  frameHookScene = scene;
+  const previous = typeof scene.onBeforeRender === "function"
+    ? scene.onBeforeRender.bind(scene)
+    : null;
+  scene.onBeforeRender = function satelliteFrame(...args) {
+    if (previous) previous(...args);
+    const camera = args[2];
+    if (!active || !camera || camera !== window.GeoIDViewer?.camera || !window.satellite) return;
+    try {
+      const date = simNow();
+      trackClock(date.getTime());
+      const gmst = window.satellite.gstime(date);
+      if (active.follow) followStep(camera, date, gmst);
+      modelStep(camera, date, gmst);
+    } catch (error) { /* one bad frame must not stop the render */ }
+  };
 }
 
 /* ── selection pulse ─────────────────────────────────────────────────────── */
@@ -1354,6 +1819,8 @@ async function start() {
   window.addEventListener("pointerdown", onDown, true);
   window.addEventListener("click", onClick, true);
   window.addEventListener("pointermove", onMove, true);
+  window.addEventListener("pointerdown", onFollowPointerDown, true);
+  installFrameHook();
   window.GeoIDLayerHierarchy?.render?.();
   const cacheNote = cachedGroups
     ? ` ${cachedGroups} of ${GROUPS.length} groups from stored elements `
@@ -1393,6 +1860,9 @@ function stop() {
   window.removeEventListener("pointerdown", onDown, true);
   window.removeEventListener("click", onClick, true);
   window.removeEventListener("pointermove", onMove, true);
+  window.removeEventListener("pointerdown", onFollowPointerDown, true);
+  endFollow();
+  active.models?.meshes.forEach((mesh) => { mesh.material.dispose?.(); mesh.dispose?.(); });
   if (active.pulseFrame) window.cancelAnimationFrame(active.pulseFrame);
   const viewerCanvas = window.GeoIDViewer?.renderer?.domElement;
   if (viewerCanvas) viewerCanvas.style.cursor = "";
@@ -1502,5 +1972,23 @@ if (typeof document !== "undefined") {
 }
 
 if (typeof window !== "undefined") {
-  window.GeoIDSatellites = { parseTle, satelliteProperties };
+  window.GeoIDSatellites = {
+    parseTle,
+    satelliteProperties,
+    /** Open, fly to and follow a live satellite by NORAD id or name. */
+    focus(key) {
+      const wanted = String(key ?? "").trim().toUpperCase();
+      const record = active?.records.find((r) => r.norad === wanted
+        || r.name.trim().toUpperCase() === wanted);
+      return record ? openRecord(record) : false;
+    },
+    /** What the close-in model pass is drawing — for checks, not for UI. */
+    modelState() {
+      return {
+        models: active?.models?.meshes[0]?.count ?? 0,
+        following: active?.follow ? { name: active.follow.record.name, phase: active.follow.phase } : null,
+        loaded: Boolean(modelData?.geometries),
+      };
+    },
+  };
 }

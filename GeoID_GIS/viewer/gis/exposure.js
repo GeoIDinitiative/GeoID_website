@@ -309,13 +309,17 @@ export function riskExposure({ pop, polys, index, edges, labels, field = "p_yr" 
   return out;
 }
 
-/** A people figure said the way a reader says one. */
+/**
+ * A people figure, always written as a NUMBER with thousands separators —
+ * "100,000", never "100 thousand", "1.2 million" or "100k". A people-at-risk
+ * count is read against other counts in the same table and copied into
+ * reports; words and abbreviations round it silently and cannot be compared
+ * or pasted. Fewer than one person (a fractional share of a cell) is "<1".
+ */
 export function formatPeople(n) {
   if (!Number.isFinite(n)) return "—";
   if (n < 1) return n > 0 ? "<1" : "0";
-  if (n < 1000) return Math.round(n).toLocaleString("en-GB");
-  if (n < 1e6) return `${(n / 1000).toFixed(n < 10000 ? 1 : 0)} thousand`;
-  return `${(n / 1e6).toFixed(n < 1e7 ? 2 : 1)} million`;
+  return Math.round(n).toLocaleString("en-GB");
 }
 
 /** The time series as tidy CSV: a row per map, a column per class. */

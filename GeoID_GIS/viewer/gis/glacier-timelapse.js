@@ -27,6 +27,7 @@ const search = new URL(import.meta.url).search;
 
 import { startPlayer, stopPlayer, datasetForYear, seasonFor, IMAGERY_SOURCES }
   from "./timelapse-player.js?v=20261011-174399e";
+import { createLedger, latestGlaciers, pieceAreaKm2 } from "./glacier-outlines.js?v=20261011-174399e";
 
 // Re-exported rather than re-implemented: the panel, the tests and this file
 // must be talking about the SAME rule for which satellite covers which year.
@@ -73,7 +74,14 @@ export function epochsFrom(features, { max = 24 } = {}) {
  * and the card still names the date THAT outline was taken from.
  */
 export function stateAsOf(features, epochs) {
-  const held = new Map();
+  /**
+   * A GLACIER IS EVERY PIECE OF ITS OUTLINE. GLIMS files a boundary as rows,
+   * one polygon each, and an ice cap digitised in parts is several rows under
+   * one `glac_id` — keeping one row per id is what drew half of Mýrdalsjökull.
+   * The ledger supersedes only the pieces a new outline overlaps; the frame
+   * gets one feature per glacier, its pieces merged.
+   */
+  const ledger = createLedger();
   const byDate = new Map();
   for (const feature of features || []) {
     const date = String(feature?.properties?.outline_date
@@ -92,13 +100,22 @@ export function stateAsOf(features, epochs) {
     const fresh = new Set();
     while (next < dates.length && dates[next] <= epoch.date) {
       for (const { id, feature } of byDate.get(dates[next])) {
-        held.set(id, feature);
+        ledger.add(feature);
         if (dates[next] === epoch.date) fresh.add(id);
       }
       next += 1;
     }
-    return { features: [...held.values()], fresh };
+    return { features: ledger.features(), fresh };
   });
+}
+
+/**
+ * Every glacier in a set of outlines as it stands at the end — the GHOST's
+ * features. One per glacier, all of its pieces, so the continuity layer is
+ * never missing the half of an ice cap a later row did not repeat.
+ */
+export function ghostFeatures(features) {
+  return latestGlaciers(features).features;
 }
 
 /**
@@ -170,30 +187,30 @@ export function outlineDate(feature) {
   return /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : null;
 }
 
-/** Its mapped area in km2, from the archive's own column. */
-function outlineArea(feature) {
-  const area = Number(feature?.properties?.area_km2 ?? feature?.properties?.db_area);
-  return Number.isFinite(area) && area > 0 ? area : null;
-}
-
 /**
  * Each glacier's FIRST mapped area in this fetch, which is what a change is
  * measured against. First by DATE, never by arrival order: the archive returns
  * submissions in whatever order the server holds them.
  */
 export function firstAreas(features) {
-  const first = new Map();
+  /**
+   * Read through the LEDGER, so the baseline is the outline(s) each glacier's
+   * present pieces DESCEND from — and a glacier whose two halves were filed on
+   * two dates counts as mapped once, not twice.
+   */
+  const { ledger } = latestGlaciers(features);
+  const earliest = new Map();
   for (const feature of features || []) {
     const id = feature?.properties?.glac_id;
     const date = outlineDate(feature);
-    const area = outlineArea(feature);
-    if (!id || !date || area === null) continue;
-    const held = first.get(id);
-    if (!held) first.set(id, { date, area, outlines: 1 });
-    else {
-      held.outlines += 1;
-      if (date < held.date) { held.date = date; held.area = area; }
-    }
+    if (id && date && !(earliest.get(id) <= date)) earliest.set(id, date);
+  }
+  const first = new Map();
+  for (const [id, pieces] of ledger.held) {
+    const area = pieces.reduce((sum, p) => sum + (p.root ?? NaN), 0);
+    const date = earliest.get(id);
+    if (!date || !Number.isFinite(area) || area <= 0) continue;
+    first.set(id, { date, area, outlines: Math.max(...pieces.map((p) => p.generations)) });
   }
   return first;
 }
@@ -206,8 +223,21 @@ export function colouringFor(kind, { date, firstArea = new Map() } = {}) {
   if (kind === "change") {
     return {
       colourFor: (feature) => {
-        const id = feature?.properties?.glac_id;
-        const now = outlineArea(feature);
+        const props = feature?.properties || {};
+        /**
+         * A glacier the LEDGER built carries its own lineage: the area of
+         * every piece it is drawn with now, against the outlines those pieces
+         * replaced. That is what stops two halves filed on two dates reading
+         * as the ice cap doubling between them.
+         */
+        if (Number.isFinite(props.mapped_times)) {
+          const now = Number(props.area_now_km2);
+          const first = Number(props.first_area_km2);
+          if (props.mapped_times < 2 || !(now > 0) || !(first > 0)) return NO_VALUE;
+          return classColour(CHANGE_CLASSES, ((now - first) / first) * 100);
+        }
+        const id = props.glac_id;
+        const now = pieceAreaKm2(feature);
         const held = firstArea.get(id);
         /**
          * A GLACIER MAPPED ONCE HAS NO CHANGE, and it is its own baseline —
@@ -276,7 +306,7 @@ function legendOf(classes, extra = []) {
 function frameNote(epoch, tail) {
   const shown = epoch.shown ?? epoch.features.length;
   return `${shown.toLocaleString()} glaciers · `
-    + `${epoch.features.length} remapped on this date · ${tail}`;
+    + `${epoch.remapped ?? epoch.features.length} remapped on this date · ${tail}`;
 }
 
 /** Take the whole thing off the globe. */
@@ -337,16 +367,8 @@ export async function startTimelapse({ bounds, from = null, to = null,
    * holds no FILL, which is why it could never have answered the frames
    * jumping — that is what `stateAsOf` is for.
    */
-  const seen = new Set();
-  const ghostFeatures = [];
-  for (const feature of result.geojson.features) {
-    const id = feature?.properties?.glac_id;
-    if (!id || seen.has(id)) continue;
-    seen.add(id);
-    ghostFeatures.push(feature);
-  }
   const ghost = render.renderFeatureCollection(
-    { type: "FeatureCollection", features: ghostFeatures },
+    { type: "FeatureCollection", features: ghostFeatures(result.geojson.features) },
     { colourFor: () => GHOST_COLOUR, outlineOnly: true },
   );
   const ghostNode = ghost?.object3D || ghost;
@@ -358,7 +380,11 @@ export async function startTimelapse({ bounds, from = null, to = null,
    * a visibility flip rather than a rebuild.
    */
   const frames = stateAsOf(result.geojson.features, epochs);
-  epochs.forEach((epoch, i) => { epoch.shown = frames[i].features.length; });
+  // Glaciers, not rows: an ice cap filed in pieces is one glacier on the bar.
+  epochs.forEach((epoch, i) => {
+    epoch.shown = frames[i].features.length;
+    epoch.remapped = frames[i].fresh.size;
+  });
   /**
    * ONE SCALE ACROSS EVERY FRAME. The classes are fixed for the whole
    * sequence, so a colour means the same thing in frame 1 and frame 24 — a

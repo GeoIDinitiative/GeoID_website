@@ -101,30 +101,32 @@ const STYLE = `
   text-shadow: none !important;
 }
 #layer-dock .layer-dock-head .section-icon { color: rgb(var(--nav-accent-rgb)) !important; }
-/* Seven columns now: grip, disclosure, eye, name, kind, opacity, moves. */
+/* Seven columns now: grip, disclosure, name, kind, opacity, moves, eye. The
+   eye is FIRST in the markup and placed LAST by panel-styles.js's "order", so
+   it sits at the right edge with every other tick in the sidebar. */
 .layer-stack .layer-row {
-  grid-template-columns: auto auto auto 1fr auto 4.5rem auto;
+  grid-template-columns: auto auto 1fr auto 4.5rem auto auto;
 }
-/* The basemap row is its own shape: a grip, an eye, the name, and the ⓘ at the
-   end. It holds four children, not eight, so the stack's template would give
-   the slack to the wrong one and squeeze the name to its text. */
+/* The basemap row is its own shape: a grip, the name, the ⓘ, and the eye at
+   the end. It holds four children, not eight, so the stack's template would
+   give the slack to the wrong one and squeeze the name to its text. */
 .layer-stack .layer-row.layer-row-basemap,
 .layer-stack .layer-row.layer-row-basemap.has-info {
-  grid-template-columns: auto auto minmax(0, 1fr) auto;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
 }
 /* The pinned Location labels row: the basemap row's shape, less the info
    button, plus the size slider when the viewer offers one. */
 .layer-stack .layer-row.layer-row-basemap.layer-row-labels {
-  grid-template-columns: auto auto minmax(0, 1fr);
+  grid-template-columns: auto minmax(0, 1fr) auto;
 }
 .layer-stack .layer-row.layer-row-basemap.layer-row-labels.has-size {
-  grid-template-columns: auto auto minmax(0, 1fr) auto;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
 }
 .layer-label-size { display: inline-flex; align-items: center; gap: 0.35rem; cursor: default; }
 .layer-label-size input { width: 5.5rem; accent-color: rgb(var(--nav-accent-rgb)); }
 /* One more column, for the ⓘ every layer carries. */
 .layer-stack .layer-row.has-info {
-  grid-template-columns: auto auto auto 1fr auto auto 4.5rem auto;
+  grid-template-columns: auto auto 1fr auto auto 4.5rem auto auto;
 }
 /* Nudged off the chip beside it, and never a drag handle. */
 .layer-row .layer-info { margin: 0 0.15rem; }
@@ -386,6 +388,42 @@ function applyStack() {
        */
       const lift = Number(node.userData?.renderLift) || 0;
       node.renderOrder = object.renderOrder + lift;
+      watchLateChildren(node, object);
+    });
+  });
+}
+
+/**
+ * GEOMETRY ADDED AFTER THE STAMP MUST TAKE THE STAMP TOO.
+ *
+ * `applyStack` runs when the LIST changes, and a layer can grow without the
+ * list changing. The earthquake time-lapse is the case that was reported: its
+ * group is registered empty and each frame's points are built lazily, on the
+ * first time that frame is shown -- so every frame node arrived after the last
+ * stamp, kept the `THREE.Group` default of renderOrder 0, and its point cloud
+ * sorted at **groupOrder 0** (groupOrder comes from the nearest Group
+ * ancestor). The streamed basemap refine patch also sorts at groupOrder 0, at
+ * renderOrder 40, with depthTest off -- so the Sentinel-2 detail painted
+ * straight over the plotted earthquakes as soon as the camera came close
+ * enough to stream it. Nothing else on the list changed, so nothing restamped.
+ *
+ * three r165 dispatches `childadded`, so each stamped node hears its own late
+ * children and stamps them (and watches them in turn) against the layer root's
+ * CURRENT order, honouring `keepRenderOrder` and `renderLift` exactly as the
+ * stack does. Installed once per node.
+ */
+function watchLateChildren(node, root) {
+  if (!node?.addEventListener || node.userData?.__stackWatch) return;
+  node.userData = node.userData || {};
+  node.userData.__stackWatch = true;
+  node.addEventListener("childadded", (event) => {
+    const child = event?.child;
+    if (!child) return;
+    child.traverse?.((n) => {
+      if (n.userData?.keepRenderOrder) return;
+      const lift = Number(n.userData?.renderLift) || 0;
+      n.renderOrder = root.renderOrder + lift;
+      watchLateChildren(n, root);
     });
   });
 }
@@ -451,6 +489,24 @@ function setVisible(layer, visible) {
   render();
   window.dispatchEvent(new CustomEvent("geoid-gis:layers-changed", {
     detail: { layer, visible, reason: "visibility" },
+  }));
+}
+
+/**
+ * A READER'S OWN EYE PRESS, told apart from every programmatic write.
+ *
+ * `setVisible` is also how a time-lapse driver shows and hides layers on every
+ * frame, so a sequence could not tell the reader switching its row off from
+ * itself doing it -- and on the next frame it wrote the layer straight back
+ * on: the earthquake animation went on playing after its eye was switched off.
+ * The row's eye and its Hide/Show action come through here, which records the
+ * choice on the layer (`userHidden`) and announces it for the player.
+ */
+function setVisibleByReader(layer, visible) {
+  layer.userHidden = !visible;
+  setVisible(layer, visible);
+  window.dispatchEvent(new CustomEvent("geoid-gis:layer-user-visibility", {
+    detail: { layer, visible },
   }));
 }
 
@@ -606,7 +662,7 @@ function row(layer) {
   });
 
   node.querySelector('[data-role="visible"]').addEventListener("change", (e) => {
-    setVisible(layer, e.target.checked);
+    setVisibleByReader(layer, e.target.checked);
   });
   node.querySelector('[data-role="opacity"]').addEventListener("input", (e) => {
     setOpacity(layer, Number(e.target.value));
@@ -714,7 +770,7 @@ function optionsTile(layer) {
     actions.appendChild(button);
   };
 
-  act(visible ? "Hide" : "Show", () => { setVisible(layer, !visible); render(); });
+  act(visible ? "Hide" : "Show", () => { setVisibleByReader(layer, !visible); render(); });
   // Framing needs the loader's camera maths, which knows how to fit a layer's
   // bounds; only offered once there is something in the scene to frame.
   if (layer.object3D && manager?.frameLayer) act("Focus", () => manager.frameLayer(layer));

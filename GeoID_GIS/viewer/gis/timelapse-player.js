@@ -33,6 +33,9 @@ const STYLE = `
    pages show no globe. Hidden rather than closed -- the layer is still loaded,
    so coming back to GIS finds the bar where it was. */
 body.studio-open .geoid-timelapse, body.research-open .geoid-timelapse { display: none !important; }
+/* Hidden from Workspace: the bar stays (the layer is still loaded) and says so
+   by stepping back, so a reader can see why the globe is not animating. */
+.geoid-timelapse.is-hidden-layer { opacity: 0.55; filter: grayscale(0.7); }
 .geoid-timelapse {
   position: fixed; left: 50%; transform: translateX(-50%);
   bottom: 5.6rem; z-index: 24;
@@ -69,6 +72,34 @@ body.studio-open .geoid-timelapse, body.research-open .geoid-timelapse { display
   opacity: 0.45;
   border-style: dashed;
 }
+/* THE BAR'S OWN CONTROLS ARE ICONS, SIZED TO THE PILL. The overlay toggle and
+   the close were full transport-sized buttons at the far end of a row with no
+   room left for them, so on any bar narrower than everything it holds they ran
+   off the pill's right edge -- measured at a 1440px window, the close at 1171
+   to 1205 against a bar ending at 1036. They are compact squares now, the
+   pill's own border and fill, named for a screen reader as well as on hover. */
+.geoid-timelapse button.tl-icon {
+  min-width: 0; width: 1.55rem; height: 1.55rem; padding: 0;
+  display: inline-grid; place-items: center;
+  border-radius: 0.45rem; font-size: 0.78rem; line-height: 1;
+  background: rgba(var(--nav-accent-rgb), 0.08);
+}
+.geoid-timelapse button.tl-icon:focus-visible,
+.geoid-timelapse button:focus-visible {
+  outline: 2px solid var(--nav-accent); outline-offset: 1px;
+}
+/* WHEN THE ROW CANNOT HOLD EVERYTHING, THE TRACK TAKES A ROW OF ITS OWN.
+   Measured, not guessed (balanceRow decides from the widths it reads): the
+   transport and the count-and-close stay on the first line, the track runs the
+   full width of the pill under them, and the note gives way to an ellipsis
+   before anything is pushed outside the pill. The date pill still sits on the
+   bar's top edge over the track's own middle. */
+.geoid-timelapse.is-stacked { flex-wrap: wrap; row-gap: 0.4rem; }
+.geoid-timelapse.is-stacked .tl-scale {
+  order: 3; flex: 1 1 100%; min-width: 0;
+}
+.geoid-timelapse.is-stacked .tl-trail { flex: 1 1 0; min-width: 0; }
+.geoid-timelapse.is-stacked .tl-note { flex: 0 1 auto; min-width: 0; }
 .geoid-timelapse input[type="range"] { flex: 1 1 12rem; accent-color: var(--nav-accent); }
 /* THE DATE RIDES ON THE BAR'S TOP EDGE, as one shape with it.
    In the row it was a third cluster between the transport and the track, so
@@ -114,7 +145,7 @@ body.studio-open .geoid-timelapse, body.research-open .geoid-timelapse { display
    else in it wants to grow. */
 /* The track absorbs everything the two clusters do not need. min-width is a
    FLOOR for a narrow bar, not the width it settles at. */
-.geoid-timelapse .tl-scale { flex: 1 1 auto; min-width: 17rem; position: relative; }
+.geoid-timelapse .tl-scale { flex: 1 1 auto; min-width: 12rem; position: relative; }
 .geoid-timelapse .tl-scale input[type=range] { width: 100%; display: block; }
 /* DRAWN, not left to the browser. A datalist on a range is the standard answer
    and what it renders is at the browser's discretion -- Chrome hides the marks
@@ -342,7 +373,8 @@ async function show(index) {
   const epoch = state.epochs[index];
   if (!epoch) return;
   state.index = index;
-  if (state.frames) state.frames.forEach((node, i) => { node.visible = i === index; });
+  // A sequence hidden from Workspace keeps its place and draws nothing.
+  if (state.frames) state.frames.forEach((node, i) => { node.visible = i === index && !state.hidden; });
   /**
    * The driver hears the step BEFORE the picture is fetched, because what it
    * does with it — pointing the layer's feature list at the frame on screen —
@@ -386,7 +418,7 @@ async function show(index) {
       scene.object3D.traverse((node) => { node.renderOrder = 45; });
       window.GeoIDViewer?.globe?.add?.(scene.object3D);
     }
-    scene.object3D.visible = true;
+    scene.object3D.visible = !state.hidden;
   }
   // Only now does the previous picture come down.
   for (const [date, pending] of state.scenes) {
@@ -410,6 +442,7 @@ function play(on) {
   if (!state) return;
   state.playing = on;
   state.bar.play.textContent = on ? "❚❚" : "▶";
+  state.bar.play.setAttribute("aria-label", on ? "Pause the sequence" : "Play the sequence");
   window.clearTimeout(state.timer);
   state.timer = null;
   if (!on) return;
@@ -504,6 +537,27 @@ function reserveText(el, texts) {
  * and its containing block — so the bar's own padding is already in the number
  * and must not be added again.
  */
+/**
+ * ONE ROW OR TWO, decided from the widths actually laid out.
+ *
+ * The bar's width is the sidebar's arithmetic, not its contents', so at most
+ * windows the transport, a usable track and the count-and-close do not all fit
+ * on one line -- and a flex row that cannot shrink its pieces lays them past
+ * its own edge rather than saying so. The track's floor is what one line needs;
+ * below it the track moves to a row of its own (is-stacked).
+ */
+const TRACK_FLOOR_REM = 12;
+function balanceRow(bar, lead, scale, trail) {
+  if (!bar || !lead || !scale || !trail) return;
+  bar.classList.remove("is-stacked");
+  const cs = getComputedStyle(bar);
+  const rem = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
+  const gap = parseFloat(cs.columnGap) || 0;
+  const inner = bar.clientWidth - (parseFloat(cs.paddingLeft) || 0) - (parseFloat(cs.paddingRight) || 0);
+  const need = lead.offsetWidth + trail.offsetWidth + TRACK_FLOOR_REM * rem + 2 * gap;
+  if (need > inner + 0.5) bar.classList.add("is-stacked");
+}
+
 function alignDate(date, scale) {
   if (!date || !scale) return;
   const mid = scale.offsetLeft + scale.offsetWidth / 2;
@@ -548,12 +602,15 @@ function buildBar() {
   const back = document.createElement("button");
   back.textContent = "|◀";
   back.title = "The frame before";
+  back.setAttribute("aria-label", back.title);
   const playBtn = document.createElement("button");
   playBtn.textContent = "▶";
   playBtn.title = "Play the sequence";
+  playBtn.setAttribute("aria-label", playBtn.title);
   const forward = document.createElement("button");
   forward.textContent = "▶|";
   forward.title = "The frame after";
+  forward.setAttribute("aria-label", forward.title);
   const date = document.createElement("span");
   date.className = "tl-date";
   const slider = document.createElement("input");
@@ -563,8 +620,10 @@ function buildBar() {
   const note = document.createElement("span");
   note.className = "tl-note";
   const close = document.createElement("button");
+  close.className = "tl-close tl-icon";
   close.textContent = "✕";
   close.title = "Close the time-lapse";
+  close.setAttribute("aria-label", close.title);
 
   /**
    * THE OVERLAY TOGGLE, and only where there is an overlay to toggle.
@@ -580,9 +639,10 @@ function buildBar() {
   let overlay = null;
   if (state?.toggle || pendingToggle) {
     overlay = document.createElement("button");
-    overlay.className = "tl-overlay";
+    overlay.className = "tl-overlay tl-icon";
     overlay.textContent = "◇";
     overlay.title = "Show or hide what is drawn over the imagery";
+    overlay.setAttribute("aria-label", overlay.title);
     overlay.addEventListener("click", () => {
       state?.toggle?.setOn(!state.toggle.isOn());
       syncOverlay();
@@ -650,7 +710,12 @@ function buildBar() {
   bar.append(date, lead, scale, trail);
   document.body.appendChild(bar);
   sayRate();
-  const balance = () => alignDate(date, scale);
+  const balance = () => { balanceRow(bar, lead, scale, trail); alignDate(date, scale); };
+  /* A window that narrows can leave the row too short for one line, and one
+     that widens can give it back; the bar is fixed, so nothing else re-asks. */
+  const onResize = () => balance();
+  window.addEventListener("resize", onResize);
+  bar.addEventListener("geoid-timelapse:removed", () => window.removeEventListener("resize", onResize));
   return {
     bar, date, slider, note, play: playBtn, overlay, speed, ticks, sayRate,
     lead, trail, balance,
@@ -694,6 +759,90 @@ export function pausePlayer() {
 }
 
 /**
+ * WORKSPACE IS WHERE A LAYER IS HIDDEN OR REMOVED, AND A SEQUENCE OBEYS IT.
+ *
+ * A driver sets its frames' visibility on every step, which is how the earthquake
+ * record kept animating on the globe after its row's eye was switched off: the
+ * eye wrote `visible = false` and the next frame wrote it straight back. So a
+ * driver names the layers it draws through (`owns`), the hierarchy announces a
+ * reader's own eye press (`geoid-gis:layer-user-visibility`, never a driver's
+ * programmatic write), and the player keeps one flag for the whole sequence:
+ *
+ * - HIDDEN in Workspace: the sequence pauses where it is, draws nothing, and
+ *   keeps its bar and its place -- the dataset is still loaded, so its nav-bar
+ *   tick stays on. Showing any of its rows again brings it back.
+ * - REMOVED from Workspace: the sequence stops, and the driver's `onRemoved`
+ *   takes the dataset off too, which is what unticks the nav bar.
+ *
+ * The flag is read by `show` for the frames it owns and by drivers through
+ * `playerHidden()` for what they draw themselves.
+ */
+export function playerHidden() {
+  return Boolean(state?.hidden);
+}
+
+function ownedLayers() {
+  if (!state?.owns) return [];
+  try {
+    return (state.owns() || []).filter((layer) => layer && layer.id != null);
+  } catch {
+    return [];
+  }
+}
+
+function syncHiddenBar() {
+  if (!state?.bar?.bar) return;
+  state.bar.bar.classList.toggle("is-hidden-layer", state.hidden);
+  state.bar.bar.title = state.hidden
+    ? "Hidden in Workspace — switch its eye back on to see the animation"
+    : "";
+}
+
+function layerHiddenByUser(event) {
+  if (!state?.owns) return;
+  const layer = event.detail?.layer;
+  if (!layer) return;
+  const owned = ownedLayers();
+  if (!owned.some((l) => l === layer || l.id === layer.id)) return;
+  const hidden = event.detail.visible === false;
+  // Shown again from ANY of the sequence's rows is shown again: the reader is
+  // asking for the animation, not for one of the layers it happens to use.
+  if (!hidden) owned.forEach((l) => { l.userHidden = false; });
+  if (state.hidden === hidden) return;
+  state.hidden = hidden;
+  if (hidden && state.playing) play(false);
+  syncHiddenBar();
+  void show(state.index);
+}
+
+/** Any owned layer gone from the list was removed from Workspace. */
+function checkOwned() {
+  if (!state?.owns) return;
+  const manager = window.GeoIDImportManager;
+  if (!manager?.getLayers) return;
+  const present = new Set(manager.getLayers().map((layer) => layer.id));
+  ownedLayers().forEach((layer) => { if (present.has(layer.id)) state.ownedIds.add(layer.id); });
+  const gone = [...state.ownedIds].filter((id) => !present.has(id));
+  if (!gone.length) return;
+  const removed = state.onRemoved;
+  stopPlayer({ reason: "removed" });
+  try { removed?.(gone); } catch (error) { console.error("timelapse: a driver's onRemoved threw", error); }
+}
+
+let watching = false;
+function watchWorkspace() {
+  if (watching || typeof window === "undefined") return;
+  const manager = window.GeoIDImportManager;
+  if (!manager?.onChange) return;   // retried on the next startPlayer
+  watching = true;
+  manager.onChange(() => { checkOwned(); });
+}
+
+if (typeof globalThis.window?.addEventListener === "function") {
+  globalThis.window.addEventListener("geoid-gis:layer-user-visibility", layerHiddenByUser);
+}
+
+/**
  * Go to one frame and stop there — for a plot beside the bar that a reader can
  * click on. Through `show`, so the slider, the date and the note move with it
  * and the bar never disagrees with what the driver drew.
@@ -713,6 +862,7 @@ if (typeof globalThis.window?.addEventListener === "function") {
 export function stopPlayer({ reason = "stop" } = {}) {
   if (!state) return;
   window.clearTimeout(state.timer);
+  state.bar.bar.dispatchEvent(new Event("geoid-timelapse:removed"));
   state.bar.bar.remove();
   for (const pending of state.scenes.values()) {
     void pending.then((scene) => scene?.object3D?.parent?.remove(scene.object3D)).catch(() => {});
@@ -788,6 +938,13 @@ export async function startPlayer({ bounds, epochs, source = "auto", frames = nu
   onStatus = () => {}, onStop = null,
   overlayToggle = null, onShow = null, interval = 1200,
   /**
+   * THE LAYERS THIS SEQUENCE DRAWS THROUGH, and what to do when Workspace
+   * takes one away. `owns` answers the layer records now on the globe (the
+   * dataset's own layer and any plot the driver registered); see
+   * `layerHiddenByUser` and `checkOwned` for what the player does with them.
+   */
+  owns = null, onRemoved = null,
+  /**
    * WHERE THE BAR OPENS. Frame 0 for a sequence somebody pressed play on --
    * that is the beginning, and it is what every driver wanted until now.
    *
@@ -809,8 +966,13 @@ export async function startPlayer({ bounds, epochs, source = "auto", frames = nu
     toggle: overlayToggle,
     index: 0, timer: null, scenes: new Map(), bar: buildBar(),
     say: onStatus, playing: false, restoreClock: holdWorldClock(),
+    owns, onRemoved, hidden: false, ownedIds: new Set(),
   };
   pendingToggle = null;
+  watchWorkspace();
+  // A sequence opened over a layer already hidden in Workspace opens hidden.
+  state.hidden = ownedLayers().some((layer) => layer.userHidden);
+  syncHiddenBar();
   syncOverlay();
   state.bar.slider.max = String(epochs.length - 1);
   state.bar.sayRate?.();

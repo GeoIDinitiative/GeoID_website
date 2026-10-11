@@ -42,7 +42,7 @@ import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20261
 import { isEarth } from "./bodies.js?v=20261011-174399e";
 import { holdLaunch } from "./launch-ready.js?v=20261011-174399e";
 import { streamRings, cacheStats } from "./tile-streamer.js?v=20261011-174399e";
-import { visibleBounds, altitudeUnits, viewChangedEnough, onViewSettled }
+import { visibleBounds, altitudeUnits, viewChangedEnough, onViewChange, viewFocus }
   from "./view-extent.js?v=20261011-174399e";
 
 const TILE = 256;
@@ -911,12 +911,13 @@ if (typeof document !== "undefined") {
 // ── Refining with zoom ───────────────────────────────────────────────────────
 
 /**
- * Detail for whatever is on screen, refreshed when the camera comes to rest.
+ * Detail for whatever is on screen, refreshed as the camera moves and again
+ * when it comes to rest.
  *
  * A basemap texture is one image at one resolution: the global composite is
  * 9.8 km/px and no amount of flying in gives it more. This is the second tier —
  * a patch covering just the visible extent, fetched at the zoom that extent
- * deserves, replaced each time the view settles somewhere new.
+ * deserves, replaced each time the view moves somewhere new.
  *
  * Two tiers rather than a streamer, deliberately. A streamer keeps a quadtree of
  * tiles alive with a scheduler, an eviction policy and a per-frame budget; this
@@ -925,8 +926,10 @@ if (typeof document !== "undefined") {
  *
  * What makes it safe to leave running:
  *
- *   * it fires only on rest, never per frame — a drag issues one round of tiles
- *     at the end, not thousands on the way;
+ *   * it fires on rest and, throttled, during motion -- never per frame. A
+ *     motion pass is a light one (64 tiles at most), each pass supersedes the
+ *     last, and the streamer releases what only the old pass wanted, so a
+ *     drag costs one in-flight budget however fast it goes;
  *   * it only acts when the view has genuinely changed (`viewChangedEnough`);
  *   * it does nothing at all above `MIN_REFINE_ALTITUDE`, where the global
  *     texture is already as good as the screen can show;
@@ -1024,16 +1027,74 @@ export function tileBasemapSource() {
  * longer on screen.
  */
 function retireRefine(onStatus) {
-  if (!refineState?.mesh) return null;
+  if (!refineState) return null;
+  refineState.bbox = null;
   disposeMesh(refineState.mesh);
   refineState.mesh = null;
-  refineState.bbox = null;
+  dropPass(refineState.pass);
+  refineState.pass = null;
+  disposeMesh(refineState.fallback);
+  refineState.fallback = null;
   onStatus?.("");
   return null;
 }
 
+/** Cancel a pass's outstanding requests and take its partial patch down. */
+function dropPass(pass) {
+  if (!pass) return;
+  pass.cancel?.();
+  disposeMesh(pass.live);
+  pass.live = null;
+}
+
+/**
+ * Newest on top, oldest underneath: the last complete patch, then the most
+ * recent superseded partial, then the pass arriving now. All in the streamed
+ * band (40), so nothing here can rise into the imported layers' 50+.
+ */
+function restack() {
+  if (!refineState) return;
+  [refineState.mesh, refineState.fallback, refineState.pass?.live]
+    .filter(Boolean)
+    .forEach((mesh, i) => { mesh.renderOrder = REFINE_ORDER + i * 0.01; });
+}
+
+/**
+ * A NEWER VIEW SUPERSEDES THIS PASS -- release what only it wanted, and keep
+ * what it already drew underneath.
+ *
+ * Released AFTER the new pass has claimed its tiles, so ground the two share
+ * carries on and only the tiles of ground that has left the screen are
+ * dropped (queued) or aborted (on the wire). Its partial patch is kept as the
+ * one fallback under the new pass, so a fast pan never shows a hole the old
+ * pass had already filled; an older fallback goes, which bounds this to three
+ * patches at most.
+ */
+function supersede(pass) {
+  if (!pass || !refineState) return;
+  pass.cancel?.();
+  if (pass.live && pass.painted > 0) {
+    if (refineState.fallback && refineState.fallback !== refineState.mesh) disposeMesh(refineState.fallback);
+    refineState.fallback = pass.live;
+    pass.live.name = "GeoID-BasemapRefineFallback";
+  } else {
+    disposeMesh(pass.live);
+  }
+  pass.live = null;
+  restack();
+}
+
+/**
+ * While the camera moves, a lighter pass: fewer tiles and a smaller canvas, so
+ * a pan re-streams the ground it crosses every few hundred milliseconds
+ * without allocating a 4096-pixel canvas each time. The settle that follows
+ * always refines to the full budget, even if the view barely moved since.
+ */
+const MOTION_TILES = 64;
+const MOTION_CANVAS_PX = 2048;
+
 /** One refinement pass: fetch the visible extent and swap the detail patch in. */
-async function refineOnce({ onStatus } = {}) {
+async function refineOnce({ onStatus, motion = false } = {}) {
   const viewer = window.GeoIDViewer;
   const source = tileBasemapSource();
   if (!viewer) return null;
@@ -1053,18 +1114,36 @@ async function refineOnce({ onStatus } = {}) {
    * The test compared boxes only, so switching Sentinel-2 to OpenStreetMap
    * while sitting still declined to refine and left the previous service's
    * imagery on the globe under the new service's name.
+   *
+   * And a settle after a MOTION pass is a change too: the motion pass drew the
+   * view at a lighter budget, so stopping must sharpen it to the full one even
+   * when the camera stopped right where that pass was aimed.
    */
   const sameSource = refineState?.source === source;
-  if (sameSource && !viewChangedEnough(refineState?.bbox, bbox)) return null;
+  const upgrade = !motion && refineState?.grade === "motion";
+  if (sameSource && !upgrade && !viewChangedEnough(refineState?.bbox, bbox)) return null;
 
-  const zoom = chooseZoom(bbox, { maxZoom: TILE_SOURCES[source].maxZoom });
+  const maxZoom = TILE_SOURCES[source].maxZoom;
+  const zoom = chooseZoom(bbox, motion
+    ? { maxZoom, maxTiles: MOTION_TILES, maxCanvasPx: MOTION_CANVAS_PX }
+    : { maxZoom });
   // The base composite already covers this level: nothing to add, and whatever
   // was added lower down is now coarser ground drawn sharp.
   if (zoom <= BASE_GLOBE_ZOOM) return retireRefine(onStatus);
 
-  // Claim the request before awaiting, so a second settle while this one is in
-  // flight is measured against where we are going rather than where we were.
-  refineState = { ...(refineState || {}), bbox, zoom, source, busy: true };
+  /**
+   * NOTHING GATES A NEW VIEW ON THE OLD ONE FINISHING.
+   *
+   * This used to return early while a pass was "busy" -- and a full pass is
+   * hundreds of tiles and several seconds, so a pan that settled somewhere new
+   * during it was simply dropped, and the settle never fired again until the
+   * camera moved. Reported as "to see another region you have to zoom out and
+   * back in". The new pass claims the view at once; the old one is superseded
+   * (its stale requests released, its partial patch kept underneath).
+   */
+  const previous = refineState?.pass || null;
+  const pass = { bbox, live: null, painted: 0, cancel: null };
+  refineState = { ...(refineState || {}), bbox, zoom, source, grade: motion ? "motion" : "full", pass };
   onStatus?.(`Refining to zoom ${zoom}…`);
 
   /**
@@ -1076,63 +1155,63 @@ async function refineOnce({ onStatus } = {}) {
    * once. That pop is most of what "not seamless" meant.
    *
    * The canvas is no longer given a backdrop, so the parts that have not
-   * arrived are transparent and the globe shows through them. That is what
-   * makes it safe to hang the mesh up front and let it fill in: at worst the
-   * patch is invisible, never a dark rectangle over the map.
+   * arrived are transparent and the patches beneath (the last complete one, a
+   * superseded partial, the global composite) show through them. That is what
+   * makes it safe to hang the mesh up front and let it fill in.
    */
-  let live = null;
   const showEarly = (done, total, canvas, level) => {
-    if (!refineState || refineState.bbox !== bbox) return;
-    if (!live) {
+    if (refineState?.pass !== pass) return;
+    pass.painted = done;
+    if (!pass.live) {
       const group = refineParent();
       if (!group) return;
       const mesh = buildMesh(canvas, bbox, { frame: "globe" });
       mesh.renderOrder = REFINE_ORDER;
       mesh.name = "GeoID-BasemapRefinePending";
       group.add(mesh);
-      live = mesh;
+      pass.live = mesh;
+      restack();
     }
     // A CanvasTexture re-uploads on demand; this is the whole progressive path.
-    live.material.map.needsUpdate = true;
+    pass.live.material.map.needsUpdate = true;
     if (done % 8 === 0 || done === total) {
       onStatus?.(`Sharpening: level ${level} — ${done}/${total} tiles…`);
     }
   };
 
+  // Rings, coarsest first, into one canvas -- the streamer rather than a
+  // single-level composite. The coarsest ring is a tile or two and lands
+  // almost at once (and is usually already cached from the last view), so the
+  // ground is plausible immediately and sharpens, instead of arriving perfect
+  // and late. Centre-out is measured from where the camera is LOOKING.
+  const grid = tileGrid(bbox, zoom);
+  const canvas = document.createElement("canvas");
+  canvas.width = grid.width;
+  canvas.height = grid.height;
+  const run = streamRings(canvas, bbox, source, {
+    targetZoom: zoom,
+    grid,
+    tileGridAt: tileGrid,
+    focus: viewFocus(viewer, THREE),
+    onPaint: showEarly,
+    shouldContinue: () => refineState?.pass === pass,
+  });
+  pass.cancel = run.cancel;
+  // Only now, with this pass's tiles claimed, let the old pass go.
+  supersede(previous);
+
   try {
-    // Rings, coarsest first, into one canvas -- the streamer rather than a
-    // single-level composite. The coarsest ring is a tile or two and lands
-    // almost at once, so the ground is plausible immediately and sharpens,
-    // instead of arriving perfect and late.
-    const grid = tileGrid(bbox, zoom);
-    const canvas = document.createElement("canvas");
-    canvas.width = grid.width;
-    canvas.height = grid.height;
-    const streamed = await streamRings(canvas, bbox, source, {
-      targetZoom: zoom,
-      grid,
-      tileGridAt: tileGrid,
-      onPaint: showEarly,
-      // Retire: a newer view supersedes this pass. Requests already made are
-      // left to finish into the cache rather than aborted.
-      shouldContinue: () => Boolean(refineState) && refineState.bbox === bbox,
-    });
+    const streamed = await run;
     const result = {
       canvas, zoom, source,
       tiles: streamed.queued, drawn: streamed.painted,
       metresPerPixel: metresPerPixel(bbox, zoom),
       streamed,
     };
-    // Switched off, or the basemap changed, while these tiles were in flight.
-    // `stopRefining` nulls the state, so reading it unguarded here crashed on
-    // the one interaction most likely to happen during a slow fetch: giving up
-    // and unticking the box.
-    if (!refineState) { disposeMesh(live); return null; }
-    // Another pass overtook this one; its patch is the current view, not ours.
-    if (refineState.bbox !== bbox) { disposeMesh(live); return null; }
-    // `live` is already on the globe and already carries every tile that
-    // arrived — it only has to be promoted. Building a second mesh here would
-    // re-upload the same canvas and flicker between the two.
+    // Switched off, or another pass overtook this one: whoever did that has
+    // already taken this pass's patch down or kept it as the fallback.
+    if (!refineState || refineState.pass !== pass) return null;
+    let live = pass.live;
     if (!live) {
       const group = refineParent();
       if (!group) {
@@ -1140,29 +1219,38 @@ async function refineOnce({ onStatus } = {}) {
         return null;
       }
       live = buildMesh(result.canvas, bbox, { frame: "globe" });
-      live.renderOrder = REFINE_ORDER;
       group.add(live);
     }
     live.name = "GeoID-BasemapRefine";
     live.material.map.needsUpdate = true;
-    // The previous patch is only dropped now, so there is never a moment with no
-    // detail on screen: the old one stays until the new one is complete.
+    // Everything under it is now redundant: the previous complete patch and
+    // any superseded partial go, and only now, so there is never a moment with
+    // less detail on screen than before.
     if (refineState.mesh !== live) disposeMesh(refineState.mesh);
+    if (refineState.fallback !== live) disposeMesh(refineState.fallback);
     refineState.mesh = live;
+    refineState.fallback = null;
+    refineState.pass = null;
+    pass.live = null;
+    restack();
     const reused = streamed.fromCache ? `, ${streamed.fromCache} from cache` : "";
     onStatus?.(`Detail at zoom ${result.zoom} (${Math.round(result.metresPerPixel)} m/px) `
       + `over ${streamed.levels.length} levels${reused}.`);
     return { ...result, bbox };
   } catch (error) {
-    disposeMesh(live);
+    if (refineState?.pass === pass) { dropPass(pass); refineState.pass = null; }
     throw error;
-  } finally {
-    if (refineState) refineState.busy = false;
   }
 }
 
 /**
  * Start refining, and keep doing it until told to stop.
+ *
+ * Re-evaluated on movement as well as on rest: throttled while the camera
+ * moves, so a pan at one zoom streams the ground it crosses rather than
+ * waiting for the camera to stop, and once more when it settles, at the full
+ * budget. Each pass supersedes the last, so the cost is bounded by the
+ * streamer's one in-flight budget, not by how fast somebody drags.
  *
  * Idempotent: calling it twice does not stack two watchers, which matters
  * because the panel wires it to a checkbox and the basemap can be reselected.
@@ -1172,20 +1260,24 @@ export function startRefining({ onStatus } = {}) {
   const viewer = window.GeoIDViewer;
   if (!viewer) return null;
   refineState = { ...(refineState || {}) };
-  refineState.stop = onViewSettled(viewer, () => {
-    if (!refineState || refineState.busy) return;
-    void refineOnce({ onStatus });
-    // 250 ms rather than the 500 ms default. Half a second of stillness before
-    // anything begins is itself most of a second added to every move, and the
-    // first tiles now appear about 150 ms after the request rather than at the
-    // end -- so the wait is what dominates. 250 ms is still unambiguously
-    // "stopped" and does not fire during a drag.
-  }, { settleMs: 250, pollMs: 100 });
+  const run = (motion) => {
+    if (!refineState) return;
+    refineOnce({ onStatus, motion }).catch(() => { /* one failed pass is not the watcher's end */ });
+  };
+  // 250 ms of stillness is unambiguously "stopped" and does not fire during a
+  // drag; 400 ms between motion passes is about two refines a second, each a
+  // light pass that the next one supersedes.
+  refineState.stop = onViewChange(viewer, {
+    onMove: () => run(true),
+    onSettle: () => run(false),
+  }, { settleMs: 250, moveMs: 400, pollMs: 100 });
   return refineState.stop;
 }
 
 export function stopRefining() {
   refineState?.stop?.();
+  dropPass(refineState?.pass);
+  disposeMesh(refineState?.fallback);
   disposeMesh(refineState?.mesh);
   refineState = null;
 }

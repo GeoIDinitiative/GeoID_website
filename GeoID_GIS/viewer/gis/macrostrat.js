@@ -22,6 +22,7 @@
  */
 
 import { decodeTile, tilesForBounds } from "./mvt.js?v=20261011-174399e";
+import { mergeTileFragments } from "./tile-merge.js?v=20261011-174399e";
 import { geometryKind } from "./symbology-dialog.js?v=20261011-174399e";
 import { visibleBounds } from "./view-extent.js?v=20261011-174399e";
 import * as THREE from "../vendor/three.module.js";
@@ -153,7 +154,7 @@ export async function fetchGeology({
   const box = bounds || viewBounds() || WORLD;
   const zoom = askedZoom == null ? zoomForBounds(box, { maxTiles }) : askedZoom;
   const wanted = tilesForBounds(box, zoom).slice(0, maxTiles);
-  const features = [];
+  const perTile = [];
   let bytes = 0;
   let failed = 0;
   let done = 0;
@@ -165,7 +166,7 @@ export async function fetchGeology({
       try {
         const result = await fetchTile(tile, [kind], signal);
         bytes += result.bytes;
-        (result.layers[kind] || []).forEach((f) => features.push(f));
+        perTile.push({ ...tile, features: result.layers[kind] || [] });
       } catch (error) {
         if (error?.name === "AbortError") throw error;
         failed += 1;
@@ -175,6 +176,19 @@ export async function fetchGeology({
     }
   };
   await Promise.all([0, 1, 2, 3].map(worker));
+  /**
+   * Each unit whole, not cut along the tile grid: the tiles are one zoom, so
+   * the pieces of a polygon that crosses a seam are dissolved back into one
+   * (see `tile-merge.js`). Lines are left as they came.
+   */
+  let features;
+  try {
+    features = kind === "units"
+      ? mergeTileFragments(perTile)
+      : perTile.flatMap((t) => t.features);
+  } catch (error) {
+    features = perTile.flatMap((t) => t.features);
+  }
   return {
     collection: { type: "FeatureCollection", features },
     zoom,

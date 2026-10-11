@@ -52,8 +52,36 @@ check("an unchanged view still leaves the patch alone", () =>
 
 check("a change of SOURCE counts as a change", () =>
   ok(/const sameSource = refineState\?\.source === source/.test(drape)
-    && /sameSource && !viewChangedEnough/.test(drape),
+    && /sameSource(?: && !\w+)* && !viewChangedEnough/.test(drape),
     "switching services while still is a rebuild, not a decline"));
+
+/**
+ * A PAN AT ONE ZOOM MUST REFRESH. Two things stood in its way: the settle was
+ * dropped whenever a previous pass was still "busy" (a full pass is seconds),
+ * and refinement only ever ran on rest. Both are gone, and a settle after a
+ * light motion pass always sharpens to the full budget.
+ */
+check("no pass is gated on the previous one finishing", () => {
+  ok(!/refineState\.busy/.test(drape), "the busy gate is gone");
+  ok(/supersede\(previous\)/.test(drape), "a new pass supersedes the old one");
+  const at = drape.indexOf("const run = streamRings(");
+  ok(at > 0 && drape.indexOf("supersede(previous)") > at,
+    "and releases it only after its own tiles are claimed");
+});
+
+check("the view is re-evaluated while it moves, not only at rest", () => {
+  ok(/onViewChange\(viewer, \{/.test(drape), "a motion-aware watcher");
+  ok(/onMove: \(\) => run\(true\)/.test(drape), "a throttled motion pass");
+  ok(/onSettle: \(\) => run\(false\)/.test(drape), "and a full pass on settle");
+  ok(/const upgrade = !motion && refineState\?\.grade === "motion"/.test(drape),
+    "a settle after a motion pass sharpens even with an unchanged view");
+});
+
+check("superseded ground stays drawn until the new pass covers it", () => {
+  const body = drape.slice(drape.indexOf("function supersede"));
+  ok(/refineState\.fallback = pass\.live/.test(body.slice(0, 700)), "the partial patch is kept underneath");
+  ok(/disposeMesh\(refineState\.fallback\)/.test(body.slice(0, 700)), "and only one is kept");
+});
 
 check("retiring clears the box, so coming back down refines at once", () => {
   const body = drape.slice(drape.indexOf("function retireRefine"));

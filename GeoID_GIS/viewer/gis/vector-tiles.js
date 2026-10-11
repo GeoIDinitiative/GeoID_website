@@ -39,6 +39,7 @@ import { decodeTile, tilesForBounds, zoomForBounds } from "./mvt.js?v=20261011-1
 import { renderFeatureCollection } from "./vector-render.js?v=20261011-174399e";
 import * as GP from "./geoprocessing.js?v=20261011-174399e";
 import { applyCutaway } from "./cutaway.js?v=20261011-174399e";
+import { mergeTileFragments } from "./tile-merge.js?v=20261011-174399e";
 
 const key = (z, x, y) => `${z}/${x}/${y}`;
 
@@ -263,6 +264,12 @@ export function createTiledVectorLayer({
    * ones that existed when it ran.
    */
   featureFilter = null,
+  /**
+   * Dissolve each unit's pieces across tile seams in what `features()` and
+   * `featuresIn` hand out (see `mergedLevel`). On by default; a caller that
+   * genuinely wants the raw per-tile pieces can turn it off.
+   */
+  mergeSeams = true,
 } = {}) {
   // Unversioned, exactly as every other module imports it: a second copy of
   // three.js on the page breaks class identity and nothing is a Mesh any more.
@@ -889,11 +896,49 @@ export function createTiledVectorLayer({
     const shown = shownTiles();
     if (!shown.length) return [];
     const finest = Math.max(...shown.map((t) => t.z));
-    const out = [];
-    shown.filter((t) => t.z === finest).forEach((tile) => {
-      clipped(tile).forEach((f) => out.push(f));
-    });
-    return out;
+    return mergedLevel(shown.filter((t) => t.z === finest));
+  }
+
+  /**
+   * ONE UNIT, ONE FEATURE — the tile seams dissolved before anyone reads them.
+   *
+   * A tile cuts every polygon at its own edge (and `mvt.js` then clips the
+   * buffer away so no ground is drawn twice), so a unit spanning four tiles
+   * reached the click card, the clip, the extraction and the Model Builder as
+   * four features with dead-straight artificial edges along the tile grid —
+   * "polygons become discontinuous across mapping boundaries", which is a
+   * statement about the TILER, not the geology. `mergeTileFragments` unions
+   * the pieces of each unit across seams at one zoom (by cancelling the
+   * coincident shared edges) and leaves everything else exactly as it came.
+   *
+   * Only ever within ONE zoom: two generalisations of the same ground overlap,
+   * and the callers here already resolve a single level (`features()` the
+   * finest on screen, `levelFeatures` one probe level).
+   *
+   * Cached on the exact tile set and the clip, because `features()` is asked
+   * on every refine and every pick and the merge is the same answer each time.
+   * The array handed out is a copy, so a caller sorting or splicing it cannot
+   * corrupt the cache.
+   */
+  const mergeCache = new Map();
+  let clipEpoch = 0;
+  function mergedLevel(tilesHere) {
+    if (!tilesHere.length) return [];
+    const sig = `${clipEpoch}|${tilesHere.map((t) => key(t.z, t.x, t.y)).sort().join(",")}`;
+    const hit = mergeCache.get(sig);
+    if (hit) return hit.slice();
+    const gathered = tilesHere.map((t) => ({ z: t.z, x: t.x, y: t.y, features: clipped(t) }));
+    let out;
+    try {
+      out = mergeSeams ? mergeTileFragments(gathered) : gathered.flatMap((t) => t.features);
+    } catch (error) {
+      // A merge that cannot run leaves the pieces as they came: a seam is a
+      // worse answer than a dissolved unit and a better one than no answer.
+      out = gathered.flatMap((t) => t.features);
+    }
+    mergeCache.set(sig, out);
+    while (mergeCache.size > 12) mergeCache.delete(mergeCache.keys().next().value);
+    return out.slice();
   }
 
   /**
@@ -989,11 +1034,11 @@ export function createTiledVectorLayer({
       return { features: [], zoom: z, tiles: 0, needed: needed.length, refused: true };
     }
     await fetchInto(needed, null, signal, null);
-    const out = [];
-    needed.forEach((t) => {
-      const tile = tiles.get(key(t.z, t.x, t.y));
-      if (tile?.state === "ready") clipped(tile).forEach((f) => out.push(f));
-    });
+    const ready = needed.map((t) => tiles.get(key(t.z, t.x, t.y)))
+      .filter((tile) => tile?.state === "ready");
+    // Merged across the level's own seams, so an extraction gets each unit
+    // whole rather than cut along the tile grid it happened to be served in.
+    const out = mergedLevel(ready);
     return { features: out, zoom: z, tiles: needed.length, needed: needed.length };
   }
 
@@ -1303,7 +1348,7 @@ export function createTiledVectorLayer({
     // Published so a CLIPPED layer can be built on the same tile service its
     // source streams from, rather than being told about it a second time.
     sources,
-    setClip: (mask) => { clipMask = mask || null; return repaint(paint); },
+    setClip: (mask) => { clipMask = mask || null; clipEpoch += 1; mergeCache.clear(); return repaint(paint); },
     getClip: () => clipMask,
     features,
     featuresIn,

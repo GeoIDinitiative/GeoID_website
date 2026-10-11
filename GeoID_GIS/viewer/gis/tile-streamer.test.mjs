@@ -12,6 +12,8 @@
 import {
   ringLevels, orderWork, makePaintGuard, ANCESTOR_FLOOR,
   fetchTile, cachedTile, cacheStats, clearTileCache,
+  claimTile, releaseOwner, newOwner, pickNext, planWork, tileCoord, streamRings,
+  MAX_INFLIGHT, CACHE_LIMIT,
 } from "./tile-streamer.js";
 
 let failures = 0;
@@ -117,6 +119,106 @@ check("and is remembered as known-bad",
 const before = cacheStats().inflight;
 await fetchTile("https://example.test/dead.png");
 check("a known-bad tile is not requested again", cacheStats().inflight === before);
+
+
+// ── Interest is counted: only a request NOBODY wants is dropped ─────────────
+{
+  clearTileCache();
+  const stale = newOwner();
+  const fresh = newOwner();
+  // The old view queues more than the budget holds.
+  const staleUrls = Array.from({ length: MAX_INFLIGHT + 6 }, (_, i) => `https://example.test/stale-${i}.png`);
+  const stalePromises = staleUrls.map((u, i) => claimTile(u, stale, i));
+  check("the budget is global: no more than MAX_INFLIGHT on the wire",
+    cacheStats().active === MAX_INFLIGHT, `${cacheStats().active}`);
+  // The new view wants one tile the old one also wanted, and some of its own.
+  const shared = staleUrls[MAX_INFLIGHT + 2];         // queued, not yet started
+  const own = ["https://example.test/fresh-a.png", "https://example.test/fresh-b.png"];
+  const sharedP = claimTile(shared, fresh, 0);
+  const ownP = own.map((u, i) => claimTile(u, fresh, i + 1));
+  check("a second owner of a queued tile shares its one request", sharedP === stalePromises[MAX_INFLIGHT + 2]);
+  // The old view leaves.
+  const dropped = releaseOwner(stale);
+  check("releasing an owner drops what only it wanted",
+    dropped === staleUrls.length - 1, `${dropped} of ${staleUrls.length - 1}`);
+  const stillWanted = [...stalePromises.keys()].filter((i) => i !== MAX_INFLIGHT + 2);
+  const results = await Promise.all(stillWanted.map((i) => stalePromises[i]));
+  check("a dropped request resolves to null rather than hanging", results.every((r) => r === null));
+  check("and is NOT remembered as a bad tile", cachedTile(staleUrls[0]) === null && cacheStats().cached === 0);
+  const sharedImg = await sharedP;
+  check("the shared tile survives the old owner leaving", sharedImg && typeof sharedImg === "object");
+  const ownImgs = await Promise.all(ownP);
+  check("and the new owner's own tiles arrive", ownImgs.every((img) => img && typeof img === "object"));
+  check("nothing is left in flight or counted active", cacheStats().inflight === 0 && cacheStats().active === 0);
+}
+
+// ── The newest view goes first ──────────────────────────────────────────────
+{
+  const older = { gen: 1 };
+  const newer = { gen: 2 };
+  const e = (url, owners) => ({ url, started: false, owners: new Map(owners) });
+  const next = pickNext([
+    e("a", [[older, 0]]),
+    e("b", [[newer, 5]]),
+    e("c", [[newer, 2]]),
+  ]);
+  check("a newer owner's request starts before an older owner's", next.url === "c", next?.url);
+  const shared = pickNext([e("x", [[older, 0], [newer, 9]]), e("y", [[newer, 3]])]);
+  check("a request is ranked by its most urgent owner", shared.url === "y", shared?.url);
+  check("started requests are never picked again",
+    pickNext([{ url: "s", started: true, owners: new Map([[newer, 0]]) }]) === null);
+}
+
+// ── The cache is an LRU ──────────────────────────────────────────────────────
+{
+  clearTileCache();
+  const urls = Array.from({ length: CACHE_LIMIT }, (_, i) => `https://example.test/lru-${i}.png`);
+  await Promise.all(urls.map((u) => fetchTile(u)));
+  check("the cache fills to its limit", cacheStats().cached === CACHE_LIMIT);
+  cachedTile(urls[0]);                                   // looked at again: now the youngest
+  await fetchTile("https://example.test/lru-extra.png"); // one more evicts the oldest
+  check("a tile looked at again is kept", cachedTile(urls[0]) !== null);
+  check("the least recently used tile is the one evicted", cachedTile(urls[1]) === null);
+  check("and the cache stays bounded", cacheStats().cached === CACHE_LIMIT);
+}
+
+// ── The work list: coarse first, then out from where the camera looks ────────
+{
+  // A synthetic grid: the box spans tiles 0..7 at every level (enough to test order).
+  const gridAt = (_box, level) => ({ x0: 0, x1: 7, y0: 0, y1: 7 });
+  const box = { minLon: -180, maxLon: 180, minLat: -85, maxLat: 85 };
+  const focusTile = tileCoord(-125, 60, 3);             // up and to the left at level 3
+  const plan = planWork(box, 3, gridAt, { focus: { lon: -125, lat: 60 } });
+  check("every ring is coarser-first", plan[0].level === 1 && plan[plan.length - 1].level === 3);
+  const level3 = plan.filter((j) => j.level === 3);
+  const first = level3[0];
+  check("within the target ring the tile under the focus comes first",
+    first.tx === Math.floor(focusTile.x) && first.ty === Math.floor(focusTile.y),
+    `${first.tx},${first.ty} vs ${focusTile.x.toFixed(2)},${focusTile.y.toFixed(2)}`);
+  const centred = planWork(box, 3, gridAt).filter((j) => j.level === 3)[0];
+  check("without a focus the middle of the box comes first",
+    centred.tx >= 3 && centred.tx <= 4 && centred.ty >= 3 && centred.ty <= 4, `${centred.tx},${centred.ty}`);
+  const tc = tileCoord(0, 0, 1);
+  check("tileCoord is Web Mercator", Math.abs(tc.x - 1) < 1e-9 && Math.abs(tc.y - 1) < 1e-9);
+}
+
+// ── A pass claims everything before it first awaits ──────────────────────────
+{
+  clearTileCache();
+  const canvas = { getContext: () => ({ drawImage() {} }) };
+  const gridAt = (_box, level) => ({ x0: 0, x1: 1, y0: 0, y1: 1 });
+  const box = { minLon: -10, maxLon: 10, minLat: -10, maxLat: 10 };
+  const sourceName = Object.keys((await import("./tile-sources.js")).TILE_SOURCES)[0];
+  const run = streamRings(canvas, box, sourceName, {
+    targetZoom: 3, grid: { pxMin: 0, pyMin: 0 }, tileGridAt: gridAt,
+  });
+  check("the pass has registered every tile synchronously", cacheStats().inflight > 0, `${cacheStats().inflight}`);
+  check("and can be cancelled", typeof run.cancel === "function");
+  run.cancel();
+  const out = await run;
+  check("a cancelled pass resolves, releasing what it held",
+    out.cancelled === true && cacheStats().inflight === 0, JSON.stringify({ c: out.cancelled, i: cacheStats().inflight }));
+}
 
 console.log(failures ? `\n${failures} check(s) failed` : "\nall checks passed");
 process.exit(failures ? 1 : 0);

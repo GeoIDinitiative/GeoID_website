@@ -18,7 +18,7 @@
 
 import { dataUrl } from "./data-base.js?v=20261011-174399e";
 import { rampColour } from "./symbology.js?v=20261011-174399e";
-import { startPlayer } from "./timelapse-player.js?v=20261011-174399e";
+import { startPlayer, playerHidden } from "./timelapse-player.js?v=20261011-174399e";
 
 const search = new URL(import.meta.url).search;
 /**
@@ -156,7 +156,7 @@ async function build(id, startAt) {
     return loading.get(index);
   };
 
-  const wasVisible = layer.object3D ? layer.object3D.visible : true;
+  let lastOff = Boolean(layer.userHidden);
   /**
    * THE COLLECTIVE WEARS THE SAME PAINT AS THE FRAMES, none row included: the
    * catalogue's `paintByRange` leaves a zero uncoloured and lists no row for
@@ -188,17 +188,26 @@ async function build(id, startAt) {
     onStatus: say,
     interval: spec.interval || 1600,
     startAt: startAt === null ? ALL : startAt,
+    // Workspace hides or removes the sequence through either of its rows --
+    // see `playerHidden` in the player.
+    owns: () => [riskLayerFor(spec), held()],
+    onRemoved: () => {
+      const back = riskLayerFor(spec);
+      if (back) window.GeoIDImportManager?.removeLayer?.(back.id);
+    },
     onShow: async (index) => {
       const ticket = (shown += 1);
       const whole = index === ALL;
+      const off = playerHidden();
+      lastOff = off;
       const plot = held();
-      if (plot) plot.legendHidden = whole;
+      if (plot) { plot.legendHidden = whole; plot.visible = !off; }
       // ONE DATASET, ONE KEY: a hidden layer keeps its card, so the
       // collective's key is withheld while a frame is up and restored on All.
       layer.legendHidden = !whole;
-      window.GeoIDLayerHierarchy?.setVisible?.(layer, whole ? wasVisible : false);
+      window.GeoIDLayerHierarchy?.setVisible?.(layer, whole ? !off : false);
       built.forEach((b) => { b.node.visible = false; });
-      if (whole) {
+      if (whole || off) {
         if (plot?.object3D) plot.object3D.visible = false;
         if (plot) { plot.features = []; plot.collection = { type: "FeatureCollection", features: [] }; }
         window.GeoIDLayerHierarchy?.render?.();
@@ -212,7 +221,7 @@ async function build(id, startAt) {
         say(`${epochs[index].label} could not be read: ${error.message}`);
         return;
       }
-      if (ticket !== shown || !running) return;
+      if (ticket !== shown || !running || playerHidden()) return;
       built.forEach((b, i) => { b.node.visible = i === index; });
       const now = held();
       if (now) {
@@ -239,7 +248,7 @@ async function build(id, startAt) {
       if (now) window.GeoIDImportManager?.removeLayer?.(now.id);
       group.traverse?.((n) => { n.geometry?.dispose?.(); n.material?.dispose?.(); });
       const back = riskLayerFor(spec);
-      if (back) { back.legendHidden = false; window.GeoIDLayerHierarchy?.setVisible?.(back, wasVisible); }
+      if (back) { back.legendHidden = false; window.GeoIDLayerHierarchy?.setVisible?.(back, !lastOff); }
       say("");
     },
   });

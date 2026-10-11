@@ -268,6 +268,12 @@ async function open_() {
      */
     startAt: epochs.length - 1,
     /**
+     * The sheet's own row in Workspace: its eye already hides the drape (the
+     * mesh IS the layer's object), and naming it here is what makes removing
+     * the row close the bar instead of leaving it repainting a disposed mesh.
+     */
+    owns: () => [(window.GeoIDImportManager?.getLayers?.() || []).find((l) => l.id === layer?.id)],
+    /**
      * A REPAINT, not a rebuild. Every band is the same 1440x720 lattice over
      * the same ground, so the geometry is built once and only the texture
      * changes — 47 global drapes would be some two hundred megabytes of

@@ -771,6 +771,69 @@ function pointInsideRing(point, ring) {
 }
 
 /**
+ * RINGS BY CONTAINMENT, for a GeoJSON source — `mvt.js`'s rule, applied to
+ * everything else.
+ *
+ * A Polygon is outer-then-holes by the spec, and a file does not always keep
+ * the promise: a second outer ring written as a "hole", rings in the wrong
+ * order, a hole filed under the wrong part of a MultiPolygon. `fillTriangles`
+ * refuses a hole that is not inside its contour — which stops the bridge
+ * triangles — and the ring it refused was then simply not drawn: a glacier
+ * archive outline with its second part written as an inner ring drew one part
+ * and left the other blank. So the rings are regrouped by containment here,
+ * before anything is filled: the smallest ring containing a ring owns it, an
+ * odd depth is a hole, and a ring inside nothing is its own polygon.
+ *
+ * The fast path is what keeps this free: a polygon whose every hole already
+ * lies inside its own outer ring is returned untouched, which is every
+ * well-formed file and every tile (`mvt.js` has already grouped those).
+ */
+function ringAreaAbs(ring) {
+  let sum = 0;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i, i += 1) {
+    sum += (ring[j][0] - ring[i][0]) * (ring[j][1] + ring[i][1]);
+  }
+  return Math.abs(sum) / 2;
+}
+
+function insideArrayRing(point, ring) {
+  let inside = false;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i, i += 1) {
+    const a = ring[i];
+    const b = ring[j];
+    if ((a[1] > point[1]) !== (b[1] > point[1])
+      && point[0] < ((b[0] - a[0]) * (point[1] - a[1])) / (b[1] - a[1]) + a[0]) inside = !inside;
+  }
+  return inside;
+}
+
+export function regroupRings(polygons) {
+  if (!Array.isArray(polygons) || !polygons.length) return polygons || [];
+  const wellFormed = polygons.every((poly) => !Array.isArray(poly) || poly.length < 2
+    || poly.slice(1).every((hole) => !hole?.length || insideArrayRing(hole[0], poly[0] || [])));
+  if (wellFormed) return polygons;
+  const rings = polygons.flat().filter((r) => Array.isArray(r) && r.length >= 4)
+    .map((ring) => ({ ring, area: ringAreaAbs(ring), depth: 0, owner: null }))
+    .sort((a, b) => b.area - a.area);
+  const outers = [];
+  rings.forEach((entry, i) => {
+    // The smallest already-placed ring that contains this one is its parent.
+    let parent = null;
+    for (let k = i - 1; k >= 0; k -= 1) {
+      if (insideArrayRing(entry.ring[0], rings[k].ring)) { parent = rings[k]; break; }
+    }
+    entry.depth = parent ? parent.depth + 1 : 0;
+    if (entry.depth % 2 === 0) {
+      entry.polygon = [entry.ring];
+      outers.push(entry.polygon);
+    } else {
+      parent.polygon.push(entry.ring);
+    }
+  });
+  return outers;
+}
+
+/**
  * NO FILL TRIANGLE MAY CARRY AN EDGE LONGER THAN A DEGREE.
  *
  * `pushSegment` has enforced this for lines since the chord sag was measured;
@@ -1254,7 +1317,7 @@ export function renderFeatureCollection(fc, {
       return;
     }
     // Polygon rings are drawn as closed boundaries; lines as-is.
-    const polygons = polygonsOf(geometry);
+    const polygons = regroupRings(polygonsOf(geometry));
     const rings = polygons.flat();
     const lines = linesOf(geometry);
     let colour = null;

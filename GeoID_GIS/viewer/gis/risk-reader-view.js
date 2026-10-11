@@ -54,7 +54,7 @@ function statsList(b) {
   const span = Math.abs((s.max ?? 0) - (s.min ?? 0)) || 1;
   const f = (v) => (v === null ? "—" : b.scheme.probability ? returnPeriod(v) : `${formatNumber(v, span)}${u}`);
   const rows = [["People-weighted mean", f(s.mean)], ["Median person", f(s.median)], ["10th – 90th percentile", `${f(s.p10)} – ${f(s.p90)}`], ["Range in the area", `${f(s.min)} – ${f(s.max)}`]];
-  if (b.expectedPerYear !== null) rows.push(["Expected people reached a year", formatNumber(b.expectedPerYear, b.expectedPerYear)]);
+  if (b.expectedPerYear !== null) rows.push(["Expected people reached a year", formatCount(b.expectedPerYear)]);
   rows.push(["Population density", `${formatNumber(b.density, 100)} per km²`], ["People in edge cells (error bar)", formatShare(b.edgeShare)]);
   const dl = el("dl", { class: "risk-view-stats" });
   rows.forEach(([k, v]) => dl.append(el("dt", {}, k), el("dd", {}, v)));
@@ -68,7 +68,7 @@ function polygonTable(a) {
   const body = el("tbody");
   [...a.byPolygon].sort((x, y) => y.breakdown.veryHighHigh - x.breakdown.veryHighHigh || y.breakdown.exposed - x.breakdown.exposed).forEach((row) => {
     const b = row.breakdown;
-    body.append(el("tr", {}, el("td", {}, row.name), el("td", { class: "n" }, formatCount(b.total)), el("td", { class: "n" }, formatCount(b.exposed)), el("td", { class: "n" }, formatCount(b.veryHighHigh)), el("td", { class: "n" }, prob ? formatNumber(b.expectedPerYear, b.expectedPerYear) : formatShare(b.exposedShare))));
+    body.append(el("tr", {}, el("td", {}, row.name), el("td", { class: "n" }, formatCount(b.total)), el("td", { class: "n" }, formatCount(b.exposed)), el("td", { class: "n" }, formatCount(b.veryHighHigh)), el("td", { class: "n" }, prob ? formatCount(b.expectedPerYear) : formatShare(b.exposedShare))));
   });
   table.append(body);
   return table;
@@ -131,7 +131,7 @@ export function renderAssessment(host, a, { say = () => {}, compact = false } = 
       card(formatCount(b0.total), "people in the area"),
       card(formatCount(b0.exposed), `exposed · ${formatShare(b0.exposedShare)}`),
       card(formatCount(b0.veryHighHigh), b0.scheme.bands ? "in the top two bands" : "very high or high"),
-      b0.expectedPerYear !== null ? card(formatNumber(b0.expectedPerYear, b0.expectedPerYear), "reached a year") : card(formatNumber(b0.areaKm2, 100), "km² assessed")),
+      b0.expectedPerYear !== null ? card(formatCount(b0.expectedPerYear), "reached a year") : card(formatNumber(b0.areaKm2, 100), "km² assessed")),
     svgNode(stackedBarSvg(b0, { width: 300, height: 16 })),
   );
   a.breakdowns.forEach((b, k) => {

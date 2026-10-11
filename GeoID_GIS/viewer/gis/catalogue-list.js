@@ -152,17 +152,23 @@ const STYLE = `
   align-items: center;
   justify-content: center;
   padding: 0;
-  border: 1px solid rgba(var(--skin-data-rgb), 0.4);
+  /* The sub-tab's chrome, not a cyan ring: an accent hairline and the
+     panel ink, as on every other control in the sidebar (panel-styles.js). */
+  border: 1px solid rgba(var(--nav-accent-rgb, 255, 43, 214), 0.45);
   border-radius: 50%;
   background: transparent;
-  color: rgba(var(--skin-data-rgb), 0.85);
+  color: var(--text, var(--skin-ink));
   font: 600 0.62rem/1 'Exo 2', sans-serif;
   cursor: pointer;
 }
-.gis-catalogue-info-btn:hover {
-  border-color: var(--skin-data);
+.gis-catalogue-info-btn:focus-visible {
+  outline: 2px solid rgb(var(--nav-accent-rgb, 255, 43, 214));
+  outline-offset: 1px;
+}
+.gis-catalogue-info-btn:hover, .gis-catalogue-info-btn:focus-visible {
+  border-color: rgb(var(--nav-accent-rgb, 255, 43, 214));
   color: #ffffff;
-  background: rgba(var(--skin-data-rgb), 0.14);
+  background: rgba(var(--nav-accent-rgb, 255, 43, 214), 0.14);
 }
 #gis-catalogue-info-pop {
   position: fixed;
@@ -176,17 +182,18 @@ const STYLE = `
   overscroll-behavior: contain;
   padding: 0.6rem 0.75rem 0.65rem;
   border-radius: 0.5rem;
-  border: 1px solid rgba(var(--skin-data-rgb), 0.45);
+  /* Framed as a sub-tab card is -- the accent, not a cyan box. */
+  border: 1px solid rgba(var(--nav-accent-rgb, 255, 43, 214), 0.45);
   background: var(--skin-tab-ground, rgb(16, 7, 36));
   box-shadow: 0 14px 34px rgba(0, 0, 0, 0.5);
-  color: #dcebf2;
+  color: var(--text, var(--skin-ink));
 }
 #gis-catalogue-info-pop[hidden] { display: none !important; }
 #gis-catalogue-info-pop h4 {
   margin: 0 0 0.3rem;
   font: 600 0.72rem/1.3 'Exo 2', sans-serif;
   letter-spacing: 0.05em;
-  color: #bdf3f5;
+  color: var(--text, var(--skin-ink));
 }
 #gis-catalogue-info-pop p {
   margin: 0 0 0.35rem;
@@ -199,14 +206,14 @@ const STYLE = `
 }
 #gis-catalogue-info-pop .info-citation b {
   font-weight: 600;
-  color: #9fe8ec;
+  color: var(--text, var(--skin-ink));
 }
 /* The working. Folded by default -- see mathsBlock -- and given a rule above
    it so the card reads as summary, then method, then source. */
 #gis-catalogue-info-pop .info-maths {
   margin: 0 0 0.45rem;
   padding-top: 0.4rem;
-  border-top: 1px solid rgba(var(--skin-data-rgb), 0.3);
+  border-top: 1px solid rgba(var(--nav-accent-rgb, 255, 43, 214), 0.3);
 }
 #gis-catalogue-info-pop .info-maths > summary {
   cursor: pointer;
@@ -352,7 +359,13 @@ function infoPop() {
         && !e.target.closest?.(".gis-catalogue-info-btn")) pop.hidden = true;
     });
     document.addEventListener("keydown", (e) => {
-      if (e.key === "Escape") pop.hidden = true;
+      if (e.key !== "Escape" || pop.hidden) return;
+      pop.hidden = true;
+      // Back to the ⓘ that opened it, so a keyboard reader is not dropped
+      // at the top of the page.
+      const opener = pop.opener;
+      opener?.setAttribute?.("aria-expanded", "false");
+      if (opener?.isConnected) opener.focus();
     });
   }
   return pop;
@@ -396,6 +409,8 @@ export function datasetInfoButton(entry) {
 function mathsBlock(maths) {
   const box = document.createElement("details");
   box.className = "info-maths";
+  // A card whose whole point IS the working (a pipeline step's ⓘ) opens it.
+  if (maths.open) box.open = true;
   const head = document.createElement("summary");
   head.textContent = maths.kind === "computed here"
     ? "How it is calculated" : "How it was modelled";
@@ -451,7 +466,10 @@ function infoButton(entry) {
     event.stopPropagation();
     const pop = infoPop();
     const again = !pop.hidden && pop.dataset.entry === entry.id;
-    if (again) { pop.hidden = true; return; }
+    if (again) { pop.hidden = true; btn.setAttribute("aria-expanded", "false"); return; }
+    pop.opener?.setAttribute?.("aria-expanded", "false");
+    pop.opener = btn;
+    btn.setAttribute("aria-expanded", "true");
     pop.dataset.entry = entry.id;
     pop.textContent = "";
     const h = document.createElement("h4");

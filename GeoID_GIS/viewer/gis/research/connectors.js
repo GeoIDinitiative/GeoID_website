@@ -18,6 +18,9 @@
  * incoming data is only trustworthy if this is).
  */
 
+import { createLedger, latestGlaciers, pieceAreaKm2 }
+  from "../glacier-outlines.js?v=20261011-174399e";
+
 /** N days ago as an ISO date (YYYY-MM-DD). */
 function daysAgoISO(days) {
   return new Date(Date.now() - days * 86400000).toISOString().slice(0, 10);
@@ -782,25 +785,23 @@ export function glimsOutlinesToGeoJSON(payload, options = {}) {
         })),
     };
   }
-  const best = new Map();
-  for (const feature of all.features) {
-    const props = feature.properties || {};
-    if (props.line_type && props.line_type !== "glac_bound") continue;
-    const id = props.glac_id || `${props.anlys_id ?? ""}:${props.subm_id ?? ""}`;
-    const held = best.get(id);
-    const date = String(props.src_date || "");
-    if (!held || date > String(held.properties.src_date || "")) best.set(id, feature);
-  }
+  /**
+   * The latest state of each glacier — EVERY piece of it. GLIMS files a
+   * boundary as rows, one polygon each; keeping one row per `glac_id` drew
+   * half of an ice cap filed in two parts. A newer outline replaces only the
+   * pieces it overlaps (glacier-outlines.js).
+   */
+  const { features: latest } = latestGlaciers(all.features);
   return {
     type: "FeatureCollection",
-    features: [...best.values()].map((feature) => ({
+    features: latest.map((feature) => ({
       ...feature,
       properties: {
         ...feature.properties,
         // The card reads these; GLIMS's own column names are not a card's
         // words, and the date IS the fact that separates this from RGI.
         name: feature.properties.glac_name || null,
-        area_km2: feature.properties.db_area ?? null,
+        area_km2: feature.properties.area_km2 ?? feature.properties.db_area ?? null,
         outline_date: String(feature.properties.src_date || "").slice(0, 10) || null,
         kind: "Glacier outline (GLIMS)",
       },
@@ -880,8 +881,23 @@ export function glimsChangeToGeoJSON(payload, options = {}) {
   for (const [id, outlines] of byGlacier) {
     if (outlines.length < 2) continue;
     outlines.sort((a, b) => (a.date < b.date ? -1 : 1));
-    const first = outlines[0];
-    const last = outlines[outlines.length - 1];
+    /**
+     * PIECES, NOT ROWS. An ice cap filed as two halves is two rows under one
+     * id; read as a pair it is "the glacier doubled" (or halved), and drawn as
+     * the latest row it is half an ice cap. The ledger keeps every piece and
+     * compares each with the outline(s) it replaced, so the change is the
+     * glacier's and the geometry is all of it.
+     */
+    const ledger = createLedger();
+    for (const { feature } of outlines) ledger.add(feature);
+    const held = ledger.held.get(id) || [];
+    if (Math.max(0, ...held.map((p) => p.generations)) < 2) continue;
+    const firstArea = held.reduce((sum, p) => sum + (p.root ?? NaN), 0);
+    const lastArea = held.reduce((sum, p) => sum + (pieceAreaKm2(p.feature) ?? NaN), 0);
+    const first = { date: outlines[0].date, area: firstArea };
+    const last = { date: outlines[outlines.length - 1].date, area: lastArea,
+      feature: ledger.features()[0] };
+    if (!(first.area > 0) || !(last.area > 0)) continue;
     const years = (Date.parse(last.date) - Date.parse(first.date)) / 3.15576e10;
     // A pair six months apart is two readings of one summer, not a change.
     if (!(years >= GLIMS_MIN_YEARS)) continue;

@@ -12,7 +12,7 @@
  * Run: node GeoID_GIS/viewer/gis/view-extent.test.mjs
  */
 
-import { viewChangedEnough } from "./view-extent.js";
+import { viewChangedEnough, makeMotionGate } from "./view-extent.js";
 import { readFileSync } from "node:fs";
 
 let failures = 0;
@@ -103,6 +103,26 @@ check("a looser one ignores a bigger one",
     /< GRAZING\) continue;/.test(src));
   check("and the grazing threshold is named rather than inlined",
     /const GRAZING = /.test(src));
+}
+
+
+// ── Motion: throttled refreshes while the camera moves, one on settle ────────
+{
+  const gate = makeMotionGate({ settleMs: 250, moveMs: 400 });
+  const seq = [];
+  // A drag: the camera moves on every 100 ms poll for 1.2 s, then stops.
+  for (let t = 0; t <= 1200; t += 100) seq.push([t, gate.step(t, true)]);
+  for (let t = 1300; t <= 2000; t += 100) seq.push([t, gate.step(t, false)]);
+  const moves = seq.filter(([, w]) => w === "move").map(([t]) => t);
+  const settles = seq.filter(([, w]) => w === "settle").map(([t]) => t);
+  check("the first movement refreshes at once, not after a throttle period", moves[0] === 0);
+  check("and then at most once per throttle period while moving",
+    moves.every((t, i) => i === 0 || t - moves[i - 1] >= 400), moves.join(","));
+  check("a 1.2 s pan refreshes several times on the way", moves.length >= 3, `${moves.length}`);
+  check("and exactly once more when it settles", settles.length === 1, settles.join(","));
+  check("the settle waits for the camera to be still", settles[0] >= 1200 + 250, `${settles[0]}`);
+  check("a still camera stays quiet", gate.step(5000, false) === null && gate.step(6000, false) === null);
+  check("moving again after a settle refreshes at once", gate.step(7000, true) === "move");
 }
 
 console.log(failures ? `\n${failures} check(s) failed` : "\nall checks passed");

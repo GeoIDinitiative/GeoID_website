@@ -27,8 +27,13 @@ const DEMOS = {
       // 0-2: the results.
       { path: "/ni-prototype/data/ni_landslide_susceptibility_quantile.tif",
         name: "NI landslide susceptibility (ranked).tif" },
+      // `*.tif` is gitignored, so the baked raster exists only where it was
+      // baked; everywhere else it 404s. `build` names the in-page model that
+      // rebuilds it from the shipped GeoJSON inputs (gis/ni-flood.js), and
+      // `status` is the line beside ITS tick box -- the Flood tab, not the
+      // collapsed Landslides subtab `#demo-status` lives in.
       { path: "/ni-prototype/data/ni_flood_susceptibility.tif",
-        name: "NI flood susceptibility.tif" },
+        name: "NI flood susceptibility.tif", build: "ni-flood", status: "flood-status" },
       { path: "/ni-prototype/data/ni_landslide_susceptibility.tif",
         name: "NI landslide susceptibility (absolute).tif" },
       // 3-7: what they were made from. `input: true` keeps them out of the
@@ -55,8 +60,9 @@ const DEMOS = {
 };
 
 /** Status goes wherever the caller has room for it, or to the console. */
-function say(message) {
-  const node = document.getElementById("demo-status")
+function say(message, statusId = null) {
+  const node = (statusId && document.getElementById(statusId))
+    || document.getElementById("demo-status")
     || document.getElementById("import-status");
   if (node) node.textContent = message;
   else console.info(`[GeoID demo] ${message}`);
@@ -87,10 +93,7 @@ export async function load(id = "ni-prototype") {
     if (already.has(entry.name)) continue;
     try {
       say(`Loading ${demo.label}: ${entry.name}…`);
-      const response = await fetch(entry.path);
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      const blob = await response.blob();
-      await manager.importFileList([new File([blob], entry.name, { type: "image/tiff" })]);
+      await manager.importFileList([await fileFor(entry, (m) => say(m, entry.status))]);
       loaded += 1;
     } catch (error) {
       // One unreachable file must not stop the others.
@@ -166,29 +169,64 @@ export async function toggle(id, index, on) {
   if (!entry || !manager?.importFileList) return false;
 
   const find = () => (manager.getLayers?.() || []).find((l) => l.name === entry.name);
+  const label = entry.name.replace(/\.tif$/, "");
+  const status = (message) => say(message, entry.status);
   if (!on) {
     const layer = find();
     if (layer && manager.removeLayer) manager.removeLayer(layer.id);
-    say(`${entry.name.replace(/\.tif$/, "")} removed.`);
+    status(`${label} removed.`);
     return false;
   }
   if (find()) return true;
+  let note = "";
   try {
-    say(`Loading ${entry.name.replace(/\.tif$/, "")}…`);
-    const response = await fetch(entry.path);
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    await manager.importFileList([
-      new File([await response.blob()], entry.name, { type: "image/tiff" }),
-    ]);
+    status(`Loading ${label}…`);
+    const file = await fileFor(entry, status);
+    note = file.note || "";
+    await manager.importFileList([file]);
+    // importFileList reports a parse failure on the layer row, not by
+    // throwing, so the box would stay ticked over nothing. Check it landed.
+    const layer = find();
+    if (!layer || (layer.status && layer.status !== "loaded")) {
+      throw new Error(layer?.error || layer?.message || "the import produced no layer");
+    }
   } catch (error) {
-    say(`${entry.name} did not load: ${error.message}`);
+    status(`${label} could not be produced: ${error.message}`);
+    console.warn(`[GeoID demo] ${entry.name} failed:`, error);
     return false;
   }
   const others = (manager.getLayers?.() || [])
     .filter((l) => demo.files.some((f) => f.name === l.name)).length;
   if (others <= 1) frame(demo.view);
-  say(`${entry.name.replace(/\.tif$/, "")} mapped. ${demo.note}`);
+  status(`${label} mapped${note ? ` (${note})` : ""}. ${demo.note}`);
   return true;
+}
+
+/**
+ * The entry as a File: the shipped raster when the server has it, otherwise
+ * -- for an entry that names a `build` -- the same map computed in the page
+ * from the shipped inputs. A 200 that is HTML (a host's catch-all page) is
+ * treated as missing too: handed to the TIFF reader it fails obscurely.
+ */
+async function fileFor(entry, status) {
+  let reason = "";
+  try {
+    const response = await fetch(entry.path);
+    const type = response.headers?.get?.("content-type") || "";
+    if (response.ok && !/text\/html/i.test(type)) {
+      return new File([await response.blob()], entry.name, { type: "image/tiff" });
+    }
+    reason = response.ok ? "served as a web page" : `HTTP ${response.status}`;
+  } catch (error) {
+    reason = error.message;
+  }
+  if (entry.build !== "ni-flood") throw new Error(`${entry.path.split("/").pop()}: ${reason}`);
+  console.info(`[GeoID demo] ${entry.name} not shipped (${reason}); computing it from the prototype's inputs.`);
+  const { buildFloodGeoTiff } = await import("./ni-flood.js?v=20261011-174399e");
+  const { bytes, demNote } = await buildFloodGeoTiff({ onProgress: status });
+  const file = new File([bytes], entry.name, { type: "image/tiff" });
+  file.note = `computed in the page from BGS superficial geology, HadUK rainfall and OSM rivers; ${demNote}`;
+  return file;
 }
 
 export function list() {

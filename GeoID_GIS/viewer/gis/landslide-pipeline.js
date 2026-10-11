@@ -338,10 +338,12 @@ const STYLE = `
 .lsp-n { display: inline-grid; place-items: center; width: 1.4rem; height: 1.4rem; border-radius: 999px; background: var(--nav-accent, #ff2bd6); color: #1a0520; font: 700 0.7rem "Exo 2", sans-serif; }
 .lsp-title { font: 600 0.76rem "Exo 2", sans-serif; letter-spacing: 0.06em; text-transform: uppercase; flex: 1 1 auto; }
 .lsp-pill { font-size: 0.66rem; padding: 0.1rem 0.45rem; border-radius: 999px; border: 1px solid rgba(255,255,255,0.25); opacity: 0.85; }
-.lsp-card[data-state="done"] .lsp-pill { border-color: var(--skin-data, #52e4e8); color: var(--skin-data, #52e4e8); }
+.lsp-card[data-state="done"] .lsp-pill { border-color: rgb(var(--nav-accent-rgb, 255,43,214)); color: var(--text, var(--skin-ink)); background: rgba(var(--nav-accent-rgb, 255,43,214), 0.14); opacity: 1; }
 .lsp-card[data-state="blocked"] { opacity: 0.55; }
 .lsp-card[data-state="blocked"] .lsp-pill { color: #f5a742; border-color: #f5a742; }
 .lsp-blurb { font-size: 0.72rem; opacity: 0.75; margin: 0 0 0.35rem; }
+.lsp-info-slot { display: inline-flex; flex: 0 0 auto; }
+.lsp-info-slot:empty { display: none; }
 .lsp-status { font-size: 0.72rem; margin: 0.35rem 0 0; min-height: 1em; white-space: pre-line; }
 .lsp-status[data-kind="error"] { color: #ff7b7b; }
 .lsp-eq { font: 0.7rem/1.45 ui-monospace, Menlo, monospace; opacity: 0.85; margin: 0.25rem 0; white-space: pre-line; }
@@ -392,10 +394,65 @@ function ensureStyle() {
   document.head.appendChild(tag);
 }
 
+/**
+ * WHAT EACH STEP DOES, AND ITS WORKING — behind the step's ⓘ.
+ *
+ * The cards used to print the blurb, every equation and the paragraphs that
+ * qualify them inline, so the chart read as a wall of monospace and the
+ * controls were lost in it. Each step is now one line (number, title, state,
+ * ⓘ) over its controls, and the ⓘ opens the SAME card every dataset uses
+ * (`datasetInfoButton` in catalogue-list.js): the summary, then the equations
+ * open, with a note under each, then the qualifications.
+ */
+function stepInfo(step) {
+  const maths = (lines, note = "") => ({ kind: "computed here", open: true, lines, note });
+  const by = {
+    hydro: maths([
+      { expr: "r = min(P / Δt, Ks)", note: "Recharge: what infiltrates. Rain faster than the ground's saturated conductivity Ks runs off instead." },
+      { expr: "q = Σ upslope r · A", note: "Routed downslope by multiple flow directions on the sink-filled DEM." },
+      { expr: "h = min(z_s, q / (b · F·Ks · sin β))", note: "The steady water table: F is the lateral-flow factor, b the cell width, z_s the soil column." },
+      { expr: "m = (h − (z_s − z_f)) / z_f", note: "The fraction of the failure column that is wet — the water on the failure plane." },
+    ]),
+    fos: maths([
+      { expr: "Soil:  FoS = [c′ + c_r + (γ − m·γw)·z_f·cos²β·tan φ′] / [γ·z_f·sin β·cos β]",
+        note: `A shallow translational slide. z_f is the soil column capped at ${SHALLOW_FAILURE_CAP_M} m; on gentle ground the factor of safety is large (capped at ${FOS_CAP}) and reads "stable". Where the bedrock is bare there is no soil to slide, and the rock model governs.` },
+      { expr: "Rock:  Hoek–Brown (σci, mi, GSI) → c′, φ′ of the rock mass for a slope H high", note: "The rock mass's strength, fitted over the stress range of a slope that high." },
+      { expr: "FoS = 2c′·sin β / (γH·sin θ·sin(β−θ)) + (1 − r_u)·tan φ′·cot θ", note: "Culmann's planar failure, θ the critical plane." },
+      { expr: "r_u = W·γw / 2γ", note: "Water in the joints, W from the routed recharge." },
+      { expr: "Rockfall:  sources where rock is bare and β ≥ β_s;  v = √(2g·h)", note: "A block is reached while it stays under a line from its source at the reach angle." },
+      { expr: "Channel:  e = (P − min(P, Ks)) + min(P, Ks)·W", note: "Runoff: rain too fast to soak in, plus what a full column returns." },
+      { expr: "S ← S + Q·Δt ;  Q_out = S·(1 − e^(−Δt/k))/Δt", note: "A linear reservoir per cell — the flood wave." },
+      { expr: "k = L / v,  v = 0.514·Q_bank^0.2 in a channel, k_v·√sin β on a hillslope" },
+      { expr: "FoS = Q_bankfull / Q", note: "The channel's factor of safety: below 1 it is over the brim." },
+    ], "W is the slope model's own saturation, so the two hazards share one storm: as the hillsides fill, the same rain stops recharging and starts running off. A flood is a wave, so the channel model is marched through the series in order — it needs a full run, where the other two answer any map on their own."),
+  };
+  return {
+    id: `lsp-step-${step.id}`,
+    label: `${step.n} · ${step.title}`,
+    info: { summary: step.blurb, ...(by[step.id] ? { maths: by[step.id] } : {}) },
+  };
+}
+
+/**
+ * Put an ⓘ on every step. catalogue-list is imported lazily: this module is
+ * also imported by the Node unit tests, and the card's module is a browser one.
+ */
+function mountStepInfo(host) {
+  import("./catalogue-list.js?v=20261011-174399e").then(({ datasetInfoButton }) => {
+    host.querySelectorAll(".lsp-info-slot[data-step]").forEach((slot) => {
+      const step = STEPS.find((s) => s.id === slot.dataset.step);
+      if (!step || slot.firstChild) return;
+      const btn = datasetInfoButton(stepInfo(step));
+      btn.dataset.always = "1";    // readable whatever the step's state
+      btn.setAttribute("aria-label", `About step ${step.n}, ${step.title}: what it does and its equations`);
+      slot.appendChild(btn);
+    });
+  }).catch((error) => console.warn("[landslide pipeline] step info unavailable:", error?.message || error));
+}
+
 function card(step, body) {
   return `<div class="lsp-card" id="lsp-card-${step.id}" data-state="ready">
-    <div class="lsp-head"><span class="lsp-n">${step.n}</span><span class="lsp-title">${esc(step.title)}</span><span class="lsp-pill">ready</span></div>
-    <p class="lsp-blurb">${esc(step.blurb)}</p>
+    <div class="lsp-head"><span class="lsp-n">${step.n}</span><span class="lsp-title">${esc(step.title)}</span><span class="lsp-pill">ready</span><span class="lsp-info-slot" data-step="${step.id}"></span></div>
     ${body}
     <p class="lsp-status" id="lsp-status-${step.id}" aria-live="polite"></p>
   </div>`;
@@ -432,34 +489,19 @@ export function render(host) {
       <div class="lsp-maps" id="lsp-maps"></div>
       <div class="gis-btn-row"><button type="button" class="button" id="lsp-ground-read">Read the ground</button></div>`)}
     ${card(STEPS[3], `
-      <div class="lsp-eq">r = min(P / Δt, Ks)            recharge, what infiltrates
-q = Σ upslope r · A             routed, multiple flow directions
-h = min(z_s, q / (b · F·Ks · sin β))  the steady water table
-m = (h − (z_s − z_f)) / z_f     water on the failure plane</div>
       <div class="row"><label for="lsp-lateral" title="Downslope flow runs through macropores and soil pipes one to two orders of magnitude faster than the vertical matrix Ks a pedotransfer function or a lab gives. 30 puts a typical loam at the low end of the transmissivities Montgomery &amp; Dietrich (1994) used; 1 is the matrix alone, and saturates almost everything.">Lateral flow F (× Ks)</label><select id="lsp-lateral" class="input" data-always="1"><option value="1">1 — the matrix alone</option><option value="10">10</option><option value="30" selected>30</option><option value="100">100</option><option value="300">300</option></select></div>
       <div class="row"><label for="lsp-infiltration" title="Rain faster than the ground's saturated conductivity runs off instead of recharging it.">Infiltration capped at Ks</label><span class="checkbox-wrap"><input id="lsp-infiltration" type="checkbox" checked data-always="1"></span></div>`)}
     ${card(STEPS[4], `
       <div class="lsp-sub">1 · Soil — a shallow translational slide</div>
-      <div class="lsp-eq">FoS = [c′ + c_r + (γ − m·γw)·z_f·cos²β·tan φ′] / [γ·z_f·sin β·cos β]</div>
       <div class="row"><label for="lsp-strength" title="Peak for a first-time failure; residual where the ground has slid before and the shear surface is already polished.">Strength</label><select id="lsp-strength" class="input" data-always="1"><option value="peak" selected>Peak — first-time failure</option><option value="residual">Residual — reactivation</option></select></div>
       <div class="row"><label for="lsp-root" title="The extra cohesion roots give a soil: 0 bare, a few kPa grassland, 5–20 kPa forest.">Root cohesion (kPa)</label><input id="lsp-root" class="input" type="number" min="0" max="40" step="1" value="0" data-always="1"></div>
-      <p class="compact-copy" style="margin:0;opacity:0.8">z_f is the soil column capped at ${SHALLOW_FAILURE_CAP_M} m. On gentle ground the factor of safety is large (capped at ${FOS_CAP}) and reads "stable". Where the bedrock is bare there is no soil to slide, and the rock model governs.</p>
       <div class="lsp-sub">2 · Bedrock — a rock slope, and rockfall</div>
-      <div class="lsp-eq">Hoek–Brown (σci, mi, GSI) → c′, φ′ of the rock mass for a slope H high
-FoS = 2c′·sin β / (γH·sin θ·sin(β−θ)) + (1 − r_u)·tan φ′·cot θ   Culmann, θ the critical plane
-r_u = W·γw / 2γ     water in the joints, W from the routed recharge
-rockfall: sources where rock is bare and β ≥ β_s; reached while under a line from the source at the reach angle; v = √(2g·h)</div>
       <div class="row"><label for="lsp-exposed" title="Where the soil model reads under a metre (Pelletier's 0) on ground at least this steep, the bedrock is taken as bare — there is no soil to slide, and the rock model governs. Ground steeper than 55° is taken as bare whatever the soil map says.">Bare rock: thin soil and slope ≥</label><select id="lsp-exposed" class="input" data-always="1"><option value="30">30°</option><option value="35">35°</option><option value="40" selected>40°</option><option value="45">45°</option></select></div>
       <div class="row"><label for="lsp-source" title="Bare rock at least this steep sheds blocks. A DEM smooths a cliff: at 30 m a vertical face reads 50–60°, so the threshold is set low of the true cliff angle.">Rockfall sources: bare rock ≥</label><select id="lsp-source" class="input" data-always="1"><option value="40">40°</option><option value="45" selected>45°</option><option value="50">50°</option><option value="55">55°</option><option value="60">60°</option></select></div>
       <div class="row"><label for="lsp-reach" title="The energy-line (Fahrböschung) angle: a falling block travels while it stays under a line dropping from its source at this angle. Around 32° is typical for rockfall reach; a lower angle reaches further (Evans &amp; Hungr 1993; Jaboyedoff &amp; Labiouse 2011).">Rockfall reach angle</label><select id="lsp-reach" class="input" data-always="1"><option value="28">28° — long runout</option><option value="30">30°</option><option value="32" selected>32°</option><option value="35">35°</option><option value="38">38° — short</option></select></div>
       <div class="row"><label for="lsp-relief" title="A rock slope's height H is each cell's height above the lowest ground within this distance. Rock slopes fail by height as much as by angle: H sets the stress range the rock mass is fitted over and the weight on the plane.">Slope height read over</label><select id="lsp-relief" class="input" data-always="1"><option value="100">100 m</option><option value="200" selected>200 m</option><option value="500">500 m</option><option value="1000">1 km</option></select></div>
       <div class="row"><label for="lsp-gsi" title="The Geological Strength Index the database gives is a TYPICAL field range for the rock; weathered, sheared or blasted ground is worse. This lowers every rock mass by that much.">Rock mass quality (GSI)</label><select id="lsp-gsi" class="input" data-always="1"><option value="0" selected>Typical for the rock</option><option value="-10">10 lower — weathered</option><option value="-20">20 lower — poor, sheared</option><option value="10">10 higher — massive</option></select></div>
       <div class="lsp-sub">3 · Channel — the water the slopes could not take in</div>
-      <div class="lsp-eq">e = (P − min(P, Ks)) + min(P, Ks)·W    runoff: too fast to soak in, plus what a full column returns
-S ← S + Q·Δt ;  Q_out = S·(1 − e^(−Δt/k))/Δt    a linear reservoir per cell — the wave
-k = L / v,  v = 0.514·Q_bank^0.2 in a channel, k_v·√sin β on a hillslope
-FoS = Q_bankfull / Q          the channel's, below 1 it is over the brim</div>
-      <p class="compact-copy" style="margin:0 0 0.35rem;opacity:0.8">W is the slope model's own saturation, so the two hazards share one storm: as the hillsides fill, the same rain stops recharging and starts running off. A flood is a wave, so this model is marched through the series in order — it needs a full run, where the other two answer any map on their own.</p>
       <div class="row"><label for="lsp-bankfull" title="What a channel carries at its brim, as a multiple of the mean flow GRWL's width implies. The annual flood is bankfull by convention; the ratio varies by an order of magnitude between a chalk stream and a monsoon river.">Bankfull capacity (× mean flow)</label><select id="lsp-bankfull" class="input" data-always="1"><option value="3">3 — flashy, little storage</option><option value="5" selected>5 — the annual flood</option><option value="8">8</option><option value="12.5">12.5 — a big channel</option></select></div>
       <div class="row"><label for="lsp-hillv" title="How fast a hillslope passes its water on: v = k·√(sin β). Lower is a slow, vegetated, permeable catchment; higher is bare or urban ground that answers within the hour.">Hillslope response</label><select id="lsp-hillv" class="input" data-always="1"><option value="0.5">Slow — vegetated, rough</option><option value="1.5" selected>Typical</option><option value="3">Fast — bare or sealed</option></select></div>
       <div class="row"><label for="lsp-defended" title="Ground already below the river at mean flow is not flooded every day, so something the DEM cannot see is holding the water off it — a levee, a dyke, or a DEM wrong at the channel. Untick to flood it with the rest.">Unseen defences hold</label><span class="checkbox-wrap"><input id="lsp-defended" type="checkbox" checked data-always="1"></span></div>`)}
@@ -494,6 +536,7 @@ FoS = Q_bankfull / Q          the channel's, below 1 it is over the brim</div>
       <div class="lsp-plots" id="lsp-plots"></div>
       <div class="gis-btn-row"><button type="button" class="button secondary" id="lsp-plot-add" data-always="1" title="Another plot: any recorded variable, docked here or popped out over the map">+ Plot</button><button type="button" class="button" id="lsp-st-csv" data-always="1">Export CSV</button></div>`)}
   </div>`;
+  mountStepInfo(host);
   wire();
   wireStations();
   drawMaps();

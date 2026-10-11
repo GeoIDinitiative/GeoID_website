@@ -8,11 +8,18 @@
  * schematic they are. They are not a hazard MAP: a real extent depends on
  * eruption style, vent location, wind and topography, and the ⓘ says so.
  *
- * WHICH VOLCANOES is the reader's choice and it is a fact about the record,
- * not a taste: the catalogue's own `label_rank` is eruption recency (5 =
- * erupted since 2000 ... 1 = an undated Holocene eruption, 0 = Pleistocene),
- * so "erupted since 1900" is rank 4 and up. A Pleistocene volcano never gets
- * a buffer, because nothing in the Holocene record says it is active.
+ * WHICH VOLCANOES is the YEAR FILTER's decision, and the buffers do not get
+ * a filter of their own. The filter (the drawer's first control, applied by
+ * catalogue-panels.js through volcano-filter.js) removes the volcanoes
+ * outside its time frame from the PLOT; the buffers are then drawn only
+ * around the volcanoes still plotted, and are rebuilt live whenever the
+ * filter changes (`geoid-gis:volcano-filter`). So a buffer is never drawn
+ * round a volcano that is not on the map, and the people-at-risk readings
+ * taken off the buffers (risk-reader.js) count the filtered set. The time
+ * frame is the catalogue's own `label_rank` (5 = erupted since 2000 ... 1 =
+ * an undated Holocene eruption, 0 = Pleistocene). A Pleistocene volcano never
+ * gets a buffer, even when the filter plots it, because nothing in the
+ * Holocene record says it is active.
  *
  * MERGED WITH THE STENCIL BUFFER, not with geometry. A union of a thousand
  * discs through the boolean engine is a fault this tree has already paid for
@@ -27,6 +34,7 @@
 
 import { renderFeatureCollection } from "./vector-render.js?v=20261011-174399e";
 import { layerForDataset } from "./global-data.js?v=20261011-174399e";
+import { filterVolcanoes, yearRankOf, yearWords, inTimeFrame } from "./volcano-filter.js?v=20261011-174399e";
 
 const search = new URL(import.meta.url).search;
 
@@ -86,15 +94,6 @@ export const ZONES = [
     ],
     detail: "At this distance the primary hazards are trace ash fall during prolonged eruptions and volcanic aerosols that may temporarily affect air quality. Messina (~40 km NE), southern Calabria, and the Aeolian Islands can experience these effects when winds blow northeastward. No life-threatening hazard is expected here under normal eruptive scenarios." },
 ];
-
-/** The select's values: the lowest `label_rank` admitted, and its words. */
-export const AROUND = {
-  5: "erupted since 2000",
-  4: "erupted since 1900",
-  3: "erupted since 1500",
-  2: "any dated Holocene eruption",
-  1: "every Holocene volcano",
-};
 
 const DEG = Math.PI / 180;
 
@@ -277,19 +276,37 @@ export function legendFor() {
 
 const LAYER_NAME = "Volcanic hazard buffers";
 let three = null;
-let current = null;   // { layer, group, rank }
+let current = null;   // { layer, group, volcanoes }
 let building = false;
+// The buffers are WANTED while their tick is on, whether or not the time frame
+// currently holds a volcano to draw them round: a frame emptied and widened
+// again brings them back without a second press.
+let wanted = false;
+let rebuildAgain = false;
 
 const byId = (id) => document.getElementById(id);
 const say = (text) => { const el = byId("volcano-buffers-status"); if (el) el.textContent = text; };
 const volcanoLayer = () => layerForDataset("volcanoes");
-// EVERY HOLOCENE VOLCANO BY DEFAULT. The Smithsonian's own working
-// definition of "potentially active" is a Holocene eruption; a hazard map
-// that buffered only the ones erupting since 1900 left Ilopango -- VEI 6 in
-// the fifth century -- with no zone at all, and was read as those volcanoes
-// being inactive. The narrower bands stay on the select for a reader who
-// wants only the recently restless.
-const chosenRank = () => Number(byId("volcano-buffers-around")?.value) || 1;
+
+/**
+ * THE VOLCANOES THE PLOT HOLDS, read from the plot's own filter — never from
+ * `layer.features` alone, which a just-reloaded layer has not been filtered
+ * yet. The master list (`_allFeatures`) is filtered here by the same test the
+ * plot uses (volcano-filter.js), so the buffers cannot be built round a
+ * volcano the year filter or a type toggle has removed, whatever the timing.
+ * By default (no filter set) every volcano is plotted and every Holocene one
+ * is buffered: the Smithsonian's working definition of "potentially active",
+ * which is what gave Ilopango — VEI 6 in the fifth century — its zones.
+ */
+export function plottedVolcanoes(source, state) {
+  const all = source?._allFeatures || source?.features || [];
+  const fallback = { minRank: yearRankOf(byIdSafe("volcano-years")?.value), typesOff: null };
+  return { all, inFrame: filterVolcanoes(all, state || fallback), state: state || fallback };
+}
+function byIdSafe(id) {
+  return typeof document !== "undefined" && document.getElementById ? document.getElementById(id) : null;
+}
+const filterState = () => (typeof window !== "undefined" ? window.GeoIDVolcanoFilter?.state?.() : null) || null;
 
 /**
  * THE MERGE. Fills are drawn innermost zone first (a fractional `renderLift`,
@@ -315,18 +332,31 @@ function armMerge(node, zoneIndex) {
   });
 }
 
-export async function build({ rank = chosenRank() } = {}) {
-  if (building) return null;
+export async function build() {
+  // A filter that moves while a build is running is honoured once it ends,
+  // never dropped: the buffers must end up describing the LAST time frame.
+  if (building) { rebuildAgain = true; return null; }
   const source = volcanoLayer();
-  if (!source?.features?.length) { say("Tick the volcanoes on first."); return null; }
+  if (!(source?._allFeatures || source?.features)?.length) { say("Tick the volcanoes on first."); return null; }
   building = true;
+  wanted = true;
   try {
     if (!three) three = await import("../vendor/three.module.js");
-    remove();
+    clearBuffers();
     const radiusKm = window.GeoIDViewer?.bodyRadiusKm || 6371;
-    const { features, volcanoes, centres } = zonesFor(source.features, rank, { radiusKm });
+    const { inFrame, state } = plottedVolcanoes(source, filterState());
+    // Rank 1 and up: the time frame decides who is plotted, and a Pleistocene
+    // volcano the frame still plots gets no buffer.
+    const { features, volcanoes, centres } = zonesFor(inFrame, 1, { radiusKm });
+    const pleistocene = inFrame.filter((f) => !inTimeFrame(f, 1)).length;
     const groups = mergedGroups(centres, undefined, radiusKm);
-    if (!features.length) { say("No volcano in that band."); return null; }
+    const box = byId("volcano-buffers-on");
+    if (box) box.checked = true;
+    if (!features.length) {
+      say(`No Holocene volcano in the time frame (${yearWords(state.minRank)}), so no buffers. `
+        + "They return when the year filter widens.");
+      return null;
+    }
     const group = new three.Group();
     group.name = "GeoID-VolcanicHazardBuffers";
     // One draw per ZONE, so each zone is one stencil pass: the zone's discs
@@ -435,24 +465,35 @@ export async function build({ rank = chosenRank() } = {}) {
         return leaves;
       };
     }
-    current = { layer, group, rank };
-    say(`${ZONES.length} zones around ${volcanoes.toLocaleString()} volcanoes `
-      + `(${AROUND[rank]}), merged where they meet.`);
-    const box = byId("volcano-buffers-on");
-    if (box) box.checked = true;
+    current = { layer, group, volcanoes };
+    say(`${ZONES.length} zones around ${volcanoes.toLocaleString("en-GB")} volcanoes `
+      + `(${yearWords(state.minRank)}), merged where they meet.`
+      + (pleistocene ? ` ${pleistocene.toLocaleString("en-GB")} Pleistocene volcano${pleistocene === 1 ? "" : "es"} in the time frame get none.` : ""));
     return layer;
   } finally {
     building = false;
+    if (rebuildAgain) {
+      rebuildAgain = false;
+      if (wanted) void build();
+    }
   }
 }
 
-export function remove() {
+/** Take the buffers' geometry and layer off the globe; the tick is untouched. */
+function clearBuffers() {
   if (!current) return;
   const { layer, group } = current;
   current = null;
   if (layer) window.GeoIDImportManager?.removeLayer?.(layer.id);
   group?.traverse?.((n) => { n.geometry?.dispose?.(); n.material?.dispose?.(); });
   group?.parent?.remove(group);
+}
+
+/** Switch the buffers off: geometry gone, tick off, no longer wanted. */
+export function remove() {
+  wanted = false;
+  rebuildAgain = false;
+  clearBuffers();
   say("");
   const box = byId("volcano-buffers-on");
   if (box) box.checked = false;
@@ -473,12 +514,18 @@ export const layerOf = () => current?.layer || null;
 if (typeof window !== "undefined" && typeof window.addEventListener === "function"
   && typeof document !== "undefined" && typeof document.addEventListener === "function") {
   document.addEventListener("change", (event) => {
-    const id = event.target?.id;
-    if (id === "volcano-buffers-on") {
-      if (event.target.checked) void build(); else remove();
-    } else if (id === "volcano-buffers-around" && current) {
-      void build({ rank: chosenRank() });
-    }
+    if (event.target?.id !== "volcano-buffers-on") return;
+    if (event.target.checked) void build(); else remove();
+  });
+  /**
+   * THE BUFFERS FOLLOW THE PLOT. catalogue-panels.js announces every pass of
+   * the year filter and the type toggles; the buffers are rebuilt from what is
+   * still plotted, so a volcano filtered out loses its zones at once and one
+   * filtered back in gets them — and the people-at-risk reading, which is
+   * taken off this layer, is read again over the new zones.
+   */
+  document.addEventListener("geoid-gis:volcano-filter", () => {
+    if (wanted && volcanoLayer()) void build();
   });
   /**
    * THE IMPORT MANAGER ANNOUNCES THROUGH `onChange`, NOT THE DOM EVENT.
@@ -489,11 +536,11 @@ if (typeof window !== "undefined" && typeof window.addEventListener === "functio
    * drawn. The manager's own listener list is the seam every catalogue uses.
    */
   const follow = () => {
-    if (current && !volcanoLayer()) remove();
+    if ((current || wanted) && !volcanoLayer()) remove();
     // The buffers' own Workspace row removed: forget them rather than hold a
-    // handle to a layer that is gone.
-    if (current && !window.GeoIDImportManager?.getLayers?.().some((l) => l === current.layer)) {
-      current = null; say(""); const box = byId("volcano-buffers-on"); if (box) box.checked = false;
+    // handle to a layer that is gone. Not while a build is swapping them.
+    if (!building && current && !window.GeoIDImportManager?.getLayers?.().some((l) => l === current.layer)) {
+      current = null; wanted = false; say(""); const box = byId("volcano-buffers-on"); if (box) box.checked = false;
     }
   };
   window.addEventListener("geoid-gis:layers-changed", follow);
@@ -508,5 +555,5 @@ if (typeof window !== "undefined" && typeof window.addEventListener === "functio
     if (tries++ < 120) setTimeout(subscribe, 250)?.unref?.();
   };
   subscribe();
-  window.GeoIDVolcanicHazards = { build, remove, layerOf, zonesFor, circleRing, splitAtSeam, mergedGroups, ZONES, AROUND };
+  window.GeoIDVolcanicHazards = { build, remove, layerOf, zonesFor, circleRing, splitAtSeam, mergedGroups, plottedVolcanoes, ZONES };
 }

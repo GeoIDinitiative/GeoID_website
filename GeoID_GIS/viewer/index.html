@@ -988,6 +988,24 @@
                      select admits and MERGED where they overlap: a pixel is
                      painted once, by the highest hazard reaching it. -->
                 <div id="volcano-hazard-buffers" hidden>
+                  <!-- THE YEAR FILTER comes FIRST because everything below it
+                       follows it: it decides which volcanoes are PLOTTED at
+                       all (points, labels, clicks), and the hazard buffers
+                       are then drawn only around the volcanoes it leaves.
+                       Wired by gis/catalogue-panels.js; the bands are the
+                       catalogue's own label_rank (gis/volcano-filter.js). -->
+                  <div class="row">
+                    <label for="volcano-years" title="Which volcanoes are on the map, by the date of their last eruption (the catalogue's own eruption-recency rank). Volcanoes outside the time frame are removed from the plot, and the hazard buffers are drawn only around the ones left.">Erupted</label>
+                    <select id="volcano-years" class="input">
+                      <option value="0" selected>Every volcano (Holocene and Pleistocene)</option>
+                      <option value="1">Every Holocene volcano</option>
+                      <option value="2">Any dated Holocene eruption</option>
+                      <option value="3">Erupted since 1500</option>
+                      <option value="4">Erupted since 1900</option>
+                      <option value="5">Erupted since 2000</option>
+                    </select>
+                  </div>
+                  <p id="volcano-years-status" class="compact-copy" aria-live="polite" style="margin:0.1rem 0 0.35rem;opacity:0.7;"></p>
                   <!-- How deep into the significance ranking the labels go.
                        The rank is eruption recency (label_rank, 5..1, baked by
                        bake-volcanoes.py); wired by gis/catalogue-panels.js,
@@ -1002,18 +1020,8 @@
                        the layer's own legend once it is loaded. -->
                   <div id="volcano-types" style="margin-bottom:0.35rem;"></div>
                   <div class="row">
-                    <label for="volcano-buffers-on" title="Etna Explorer's five schematic zones -- 0-5, 5-10, 10-20, 20-35 and 35-50 km -- around every volcano the select below admits. Where volcanoes are close their zones merge: each pixel is painted once, by the highest hazard reaching it, so nothing double-darkens. Zones are schematic buffers; real extents depend on eruption style, vent location, wind and topography.">Hazard buffers</label>
+                    <label for="volcano-buffers-on" title="Etna Explorer's five schematic zones -- 0-5, 5-10, 10-20, 20-35 and 35-50 km -- around every Holocene volcano still on the map after the year filter above. They follow that filter live: a volcano it removes loses its buffers. Pleistocene volcanoes never get buffers. Where volcanoes are close their zones merge: each pixel is painted once, by the highest hazard reaching it, so nothing double-darkens. Zones are schematic buffers; real extents depend on eruption style, vent location, wind and topography.">Hazard buffers</label>
                     <span class="checkbox-wrap"><input id="volcano-buffers-on" type="checkbox"></span>
-                  </div>
-                  <div class="row">
-                    <label for="volcano-buffers-around" title="Which volcanoes get buffers, by the catalogue's own eruption-recency rank. Every Holocene volcano by default -- the Smithsonian's working definition of potentially active. Pleistocene volcanoes never do: nothing in the Holocene record says they are active.">Around</label>
-                    <select id="volcano-buffers-around" class="input">
-                      <option value="5">Erupted since 2000</option>
-                      <option value="4">Erupted since 1900</option>
-                      <option value="3">Erupted since 1500</option>
-                      <option value="2">Any dated Holocene eruption</option>
-                      <option value="1" selected>Every Holocene volcano</option>
-                    </select>
                   </div>
                   <p id="volcano-buffers-status" class="compact-copy" aria-live="polite" style="margin:0.25rem 0 0;"></p>
                 </div>

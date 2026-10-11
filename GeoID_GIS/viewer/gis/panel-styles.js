@@ -389,6 +389,78 @@ input.layer-name-input {
 #gis-tool-catalogue { overflow-x: hidden; }
 .gis-tool-item { overflow: hidden; }
 .gis-tool-item b { overflow-wrap: anywhere; }
+
+/* EVERY TICK SITS ON THE RIGHT. The catalogue rows, the section headers'
+   master toggles and the .row checkbox-wraps already put theirs at the row's
+   right edge; the feed rows, rock properties, satellite categories, export
+   checks, extraction sources, studio checks and the demo rows put theirs on
+   the left, so a column of ticks zig-zagged down the sidebar. Reordered here,
+   in the one sheet both sidebars share, rather than in each builder's markup:
+   "order" moves only the box, so ids, label-for and listeners are untouched.
+   The margin is !important because studio-ui.css zeroes the studio checks'
+   margin from an id selector. Each row class here is a flex row except .row,
+   a two-column grid, where order puts the box in the second column and
+   justify-self takes it to the edge. */
+:is(.gis-catalogue-row, .event-source, .gis-extract-source, .studio-check,
+    .compact-copy, .gee-tick, .gis-batch-row, .gis-checks > label, .row)
+  > input[type="checkbox"] {
+  order: 99;
+  margin-left: auto !important;
+  margin-right: 0;
+  justify-self: end;
+}
+/* The Workspace rows' eye is the same switch, so it takes the same side: the
+   grid templates in layer-hierarchy.js list it last for that reason. The
+   studio's floating visibility box keeps its own five-column tree layout. */
+.layer-stack .layer-row:not(.studio-vis-row):not(.studio-vis-part) > .layer-eye {
+  order: 99;
+  justify-self: end;
+}
+
+/* THE SUB-TABS' CONTROLS WEAR THE NAV BAR'S CHROME, NOT A CYAN BOX.
+   viewer-skin.css paints every .button, .input, .mini-select, .tool-button
+   and .info-btn with a cyan hairline AND cyan ink (both !important), so
+   inside the sub-tabs every field, select and secondary button was a
+   cyan-outlined, cyan-lettered box -- a stock look beside sections and
+   sub-tab cards framed in the accent with light ink. The skin's own rule is
+   magenta for chrome and cyan for DATA; a control's frame is chrome. Here
+   they take the sub-tab card's values: an accent hairline, the panel ink, and
+   the card's accent bloom on hover. Scoped with :where() to the sidebar, the
+   side panels, the Workspace dock and the Earth Engine catalogue strip the
+   Earth Observation sub-tab opens, so each selector stays at the skin's
+   own specificity: loaded after it, this wins over the skin and still loses
+   to every deliberate two-class override (primaries, the amber Custom button,
+   locked tabs, active states). */
+:where(#ui, .gis-side-panel, #layer-dock, #gee-add-card) .input,
+:where(#ui, .gis-side-panel, #layer-dock, #gee-add-card) .mini-select,
+:where(#ui, .gis-side-panel, #layer-dock, #gee-add-card) .button:where(.secondary),
+:where(#ui, .gis-side-panel, #layer-dock, #gee-add-card) .tool-button,
+:where(#ui, .gis-side-panel, #layer-dock, #gee-add-card) .info-btn {
+  border-color: rgba(var(--nav-accent-rgb), 0.45) !important;
+  color: var(--text, var(--skin-ink)) !important;
+  text-shadow: none;
+}
+:where(#ui, .gis-side-panel, #layer-dock, #gee-add-card) .tool-button {
+  background: var(--skin-tab-ground, rgb(16, 7, 36));
+}
+:where(#ui, .gis-side-panel, #layer-dock, #gee-add-card) .button:where(.secondary):hover,
+:where(#ui, .gis-side-panel, #layer-dock, #gee-add-card) .tool-button:hover,
+:where(#ui, .gis-side-panel, #layer-dock, #gee-add-card) .info-btn:hover {
+  border-color: rgb(var(--nav-accent-rgb)) !important;
+  color: #ffffff !important;
+  background: rgba(var(--nav-accent-rgb), 0.14);
+  box-shadow: 0 0 18px -6px rgba(var(--nav-accent-rgb), 0.55) !important;
+}
+:where(#ui, .gis-side-panel, #layer-dock, #gee-add-card) .input:focus,
+:where(#ui, .gis-side-panel, #layer-dock, #gee-add-card) .mini-select:focus {
+  border-color: rgb(var(--nav-accent-rgb)) !important;
+}
+/* The list rows: a Workspace layer and a vector overlay are cards in the
+   sub-tab's own frame, not readings. */
+:where(.layer-stack) .layer-row:where(:not(.studio-vis-row):not(.studio-vis-part)),
+:where(.polygon-list) .polygon-row {
+  border-color: rgba(var(--nav-accent-rgb), 0.22);
+}
 `;
 
 if (typeof document !== "undefined" && !document.getElementById("gis-panel-styles")) {
