@@ -13112,6 +13112,7 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
           .replace(
             "#include <map_fragment>",
             `#include <map_fragment>
+#ifdef USE_MAP
             if (uContourEnabled > 0.5) {
               vec2 contourOffset = uContourTexel * uContourThickness;
               vec2 contourUv = vec2(fract(vMapUv.x), 1.0 - clamp(vMapUv.y, 0.0, 1.0));
@@ -13131,7 +13132,9 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
               }
               float contourAlpha = contourMask * uContourOpacity;
               diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.93, 0.96, 0.98), contourAlpha);
-            }`,
+            }
+#endif
+`,
           );
       };
       baseMaterial.needsUpdate = true;
@@ -13215,6 +13218,7 @@ uniform float uViewportWidth;`,
           .replace(
             "#include <map_fragment>",
             `#include <map_fragment>
+#ifdef USE_MAP
             vec4 compareSample = diffuseColor;
             vec3 baseRgb = texture2D(uBaseMap, vMapUv).rgb;
             float isDifference = step(0.5, uCompareMode) * (1.0 - step(1.5, uCompareMode));
@@ -13223,7 +13227,9 @@ uniform float uViewportWidth;`,
             vec3 overlayRgb = compareSample.rgb;
             vec3 differenceRgb = abs(compareSample.rgb - baseRgb);
             diffuseColor.rgb = mix(overlayRgb, differenceRgb, isDifference);
-            diffuseColor.a *= mix(uCompareStrength, uCompareStrength * swipeMask, isSwipe);`,
+            diffuseColor.a *= mix(uCompareStrength, uCompareStrength * swipeMask, isSwipe);
+#endif
+`,
           );
       };
       compareMaterial.needsUpdate = true;
