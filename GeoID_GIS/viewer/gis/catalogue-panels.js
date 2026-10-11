@@ -29,14 +29,14 @@
 
 import {
   HOMES, MIRRORS, grouped, addDataset, layerForDataset, loadLaunchDefaults,
-} from "./global-data.js?v=20261011-8a5ffda";
-import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20261011-8a5ffda";
-import { holdLaunch } from "./launch-ready.js?v=20261011-8a5ffda";
-import { mathsFor } from "./equations.js?v=20261011-8a5ffda";
+} from "./global-data.js?v=20261011-adbdf59";
+import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20261011-adbdf59";
+import { holdLaunch } from "./launch-ready.js?v=20261011-adbdf59";
+import { mathsFor } from "./equations.js?v=20261011-adbdf59";
 import { bandOf, bandRows, bandSymbology, describeFilter, magOf }
-  from "./seismic-magnitude.js?v=20261011-8a5ffda";
+  from "./seismic-magnitude.js?v=20261011-adbdf59";
 import { filterVolcanoes, yearRankOf, yearWords, DEFAULT_YEAR_RANK }
-  from "./volcano-filter.js?v=20261011-8a5ffda";
+  from "./volcano-filter.js?v=20261011-adbdf59";
 
 const byId = (id) => document.getElementById(id);
 
@@ -445,6 +445,26 @@ const TILED = {
    * and the number under the cursor are one calculation.
    */
   "weather": [{
+    id: "forecast-hazards",
+    group: "Live fields",
+    label: "Forecast hazards — next 1–3 days (GFS)",
+    title: "What the GFS forecast holds over the next one to three days, one number per place: "
+      + "rain total, strongest gust, peak instability (CAPE), hottest and coldest it will feel, "
+      + "snowfall. Choose the hazard and the window under the row; click the map to read it.",
+    info: {
+      summary: "A forecast, summed or maximised over its window on the model's hourly steps and "
+        + "keyed in each discipline's own warning thresholds: heavy rain at 50 and 100 mm, gusts "
+        + "on the Beaufort scale, CAPE in forecasters' bands, heat on the NWS heat-index "
+        + "categories, cold on wind-chill frostbite times. A global model on a ~13 km grid — a "
+        + "screening view, not a warning.",
+      citation: "NOAA GFS via Open-Meteo (open-meteo.com), CC BY 4.0",
+    },
+    settings: "hazard-field-controls",
+    ready: () => Boolean(window.GeoIDFlow?.add),
+    layerOf: () => window.GeoIDFlow?.layerOf?.("hazards") || null,
+    load: () => window.GeoIDFlow.add("hazards"),
+    unload: () => window.GeoIDFlow?.remove?.("hazards"),
+  }, {
     id: "wind-flow",
     group: "Live fields",
     label: "Wind — live streamlines (GFS)",

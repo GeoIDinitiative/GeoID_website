@@ -168,3 +168,21 @@ ok(near(toMetresPerSecond(5, "m/s"), 5) && Number.isNaN(toMetresPerSecond(null, 
   ok(pal.length === 5 && /^[0-9a-f]{6}$/.test(pal[0]), "a palette is hex without a hash");
 }
 ok(beaufort(0.2).name === "Calm" && beaufort(18).number === 8 && beaufort(40).name === "Hurricane force", "Beaufort");
+
+/* forecast windows */
+{
+  const { aggregateHourly, countFinite } = await import("./flow-field.js");
+  const now = Date.parse("2026-10-11T12:00:00Z");
+  const times = Array.from({ length: 30 }, (_, h) => new Date(now + (h - 1) * 3600e3).toISOString().slice(0, 16));
+  const rain = times.map((_, h) => (h === 5 ? null : 1));
+  const gust = times.map((_, h) => h * 3.6);
+  const json = [{ hourly: { time: times, precipitation: rain, wind_gusts_10m: gust }, hourly_units: { wind_gusts_10m: "km/h" } }];
+  const sum = aggregateHourly(json, "precipitation", { nowMs: now, toHours: 24 });
+  // Hours ending in (12:00, 12:00 next day]: 24 of them, one missing.
+  ok(sum.values[0] === 23 && sum.hours[0] === 23, `a 24 h sum over the hours it has (${sum.values[0]})`);
+  const max = aggregateHourly(json, "wind_gusts_10m", { nowMs: now, toHours: 24, op: "max", convert: "speed" });
+  ok(near(max.values[0], 25, 1e-9), "the strongest gust, converted to m/s");
+  const none = aggregateHourly([{ hourly: { time: times, precipitation: times.map(() => null) } }], "precipitation", { nowMs: now });
+  ok(Number.isNaN(none.values[0]), "no value in the window is NaN, not zero");
+  ok(countFinite([1, NaN, 2]) === 2, "count finite");
+}

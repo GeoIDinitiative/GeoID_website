@@ -32,13 +32,14 @@
  */
 
 import * as THREE from "../vendor/three.module.js";
-import { followRelief } from "./vector-render.js?v=20261011-8a5ffda";
-import { visibleBounds } from "./view-extent.js?v=20261011-8a5ffda";
+import { followRelief } from "./vector-render.js?v=20261011-adbdf59";
+import { visibleBounds } from "./view-extent.js?v=20261011-adbdf59";
 import {
   WORLD, RAMPS, OPEN_METEO, OPEN_METEO_MARINE, planGrid, gridPoints, chunkPoints,
   requestUrl, readHourly, buildField, sampleStack, sampleScalar, advect, randomPoint,
   rampAt, rampPalette, headingOf, compassPoint, beaufort, wrapLon, RAD,
-} from "./flow-field.js?v=20261011-8a5ffda";
+  aggregateHourly, countFinite,
+} from "./flow-field.js?v=20261011-adbdf59";
 
 /* ── the two sources ───────────────────────────────────────────────────── */
 
@@ -67,6 +68,20 @@ const SOURCES = {
     credit: "NOAA GFS via Open-Meteo (open-meteo.com), CC BY 4.0",
     statusId: "wind-flow-status",
   },
+  hazards: {
+    id: "hazards",
+    kind: "scalar",
+    layerName: "Forecast hazards (GFS)",
+    home: "weather",
+    base: OPEN_METEO,
+    extra: { wind_speed_unit: "ms", models: "gfs_seamless" },
+    levels: {},
+    nativeDeg: 0.12,
+    worldBudget: 2000,
+    viewBudget: 600,
+    credit: "NOAA GFS via Open-Meteo (open-meteo.com), CC BY 4.0",
+    statusId: "hazard-field-status",
+  },
   currents: {
     id: "currents",
     layerName: "Ocean currents — live streamlines",
@@ -92,8 +107,65 @@ const SOURCES = {
   },
 };
 
+/**
+ * FORECAST HAZARDS: what GFS says the next one to three days hold, as one
+ * number per place over the window — the rain that will fall, the strongest
+ * gust, the peak instability, the hottest and coldest it will feel, the snow.
+ * Each carries the thresholds its own discipline warns at, so the card can say
+ * what a number means and the key is in those terms rather than in bare
+ * quantiles. Thresholds: rain from the common 50/100 mm-a-day heavy and
+ * extreme warnings; gusts on the Beaufort scale; CAPE from the standard
+ * forecaster's bands; heat on the US NWS heat-index categories (applied to
+ * the apparent temperature, which is what Open-Meteo provides); cold on wind
+ * chill frostbite times.
+ */
+export const HAZARD_VARS = {
+  precip: {
+    label: "Rainfall total", variable: "precipitation", op: "sum", unit: "mm", floor: 0.5,
+    ramp: [[0, 230, 240, 250], [5, 150, 200, 235], [20, 60, 140, 210], [50, 40, 70, 180],
+      [100, 150, 50, 170], [200, 230, 40, 90]],
+    bands: [[100, "extreme — flash flooding likely"], [50, "heavy — flooding possible"],
+      [20, "wet — surface water on poor drainage"], [1, "rain"], [0, "dry"]],
+  },
+  gusts: {
+    label: "Strongest gust", variable: "wind_gusts_10m", op: "max", unit: "m/s", convert: "speed", floor: 10.8,
+    ramp: RAMPS.wind,
+    bands: [[32.7, "hurricane force"], [24.5, "storm — structural damage"], [17.2, "gale — trees down"],
+      [10.8, "strong"], [0, "light to moderate"]],
+  },
+  cape: {
+    label: "Peak instability (CAPE)", variable: "cape", op: "max", unit: "J/kg", floor: 300,
+    ramp: [[0, 40, 60, 90], [500, 60, 140, 120], [1000, 200, 210, 70], [2500, 240, 130, 40],
+      [3500, 220, 40, 60], [5000, 240, 120, 240]],
+    bands: [[3500, "extreme — severe storms possible"], [2500, "strong — thunderstorms likely if triggered"],
+      [1000, "moderate"], [300, "marginal"], [0, "stable"]],
+  },
+  heat: {
+    label: "Hottest it will feel", variable: "apparent_temperature", op: "max", unit: "°C", floor: 27,
+    ramp: [[-10, 60, 90, 180], [10, 120, 200, 210], [20, 200, 220, 120], [27, 245, 200, 70],
+      [32, 240, 130, 50], [39, 220, 50, 50], [51, 140, 20, 120]],
+    bands: [[51, "extreme danger — heat stroke imminent"], [39, "danger — heat exhaustion likely"],
+      [32, "extreme caution"], [27, "caution"], [-100, "no heat stress"]],
+  },
+  cold: {
+    label: "Coldest it will feel", variable: "apparent_temperature", op: "min", unit: "°C", floor: 0,
+    ramp: [[-45, 230, 230, 255], [-35, 160, 120, 230], [-25, 90, 90, 210], [-10, 60, 140, 220],
+      [0, 120, 200, 230], [15, 200, 230, 200]],
+    bands: [[-35, "frostbite in 10 minutes"], [-25, "frostbite in 30 minutes"],
+      [-10, "cold stress"], [0, "frost"], [100, "no cold stress"]],
+    below: true,
+  },
+  snow: {
+    label: "Snowfall total", variable: "snowfall", op: "sum", unit: "cm", floor: 0.2,
+    ramp: [[0, 230, 240, 250], [2, 180, 210, 240], [10, 110, 160, 230], [30, 120, 90, 210],
+      [60, 200, 60, 180]],
+    bands: [[30, "heavy — roads impassable"], [10, "significant"], [2, "light"], [0.01, "a dusting"], [0, "none"]],
+  },
+};
+
 /** What each layer is set to; changed from the drawer under its row. */
 const settings = {
+  hazards: { variable: "precip", windowHours: 24, shading: "value" },
   wind: { level: "10m", hoursAhead: 0, shading: true, particles: 4000, speed: 1 },
   currents: { level: "surface", hoursAhead: 0, shading: "speed", colourBy: "speed", particles: 4500, speed: 1 },
 };
@@ -125,7 +197,7 @@ function hourKey() {
 
 function cacheKey(source, box, nx, ny) {
   const s = settings[source];
-  return [source, s.level, s.hoursAhead, hourKey(), box.west.toFixed(1), box.east.toFixed(1),
+  return [source, s.level, s.hoursAhead, s.variable, s.windowHours, hourKey(), box.west.toFixed(1), box.east.toFixed(1),
     box.south.toFixed(1), box.north.toFixed(1), nx, ny].join("|");
 }
 
@@ -176,6 +248,7 @@ async function fetchField(source, box, budget, signal) {
   const key = cacheKey(source, box, nx, ny);
   if (cache.has(key)) return cache.get(key);
   const { lats, lons } = gridPoints(box, nx, ny);
+  if (def.kind === "scalar") return fetchScalar(source, box, nx, ny, lats, lons, key, signal);
   const scalarVars = Object.values(def.scalars || {});
   const variables = [level.speed, level.dir, ...scalarVars];
   const chunks = chunkPoints(lats, lons);
@@ -207,6 +280,50 @@ async function fetchField(source, box, budget, signal) {
   // Keep the cache to the last couple of dozen fields.
   while (cache.size > 24) cache.delete(cache.keys().next().value);
   return field;
+}
+
+/** A forecast hazard: one aggregated number per point over the window. */
+async function fetchScalar(source, box, nx, ny, lats, lons, key, signal) {
+  const def = SOURCES[source];
+  const s = settings[source];
+  const hv = HAZARD_VARS[s.variable];
+  const values = new Float64Array(lats.length).fill(NaN);
+  let from = null;
+  let to = null;
+  const nowMs = Date.now();
+  await pool(chunkPoints(lats, lons).map((chunk) => async () => {
+    const url = requestUrl(def.base, {
+      lats: chunk.lats, lons: chunk.lons, variables: [hv.variable], extra: def.extra,
+      hoursAhead: s.windowHours,
+    });
+    const json = await fetchChunk(url, signal);
+    const read = aggregateHourly(json, hv.variable, {
+      nowMs, toHours: s.windowHours, op: hv.op, convert: hv.convert || null,
+    });
+    from ??= read.from; to ??= read.to;
+    for (let k = 0; k < chunk.lats.length; k += 1) values[chunk.start + k] = read.values[k];
+  }), CONCURRENCY);
+  const nan = new Float64Array(lats.length).fill(NaN);
+  const field = buildField(box, nx, ny, nan, nan, { scalars: { value: values }, time: from });
+  field.until = to;
+  field.valid = countFinite(values);
+  let lo = Infinity;
+  let hi = -Infinity;
+  for (const x of values) if (Number.isFinite(x)) { lo = Math.min(lo, x); hi = Math.max(hi, x); }
+  field.min = lo; field.max = hi;
+  if (field.valid) cache.set(key, field);
+  while (cache.size > 24) cache.delete(cache.keys().next().value);
+  return field;
+}
+
+/** The band a hazard value falls in, in its own discipline's words. */
+export function hazardBand(variable, value) {
+  const hv = HAZARD_VARS[variable];
+  if (!hv || !Number.isFinite(value)) return null;
+  for (const [edge, label] of hv.bands) {
+    if (hv.below ? value <= edge : value >= edge) return label;
+  }
+  return hv.bands.at(-1)[1];
 }
 
 /* ── geometry on the globe ─────────────────────────────────────────────── */
@@ -468,12 +585,27 @@ function colouring(source) {
 
 function shadingChoice(source) {
   const s = settings[source];
+  if (source === "hazards") return "value";
   if (source === "wind") return s.shading ? "speed" : "off";
   return s.shading;
 }
 
 function shadingValue(source, choice) {
   const state = live[source];
+  /**
+   * A HAZARD SHEET SHOWS THE HAZARD. Painted everywhere, a dry day is a pale
+   * wash over the whole planet that hides the imagery it was meant to be read
+   * against; below the first threshold its discipline warns at (`floor`, the
+   * card still answers there) the sheet is left clear.
+   */
+  if (choice === "value") {
+    const hv = HAZARD_VARS[settings.hazards.variable];
+    return (lat, lon) => {
+      const v = sampleScalar(state.stack, "value", lat, lon);
+      if (!Number.isFinite(v) || !Number.isFinite(hv.floor)) return v;
+      return (hv.below ? v > hv.floor : v < hv.floor) ? NaN : v;
+    };
+  }
   if (choice === "sst") return (lat, lon) => sampleScalar(state.stack, "sst", lat, lon);
   return (lat, lon) => {
     const { u, v } = sampleStack(state.stack, lat, lon);
@@ -482,6 +614,13 @@ function shadingValue(source, choice) {
 }
 
 function legendFor(source) {
+  if (source === "hazards") {
+    const hv = HAZARD_VARS[settings.hazards.variable];
+    return {
+      label: `${hv.label} — next ${settings.hazards.windowHours} h (GFS)`,
+      min: hv.ramp[0][0], max: hv.ramp.at(-1)[0], unit: hv.unit, palette: rampPalette(hv.ramp),
+    };
+  }
   const choice = shadingChoice(source);
   const c = colouring(source);
   if (choice === "sst" || (choice === "off" && c.ramp === RAMPS.sst)) {
@@ -503,7 +642,8 @@ function rebuildShading(source) {
   state.viewShade = null;
   const choice = shadingChoice(source);
   if (choice !== "off") {
-    const ramp = choice === "sst" ? RAMPS.sst : SOURCES[source].ramp;
+    const ramp = choice === "sst" ? RAMPS.sst
+      : choice === "value" ? HAZARD_VARS[settings.hazards.variable].ramp : SOURCES[source].ramp;
     const valueAt = shadingValue(source, choice);
     if (state.world) {
       state.worldShade = shadingMesh(WORLD, valueAt, ramp);
@@ -560,6 +700,7 @@ function startLoop(source) {
     if (document.hidden || !layerShown(state.layer) || !state.stack.length) return;
     state.frames = (state.frames || 0) + 1;
     if (state.frames % 30 === 1) trackView(source);
+    if (!state.particles) return;   // a forecast hazard is a sheet, with nothing moving on it
     const c = colouring(source);
     state.particles.step(state.stack, spawnBox(source), stepFor(source), c.valueOf);
     // Lines over a sheet coloured by the SAME quantity are white; lines
@@ -682,11 +823,18 @@ function describe(source) {
   if (!state?.world) return "";
   const field = state.view || state.world;
   const when = field.time ? `${field.time.replace("T", " ")} UTC` : "now";
-  const spacing = (lat) => {
-    const f = lat;
+  const spacing = (f) => {
     const dLat = (f.north - f.south) / Math.max(1, f.ny - 1);
     return `${(dLat * 111).toFixed(0)} km`;
   };
+  if (source === "hazards") {
+    const hv = HAZARD_VARS[s.variable];
+    const span = field.time && field.until
+      ? `${field.time.replace("T", " ")} to ${field.until.replace("T", " ")} UTC` : `the next ${s.windowHours} h`;
+    return `${hv.label}, ${span} · samples every ~${spacing(field)}`
+      + `${state.view ? " over the view" : " over the world"} · ${field.min.toFixed(1)} to `
+      + `${field.max.toFixed(1)} ${hv.unit}.`;
+  }
   const level = def.levels[s.level]?.label;
   const ahead = s.hoursAhead ? ` (+${s.hoursAhead} h)` : "";
   return `${level ? `${level} · ` : ""}valid ${when}${ahead} · samples every ~${spacing(field)}`
@@ -702,7 +850,9 @@ export async function addSource(source) {
   if (!def) throw new Error(`no such flow source: ${source}`);
   if (live[source]?.layer) return live[source].layer;
   if (!manager()?.addDerivedLayer) throw new Error("the globe is not ready yet");
-  say(source, source === "wind" ? "Fetching the wind over the world…" : "Fetching the ocean currents over the world…");
+  say(source, source === "wind" ? "Fetching the wind over the world…"
+    : source === "hazards" ? `Fetching the GFS forecast over the world…`
+      : "Fetching the ocean currents over the world…");
   const abort = new AbortController();
   live[source] = { stack: [], abort };
   let world;
@@ -721,10 +871,12 @@ export async function addSource(source) {
   const state = live[source];
   state.world = world;
   state.stack = [world];
-  state.particles = new Particles(settings[source].particles);
   const group = new THREE.Group();
   group.name = def.layerName;
-  group.add(state.particles.makeMesh());
+  if (def.kind !== "scalar") {
+    state.particles = new Particles(settings[source].particles);
+    group.add(state.particles.makeMesh());
+  }
   state.group = group;
   const layer = manager().addDerivedLayer(def.layerName, {
     object3D: group,
@@ -734,7 +886,11 @@ export async function addSource(source) {
     legendInfo: legendFor(source),
     info: {
       source: def.credit,
-      summary: source === "wind"
+      summary: source === "hazards"
+        ? "What NOAA's GFS forecast holds over the next one to three days, one number per place: "
+          + "the rain total, the strongest gust, the peak instability, the hottest and coldest it "
+          + "will feel, the snow. A model's forecast on its own grid, read through Open-Meteo."
+        : source === "wind"
         ? "Wind from NOAA's GFS model, read through Open-Meteo on a lattice over the world and "
           + "refined over the view. The moving lines are particles carried by the wind; the "
           + "shading is the speed. A model's forecast, not an observation."
@@ -800,7 +956,7 @@ async function reload(source) {
     state.world = world;
     state.view = null;
     state.stack = [world];
-    state.particles.age.fill(1e6);
+    state.particles?.age.fill(1e6);
     rebuildShading(source);
     if (state.layer) state.layer.legendInfo = legendFor(source);
     say(source, describe(source));
@@ -819,6 +975,36 @@ async function reload(source) {
  * reaches whatever is under it.
  */
 export function probeAt(lat, lon) {
+  const hz = live.hazards;
+  if (hz?.layer && layerShown(hz.layer)) {
+    const value = sampleScalar(hz.stack, "value", lat, lon);
+    if (Number.isFinite(value)) {
+      const s = settings.hazards;
+      const hv = HAZARD_VARS[s.variable];
+      const field = hz.view && sampleStack([hz.view], lat, lon).field ? hz.view : hz.world;
+      const rows = [[hv.label, `${value.toFixed(hv.unit === "J/kg" ? 0 : 1)} ${hv.unit}`],
+        ["What it means", hazardBand(s.variable, value)],
+        ["Window", field?.time && field?.until
+          ? `${field.time.replace("T", " ")} to ${field.until.replace("T", " ")} UTC`
+          : `the next ${s.windowHours} h`],
+        ["How", `${hv.op === "sum" ? "summed" : hv.op === "max" ? "the highest" : "the lowest"} over the `
+          + "window's hourly forecast steps, bilinear between the lattice's nodes"]];
+      window.GeoIDViewer?.showFeatureCard?.({
+        source_layer: SOURCES.hazards.layerName,
+        soil: true,
+        type: "Forecast hazard (GFS)",
+        rock_type: `${hv.label}: ${value.toFixed(hv.unit === "J/kg" ? 0 : 1)} ${hv.unit}`,
+        lithology: null, name: null,
+        description: hazardBand(s.variable, value),
+        extra_rows: rows,
+        origin: SOURCES.hazards.credit,
+        rows: [["Note", "A global model's forecast on its own ~13 km grid. Convective rain and "
+          + "gusts are smoothed over a grid cell, so a local downpour can be several times the "
+          + "number shown; use national warnings for decisions."]],
+      }, lat, wrapLon(lon));
+      return true;
+    }
+  }
   for (const source of ["currents", "wind"]) {
     const state = live[source];
     if (!state?.layer || !layerShown(state.layer)) continue;
@@ -886,6 +1072,31 @@ function row(label, control) {
   span.textContent = label;
   r.append(span, control);
   return r;
+}
+
+function buildHazardDrawer() {
+  const id = "hazard-field-controls";
+  if (byId(id)) return;
+  const s = settings.hazards;
+  const host = document.createElement("div");
+  host.id = id;
+  host.hidden = true;
+  host.className = "control-stack flow-controls";
+  const what = document.createElement("select");
+  what.className = "input";
+  Object.entries(HAZARD_VARS).forEach(([k, hv]) => what.appendChild(option(k, hv.label, k === s.variable)));
+  what.addEventListener("change", () => { s.variable = what.value; void reload("hazards"); });
+  host.appendChild(row("Hazard", what));
+  const win = document.createElement("select");
+  win.className = "input";
+  [24, 48, 72].forEach((h) => win.appendChild(option(h, `Next ${h} h`, h === s.windowHours)));
+  win.addEventListener("change", () => { s.windowHours = Number(win.value); void reload("hazards"); });
+  host.appendChild(row("Window", win));
+  const status = document.createElement("p");
+  status.id = SOURCES.hazards.statusId;
+  status.className = "compact-copy";
+  host.appendChild(status);
+  document.body.appendChild(host);
 }
 
 function buildDrawer(source) {
@@ -966,6 +1177,7 @@ function install() {
   if (typeof document === "undefined") return;
   buildDrawer("wind");
   buildDrawer("currents");
+  buildHazardDrawer();
   window.GeoIDFlow = {
     add: addSource,
     remove: removeSource,

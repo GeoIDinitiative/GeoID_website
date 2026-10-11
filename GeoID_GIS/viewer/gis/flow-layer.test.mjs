@@ -42,3 +42,16 @@ for (const [id, source, drawer] of [["wind-flow", "wind", "wind-flow-controls"],
 ok(/geoid-gis:catalogue-changed/.test(panels) && /geoid-gis:catalogue-changed/.test(layer), "rows appear when the module is up, not at the next redraw");
 ok(/GeoIDFlow\?\.probeAt\?\.\(at\.lat, at\.lon\)/.test(popup), "a click reads the flow at the point");
 ok(/gis\/flow-layer\.js\?v=/.test(page), "the Earth page loads the module, stamped");
+
+// Forecast hazards: a third row, a sheet with nothing moving on it, keyed in
+// each discipline's own thresholds and clear below the first of them.
+ok(panels.includes('id: "forecast-hazards"') && panels.includes('settings: "hazard-field-controls"'), "forecast hazards are a row with a drawer");
+ok(/if \(!state\.particles\) return;/.test(layer), "a scalar sheet runs no particles");
+ok(/hv\.below \? v > hv\.floor : v < hv\.floor/.test(layer), "below its first threshold a hazard sheet is clear");
+{
+  const mod = await import("./flow-layer.js");
+  ok(mod.hazardBand("precip", 120) === "extreme — flash flooding likely", "120 mm is extreme rain");
+  ok(mod.hazardBand("gusts", 26) === "storm — structural damage", "26 m/s is storm force");
+  ok(mod.hazardBand("cold", -30) === "frostbite in 30 minutes", "cold bands read downwards");
+  ok(Object.values(mod.HAZARD_VARS).every((hv) => Number.isFinite(hv.floor)), "every hazard has a floor");
+}

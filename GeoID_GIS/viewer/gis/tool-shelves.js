@@ -25,8 +25,8 @@
  * later can address it.
  */
 
-import { may, refusal } from "./membership.js?v=20261011-8a5ffda";
-import { lockCard, lockMark } from "./feature-locks.js?v=20261011-8a5ffda";
+import { may, refusal } from "./membership.js?v=20261011-adbdf59";
+import { lockCard, lockMark } from "./feature-locks.js?v=20261011-adbdf59";
 
 const CARD_ID = "export-panel-lock";
 const GEOPROCESS = "gis-group-preprocess";

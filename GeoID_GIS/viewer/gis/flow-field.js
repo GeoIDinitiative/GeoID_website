@@ -407,3 +407,58 @@ export function beaufort(speed) {
   while (n < edges.length && s >= edges[n]) n += 1;
   return { number: n, name: names[n] };
 }
+
+/* ── forecast windows ──────────────────────────────────────────────────── */
+
+/**
+ * One number per location from an hourly series over a WINDOW: the sum of the
+ * precipitation in the next day, the strongest gust, the peak CAPE. A hazard
+ * is a question about a period, not about the hour the request happened to be
+ * made in, so a forecast field is read this way rather than by `readHourly`.
+ *
+ * The window is [now + fromHours, now + toHours), on the hourly steps the
+ * service returned. A location with no value at any hour of it is NaN; one
+ * with some missing hours is summed or maximised over the hours it has, and
+ * `hours` says how many those were.
+ */
+export function aggregateHourly(json, variable, { nowMs, fromHours = 0, toHours = 24, op = "sum", convert = null } = {}) {
+  const list = Array.isArray(json) ? json : [json];
+  const values = new Float64Array(list.length).fill(NaN);
+  const hours = new Int32Array(list.length);
+  const t0 = nowMs + fromHours * 3_600_000;
+  const t1 = nowMs + toHours * 3_600_000;
+  let first = null;
+  let last = null;
+  list.forEach((loc, i) => {
+    const hourly = loc?.hourly;
+    const series = hourly?.[variable];
+    if (!hourly || !Array.isArray(series)) return;
+    let acc = op === "max" ? -Infinity : op === "min" ? Infinity : 0;
+    let n = 0;
+    hourly.time.forEach((t, k) => {
+      const ms = Date.parse(/Z$|[+-]\d\d:?\d\d$/.test(t) ? t : `${t}Z`);
+      // The hour LABELLED t is the hour ending at t for an accumulation, so
+      // an hour is in the window when it ends inside it.
+      if (!(ms > t0 && ms <= t1 + 1)) return;
+      const raw = series[k];
+      if (raw === null || raw === undefined) return;
+      let x = Number(raw);
+      if (!Number.isFinite(x)) return;
+      if (convert === "speed") x = toMetresPerSecond(x, loc.hourly_units?.[variable]);
+      if (op === "max") acc = Math.max(acc, x);
+      else if (op === "min") acc = Math.min(acc, x);
+      else acc += x;
+      n += 1;
+      if (i === 0) { first ??= t; last = t; }
+    });
+    if (n) { values[i] = acc; hours[i] = n; }
+  });
+  return { values, hours, from: first, to: last };
+}
+
+/** How many finite values an array holds. */
+export function countFinite(arr) {
+  let n = 0;
+  for (const x of arr || []) if (Number.isFinite(x)) n += 1;
+  return n;
+}
