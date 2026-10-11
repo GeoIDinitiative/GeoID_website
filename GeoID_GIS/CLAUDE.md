@@ -23441,3 +23441,39 @@ The sandbox reaches neither the bucket nor Macrostrat; measure tiled layers
 with synthetic MVT served through `page.route` (an encoder in the shape of
 `mvt.test.mjs`'s, a jittered shared-vertex grid with the columns the layer
 reads).
+
+## Weather in motion, forecast hazards, cyclone cones and the 3D air
+
+Four Earth-only modules; each is a pure half with tests and a page half.
+
+- **`flow-field.js` / `flow-layer.js`** — wind (GFS 10 m, 850/500/250 hPa)
+  and ocean currents (Open-Meteo marine, with SST) as moving streamlines, and
+  the forecast hazard sheets (rain, gusts, CAPE, heat, cold, snow). **Wind
+  direction is FROM, a current's is TO** (`uvFromSpeedDir(…, "from"|"to")`).
+  A view field is stacked over a coarse world field, and the fine field's NaN
+  (the coast) is NOT overruled by the coarse one. Interpolation skips
+  zero-weight corners, or a NaN beside a point refuses the point. The view is
+  tracked in the frame loop, not on `onViewSettled`, which misses eased moves;
+  particles outside a new box respawn at once. Over a sheet of the same
+  quantity the lines are drawn white, and a hazard below its `floor` leaves
+  the sheet clear, or the globe washes out.
+- **`cyclone-cone.js` / `cyclone-forecast.js`** — GDACS active storms, the
+  observed and forecast track, and the agency's cone where GDACS carries one,
+  else the NHC two-thirds circles along a 3-hourly track. GDACS dates are
+  dd/mm/yyyy, read day first. `threatAt(lat, lon)` is the seam the risk score
+  asks.
+- **`atmosphere-model.js` / `atmosphere-panel.js`** — Atmosphere ▸ 3D
+  atmosphere model: GFS on 25 pressure levels (Open-Meteo,
+  `models=gfs_seamless`, `wind_speed_unit=ms`) for an n × n lattice over a
+  box, derived per node (Bolton e_s and θe, q, θ, ρ from Tv, w from ω),
+  classified per cell by layer (ground, boundary layer within 1.5 km of the
+  ground, free troposphere, tropopause layer within ±1.5 km of the WMO
+  tropopause, stratosphere), and written as a .vtu with a .pvd that carries
+  the hour. It is handed to `GeoIDGalesResults.openFolder` — the Etna
+  tomography's road — and filed into `post_processing/atmosphere/` when a
+  project is open. The layer is the cell array `material`, so Threshold by
+  domain picks a layer and Statistics by domain summarises by layer. Heights
+  are exaggerated in the DRAWING only; the true height rides along as
+  `height_m`. Verified with synthetic ISA columns: 8 × 8 × 20 levels, 1,280
+  nodes, 6 × 931 tets, four layer domains, opening on temperature −56.5 to
+  14.7 °C.

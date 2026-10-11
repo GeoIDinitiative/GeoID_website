@@ -16,9 +16,9 @@ import {
   gdacsPoints, resolveColour,
   MARKER_LIFT_MAX, liftForAltitude, dotSizePx, isQuake, publisherOf, restoreActive,
   stormCategory, stormScale, stormLabel, STORM_BASE_CAP, markerHitGeometry, nearestHit,
-} from "./event-sources.js?v=20261011-1056a12";
-import { escapeHtml, safeUrl } from "./escape-html.js?v=20261011-1056a12";
-import { holdLaunch } from "./launch-ready.js?v=20261011-1056a12";
+} from "./event-sources.js?v=20261011-1f3e237";
+import { escapeHtml, safeUrl } from "./escape-html.js?v=20261011-1f3e237";
+import { holdLaunch } from "./launch-ready.js?v=20261011-1f3e237";
 
 const API = "https://eonet.gsfc.nasa.gov/api/v3/events";
 
@@ -2689,8 +2689,8 @@ async function showTrace(event) {
   }
 
   const [plot, { spectrogram }] = await Promise.all([
-    import("./seismogram-plot.js?v=20261011-1056a12"),
-    import("./research/dsp.js?v=20261011-1056a12"),
+    import("./seismogram-plot.js?v=20261011-1f3e237"),
+    import("./research/dsp.js?v=20261011-1f3e237"),
   ]);
   if (stale()) return;
 
