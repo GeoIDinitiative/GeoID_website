@@ -23477,3 +23477,36 @@ Four Earth-only modules; each is a pure half with tests and a page half.
   `height_m`. Verified with synthetic ISA columns: 8 × 8 × 20 levels, 1,280
   nodes, 6 × 931 tets, four layer domains, opening on temperature −56.5 to
   14.7 °C.
+
+## Total risk here: one factor of safety from every model that can answer for a place
+
+Hazards ▸ myGeoID ▸ "Total risk here" (`total-risk.js`, pure, 25 checks;
+`total-risk-panel.js` gathers). Every hazard is a DEMAND over its own capacity,
+h = demand / capacity (1 = act), and the total is FoS = 1 / Σ wᵢ hᵢ — a linear
+interaction rule, so two hazards each at half their capacity make a total of 1.
+Classes: act < 1, watch < 1.5, aware < 3, low.
+
+- **A forecast is discounted for its lead**: ×1 inside a day, then
+  exp(−(lead − 24)/48). A risk map's yearly chance is read over the horizon,
+  P = 1 − exp(−p_yr·hours/8766), against a 10% reference.
+- **Weather levels are the hazard sheets' own** (rain 50 mm/24 h, gust
+  24.5 m/s, heat 39 °C, cold −25, snow 10 cm, CAPE 2500), pinned against
+  `flow-layer.js`. The lead of a 24 h total is the first WET hour of its worst
+  window, not the window's start.
+- **What it gathers**, each through the seam that owns it: the GFS point
+  forecast (fetched here), `GeoIDCycloneForecast.threatAt` (a Holland-type
+  decay from the centre, zero distance inside the cone), aftershocks from the
+  live USGS feed (Reasenberg & Jones, M ≥ 5.5 in 30 days, the magnitude that
+  reaches the place from log₁₀R = 0.5M − 1.7), an eruption or a fire nearby
+  from EONET, the slope from myGeoID's run (`GeoIDMode.fosNear`, nearest cell,
+  worst step in the window) or the forecast pipeline
+  (`GeoIDLandslidePipeline.lowestAt`), whichever is worse, and any risk map on
+  the globe whose cells carry `p_yr`.
+- **What did not answer is listed with what would let it** — "switch on Live
+  Events", "tick a risk map" — rather than read as safe.
+- **A weight is a control**, 0–3, kept per browser; changing one recombines
+  the readings in hand and fetches nothing.
+
+Verified on 8125 with a mocked forecast (12 h of 8 mm/h and 31 m/s gusts,
+30 h out): rain 1.73, gust 1.14, CAPE 0.65 → FoS 0.31 "Act", main danger rain
+at 54%; rain's weight set to 0 → 0.68 with no refetch.

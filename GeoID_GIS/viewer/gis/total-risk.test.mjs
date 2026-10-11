@@ -49,3 +49,17 @@ ok(near(magnitudeReaching(20), 6.0, 0.01), "an M 6 reaches 20 km");
   const src = readFileSync(new URL("./flow-layer.js", import.meta.url), "utf8");
   ok(src.includes(`[${WEATHER_LEVELS.rain.level}, "heavy`) && src.includes(`[${WEATHER_LEVELS.gust.level}, "storm`) && src.includes(`[${WEATHER_LEVELS.snow.level}, "significant"`), "warning levels are the hazard sheets' own");
 }
+{
+  // The panel's wiring: loaded by the page, mounted under myGeoID, and the
+  // slope seams it reads exist on the modules that own them.
+  const page = readFileSync(new URL("../index.html", import.meta.url), "utf8");
+  const panel = readFileSync(new URL("./total-risk-panel.js", import.meta.url), "utf8");
+  const mode = readFileSync(new URL("./geoid-mode.js", import.meta.url), "utf8");
+  const pipe = readFileSync(new URL("./landslide-pipeline.js", import.meta.url), "utf8");
+  ok(/gis\/total-risk-panel\.js\?v=/.test(page), "the page loads the total-risk panel");
+  ok(panel.includes(`byId("hazards-mygeoid-host")`), "the card mounts in the myGeoID host");
+  ok(/export function fosNear/.test(mode) && /fosNear[,\s}]/.test(mode.slice(mode.indexOf("window.GeoIDMode"))), "GeoID mode publishes fosNear");
+  ok(/lowestAt/.test(pipe.slice(pipe.indexOf("window.GeoIDLandslidePipeline"))), "the forecast pipeline publishes lowestAt");
+  ok(/threatAt\(place\.lat, place\.lon\)/.test(panel) && /cycloneTerm\(/.test(panel), "the cyclone term is read through the forecast's own threatAt");
+  ok(!/\beval\(|new Function\(/.test(panel), "nothing is evaluated");
+}

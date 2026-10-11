@@ -1,6 +1,6 @@
-import { compileScalar } from "./field-calculator.js?v=20261011-b88146c";
-import * as G from "./geometry.js?v=20261011-b88146c";
-import { transform } from "./projection.js?v=20261011-b88146c";
+import { compileScalar } from "./field-calculator.js?v=20261011-acf80cd";
+import * as G from "./geometry.js?v=20261011-acf80cd";
+import { transform } from "./projection.js?v=20261011-acf80cd";
 
 // Vector geoprocessing on GeoJSON FeatureCollections.
 //

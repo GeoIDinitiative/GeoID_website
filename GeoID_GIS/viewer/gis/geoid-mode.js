@@ -14,15 +14,15 @@
 import {
   weatherPoints, weatherUrl, parseWeatherGrid, rainAt, buildCells,
   fosColour, stepForClock,
-} from "./geoid-pipeline.js?v=20261011-b88146c";
-import { wetnessSeries, fosSeries } from "./fos.js?v=20261011-b88146c";
-import { mathsFor } from "./equations.js?v=20261011-b88146c";
-import * as EE from "./gee-live.js?v=20261011-b88146c";
-import { makeRaster } from "./raster-analysis.js?v=20261011-b88146c";
+} from "./geoid-pipeline.js?v=20261011-acf80cd";
+import { wetnessSeries, fosSeries } from "./fos.js?v=20261011-acf80cd";
+import { mathsFor } from "./equations.js?v=20261011-acf80cd";
+import * as EE from "./gee-live.js?v=20261011-acf80cd";
+import { makeRaster } from "./raster-analysis.js?v=20261011-acf80cd";
 // The adapter is a module, not a window seam — reading it off `window` was
 // a guess, and a wrong one: nothing hangs `GeoIDGeoTiff` there.
-import { buildRasterLayer, loadGeoTiffFromArrayBuffer } from "./geotiff-adapter.js?v=20261011-b88146c";
-import { pointInPolygon, boundsOf } from "./geometry.js?v=20261011-b88146c";
+import { buildRasterLayer, loadGeoTiffFromArrayBuffer } from "./geotiff-adapter.js?v=20261011-acf80cd";
+import { pointInPolygon, boundsOf } from "./geometry.js?v=20261011-acf80cd";
 
 const STAMP = "20260816-6ce8ecd";
 
@@ -181,6 +181,33 @@ function watchClock() {
  * DEM, the geology) are ordinary layers and are left alone; somebody may be
  * working with them.
  */
+/**
+ * The lowest factor of safety the run gives the cell nearest a place, over
+ * the steps up to `horizonHours` ahead, and when. The total-risk score's
+ * seam; null with no run, or a place outside it.
+ */
+export function fosNear(lat, lon, { horizonHours = 72, nowMs = Date.now() } = {}) {
+  const run = state.run;
+  if (!run?.cells?.length) return null;
+  let best = -1; let bestD = Infinity;
+  run.cells.forEach((c, j) => {
+    const d = (c.lat - lat) ** 2 + ((c.lon - lon) * Math.cos(lat * Math.PI / 180)) ** 2;
+    if (d < bestD) { bestD = d; best = j; }
+  });
+  // Farther than a few cells from any cell is outside the run.
+  const a = run.cells[0]; const b = run.cells[1] || a;
+  const spacing = Math.max(1e-4, Math.hypot(b.lat - a.lat, b.lon - a.lon));
+  if (best < 0 || Math.sqrt(bestD) > spacing * 4) return null;
+  let fos = Infinity; let at = null;
+  run.steps.forEach((st) => {
+    const ms = Date.parse(st.date);
+    if (Number.isFinite(ms) && (ms > nowMs + horizonHours * 3_600_000 || ms < nowMs - 24 * 3_600_000)) return;
+    const v = st.values[best];
+    if (Number.isFinite(v) && v < fos) { fos = v; at = ms; }
+  });
+  return Number.isFinite(fos) ? { fos, atMs: at, cell: run.cells[best] } : null;
+}
+
 export function stop() {
   if (clockTimer) {
     window.clearInterval(clockTimer);
@@ -550,7 +577,7 @@ export function init() {
 }
 
 if (typeof window !== "undefined") {
-  window.GeoIDMode = { run, stop, init, inputsFromLayers, lockView, current: () => state };
+  window.GeoIDMode = { run, stop, init, inputsFromLayers, lockView, fosNear, current: () => state };
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init);
   else init();
 }

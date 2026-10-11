@@ -1,6 +1,6 @@
-import { compileScalar } from "./field-calculator.js?v=20261011-b88146c";
-import * as G from "./geometry.js?v=20261011-b88146c";
-import { featureCollection, feature, polygonsOf } from "./geoprocessing.js?v=20261011-b88146c";
+import { compileScalar } from "./field-calculator.js?v=20261011-acf80cd";
+import * as G from "./geometry.js?v=20261011-acf80cd";
+import { featureCollection, feature, polygonsOf } from "./geoprocessing.js?v=20261011-acf80cd";
 
 // Raster analysis equivalents of the QGIS Raster menu / ArcGIS Spatial Analyst
 // surface tools. A raster here is { band, width, height, bounds, noData },
