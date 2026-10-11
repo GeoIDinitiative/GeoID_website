@@ -1144,7 +1144,6 @@ async function refineOnce({ onStatus, motion = false } = {}) {
   const previous = refineState?.pass || null;
   const pass = { bbox, live: null, painted: 0, cancel: null };
   refineState = { ...(refineState || {}), bbox, zoom, source, grade: motion ? "motion" : "full", pass };
-  window.__dbgRefine = () => refineState;
   onStatus?.(`Refining to zoom ${zoom}…`);
 
   /**
@@ -1263,7 +1262,7 @@ export function startRefining({ onStatus } = {}) {
   refineState = { ...(refineState || {}) };
   const run = (motion) => {
     if (!refineState) return;
-    refineOnce({ onStatus, motion }).catch((e) => { console.warn("DEBUGREFINE", e); });
+    refineOnce({ onStatus, motion }).catch(() => { /* one failed pass is not the watcher's end */ });
   };
   // 250 ms of stillness is unambiguously "stopped" and does not fire during a
   // drag; 400 ms between motion passes is about two refines a second, each a

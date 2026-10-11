@@ -63,6 +63,43 @@ Two further traps for surface-hugging geometry:
 `applyStack()` overwrites `renderOrder` on imported layers, so setting it at
 build time in an adapter does nothing.
 
+**And it stamps geometry added LATER too** (`watchLateChildren`, on three's
+`childadded`). A layer can grow without the list changing — the earthquake
+time-lapse registers an empty group and builds each frame's points the first
+time the frame is shown — and a late frame node kept a Group's default 0, so
+its points sorted at groupOrder 0 and the Sentinel-2 refine patch (groupOrder
+0, renderOrder 40, depth test off) painted straight over the plotted quakes.
+Pinned in `layer-stack-late.test.mjs`, which runs the real function against
+real three.js objects.
+
+## The imagery refine streams as you pan
+
+Supersedes "nothing is fetched during motion" and "fires only on rest" in the
+refine notes below. Reported as having to zoom out and back in to see another
+region at the same zoom. Two causes: the settle was DROPPED whenever the
+previous pass was still `busy` (a full pass is seconds), and refinement ran on
+rest only. Now (`basemap-drape.js` + `view-extent.js` `onViewChange`):
+
+- a light MOTION pass (≤ 64 tiles, ≤ 2048 px canvas) every 400 ms while the
+  camera moves, and a full pass on settle — a settle after a motion pass always
+  sharpens, even with an unchanged view (`grade`);
+- every pass supersedes the last; the old pass's partial patch is kept as ONE
+  fallback under the new one (≤ 3 patches, restacked 40.00/40.01/40.02);
+- `tile-streamer.js` counts interest per pass (`claimTile` / `releaseOwner`):
+  a request is dropped (queued) or aborted (on the wire) only when NO pass
+  wants it — still never by one caller — and a new pass claims its tiles
+  synchronously BEFORE the old one is released, so shared ground carries on;
+- one GLOBAL budget of 12 (`MAX_INFLIGHT`), newest pass first, coarsest ring
+  first, centre-out from where the camera LOOKS (`viewFocus`), not the box's
+  middle; fetch + `createImageBitmap` (cancellable, decoded off the main
+  thread), `<img>` where those are missing; a true LRU of 640 decoded tiles.
+
+Verified headless with EOX routed to generated tiles (the sandbox blocks the
+host): 75–120 stale requests aborted over a 48° pan, motion passes centred on
+the camera throughout, and on settle one complete patch under the view with the
+fallback gone. Playwright's `page.route` does not see requests the site's
+service worker makes — block service workers in the context.
+
 ## Switching the basemap off
 
 Drops `colorWrite`, not `visible`. A mesh that is not drawn writes no depth and
@@ -10958,6 +10995,54 @@ EOSDIS GIBS, in text a reader can actually read.
   every glacier in the box (the union, thin outlines, never hidden) is the
   continuity: what moves between frames is then genuinely the ice that was
   remapped.
+
+### Half of Katla: a glacier is every PIECE of its outline, not its last row
+
+"Not all glacier extents animate — only half of Katla (Mýrdalsjökull) is
+mapped." GLIMS files a boundary as ROWS, one polygon each, under one
+`glac_id`: an ice cap digitised in parts (two scenes, two analysts, often two
+imagery dates) is several rows. Every reader here kept ONE row per id — the
+time-lapse's `stateAsOf` (`held.set(id, feature)`), the ghost (first seen),
+the outlines row (latest), the change layer (latest as geometry, first and
+last rows as the "change") — so whichever half was filed last WAS the glacier,
+in every frame after it, and two halves read as the ice cap doubling.
+
+`gis/glacier-outlines.js` is the one rule: a newer outline SUPERSEDES the held
+pieces it overlaps (a remapping, retreat or advance — tested by an interior
+grid sample, ≥30% of either lying on the other) and leaves the pieces it does
+not touch (two halves share only the divide, so vertices would not do). A
+glacier's pieces are merged into one MultiPolygon feature per frame, its
+change is measured against the outlines those pieces DESCEND from (so halves
+filed on two dates are one mapping, grey on the change map), and areas are the
+polygon's own (`db_area` belongs to the analysis and repeats per row). With no
+polygon (points, test fixtures) the id decides, as before. Used by
+`stateAsOf`, `ghostFeatures`, `firstAreas`, and both GLIMS converters.
+
+The renderer had the other half of the symptom: `fillTriangles` refuses a hole
+not inside its contour (right — it would bridge), and that ring was then never
+drawn. `regroupRings` in `vector-render.js` regroups a GeoJSON polygon's rings
+by containment first (mvt.js's rule), with a fast path that returns a
+well-formed polygon untouched. Pinned in `glacier-outlines.test.mjs`.
+
+Not verified against live GLIMS: www.glims.org is unreachable from the dev
+sandbox (proxy 403), so the Katla rows themselves were not inspected; the RGI
+tiles (`data/global/ice/*`) are not on disk either (`tiles_base` is the bucket,
+which the ice-cover test's "every tile is on disk" check predates) — that
+failure is unrelated to the GLIMS time-lapse, which never reads the tiles.
+
+### The bar's ◇ and ✕ are icons, and a short bar stacks its track
+
+The bar's width is the sidebar's arithmetic (`100vw − 52rem`, 608 px at a
+1440 window) while the row needed ~790 px — so the overlay toggle and the
+close ran off the pill's right edge (measured 1129–1205 against a bar ending
+at 1024). They are `tl-icon` squares (1.55rem, the pill's border and fill,
+`aria-label` beside the title, as every transport button now has), and
+`balanceRow` measures the lead, the trail and a 12rem track floor against the
+bar's inner width: past it the bar takes `is-stacked` — transport and
+count-and-close on one line (the note ellipsises, its full text on the title),
+the track on its own full-width line under them. Re-measured on resize and
+whenever the note grows. Measured at 1920/1440/1100/390: every button inside
+the pill, `scrollWidth` ≤ `clientWidth`.
 
 ## A remembered view names a place ON THE BODY, never a point in the world
 
