@@ -14,8 +14,8 @@
  *
  * Earth only: the page's own script tag loads it, the planets never do.
  */
-import { dataUrl } from "./data-base.js?v=20261011-11a94de";
-import { holdLaunch } from "./launch-ready.js?v=20261011-11a94de";
+import { dataUrl } from "./data-base.js?v=20261011-723e914";
+import { holdLaunch } from "./launch-ready.js?v=20261011-723e914";
 
 const PATH = "/data/global/earth-places.json";
 const ON_KEY = "geoid-gis:earth-places-on";   // what was switched ON — see note
@@ -265,6 +265,8 @@ function start(tries = 0) {
 if (typeof window !== "undefined" && typeof window.addEventListener === "function") {
   window.GeoIDEarthPlaces = {
     loaded: () => loaded,
+    /** Every place in the gazetteer, for a report's "where is this". */
+    places: () => fetchDoc().then((doc) => doc.places || []),
     isOn: (category) => onSet.has(category),
   };
   // The start-up screen waits for the names (gis/launch-ready.js).

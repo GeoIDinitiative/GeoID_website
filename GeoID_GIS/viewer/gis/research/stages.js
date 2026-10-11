@@ -92,6 +92,9 @@ export const STAGES = [
     ["Docs & Sheets", "Docs"],
     ["Storyboard", "StoryBoard"],
     ["Figure Composer", "Figures"],
+    // Web-only: the GIS page's risk reader written up per study area. The Qt
+    // app has no risk reader, so there is nothing for this to mirror.
+    ["Study Area Reports", "Reports"],
   ]],
   ["Settings", "Settings", [
     ["Settings", "Settings"],

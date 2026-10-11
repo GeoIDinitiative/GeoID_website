@@ -21,12 +21,12 @@
  * shield pulses), the Workspace header's shield, and Hazards ▸ Exposure.
  */
 
-import { riskMaps, assessOver, hazardKey, hazardTitle, readableMember, chooseFollowed, ringsBox, studyAreas, coversBox, viewArea, riskMapKind } from "./risk-reader.js?v=20261011-11a94de";
-import { renderAssessment, annotationOf, el } from "./risk-reader-view.js?v=20261011-11a94de";
-import { promptDrawTool } from "./extent-picker.js?v=20261011-11a94de";
-import { showAnnotation, removeAnnotation } from "./exposure-annotation.js?v=20261011-11a94de";
-import { formatCount, formatNumber, LEVEL_COLOURS } from "./risk-assessment.js?v=20261011-11a94de";
-import { visibleBounds, onViewSettled } from "./view-extent.js?v=20261011-11a94de";
+import { riskMaps, assessOver, hazardKey, hazardTitle, readableMember, chooseFollowed, ringsBox, studyAreas, coversBox, viewArea, riskMapKind } from "./risk-reader.js?v=20261011-723e914";
+import { renderAssessment, annotationOf, el } from "./risk-reader-view.js?v=20261011-723e914";
+import { promptDrawTool } from "./extent-picker.js?v=20261011-723e914";
+import { showAnnotation, removeAnnotation } from "./exposure-annotation.js?v=20261011-723e914";
+import { formatCount, formatNumber, LEVEL_COLOURS } from "./risk-assessment.js?v=20261011-723e914";
+import { visibleBounds, onViewSettled } from "./view-extent.js?v=20261011-723e914";
 
 const NOTE_ID = "risk-reader";
 const POS_KEY = "geoid-gis:risk-reader-pos";
@@ -329,7 +329,15 @@ function build() {
     if (area) area.readings.forEach((r) => enqueue(area, r));
     render();
   });
-  const controls = el("div", { class: "risk-reader-controls" }, draw, again);
+  /**
+   * WRITE IT UP: the Research hub's Study Area Reports page, opened on this
+   * area and built from these readings. A floating window is where a reading
+   * is looked at; a report is where it is kept and argued with.
+   */
+  const write = el("button", { type: "button", class: "button secondary" }, "Write it up");
+  write.title = "Open this study area's report in the Research hub (Publish ▸ Study Area Reports)";
+  write.addEventListener("click", () => window.GeoIDStudyReports?.open?.(state.activeId));
+  const controls = el("div", { class: "risk-reader-controls" }, draw, again, write);
   const body = el("div", { class: "risk-reader-body" },
     el("p", { id: "risk-reader-status", class: "risk-reader-status", "aria-live": "polite" }),
     el("div", { id: "risk-reader-rows" }),

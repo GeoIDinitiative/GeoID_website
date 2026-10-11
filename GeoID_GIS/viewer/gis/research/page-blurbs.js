@@ -88,6 +88,7 @@ export const PAGE_BLURBS = {
   // StoryBoard
   "Storyboard": "Assemble figures and text into the shape of a paper.",
   "Figure Composer": "Every figure the project has produced, with its caption.",
+  "Study Area Reports": "Each study area's risk to people, laid out as a report to finish: findings, statistics and the ground they are about.",
 
   // Settings
   "Settings": "How the hub behaves, and where it keeps things.",

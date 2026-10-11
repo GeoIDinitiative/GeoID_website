@@ -23649,3 +23649,42 @@ same test in the same frame (and skip a hidden cloud). At 20 km up an event
 1,500 km away is 13.5° round: p · c ≈ 9.99 < R² = 10.24, culled; the old test
 passed it. The pin that asserted the hemisphere test was re-argued, not
 deleted. Any "behind the globe" check must be the horizon, not the hemisphere.
+
+## Study Area Reports: the risk reader written up, per area, in the project
+
+Research ▸ Publish ▸ **Study Area Reports** (`research/pages/reports.js`; the
+pure half `research/study-report.js`, 48 checks). One report per study area
+the GIS page holds, built from `GeoIDRiskReader.areas()` (the readings) joined
+by id to `studyAreas()` (the polygons; an area read over the view takes its
+readings' own `mapGroups` rings). A web-only page in the Publish stage — the Qt
+app has no risk reader, so the stage list says why it drifts there.
+
+- **The numbers are the reader's, not re-derived**: every figure under
+  Findings is read off the same assessment object the window, CSV and print
+  report read, so the document cannot disagree with the window.
+- **Geo-context is measured at a lattice inside the area** (`latticeInside`,
+  ~240 points, square in ground distance): elevation off the streamed DEM
+  (ensured over the box first), the climate normal at the centroid, what EVERY
+  polygon layer on the globe says there (`featuresAt`, the unit's own name
+  column, shares of sample points — so whatever the reader loaded, geology,
+  soils, GLiM, contributes), and the gazetteer's places inside (largest first)
+  and nearest outside with distance and bearing (`GeoIDEarthPlaces.places()`).
+- **The reader's sections are separate sections** (`WRITING`: Setting,
+  Limitations, Discussion, Recommendations), each built holding only its ✎
+  prompt. A rebuild (`mergeWriting`) replaces every numbers section whole and
+  carries those four across verbatim if changed — so fresh readings can never
+  leave a stale figure inside a paragraph somebody wrote. A first attempt that
+  diffed lines inside mixed sections was abandoned for exactly that reason.
+- **A draft says when it is stale**: the header comment records the readings'
+  signature (`key@generated`), and the page compares it with the GIS page's.
+- Saved to `reports/<area>.md` (registered as kind `report`), copied to
+  `notes/` on request, downloaded as Markdown, printed through the browser
+  (`printableHtml`, A4). The risk reader's window has **Write it up**
+  (`GeoIDStudyReports.open(areaId)`), which opens the page on that area and
+  builds at once unless a draft exists.
+- `el()` in `pages/common.js` takes TEXT as its third argument, not children:
+  passing nodes printed "[object HTMLElement]".
+
+Verified headless with the reader's readings stubbed (the sandbox reaches no
+WorldPop): built, saved, readings changed → stale banner, rebuilt with the new
+signature and the written Discussion kept; all 65 hub pages mount.

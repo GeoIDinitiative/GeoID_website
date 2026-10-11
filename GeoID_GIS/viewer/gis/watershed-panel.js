@@ -24,10 +24,10 @@ import {
   fill, d8, accumulate, snapOutlet, upstreamMask, touchesEdge, traceOutline, streamNetwork,
   velocities, travelToOutlet, excessSeries, timeAreaHydrograph, catchmentStats, cellMetres, cellOf,
   centreOf, downstream, OVERLAND_K, NEIGHBOURS,
-} from "./catchment.js?v=20261011-11a94de";
-import { demGridFor } from "./landslide-pipeline.js?v=20261011-11a94de";
-import { waterMasks, waterFeatures } from "./water-mask.js?v=20261011-11a94de";
-import { burnRivers } from "./river-zones.js?v=20261011-11a94de";
+} from "./catchment.js?v=20261011-723e914";
+import { demGridFor } from "./landslide-pipeline.js?v=20261011-723e914";
+import { waterMasks, waterFeatures } from "./water-mask.js?v=20261011-723e914";
+import { burnRivers } from "./river-zones.js?v=20261011-723e914";
 
 const search = new URL(import.meta.url).search;
 const byId = (id) => document.getElementById(id);
