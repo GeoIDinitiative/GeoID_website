@@ -26,23 +26,23 @@
  * rebuilt or updated without guessing what was done to them.
  */
 
-import { runConnector } from "./research/connectors.js?v=20261011-f375647";
-import { explainFetchFailure, dataUrl } from "./data-base.js?v=20261011-f375647";
-import { mathsFor } from "./equations.js?v=20261011-f375647";
+import { runConnector } from "./research/connectors.js?v=20261011-97a8fbd";
+import { explainFetchFailure, dataUrl } from "./data-base.js?v=20261011-97a8fbd";
+import { mathsFor } from "./equations.js?v=20261011-97a8fbd";
 import {
   riskEdges, RISK_LABELS,
-} from "./cyclone-risk.js?v=20261011-f375647";
-import { colourRange as volcanicColourRange } from "./volcanic-risk.js?v=20261011-f375647";
-import { featureForModel, may, refusal } from "./membership.js?v=20261011-f375647";
-import { colourRange as seismicColourRange } from "./seismic-bands.js?v=20261011-f375647";
+} from "./cyclone-risk.js?v=20261011-97a8fbd";
+import { colourRange as volcanicColourRange } from "./volcanic-risk.js?v=20261011-97a8fbd";
+import { featureForModel, may, refusal } from "./membership.js?v=20261011-97a8fbd";
+import { colourRange as seismicColourRange } from "./seismic-bands.js?v=20261011-97a8fbd";
 // The cyclone tracks are classed on the same scale the live storm markers
 // band by, so the archive and the feed cut intensity at the same knots.
-import { SAFFIR_SIMPSON_KTS } from "./event-sources.js?v=20261011-f375647";
+import { SAFFIR_SIMPSON_KTS } from "./event-sources.js?v=20261011-97a8fbd";
 
 /** Order the groups read in, coarse to specific. */
 export const GROUPS = ["Physical", "Hydrology", "Boundaries", "Tectonics",
   "Ice sheets", "Hazards", "Active fires", "Perimeters",
-  "Warnings", "Climate", "Infrastructure", "Live services"];
+  "Warnings", "Climate", "Infrastructure", "Roads", "Settlements", "Live services"];
 
 /**
  * Which PANEL a dataset belongs on, where it is not the Vectors tab.
@@ -756,9 +756,72 @@ export const DATASETS = [
     licence: "U.S. Geological Survey — National Water Information System (public domain)",
   },
   {
+    id: "ne-roads-10m",
+    featureNoun: "Road",
+    group: "Roads",
+    label: "Roads — global (Natural Earth 1:10m)",
+    url: "https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_10m_roads.geojson",
+    name: "Global roads (Natural Earth 10m).geojson",
+    summary: "The world's major road network at 1:10m, coloured by type. A large "
+      + "file fetched live from Natural Earth; for the streets of one place, use "
+      + "the OpenStreetMap row below.",
+    licence: "Natural Earth — public domain",
+    live: true,
+    colourBy: "type",
+    colours: {
+      "Major Highway": "#e8553e", Beltway: "#e8553e", Bypass: "#f08a3c",
+      "Secondary Highway": "#f2c14e", Road: "#d8d2c4", Track: "#a0937d",
+      "Ferry Route": "#4fa3d9", Unknown: "#8f8f99",
+    },
+  },
+  {
+    id: "conn-osm-roads",
+    featureNoun: "Road",
+    group: "Roads",
+    label: "Roads — live (OpenStreetMap)",
+    connector: "osm-roads",
+    name: "OSM roads.geojson",
+    summary: "The road network over the drawn area, or the view when nothing is "
+      + "drawn: every street over a town, down to secondary roads over a region, "
+      + "the main network over a country. Refused over a continent.",
+    areaFrom: "drawn-or-view",
+    colourBy: "class",
+    colours: {
+      motorway: "#e8553e", trunk: "#f08a3c", primary: "#f2c14e",
+      secondary: "#f6e58d", tertiary: "#e6e2d6", unclassified: "#bdb7aa",
+      residential: "#bdb7aa", living_street: "#9f9a8f",
+    },
+    licence: "© OpenStreetMap contributors (ODbL)",
+  },
+  {
+    id: "ne-urban-10m",
+    featureNoun: "Urban area",
+    group: "Settlements",
+    label: "Urban areas — global (Natural Earth 1:10m)",
+    url: "https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_10m_urban_areas.geojson",
+    name: "Global urban areas (Natural Earth 10m).geojson",
+    summary: "The built-up extent of the world's towns and cities, derived from "
+      + "MODIS satellite imagery (2002–2003). Fetched live from Natural Earth.",
+    licence: "Natural Earth — public domain",
+    live: true,
+  },
+  {
+    id: "conn-osm-city-outlines",
+    featureNoun: "City outline",
+    group: "Settlements",
+    label: "City and town outlines — live (OpenStreetMap)",
+    connector: "osm-city-outlines",
+    name: "OSM city outlines.geojson",
+    summary: "The outline OpenStreetMap records for each city and town over the "
+      + "drawn area or the view (up to 2° across): the settlement's own mapped "
+      + "area, else the administrative boundary that carries its name.",
+    areaFrom: "drawn-or-view",
+    licence: "© OpenStreetMap contributors (ODbL)",
+  },
+  {
     id: "conn-osm-places",
     featureNoun: "Place",
-    group: "Live services",
+    group: "Settlements",
     label: "Places — live (OpenStreetMap)",
     connector: "osm-places",
     name: "OSM places.geojson",
@@ -942,6 +1005,21 @@ function drawnBbox() {
   };
 }
 
+/**
+ * The view as the connectors' box, for a row that may fall back to it. Null
+ * when the camera sees too little of the globe to say (visibleBounds answers
+ * an object of nulls there), so the connector refuses in its own words.
+ */
+async function viewBbox() {
+  try {
+    const THREE = await import("../vendor/three.module.js");
+    const { visibleBounds } = await import("./view-extent.js?v=20261011-97a8fbd");
+    const b = visibleBounds(window.GeoIDViewer, THREE);
+    const ok = b && [b.minLon, b.minLat, b.maxLon, b.maxLat].every(Number.isFinite);
+    return ok ? { minLon: b.minLon, minLat: b.minLat, maxLon: b.maxLon, maxLat: b.maxLat } : null;
+  } catch { return null; }
+}
+
 export function datasetById(id) {
   return DATASETS.find((entry) => entry.id === id) || null;
 }
@@ -1045,9 +1123,10 @@ export async function addDataset(id, onStatus = () => {},
        * box from a named layer, a captured extent or the live overlay, and
        * that answer must not be thrown away here.
        */
-      const bbox = bboxArg || drawnBbox();
+      const bbox = bboxArg || drawnBbox()
+        || (entry.areaFrom === "drawn-or-view" ? await viewBbox() : null);
       onStatus(bbox
-        ? `Fetching ${entry.label} over the drawn area…`
+        ? `Fetching ${entry.label} over this area…`
         : `Fetching ${entry.label}…`);
       /**
        * Whatever else the caller asked for travels with it — the glacier

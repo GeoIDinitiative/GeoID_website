@@ -19,7 +19,7 @@
  */
 
 import { createLedger, latestGlaciers, pieceAreaKm2 }
-  from "../glacier-outlines.js?v=20261011-f375647";
+  from "../glacier-outlines.js?v=20261011-97a8fbd";
 
 /** N days ago as an ISO date (YYYY-MM-DD). */
 function daysAgoISO(days) {
@@ -582,6 +582,393 @@ export function overpassToGeoJSON(payload) {
   return { type: "FeatureCollection", features };
 }
 
+// ── OpenStreetMap roads and settlement outlines (Overpass API) ───────────────
+// The same CORS-open, keyless Overpass service the places row uses, asked for
+// two things a reader studying a hazard wants beside it: the road network,
+// and the outline OSM records for each city and town. Both need a box — the
+// drawn study area, else the view — because a global Overpass query times
+// out, and how much of the network is asked for depends on how big it is.
+
+/**
+ * How big a box is, in degrees of ground: the longer side, with longitude
+ * shrunk by cos(latitude) so a box at 60°N is not charged twice its width.
+ */
+export function boxSpanDeg(bbox) {
+  const mid = ((bbox.minLat + bbox.maxLat) / 2) * Math.PI / 180;
+  return Math.max(bbox.maxLat - bbox.minLat, (bbox.maxLon - bbox.minLon) * Math.cos(mid));
+}
+
+/**
+ * The road classes worth asking for over a box this size, finest first.
+ *
+ * OSM splits a way at every junction, so a city's residential streets are
+ * tens of thousands of ways: asked for over a region they are a download that
+ * times out and a picture that is solid ink. Each tier stops where the next
+ * class down would be noise at the scale the box is seen at — the same reason
+ * a printed map drops minor roads as its scale falls.
+ */
+export const ROAD_TIERS = [
+  { maxSpan: 0.15, classes: ["motorway", "trunk", "primary", "secondary", "tertiary",
+    "unclassified", "residential", "living_street"], says: "every street" },
+  { maxSpan: 0.6, classes: ["motorway", "trunk", "primary", "secondary", "tertiary"],
+    says: "down to local roads (tertiary)" },
+  { maxSpan: 2, classes: ["motorway", "trunk", "primary", "secondary"],
+    says: "down to secondary roads" },
+  { maxSpan: 6, classes: ["motorway", "trunk", "primary"],
+    says: "the main network (motorways, trunk and primary roads)" },
+];
+
+/** The rank a class is drawn in: 1 is the most important road. */
+export const ROAD_RANK = {
+  motorway: 1, trunk: 2, primary: 3, secondary: 4, tertiary: 5,
+  unclassified: 6, residential: 6, living_street: 7,
+};
+
+function bboxClause(bbox) {
+  return `${bbox.minLat},${bbox.minLon},${bbox.maxLat},${bbox.maxLon}`;
+}
+
+/**
+ * The Overpass query for the roads over a box, and which tier answered it.
+ * Throws, in a sentence a reader can act on, for no box or one too large.
+ */
+export function overpassRoadsQuery(bbox) {
+  if (!bbox) {
+    throw new Error("OSM roads needs an area — draw one, or zoom in so the view is "
+      + "a region rather than a continent.");
+  }
+  const span = boxSpanDeg(bbox);
+  const tier = ROAD_TIERS.find((t) => span <= t.maxSpan);
+  if (!tier) {
+    throw new Error(`OSM roads: this area is ${span.toFixed(1)}° across, too large to ask `
+      + "Overpass for. Draw a smaller area, or tick the global Natural Earth roads.");
+  }
+  const pattern = `^(${tier.classes.join("|")})(_link)?$`;
+  const query = "[out:json][timeout:90];"
+    + `way["highway"~"${pattern}"](${bboxClause(bbox)});`
+    + "out geom;";
+  return { query, tier, span };
+}
+
+function overpassRoadsUrl({ bbox } = {}) {
+  const { query } = overpassRoadsQuery(bbox);
+  return `https://overpass-api.de/api/interpreter?data=${encodeURIComponent(query)}`;
+}
+
+function wayLine(way) {
+  const coords = (way.geometry || [])
+    .filter((p) => p && Number.isFinite(p.lat) && Number.isFinite(p.lon))
+    .map((p) => [p.lon, p.lat]);
+  return coords.length >= 2 ? coords : null;
+}
+
+/** A tag that is a number in OSM is a string; a blank is not zero. */
+function tagNumber(value) {
+  if (value == null || value === "") return null;
+  const n = Number(String(value).replace(/[^0-9.\-]/g, ""));
+  return Number.isFinite(n) ? n : null;
+}
+
+export function overpassRoadsToGeoJSON(payload) {
+  const features = (payload?.elements || [])
+    .filter((e) => e.type === "way" && e.tags?.highway)
+    .map((way) => {
+      const coordinates = wayLine(way);
+      if (!coordinates) return null;
+      const highway = String(way.tags.highway);
+      const link = highway.endsWith("_link");
+      const roadClass = link ? highway.slice(0, -5) : highway;
+      return {
+        type: "Feature",
+        geometry: { type: "LineString", coordinates },
+        properties: {
+          name: way.tags.name || "",
+          ref: way.tags.ref || "",
+          class: roadClass,
+          link,
+          rank: ROAD_RANK[roadClass] || 8,
+          lanes: tagNumber(way.tags.lanes),
+          maxspeed: way.tags.maxspeed || "",
+          surface: way.tags.surface || "",
+          oneway: way.tags.oneway === "yes",
+          bridge: Boolean(way.tags.bridge && way.tags.bridge !== "no"),
+          tunnel: Boolean(way.tags.tunnel && way.tags.tunnel !== "no"),
+          osm_id: `way/${way.id}`,
+        },
+      };
+    })
+    .filter(Boolean);
+  return { type: "FeatureCollection", features };
+}
+
+/**
+ * Settlement outlines: the polygon OSM records for each city and town in the
+ * box. A box larger than this pulls the county and district boundaries that
+ * contain every town in it, which is megabytes of geometry for a few outlines.
+ */
+export const OUTLINE_MAX_SPAN = 2;
+
+export function overpassOutlinesQuery(bbox) {
+  if (!bbox) {
+    throw new Error("OSM city outlines needs an area — draw one, or zoom in to a region.");
+  }
+  const span = boxSpanDeg(bbox);
+  if (span > OUTLINE_MAX_SPAN) {
+    throw new Error(`OSM city outlines: this area is ${span.toFixed(1)}° across; draw one `
+      + `under ${OUTLINE_MAX_SPAN}° or tick the global Natural Earth urban areas.`);
+  }
+  const b = bboxClause(bbox);
+  /**
+   * THE OUTLINE IS FOUND FROM THE PLACE, not from the boundaries.
+   *
+   * Asking for every administrative boundary in a box returns parishes,
+   * wards and counties alike, and which admin level is "the city" differs
+   * country by country (a German city is level 6, a French commune 8, a
+   * Japanese city 7). So the query starts from the place nodes, asks Overpass
+   * which boundaries CONTAIN each one, and the converter keeps the boundary
+   * that carries the place's own name. Places mapped as areas in their own
+   * right come too.
+   */
+  const query = "[out:json][timeout:120];"
+    + `node["place"~"^(city|town)$"]["name"](${b})->.p;`
+    + ".p is_in->.a;"
+    + 'rel(pivot.a)["boundary"="administrative"]["admin_level"~"^([5-9]|10)$"]->.r;'
+    + `(way["place"~"^(city|town|village)$"]["name"](${b});`
+    + `rel["place"~"^(city|town|village)$"]["name"](${b});)->.q;`
+    + ".p out;"
+    + ".r out geom;"
+    + ".q out geom;";
+  return { query, span };
+}
+
+function overpassOutlinesUrl({ bbox } = {}) {
+  const { query } = overpassOutlinesQuery(bbox);
+  return `https://overpass-api.de/api/interpreter?data=${encodeURIComponent(query)}`;
+}
+
+const SAME_POINT = 1e-7;
+function samePoint(a, b) {
+  return Math.abs(a[0] - b[0]) < SAME_POINT && Math.abs(a[1] - b[1]) < SAME_POINT;
+}
+
+/**
+ * Join a relation's member ways into closed rings.
+ *
+ * A boundary relation is a bag of ways, each a piece of the edge, in no
+ * promised order or direction. Each ring is grown from one piece by finding
+ * another that starts or ends where it ends (reversing it if it is backwards)
+ * until it comes back to its start. A piece that can never close it — the
+ * relation is incomplete in the data — is reported rather than drawn as a
+ * line across the map.
+ */
+export function assembleRings(pieces) {
+  const pool = pieces.filter((p) => p.length >= 2).map((p) => p.slice());
+  const rings = [];
+  let open = 0;
+  while (pool.length) {
+    let ring = pool.shift();
+    let grown = true;
+    while (!samePoint(ring[0], ring[ring.length - 1]) && grown) {
+      grown = false;
+      const end = ring[ring.length - 1];
+      for (let i = 0; i < pool.length; i += 1) {
+        const piece = pool[i];
+        if (samePoint(piece[0], end)) {
+          ring = ring.concat(piece.slice(1));
+        } else if (samePoint(piece[piece.length - 1], end)) {
+          ring = ring.concat(piece.slice().reverse().slice(1));
+        } else continue;
+        pool.splice(i, 1);
+        grown = true;
+        break;
+      }
+    }
+    if (samePoint(ring[0], ring[ring.length - 1]) && ring.length >= 4) rings.push(ring);
+    else open += 1;
+  }
+  return { rings, open };
+}
+
+/** Even–odd point in ring, [lon, lat]. */
+function inRing(point, ring) {
+  let inside = false;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i, i += 1) {
+    const [xi, yi] = ring[i];
+    const [xj, yj] = ring[j];
+    if ((yi > point[1]) !== (yj > point[1])
+      && point[0] < ((xj - xi) * (point[1] - yi)) / (yj - yi) + xi) inside = !inside;
+  }
+  return inside;
+}
+
+/**
+ * A relation's members as a GeoJSON polygon geometry: outer rings, each with
+ * the inner rings that fall inside it (an enclave, a lake). Null when no ring
+ * closes.
+ */
+export function relationPolygon(relation) {
+  const outerPieces = [];
+  const innerPieces = [];
+  for (const member of relation.members || []) {
+    if (member.type !== "way") continue;
+    const line = wayLine(member);
+    if (!line) continue;
+    (member.role === "inner" ? innerPieces : outerPieces).push(line);
+  }
+  const outer = assembleRings(outerPieces);
+  const inner = assembleRings(innerPieces);
+  if (!outer.rings.length) return { geometry: null, open: outer.open + inner.open };
+  const polygons = outer.rings.map((ring) => [ring]);
+  for (const hole of inner.rings) {
+    const home = polygons.find((poly) => inRing(hole[0], poly[0]));
+    if (home) home.push(hole);
+  }
+  const geometry = polygons.length === 1
+    ? { type: "Polygon", coordinates: polygons[0] }
+    : { type: "MultiPolygon", coordinates: polygons };
+  return { geometry, open: outer.open + inner.open };
+}
+
+function geometryContains(geometry, point) {
+  const polygons = geometry.type === "Polygon" ? [geometry.coordinates] : geometry.coordinates;
+  return polygons.some((rings) => inRing(point, rings[0])
+    && !rings.slice(1).some((hole) => inRing(point, hole)));
+}
+
+/**
+ * A name as it can be compared: lower case, accents off, and the words a
+ * boundary wears around a settlement's name ("City of", "Stadt", "Ville de",
+ * "Municipality") taken away — so the boundary "City of Edinburgh" matches the
+ * place "Edinburgh" and "Landeshauptstadt München" matches "München".
+ */
+const NAME_WRAPPERS = new RegExp("\\b(" + [
+  "city", "town", "municipality", "borough", "district", "county", "metropolitan",
+  "of", "the", "stadt", "landeshauptstadt", "hansestadt", "gemeinde", "ville", "de",
+  "du", "la", "le", "comune", "di", "municipio", "ciudad", "concelho", "gmina",
+  "miasto", "shi", "si",
+].join("|") + ")\\b", "g");
+
+export function placeNameKey(name) {
+  return String(name || "")
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}]+/gu, " ")
+    .replace(NAME_WRAPPERS, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/**
+ * The outline for each city and town in an Overpass answer.
+ *
+ * Per place node, in order of how literally a polygon is that place: an area
+ * mapped AS the place (a `place=city` way or relation with its name) that
+ * contains it, else the administrative boundary that contains it AND carries
+ * its name — the deepest at municipal level or above when several do (a city and its district can
+ * share a name). A place with neither gets no outline and is counted rather
+ * than given whatever boundary happens to surround it, which would be a
+ * county's outline under a town's name.
+ */
+/**
+ * Among same-named boundaries containing a place, the deepest at municipal
+ * level or above (admin level 8 or less) — the city, not a ward of it that
+ * happens to share its name. Only where there is none does a deeper one do.
+ */
+function pickBoundary(candidates) {
+  const byDepth = (a, b) => (b.adminLevel || 0) - (a.adminLevel || 0);
+  const municipal = candidates.filter((a) => (a.adminLevel || 0) <= 8).sort(byDepth);
+  return municipal[0] || candidates.sort(byDepth)[0];
+}
+
+export function overpassOutlinesToGeoJSON(payload) {
+  const elements = payload?.elements || [];
+  const places = elements
+    .filter((e) => e.type === "node" && e.tags?.name && e.tags?.place)
+    .map((e) => ({
+      name: e.tags.name,
+      key: placeNameKey(e.tags.name),
+      place: e.tags.place,
+      population: tagNumber(e.tags.population),
+      point: [Number(e.lon ?? e.center?.lon), Number(e.lat ?? e.center?.lat)],
+      wikidata: e.tags.wikidata || "",
+    }))
+    .filter((p) => Number.isFinite(p.point[0]) && Number.isFinite(p.point[1]) && p.key);
+
+  const areas = [];
+  let open = 0;
+  for (const e of elements) {
+    let geometry = null;
+    if (e.type === "relation" && (e.tags?.boundary === "administrative" || e.tags?.place)) {
+      const built = relationPolygon(e);
+      open += built.open;
+      geometry = built.geometry;
+    } else if (e.type === "way" && e.tags?.place) {
+      const ring = wayLine(e);
+      if (ring && ring.length >= 4 && samePoint(ring[0], ring[ring.length - 1])) {
+        geometry = { type: "Polygon", coordinates: [ring] };
+      }
+    }
+    if (!geometry || !e.tags?.name) continue;
+    areas.push({
+      element: e,
+      geometry,
+      key: placeNameKey(e.tags.name),
+      placeArea: Boolean(e.tags.place),
+      adminLevel: tagNumber(e.tags.admin_level),
+    });
+  }
+
+  const used = new Set();
+  const features = [];
+  let unmatched = 0;
+  const order = [...places].sort((a, b) => (b.population || 0) - (a.population || 0));
+  for (const place of order) {
+    const containing = areas.filter((a) => geometryContains(a.geometry, place.point));
+    const own = containing.find((a) => a.placeArea && a.key === place.key)
+      || pickBoundary(containing.filter((a) => !a.placeArea && a.key === place.key));
+    if (!own) { unmatched += 1; continue; }
+    const id = `${own.element.type}/${own.element.id}`;
+    if (used.has(id)) continue;
+    used.add(id);
+    features.push({
+      type: "Feature",
+      geometry: own.geometry,
+      properties: {
+        name: place.name,
+        place: place.place,
+        population: place.population,
+        outline: own.placeArea
+          ? "mapped as the settlement's own area"
+          : `administrative boundary (level ${own.adminLevel ?? "?"}) carrying its name`,
+        admin_level: own.adminLevel,
+        osm_id: id,
+        wikidata: own.element.tags?.wikidata || place.wikidata,
+      },
+    });
+  }
+  // Places mapped only as an area (villages are rarely nodes in a city query)
+  // stand on their own.
+  for (const area of areas) {
+    const id = `${area.element.type}/${area.element.id}`;
+    if (!area.placeArea || used.has(id)) continue;
+    used.add(id);
+    features.push({
+      type: "Feature",
+      geometry: area.geometry,
+      properties: {
+        name: area.element.tags.name,
+        place: area.element.tags.place,
+        population: tagNumber(area.element.tags.population),
+        outline: "mapped as the settlement's own area",
+        admin_level: area.adminLevel,
+        osm_id: id,
+        wikidata: area.element.tags?.wikidata || "",
+      },
+    });
+  }
+  return { type: "FeatureCollection", features, unmatched, open };
+}
+
 // ── BGS geology 625k (OGC API – Features) ─────────────────────────────────────
 // Bedrock and superficial polygons, GeoJSON already (CRS84 lon/lat). CORS-open
 // (origin echo), no key. The 625k product covers Northern Ireland — verified
@@ -1041,6 +1428,22 @@ export const CONNECTORS = {
     toGeoJSON: cableLandingsToGeoJSON,
     filename: () => "cable_landing_stations.geojson",
     attribution: "Greg's Cable Map (GNU GPL)",
+  },
+  "osm-roads": {
+    label: "OSM roads",
+    attribution: "© OpenStreetMap contributors (ODbL)",
+    url: overpassRoadsUrl,
+    toGeoJSON: overpassRoadsToGeoJSON,
+    filename: () => "osm_roads.geojson",
+    defaults: {},
+  },
+  "osm-city-outlines": {
+    label: "OSM city outlines",
+    attribution: "© OpenStreetMap contributors (ODbL)",
+    url: overpassOutlinesUrl,
+    toGeoJSON: overpassOutlinesToGeoJSON,
+    filename: () => "osm_city_outlines.geojson",
+    defaults: {},
   },
   "osm-places": {
     label: "OSM places",

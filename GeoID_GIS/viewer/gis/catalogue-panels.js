@@ -29,14 +29,14 @@
 
 import {
   HOMES, MIRRORS, grouped, addDataset, layerForDataset, loadLaunchDefaults,
-} from "./global-data.js?v=20261011-f375647";
-import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20261011-f375647";
-import { holdLaunch } from "./launch-ready.js?v=20261011-f375647";
-import { mathsFor } from "./equations.js?v=20261011-f375647";
+} from "./global-data.js?v=20261011-97a8fbd";
+import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20261011-97a8fbd";
+import { holdLaunch } from "./launch-ready.js?v=20261011-97a8fbd";
+import { mathsFor } from "./equations.js?v=20261011-97a8fbd";
 import { bandOf, bandRows, bandSymbology, describeFilter, magOf }
-  from "./seismic-magnitude.js?v=20261011-f375647";
+  from "./seismic-magnitude.js?v=20261011-97a8fbd";
 import { filterVolcanoes, yearRankOf, yearWords, DEFAULT_YEAR_RANK }
-  from "./volcano-filter.js?v=20261011-f375647";
+  from "./volcano-filter.js?v=20261011-97a8fbd";
 
 const byId = (id) => document.getElementById(id);
 

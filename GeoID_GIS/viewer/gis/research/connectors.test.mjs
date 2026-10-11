@@ -14,6 +14,9 @@ import {
   usgsToGeoJSON, eonetToGeoJSON, studyBbox,
   nwsToGeoJSON, usgsWaterToGeoJSON, overpassToGeoJSON,
   bgsGeologyToGeoJSON, metRainfallToGeoJSON, CONNECTORS,
+  boxSpanDeg, overpassRoadsQuery, overpassRoadsToGeoJSON, ROAD_TIERS,
+  assembleRings, relationPolygon, placeNameKey, overpassOutlinesQuery,
+  overpassOutlinesToGeoJSON, OUTLINE_MAX_SPAN,
 } from "./connectors.js";
 
 let failures = 0;
@@ -224,6 +227,119 @@ check("new connector filenames are stable slugs",
   CONNECTORS["bgs-geology-bedrock"].filename({}) === "bgs_geology_625k_bedrock.geojson"
   && CONNECTORS["bgs-geology-superficial"].filename({}) === "bgs_geology_625k_superficial.geojson"
   && CONNECTORS["met-rainfall-normals"].filename({}) === "rainfall_normals_haduk_12km.geojson");
+
+// ── OSM roads: the tier follows the box, the geometry is [lon, lat] ───────────
+const box = (w, s2, e, n) => ({ minLon: w, minLat: s2, maxLon: e, maxLat: n });
+check("box span shrinks longitude by cos(latitude)",
+  Math.abs(boxSpanDeg(box(0, 59.9, 2, 60.1)) - 2 * Math.cos(60 * Math.PI / 180)) < 1e-3);
+const fine = overpassRoadsQuery(box(-3.25, 55.9, -3.15, 55.97));
+check("a street-scale box asks for every street", fine.tier.classes.includes("residential"),
+  fine.tier.says);
+check("the query names the box south, west, north, east",
+  fine.query.includes("(55.9,-3.25,55.97,-3.15)"));
+check("_link roads ride with their class", fine.query.includes("(_link)?$"));
+const regional = overpassRoadsQuery(box(-4, 55.5, -2.5, 56.5));
+check("a regional box stops at secondary roads",
+  regional.tier.classes.includes("secondary") && !regional.tier.classes.includes("tertiary"));
+const national = overpassRoadsQuery(box(-6, 52, 0, 56));
+check("a national box asks for the main network only",
+  national.tier.classes.join() === "motorway,trunk,primary");
+let tooBig = "";
+try { overpassRoadsQuery(box(-20, 30, 20, 60)); } catch (e) { tooBig = e.message; }
+check("a continent is refused, and the refusal names the way round it",
+  /too large/.test(tooBig) && /Natural Earth/.test(tooBig), tooBig);
+let noBox = "";
+try { overpassRoadsQuery(null); } catch (e) { noBox = e.message; }
+check("no area is refused in words", /draw one/.test(noBox));
+check("the tiers run from finest to coarsest",
+  ROAD_TIERS.every((t, i) => i === 0 || t.maxSpan > ROAD_TIERS[i - 1].maxSpan));
+
+const roads = overpassRoadsToGeoJSON({ elements: [
+  { type: "way", id: 7, tags: { highway: "primary_link", name: "A1", ref: "A1", lanes: "2",
+    bridge: "yes" }, geometry: [{ lat: 55.95, lon: -3.2 }, { lat: 55.96, lon: -3.19 }] },
+  { type: "way", id: 8, tags: { highway: "motorway", lanes: "" },
+    geometry: [{ lat: 55.9, lon: -3.3 }] },
+  { type: "node", id: 9, lat: 55, lon: -3, tags: { highway: "traffic_signals" } },
+] });
+check("roads keep ways with a line and drop the rest", roads.features.length === 1);
+const road = roads.features[0];
+check("road geometry is [lon, lat]", road.geometry.coordinates[0][0] === -3.2
+  && road.geometry.coordinates[0][1] === 55.95);
+check("a _link is filed under its class and flagged",
+  road.properties.class === "primary" && road.properties.link === true
+  && road.properties.rank === 3);
+check("lanes is a number; a bridge is a boolean",
+  road.properties.lanes === 2 && road.properties.bridge === true);
+check("the road keeps its OSM id", road.properties.osm_id === "way/7");
+
+// ── Settlement outlines: rings joined, the place's own boundary chosen ────────
+const sq = (x0, y0, d) => [[x0, y0], [x0 + d, y0], [x0 + d, y0 + d], [x0, y0 + d], [x0, y0]];
+const joined = assembleRings([
+  [[1, 0], [1, 1]],                 // east side
+  [[0, 0], [1, 0]],                 // south side
+  [[0, 0], [0, 1], [1, 1]].reverse(), // west + north, backwards
+]);
+check("pieces in any order and direction join into one closed ring",
+  joined.rings.length === 1 && joined.open === 0 && joined.rings[0].length === 5,
+  JSON.stringify(joined));
+const broken = assembleRings([[[0, 0], [1, 0]], [[1, 0], [1, 1]]]);
+check("a ring that cannot close is counted, not drawn",
+  broken.rings.length === 0 && broken.open === 1);
+
+const asMembers = (ring, role = "outer") => ({ type: "way", role,
+  geometry: ring.map(([lon, lat]) => ({ lat, lon })) });
+const holed = relationPolygon({ members: [asMembers(sq(0, 0, 4)), asMembers(sq(1, 1, 1), "inner")] });
+check("an inner ring becomes a hole in its outer",
+  holed.geometry.type === "Polygon" && holed.geometry.coordinates.length === 2);
+const twoPart = relationPolygon({ members: [asMembers(sq(0, 0, 1)), asMembers(sq(5, 5, 1))] });
+check("two outer rings are a MultiPolygon", twoPart.geometry.type === "MultiPolygon"
+  && twoPart.geometry.coordinates.length === 2);
+
+check("'City of Edinburgh' compares as 'edinburgh'",
+  placeNameKey("City of Edinburgh") === "edinburgh");
+check("'Landeshauptstadt München' compares as 'munchen'",
+  placeNameKey("Landeshauptstadt München") === placeNameKey("München"));
+check("a name in another script survives", placeNameKey("札幌市") === "札幌市");
+
+const rel = (id, name, level, ring, extra = {}) => ({ type: "relation", id,
+  tags: { boundary: "administrative", admin_level: String(level), name, ...extra },
+  members: [asMembers(ring)] });
+const outlines = overpassOutlinesToGeoJSON({ elements: [
+  { type: "node", id: 1, lat: 0.5, lon: 0.5, tags: { place: "city", name: "Edinburgh",
+    population: "506520" } },
+  { type: "node", id: 2, lat: 3.5, lon: 3.5, tags: { place: "town", name: "Nowhere" } },
+  rel(10, "Lothian", 6, sq(-1, -1, 6)),
+  rel(11, "City of Edinburgh", 8, sq(0, 0, 1)),
+  rel(12, "Edinburgh", 10, sq(0.4, 0.4, 0.2)), // a ward that does not contain the node
+  { type: "way", id: 20, tags: { place: "village", name: "Cramond" },
+    geometry: sq(4, 0, 0.1).map(([lon, lat]) => ({ lat, lon })) },
+] });
+const edinburgh = outlines.features.find((f) => f.properties.name === "Edinburgh");
+check("a city takes the boundary that contains it AND carries its name",
+  edinburgh?.properties.osm_id === "relation/11" && edinburgh.properties.admin_level === 8,
+  JSON.stringify(edinburgh?.properties));
+check("a town with no boundary of its own name gets none (not the county's)",
+  outlines.unmatched === 1 && !outlines.features.some((f) => f.properties.name === "Nowhere"));
+check("a settlement mapped as an area stands on its own",
+  outlines.features.some((f) => f.properties.name === "Cramond"
+    && /own area/.test(f.properties.outline)));
+check("the county is never drawn", !outlines.features.some((f) => f.properties.osm_id === "relation/10"));
+const preferArea = overpassOutlinesToGeoJSON({ elements: [
+  { type: "node", id: 1, lat: 0.5, lon: 0.5, tags: { place: "town", name: "Ayr" } },
+  rel(30, "Ayr", 8, sq(0, 0, 1)),
+  { type: "way", id: 31, tags: { place: "town", name: "Ayr" },
+    geometry: sq(0.2, 0.2, 0.6).map(([lon, lat]) => ({ lat, lon })) },
+] });
+check("an area mapped AS the place outranks an admin boundary of the same name",
+  preferArea.features.length === 1 && preferArea.features[0].properties.osm_id === "way/31");
+let outlineBig = "";
+try { overpassOutlinesQuery(box(-10, 50, 0, 58)); } catch (e) { outlineBig = e.message; }
+check("outlines refuse a box wider than their limit", outlineBig.includes(`${OUTLINE_MAX_SPAN}°`));
+check("the outline query starts from the places and asks which boundaries contain them",
+  /is_in/.test(overpassOutlinesQuery(box(-3.3, 55.9, -3.1, 56)).query));
+check("the OSM connectors have stable filenames",
+  CONNECTORS["osm-roads"].filename({}) === "osm_roads.geojson"
+  && CONNECTORS["osm-city-outlines"].filename({}) === "osm_city_outlines.geojson");
 
 console.log(failures ? `\n${failures} FAILED` : "\nall checks passed");
 process.exit(failures ? 1 : 0);

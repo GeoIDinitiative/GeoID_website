@@ -23752,3 +23752,31 @@ real click on a dot opening its card and flying to it, the follow holding a
 true-size airliner at 4 km with the card's altitude, speed, type and
 registration rows; 40 ships from Digitraffic, a ship followed at 270 m with
 its 109 m model; unticking both leaves no layer and no label.
+
+## Roads and city outlines: Natural Earth for the world, Overpass for a place
+
+Map ▸ Overlays gained a **Roads** and a **Settlements** group (registered in
+`GROUPS`, or the catalogue test refuses the rows): Natural Earth 1:10m roads
+and urban areas fetched live from Natural Earth's GitHub (public domain; live
+like the plate boundaries only because this sandbox cannot publish to the
+bucket — `publish-data.py` can move them later), and two Overpass connectors
+in `research/connectors.js` (pure, tested in `connectors.test.mjs`).
+
+- **A row may take the VIEW when nothing is drawn** (`areaFrom:
+  "drawn-or-view"`, `viewBbox()` in global-data.js). A view that sees too little
+  of the globe answers nothing and the connector refuses in its own words.
+- **Roads are tiered by the box's size** (`ROAD_TIERS`, span = longer side with
+  longitude × cos lat): every street under 0.15°, tertiary to 0.6°, secondary to
+  2°, the main network to 6°, refused beyond. A `_link` is filed under its class.
+- **A city's outline is found FROM THE PLACE.** The query takes the city/town
+  nodes, asks Overpass which admin boundaries contain them (`is_in` + `pivot`),
+  and keeps the one that carries the place's name (`placeNameKey` strips
+  "City of", "Landeshauptstadt", accents; keeps other scripts). An area mapped
+  AS the place outranks it; among same-named boundaries the deepest at admin
+  level ≤ 8 wins, so a same-named ward never takes a city's place. A town with
+  no boundary of its own name gets NO outline rather than its county's.
+- **Relations are bags of ways**: `assembleRings` joins pieces in any order and
+  direction and counts a ring that cannot close rather than drawing it.
+
+Verified headless with Overpass mocked: 30 roads classed by `class`, and
+Edinburgh drawn from "City of Edinburgh" (level 8) over a drawn area.
