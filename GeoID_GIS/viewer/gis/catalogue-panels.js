@@ -29,14 +29,14 @@
 
 import {
   HOMES, MIRRORS, grouped, addDataset, layerForDataset, loadLaunchDefaults,
-} from "./global-data.js?v=20261011-f6c969d";
-import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20261011-f6c969d";
-import { holdLaunch } from "./launch-ready.js?v=20261011-f6c969d";
-import { mathsFor } from "./equations.js?v=20261011-f6c969d";
+} from "./global-data.js?v=20261011-8a5ffda";
+import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20261011-8a5ffda";
+import { holdLaunch } from "./launch-ready.js?v=20261011-8a5ffda";
+import { mathsFor } from "./equations.js?v=20261011-8a5ffda";
 import { bandOf, bandRows, bandSymbology, describeFilter, magOf }
-  from "./seismic-magnitude.js?v=20261011-f6c969d";
+  from "./seismic-magnitude.js?v=20261011-8a5ffda";
 import { filterVolcanoes, yearRankOf, yearWords, DEFAULT_YEAR_RANK }
-  from "./volcano-filter.js?v=20261011-f6c969d";
+  from "./volcano-filter.js?v=20261011-8a5ffda";
 
 const byId = (id) => document.getElementById(id);
 
@@ -148,6 +148,26 @@ const TILED = {
       window.GeoIDHydroCover?.remove?.("hydro-rivers");
       window.GeoIDHydroCover?.say?.("");
     },
+  }, {
+    id: "current-flow",
+    group: "Ocean",
+    label: "Ocean currents — live streamlines",
+    title: "Surface currents as moving lines, shaded by their speed or by the sea "
+      + "surface temperature: Météo-France's SMOC ocean model through Open-Meteo, "
+      + "now or up to three days ahead. Click the sea to read the current at a point.",
+    info: {
+      summary: "Particles carried by the surface current on a lattice fetched over the "
+        + "world and refined over the view, ending at the coast rather than blended "
+        + "onto the land. The shading is the current's speed or the sea surface "
+        + "temperature from the same model. A model, not drifter observations; tides "
+        + "near the coast and currents at depth are not in it.",
+      citation: "Open-Meteo Marine (open-meteo.com), CC BY 4.0 — Météo-France SMOC",
+    },
+    settings: "current-flow-controls",
+    ready: () => Boolean(window.GeoIDFlow?.add),
+    layerOf: () => window.GeoIDFlow?.layerOf?.("currents") || null,
+    load: () => window.GeoIDFlow.add("currents"),
+    unload: () => window.GeoIDFlow?.remove?.("currents"),
   }, {
     id: "hydro-ocean",
     group: "Ocean",
@@ -425,6 +445,25 @@ const TILED = {
    * and the number under the cursor are one calculation.
    */
   "weather": [{
+    id: "wind-flow",
+    group: "Live fields",
+    label: "Wind — live streamlines (GFS)",
+    title: "The wind as moving lines over the globe, the way nullschool draws it: NOAA "
+      + "GFS through Open-Meteo, at 10 m or on a pressure level up to the jet stream, "
+      + "now or up to three days ahead. Click the map to read the wind at a point.",
+    info: {
+      summary: "Particles carried by the wind on a lattice fetched over the world and "
+        + "refined over the view, coloured by speed on a ramp anchored to the Beaufort "
+        + "scale, over a shaded sheet of the speed itself. A MODEL's wind at the hour "
+        + "shown — gusts, sea breezes and valley winds below its resolution are not in it.",
+      citation: "NOAA GFS via Open-Meteo (open-meteo.com), CC BY 4.0",
+    },
+    settings: "wind-flow-controls",
+    ready: () => Boolean(window.GeoIDFlow?.add),
+    layerOf: () => window.GeoIDFlow?.layerOf?.("wind") || null,
+    load: () => window.GeoIDFlow.add("wind"),
+    unload: () => window.GeoIDFlow?.remove?.("wind"),
+  }, {
     id: "climate-temperature",
     group: "Climate normals",
     label: "Mean temperature 2001–2020 (MERRA-2)",
@@ -603,6 +642,9 @@ function draw(home, hostId) {
 
 if (typeof document !== "undefined") {
   document.addEventListener("geoid-gee:catalogue", () => drawAll());
+  // A module that brings TILED rows of its own (the flow layers) says when it
+  // is up, or its rows wait for the next unrelated redraw.
+  window.addEventListener?.("geoid-gis:catalogue-changed", () => drawAll());
 }
 
 function drawAll() {
