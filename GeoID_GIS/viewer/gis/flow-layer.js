@@ -32,14 +32,14 @@
  */
 
 import * as THREE from "../vendor/three.module.js";
-import { followRelief } from "./vector-render.js?v=20261011-1f3e237";
-import { visibleBounds } from "./view-extent.js?v=20261011-1f3e237";
+import { followRelief } from "./vector-render.js?v=20261011-b88146c";
+import { visibleBounds } from "./view-extent.js?v=20261011-b88146c";
 import {
   WORLD, RAMPS, OPEN_METEO, OPEN_METEO_MARINE, planGrid, gridPoints, chunkPoints,
   requestUrl, readHourly, buildField, sampleStack, sampleScalar, advect, randomPoint,
   rampAt, rampPalette, headingOf, compassPoint, beaufort, wrapLon, RAD,
   aggregateHourly, countFinite,
-} from "./flow-field.js?v=20261011-1f3e237";
+} from "./flow-field.js?v=20261011-b88146c";
 
 /* ── the two sources ───────────────────────────────────────────────────── */
 
@@ -1053,6 +1053,81 @@ export function probeAt(lat, lon) {
   return false;
 }
 
+/**
+ * One line for the cursor: what the field under the pointer says, without a
+ * click. The hazard sheet first (it is drawn over the flow), then the
+ * currents, then the wind. Null where nothing shown answers.
+ */
+export function readAt(lat, lon) {
+  const hz = live.hazards;
+  if (hz?.layer && layerShown(hz.layer)) {
+    const value = sampleScalar(hz.stack, "value", lat, lon);
+    if (Number.isFinite(value)) {
+      const hv = HAZARD_VARS[settings.hazards.variable];
+      return `${hv.label}: ${value.toFixed(hv.unit === "J/kg" ? 0 : 1)} ${hv.unit} — ${hazardBand(settings.hazards.variable, value)}`;
+    }
+  }
+  const lines = [];
+  for (const source of ["currents", "wind"]) {
+    const state = live[source];
+    if (!state?.layer || !layerShown(state.layer)) continue;
+    const { u, v } = sampleStack(state.stack, lat, lon);
+    if (!Number.isFinite(u) || !Number.isFinite(v)) continue;
+    const speed = Math.hypot(u, v);
+    const towards = headingOf(u, v);
+    if (source === "wind") {
+      const from = (towards + 180) % 360;
+      lines.push(`Wind ${speed.toFixed(1)} m/s (${(speed * 3.6).toFixed(0)} km/h) from ${compassPoint(from)}`);
+    } else {
+      const sst = sampleScalar(state.stack, "sst", lat, lon);
+      lines.push(`Current ${speed.toFixed(2)} m/s toward ${compassPoint(towards)}${Number.isFinite(sst) ? ` · sea ${sst.toFixed(1)} °C` : ""}`);
+    }
+  }
+  return lines.length ? lines.join("\n") : null;
+}
+
+/**
+ * The hover readout, nullschool's cursor: a small tag beside the pointer
+ * reading the field under it. Throttled, and silent while a button is down
+ * (a drag is rotating the globe, not asking a question) or when nothing is
+ * shown.
+ */
+function installHoverReadout() {
+  const canvas = window.GeoIDViewer && document.querySelector("#app > canvas");
+  if (!canvas || canvas.dataset.flowHover) return Boolean(canvas);
+  canvas.dataset.flowHover = "1";
+  const tag = document.createElement("div");
+  tag.id = "flow-hover-readout";
+  tag.setAttribute("role", "status");
+  tag.style.cssText = "position:fixed;z-index:14;pointer-events:none;white-space:pre;"
+    + "font:600 11px/1.35 'Exo 2',system-ui,sans-serif;color:#eaf6ff;"
+    + "background:rgba(10,14,30,.82);border:1px solid rgba(82,228,232,.45);"
+    + "border-radius:6px;padding:3px 7px;display:none";
+  document.body.appendChild(tag);
+  let last = 0;
+  let timer = null;
+  const hide = () => { tag.style.display = "none"; };
+  canvas.addEventListener("pointerleave", hide);
+  canvas.addEventListener("pointermove", (event) => {
+    if (event.buttons) { hide(); return; }
+    if (!live.wind?.layer && !live.currents?.layer && !live.hazards?.layer) { hide(); return; }
+    const run = () => {
+      last = performance.now();
+      const at = window.GeoIDViewer?.surfaceLatLonAt?.(event.clientX, event.clientY);
+      const text = at ? readAt(at.lat, at.lon) : null;
+      if (!text) { hide(); return; }
+      tag.textContent = text;
+      tag.style.display = "block";
+      tag.style.left = `${Math.min(window.innerWidth - tag.offsetWidth - 8, event.clientX + 16)}px`;
+      tag.style.top = `${Math.max(8, event.clientY - tag.offsetHeight - 10)}px`;
+    };
+    clearTimeout(timer);
+    if (performance.now() - last > 80) run();
+    else timer = setTimeout(run, 80);
+  });
+  return true;
+}
+
 /* ── the drawers under the rows ────────────────────────────────────────── */
 
 const HOURS = [0, 3, 6, 12, 24, 48, 72];
@@ -1178,7 +1253,13 @@ function install() {
   buildDrawer("wind");
   buildDrawer("currents");
   buildHazardDrawer();
+  {
+    let tries = 0;
+    const hover = () => { if (!installHoverReadout() && (tries += 1) < 80) setTimeout(hover, 500); };
+    hover();
+  }
   window.GeoIDFlow = {
+    readAt,
     add: addSource,
     remove: removeSource,
     layerOf,

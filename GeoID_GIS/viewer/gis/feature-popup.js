@@ -20,24 +20,24 @@
  * the same order the eye reads, so the answer is the polygon you clicked.
  */
 
-import { pointInPolygon, boundsOf, haversineMetres } from "./geometry.js?v=20261011-1f3e237";
-import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20261011-1f3e237";
+import { pointInPolygon, boundsOf, haversineMetres } from "./geometry.js?v=20261011-b88146c";
+import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20261011-b88146c";
 import {
   attachReliefAttributes, followRelief, markerRingTexture,
-} from "./vector-render.js?v=20261011-1f3e237";
-import { rockClass, crustalSetting, rockClassLabel } from "./rock-class.js?v=20261011-1f3e237";
-import { lithologyLabel } from "./lithology-label.js?v=20261011-1f3e237";
-import { isIceFeature, iceCard } from "./ice-card.js?v=20261011-1f3e237";
-import { isSoilFeature, soilCard } from "./soil-card.js?v=20261011-1f3e237";
-import { waterCard, WATER_SAID } from "./water-card.js?v=20261011-1f3e237";
-import { isRiskFeature, riskCard } from "./cyclone-risk-card.js?v=20261011-1f3e237";
-import { isVolcanicRiskFeature, volcanicRiskCard } from "./volcanic-risk-card.js?v=20261011-1f3e237";
-import { isSeismicRiskFeature, seismicRiskCard } from "./seismic-risk-card.js?v=20261011-1f3e237";
-import { isEarthquakeFeature, earthquakeCard } from "./earthquake-card.js?v=20261011-1f3e237";
-import { isZoneFeature, zoneCard } from "./volcanic-zone-card.js?v=20261011-1f3e237";
+} from "./vector-render.js?v=20261011-b88146c";
+import { rockClass, crustalSetting, rockClassLabel } from "./rock-class.js?v=20261011-b88146c";
+import { lithologyLabel } from "./lithology-label.js?v=20261011-b88146c";
+import { isIceFeature, iceCard } from "./ice-card.js?v=20261011-b88146c";
+import { isSoilFeature, soilCard } from "./soil-card.js?v=20261011-b88146c";
+import { waterCard, WATER_SAID } from "./water-card.js?v=20261011-b88146c";
+import { isRiskFeature, riskCard } from "./cyclone-risk-card.js?v=20261011-b88146c";
+import { isVolcanicRiskFeature, volcanicRiskCard } from "./volcanic-risk-card.js?v=20261011-b88146c";
+import { isSeismicRiskFeature, seismicRiskCard } from "./seismic-risk-card.js?v=20261011-b88146c";
+import { isEarthquakeFeature, earthquakeCard } from "./earthquake-card.js?v=20261011-b88146c";
+import { isZoneFeature, zoneCard } from "./volcanic-zone-card.js?v=20261011-b88146c";
 import {
   canEditRow, editableFields, applyRowChange,
-} from "./table-editor.js?v=20261011-1f3e237";
+} from "./table-editor.js?v=20261011-b88146c";
 
 /* A line has no interior, so it is picked by proximity. Scaled to the view:
    8 px worth of ground at the current altitude, floored so a click at orbital
@@ -2301,6 +2301,11 @@ function install() {
      * inside its grid.
      */
     if (window.GeoIDLandslidePipeline?.probeAt?.(at.lat, at.lon)) return;
+    // The wind, the currents and the forecast hazard sheets are drawn OVER
+    // everything else, so a click while one is shown is a question about the
+    // flow -- answered before the features beneath it, or a border, a river
+    // or a geological unit under the cursor took every click.
+    if (window.GeoIDFlow?.probeAt?.(at.lat, at.lon)) return;
     const geologyHit = everything.find(
       (h) => h.layer.geologyDataset && layerHasPolygons(h.layer),
     );
@@ -2330,9 +2335,6 @@ function install() {
        */
       if (window.GeoIDSoilThickness?.probeAt?.(at.lat, at.lon)) return;
       if (window.GeoIDWorldPop?.probeAt?.(at.lat, at.lon)) return;
-      // The wind and the currents are fields, not features: a click reads the
-      // flow at the point, the way nullschool's cursor does.
-      if (window.GeoIDFlow?.probeAt?.(at.lat, at.lon)) return;
       window.GeoIDViewer?.clearSceneFlash?.();
       window.GeoIDViewer?.closeSceneFeature?.();
       hidePopup();

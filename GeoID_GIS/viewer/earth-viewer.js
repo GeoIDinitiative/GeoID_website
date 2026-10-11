@@ -2,13 +2,13 @@ import * as THREE from "./vendor/three.module.js";
 // The polygon-area rule lives in one place, with a test. Stamped by hand
 // once: stamp.py only rewrites a ?v= that already exists.
 import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
-  from "./gis/geo-utils.js?v=20261011-1f3e237";
+  from "./gis/geo-utils.js?v=20261011-b88146c";
 import { attachReliefAttributes, followRelief }
-  from "./gis/vector-render.js?v=20261011-1f3e237";
+  from "./gis/vector-render.js?v=20261011-b88146c";
 import { rockClass, crustalSetting, rockClassLabel, classificationBasis }
-  from "./gis/rock-class.js?v=20261011-1f3e237";
+  from "./gis/rock-class.js?v=20261011-b88146c";
 import { lithologyLabel }
-  from "./gis/lithology-label.js?v=20261011-1f3e237";
+  from "./gis/lithology-label.js?v=20261011-b88146c";
 
 /**
  * This module's own cache stamp, read off its own URL.
@@ -22330,9 +22330,11 @@ uniform float uViewportWidth;`,
            * seam answers true only while its sheet is visible and the point
            * is inside its grid, and it has drawn its own card by then.
            */
-          if (geologyFeature && window.GeoIDLandslidePipeline?.probeAt) {
+          if (geologyFeature && (window.GeoIDLandslidePipeline?.probeAt || window.GeoIDFlow?.probeAt)) {
             const claim = window.GeoIDViewer?.surfaceLatLonAt?.(event.clientX, event.clientY);
-            if (claim && window.GeoIDLandslidePipeline.probeAt(claim.lat, claim.lon)) return;
+            if (claim && window.GeoIDLandslidePipeline?.probeAt?.(claim.lat, claim.lon)) return;
+            // The wind and current streamlines and the hazard sheets draw over the geology.
+            if (claim && window.GeoIDFlow?.probeAt?.(claim.lat, claim.lon)) return;
           }
           if (geologyFeature) {
             openGeoPopup(geologyFeature, surfaceHit.point, clickSpinDelta);
