@@ -16,8 +16,8 @@
 
 import {
   grouped as globalGrouped, layerForDataset, HOMES,
-} from "./global-data.js?v=20261011-723e914";
-import { MAP_LAYERS, layerForMap } from "./map-layers.js?v=20261011-723e914";
+} from "./global-data.js?v=20261011-f375647";
+import { MAP_LAYERS, layerForMap } from "./map-layers.js?v=20261011-f375647";
 
 /**
  * WHICH HEADER A CATALOGUE HOME LIGHTS, READ FROM THE DOM.
@@ -50,7 +50,7 @@ const GEE_SECTION = {
 };
 const SECTIONS = [
   "geoid-controls-group",
-  "satellites-section", "gis-group-events", "gis-group-polygons",
+  "satellites-section", "traffic-section", "gis-group-events", "gis-group-polygons",
   "basemap-relief-section", "geology-section", "sea-level-section",
   "gis-group-modelled", "modelled-data-section",
 ];
@@ -99,6 +99,7 @@ function activeSections() {
     }
     const name = layer.name || "";
     if (name.startsWith("Live satellites")) { active.add("satellites-section"); return; }
+    if (name.startsWith("Live aircraft") || name.startsWith("Live ships")) { active.add("traffic-section"); return; }
     if (name === "Live events") { active.add("gis-group-events"); return; }
     if (layer.ext === "gee") {
       const home = window.GeoIDGeeCatalogue?.homeOfLayerName?.(name);

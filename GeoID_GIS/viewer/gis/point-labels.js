@@ -209,6 +209,9 @@ export function featureToItem(feature, legend = null) {
     // The card's Dimension row — the satellites put altitude, speed and
     // orbital period there.
     dimension: p.dimension || undefined,
+    // Rows a live layer brings with it (the traffic trackers' altitude, speed,
+    // registration...), written as TEXT by the card: feed values are not markup.
+    extra_rows: Array.isArray(p.extra_rows) ? p.extra_rows : undefined,
     // Declines the temporary selection label: a satellite's dot is at real
     // altitude, and a golden chip at the GROUND point below it would mark
     // the wrong place.

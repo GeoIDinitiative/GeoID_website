@@ -23688,3 +23688,67 @@ app has no risk reader, so the stage list says why it drifts there.
 Verified headless with the reader's readings stubbed (the sandbox reaches no
 WorldPop): built, saved, readings changed → stale banner, rebuilt with the new
 signature and the written Discussion kept; all 65 hub pages mount.
+
+## Air and sea traffic: the satellite tracker's arrangement over ADS-B and AIS
+
+Earth Observation ▸ Air and sea traffic (`gis/traffic.js`, the page half;
+`gis/traffic-feeds.js`, pure, 66 checks), nested beside Satellites by a MOVES
+entry. Two trackers, "Live aircraft (ADS-B)" and "Live ships (AIS)", each
+built the way the satellites are: an `addDerivedLayer` row with its eye and
+legend, dots in a nested band-198 group, a screen-space picker on a capture
+click, the corner card through `featureToItem` + `openSceneFeature` (owned
+through card-owner), a fly-to and a follow (`followFrame` imported from
+satellites.js, drag to look round, wheel to zoom, Escape to let go), and the
+craft drawn as a MODEL at true size close in — an InstancedMesh per STL part,
+camera-relative, within 2,000 lengths of the camera, the near plane lowered
+when one is close.
+
+- **Feeds a browser may call with no key of ours.** Aircraft: adsb.lol, then
+  airplanes.live (both the ADSBExchange v2 shape), then OpenSky's anonymous
+  states, tried in order with the last good one first, every 10 s over a
+  circle round the view centre (`radiusForView`, capped at 250 nm, refetched
+  early when the view moves half the radius). Ships: Fintraffic's Digitraffic
+  (CC BY 4.0) when the view is over the Baltic, else aisstream.io over a
+  WebSocket with the READER'S OWN free key, which stays in their browser
+  (`geoid-gis:aisstream-key`) and is wiped only by the explicit wipe — the
+  ordinary membership sweep must not take a free reader's ships away.
+- **One normalised record per craft** and `deadReckon` (the destination-point
+  formula, capped at 90 s) between reports; dots move once a second, models
+  every frame. Heading 511 in AIS means none (course is used); `alt_baro:
+  "ground"` means taxiing, never extrapolated; `timeMs: 0` is a time, not an
+  absence (`Number.isFinite`, or the test's own fixtures read as "now").
+- **An aircraft stands its own height above the DRAWN ground**:
+  `3.2 + elevationNormalized × getEffectiveRelief()` plus (altitude − DEM
+  ground) at true scale. Placing it above a bare sphere puts every low flight
+  inside the exaggerated relief from orbit. Read through `elevationNormalized`
+  and `latLonToVector3`, never the seam's `surfacePoint`, which CACHES by
+  position — a thousand moving craft a second would grow it for the life of
+  the page.
+- **Dots draw with the depth test OFF** (at the drawn ground the relief would
+  bury them) and the far side is put away EVERY FRAME by the tangent-plane
+  test p·c ≥ R² in the layer's frame (`dotStep`), the events' rule. A craft
+  drawn as a model wears its dot just over it, on screen.
+- **The model frame is a pure function**, `headingBasis(position, heading,
+  pitch)` in traffic-feeds.js, tested against `deadReckon` through the
+  viewer's own `latLonToVector3` formula written out independently: forward
+  is the direction of travel at five places (cos > 0.9999), port is west
+  heading north, a climb lifts the nose. Models are baked by
+  `services/bake-traffic-models.py` (stdlib, reusing the satellite bake's
+  Mesh): a generic 37.6 m airliner and a 200 m cargo ship, three parts each
+  (the tinted part wears the category colour), scaled per craft to its
+  emitter-category or AIS-dimension length — the right SIZE, not the right
+  type. Every part encloses positive volume (outward winding).
+- **What a fetch brings is drawn at once** (`tick` after every refresh), and
+  a craft focused before its first tick is placed by the fly-to itself —
+  measured, focusing a ship the moment its fetch landed found no position and
+  the flight never left.
+- The corner card renders `extra_rows` as TEXT (feed values are not markup),
+  passed through `featureToItem`; the card is redrawn with each new report
+  while open.
+
+Verified headless with the feeds mocked by `page.route` (the sandbox proxy
+refuses all four hosts): 60 aircraft drawn and legended 5/13/31/11 by band, a
+real click on a dot opening its card and flying to it, the follow holding a
+true-size airliner at 4 km with the card's altitude, speed, type and
+registration rows; 40 ships from Digitraffic, a ship followed at 270 m with
+its 109 m model; unticking both leaves no layer and no label.

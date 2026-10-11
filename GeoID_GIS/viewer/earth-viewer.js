@@ -2,13 +2,13 @@ import * as THREE from "./vendor/three.module.js";
 // The polygon-area rule lives in one place, with a test. Stamped by hand
 // once: stamp.py only rewrites a ?v= that already exists.
 import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
-  from "./gis/geo-utils.js?v=20261011-723e914";
+  from "./gis/geo-utils.js?v=20261011-f375647";
 import { attachReliefAttributes, followRelief }
-  from "./gis/vector-render.js?v=20261011-723e914";
+  from "./gis/vector-render.js?v=20261011-f375647";
 import { rockClass, crustalSetting, rockClassLabel, classificationBasis }
-  from "./gis/rock-class.js?v=20261011-723e914";
+  from "./gis/rock-class.js?v=20261011-f375647";
 import { lithologyLabel }
-  from "./gis/lithology-label.js?v=20261011-723e914";
+  from "./gis/lithology-label.js?v=20261011-f375647";
 
 /**
  * This module's own cache stamp, read off its own URL.
@@ -6386,6 +6386,8 @@ function fmtProp(value) {
         feature.depth       ? ["Depth",       feature.depth]       : null,
         feature.composition ? ["Composition", feature.composition] : null,
         feature.temperature ? ["Temperature", feature.temperature] : null,
+        // A live layer's own rows (gis/traffic.js): text, never markup.
+        ...(Array.isArray(feature.extra_rows) ? feature.extra_rows.filter((r) => Array.isArray(r) && r.length === 2) : []),
       ].filter(Boolean);
       if (extraFields.length > 0) {
         for (const [key, val] of extraFields) {

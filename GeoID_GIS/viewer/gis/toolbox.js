@@ -1,7 +1,7 @@
-import { escapeHtml } from "./escape-html.js?v=20261011-723e914";
-import { CRS_OPTIONS, transform } from "./projection.js?v=20261011-723e914";
-import { currentBody } from "./bodies.js?v=20261011-723e914";
-import { rowsToCsv, downloadText } from "./extraction.js?v=20261011-723e914";
+import { escapeHtml } from "./escape-html.js?v=20261011-f375647";
+import { CRS_OPTIONS, transform } from "./projection.js?v=20261011-f375647";
+import { currentBody } from "./bodies.js?v=20261011-f375647";
+import { rowsToCsv, downloadText } from "./extraction.js?v=20261011-f375647";
 
 // GIS mode presents a toolbox rather than a control centre: the whole GeoID
 // control set folds into one group, and the tool groups stack beneath it.
@@ -92,6 +92,9 @@ const MOVES = [
    */
   { id: "sea-level-section", host: "earth-system-water-host", unlessDropped: "gis-group-modelled" },
   { id: "satellites-section", host: "earth-system-satellites-host", unlessDropped: "gis-group-modelled" },
+  // Air and sea traffic sits beside the satellites: the same kind of live
+  // tracker, read the same way. Earth only (the markup is Earth's).
+  { id: "traffic-section", host: "earth-system-satellites-host", unlessDropped: "gis-group-modelled" },
   { id: "gis-group-geoid", host: "hazards-mygeoid-host", unlessDropped: "modelled-data-section" },
   // Sources and metadata belong with the layer provenance they sit beside.
   { id: "metadata-section", host: "geoid-metadata-host" },

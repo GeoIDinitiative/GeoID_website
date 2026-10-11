@@ -1,12 +1,18 @@
 /**
  * Clear every credential this app keeps in a browser.
  *
- * FOUR THINGS ARE STORED, and each is somebody's own rather than ours:
+ * FIVE THINGS ARE STORED, and each is somebody's own rather than ours:
  *
  *   geoid-gis:gee-endpoint        the Earth Engine service address
  *   geoid-gis:google-credentials  a Google OAuth Client ID, for Docs and Sheets
  *   geoid-gis:sidecar             the local sidecar's host AND ITS TOKEN
  *   geoid-gis:atlas-endpoint      an Atlas hub address
+ *   geoid-gis:aisstream-key       the reader's OWN aisstream.io key, for ships
+ *
+ * The last is cleared only by the explicit wipe. It is a free key the reader
+ * signed up for themselves, it unlocks nothing of ours, and the ship tracker
+ * is not behind membership -- clearing it because membership is locked would
+ * take a free reader's ships away at every load.
  *
  * NONE OF THEM IS A SECRET OF OURS. The Earth Engine endpoint has never been
  * one — what protects it is ALLOWED_ORIGINS on the deployment, which
@@ -22,7 +28,7 @@
  * the same events; that stays, because the reader of a value should refuse it
  * whatever else has run. This is the sweep beside it.
  */
-import { may } from "./membership.js?v=20261011-723e914";
+import { may } from "./membership.js?v=20261011-f375647";
 
 /**
  * Every key, and which feature it belongs to.
@@ -36,6 +42,7 @@ const CREDENTIALS = [
   { key: "geoid-gis:google-credentials", feature: null, what: "the Google Client ID" },
   { key: "geoid-gis:sidecar", feature: null, what: "the local sidecar and its token" },
   { key: "geoid-gis:atlas-endpoint", feature: null, what: "the Atlas hub" },
+  { key: "geoid-gis:aisstream-key", feature: null, explicitOnly: true, what: "your aisstream.io key" },
 ];
 
 /** Names only — never values. A log line is not the place for a credential. */
@@ -54,9 +61,9 @@ export function storedCredentials() {
  */
 export function wipeCredentials({ everything = false } = {}) {
   const gone = [];
-  for (const { key, feature, what } of CREDENTIALS) {
+  for (const { key, feature, explicitOnly, what } of CREDENTIALS) {
     const locked = feature ? !may(feature) : !may("gee");
-    if (!everything && !locked) continue;
+    if (!everything && (explicitOnly || !locked)) continue;
     try {
       if (window.localStorage.getItem(key) === null) continue;
       window.localStorage.removeItem(key);

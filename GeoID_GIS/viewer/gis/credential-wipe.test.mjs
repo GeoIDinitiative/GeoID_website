@@ -32,6 +32,7 @@ const CREDENTIALS = [
   "geoid-gis:google-credentials",
   "geoid-gis:sidecar",
   "geoid-gis:atlas-endpoint",
+  "geoid-gis:aisstream-key",
 ];
 // Everything else a reader has: their work, their preferences, their session.
 const KEEP = [
@@ -61,7 +62,7 @@ for (const k of CREDENTIALS) check(`${k} is cleared`, !storage.has(k));
 // particular words. "the local sidecar and its token" is a description of what
 // was cleared, which is exactly what a log line should say.
 check("it reports what it cleared, and never a stored value",
-  gone.length === 4 && gone.every((g) => !g.includes("SECRET-VALUE")),
+  gone.length === 5 && gone.every((g) => !g.includes("SECRET-VALUE")),
   gone.join(", "));
 
 // ── 2. And NOTHING else does ──────────────────────────────────────────────
@@ -74,9 +75,19 @@ for (const k of KEEP) check(`${k} SURVIVES`, storage.get(k) === "mine");
 
 seed();
 const held = storedCredentials();
-check("it lists what is held", held.length === 4, JSON.stringify(held.map((h) => h.key)));
+check("it lists what is held", held.length === 5, JSON.stringify(held.map((h) => h.key)));
 check("...naming the keys and what they are for, never the values",
   held.every((h) => h.key && h.what && !("value" in h)), JSON.stringify(held[0]));
+
+// ── 3b. The reader's own AIS key goes only when asked ─────────────────────
+
+// Locked (no membership here), the ordinary sweep clears what membership
+// configured -- and must leave the ship tracker's key, which is the reader's
+// own and unlocks nothing of ours.
+seed();
+wipeCredentials();
+check("the ordinary sweep leaves the reader's own aisstream key", storage.get("geoid-gis:aisstream-key") === "SECRET-VALUE-something");
+check("...while clearing what membership configured", !storage.has("geoid-gis:gee-endpoint"));
 
 // ── 4. Clearing an empty store is a no-op rather than an error ────────────
 
