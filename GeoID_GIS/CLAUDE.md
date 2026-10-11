@@ -23372,3 +23372,19 @@ What changed is that nobody arriving by the button reaches it.
 The four measurement CSV exports on the tool rail (distance, area, profile,
 points) are NOT gated and are not marked — they write out what the reader just
 measured, not what the app computed.
+
+## Satellites are drawn at TRUE SIZE, camera-relative
+
+Supersedes the "not to scale" model above. `halfSpanKm(record)` gives each
+satellite its real half-span (category defaults; the ISS 54.5 m, Tiangong 27,
+Hubble 6.6), the model is placed only within about a pixel of being visible
+(`modelFarKm`, 2,000 half-spans), the flight lands at 8 half-spans (`landKm`:
+436 m from the ISS), scrolling stops at 1.6 (`followMinKm`: 87 m), and the
+follow lasts until the globe is dragged rather than 20 s — at 7.7 km/s an
+expiring follow leaves a 30 m view empty in a frame.
+
+**Camera-relative, or a 10 m object shimmers.** At 6,800 km from the centre
+one float32 step is half a metre, so the model group sits AT THE CAMERA (in
+the tracker's frame) and each instance is its offset from it; the large
+translation cancels in double precision on the CPU. Verified headless: ISS
+followed at 436 m, wheel to 87 m, models gone at 23,000 km.

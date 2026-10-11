@@ -1082,15 +1082,22 @@ function onMove(event) {
  * colour: gold-foil body, solar wings, white dish, and a band tinted with the
  * satellite's own category colour. Each part is ONE InstancedMesh of
  * `MODEL_MAX`, so a hundred satellites close in cost four draw calls, and
- * only the nearest `MODEL_MAX` within `MODEL_FAR_KM` of the camera are ever
+ * only the nearest `MODEL_MAX` within a pixel of being visible (`modelFarKm`) are ever
  * placed.
  *
- * NOT TO SCALE, and deliberately. A real satellite is tens of metres; from
- * the hundreds of kilometres the camera can sensibly be from one it would be
- * under a pixel. The model is held at an angular size that grows as the
- * camera closes (and grows in from nothing past `MODEL_FAR_KM`, so the swap
- * from dot to model is a growth rather than a pop), and only reaches its
- * true size inside a kilometre or so.
+ * TRUE SIZE. Each satellite is drawn at its real span (`halfSpanKm`): the ISS
+ * at 109 m, Hubble at 13, a GPS satellite at 19, a OneWeb at 6. From afar
+ * that is under a pixel and the colour-coded dot carries it; the model is
+ * placed only once it would be about a pixel across (`modelFarKm`), so it
+ * arrives as a speck and grows by perspective alone. The flight to a
+ * satellite lands a few spans from it, which is the only way to see a
+ * real-sized one at all.
+ *
+ * CAMERA-RELATIVE. A 10 m object 6,800 km from the planet's centre is below
+ * float32's resolution there (one step is half a metre at that radius), so
+ * the model group sits AT THE CAMERA and each instance is placed by its
+ * offset from it. The large translation then cancels in double precision on
+ * the CPU and the model does not shimmer at arm's length.
  *
  * Placed EVERY FRAME, from SGP4 at the viewer's clock, in the scene's
  * `onBeforeRender` — the dots move every 1.5 s, which from 150 km away is a
@@ -1105,19 +1112,50 @@ const MODEL_PARTS = [
   { file: "satellite_accent.stl", colour: 0xffffff, metalness: 0.2, roughness: 0.5, emissive: 0x161616, tinted: true },
 ];
 const MODEL_VERSION = "1";
-const MODEL_FAR_KM = 2500;      // the model starts to grow in here
-const MODEL_FULL_KM = 1900;     // and is fully grown here
 const MODEL_MAX = 24;
-const MODEL_REAL_HALF_KM = 0.012;
-/** Angular half-size of the model, in radians, at a camera distance. */
-function modelAngularHalf(distanceKm) {
-  return Math.min(0.2, Math.max(0.032,
-    0.032 * Math.pow(MODEL_FAR_KM / Math.max(distanceKm, 1e-6), 0.38)));
+/**
+ * Real half-spans in METRES — the longest dimension, arrays out — by
+ * category, with the few objects big enough to be worth naming. A category
+ * is a fair stand-in: the shape is generic, and what a reader needs from it
+ * is the right size beside the ground and beside each other.
+ */
+const HALF_SPAN_M_BY_CATEGORY = {
+  "Space stations": 30,
+  Science: 6,
+  "Bright (visual)": 5,
+  Weather: 6,
+  Navigation: 9,
+  Geostationary: 17,
+  "OneWeb constellation": 3,
+};
+const HALF_SPAN_M_BY_NAME = [
+  [/^ISS\b|ZARYA/i, 54.5],     // 109 m truss
+  [/TIANHE|^CSS\b/i, 27],      // Tiangong with its arrays
+  [/^HST$|HUBBLE/i, 6.6],       // 13.2 m long
+];
+const DEFAULT_HALF_SPAN_M = 5;
+/** A satellite's real half-span, in km (cached on the record). */
+function halfSpanKm(record) {
+  if (record.halfKm) return record.halfKm;
+  let metres = HALF_SPAN_M_BY_CATEGORY[record.category] ?? DEFAULT_HALF_SPAN_M;
+  for (const [pattern, m] of HALF_SPAN_M_BY_NAME) {
+    if (pattern.test(record.name || "")) { metres = m; break; }
+  }
+  record.halfKm = metres / 1000;
+  return record.halfKm;
 }
-/** Where the flight to a satellite lands, and the follow's limits. */
-const LAND_KM = 160;
-const FOLLOW_MS = 20000;
-const FOLLOW_MIN_KM = 0.5;
+/**
+ * Beyond about 2,000 half-spans a satellite is under a pixel on an ordinary
+ * screen (a 45° view over 800 px is a milliradian a pixel), so there is no
+ * model worth placing; the dot is the satellite there.
+ */
+function modelFarKm(record) {
+  return Math.max(5, halfSpanKm(record) * 2000);
+}
+/** Where the flight lands: far enough that the whole satellite is in view. */
+function landKm(record) { return halfSpanKm(record) * 8; }
+/** The closest a scroll may bring the camera: just clear of the arrays. */
+function followMinKm(record) { return halfSpanKm(record) * 1.6; }
 const FOLLOW_MAX_KM = 6000;
 
 let modelPromise = null;
@@ -1278,8 +1316,6 @@ function modelStep(camera, date, gmst) {
   // The camera, in the group's own frame (the dots' frame).
   _scratch.inverse.copy(active.group.matrixWorld).invert();
   const camLocal = _scratch.camLocal.copy(camera.position).applyMatrix4(_scratch.inverse);
-  const farUnits = MODEL_FAR_KM * KM_TO_UNITS;
-  const far2 = farUnits * farUnits;
   const candidates = [];
   const followed = active.follow?.record || null;
   for (let i = 0; i < active.records.length; i += 1) {
@@ -1289,7 +1325,8 @@ function modelStep(camera, date, gmst) {
     const dy = array[i * 3 + 1] - camLocal.y;
     const dz = array[i * 3 + 2] - camLocal.z;
     const d2 = dx * dx + dy * dy + dz * dz;
-    if (d2 < far2 || record === followed) candidates.push({ i, d2: record === followed ? -1 : d2 });
+    const far = modelFarKm(record) * KM_TO_UNITS;
+    if (d2 < far * far || record === followed) candidates.push({ i, d2: record === followed ? -1 : d2 });
   }
   if (candidates.length && !modelData) { loadModel(); }
   if (!models) {
@@ -1304,6 +1341,12 @@ function modelStep(camera, date, gmst) {
   const upLocal = _scratch.upLocal.set(0, 1, 0).applyQuaternion(camera.quaternion)
     .applyMatrix3(_scratch.rotation).normalize();
 
+  // The models are placed relative to the CAMERA (see the header): the group
+  // sits at the camera, in the tracker's own frame, and each instance is its
+  // offset from it.
+  active.models.group.position.copy(camLocal);
+  active.models.group.updateMatrixWorld(true);
+
   const keep = new Set();
   let count = 0;
   let nearestClear = Infinity;
@@ -1313,12 +1356,7 @@ function modelStep(camera, date, gmst) {
     if (!placeOf(record, date, gmst, _scratch.pos, _scratch.vel)) continue;
     const pos = _scratch.pos;
     const distance = pos.distanceTo(camLocal);
-    const distanceKm = distance / KM_TO_UNITS;
-    const t = Math.min(1, Math.max(0, (MODEL_FAR_KM - distanceKm) / (MODEL_FAR_KM - MODEL_FULL_KM)));
-    const grow = record === followed ? 1 : t * t * (3 - 2 * t);
-    if (grow <= 0.001) continue;
-    const half = Math.max(MODEL_REAL_HALF_KM * KM_TO_UNITS,
-      distance * modelAngularHalf(distanceKm)) * grow;
+    const half = halfSpanKm(record) * KM_TO_UNITS;
 
     // Nadir-pointing, flying along its velocity: +Z zenith, +X along-track,
     // +Y the orbit normal (the wings' axis).
@@ -1329,9 +1367,9 @@ function modelStep(camera, date, gmst) {
     const normal = _scratch.normal.crossVectors(zenith, along).normalize();
     const scale = half / modelData.radius;
     _scratch.matrix.set(
-      along.x * scale, normal.x * scale, zenith.x * scale, pos.x,
-      along.y * scale, normal.y * scale, zenith.y * scale, pos.y,
-      along.z * scale, normal.z * scale, zenith.z * scale, pos.z,
+      along.x * scale, normal.x * scale, zenith.x * scale, pos.x - camLocal.x,
+      along.y * scale, normal.y * scale, zenith.y * scale, pos.y - camLocal.y,
+      along.z * scale, normal.z * scale, zenith.z * scale, pos.z - camLocal.z,
       0, 0, 0, 1,
     );
     _scratch.colour.set(colourFor(record));
@@ -1387,7 +1425,6 @@ function followStep(camera, date, gmst) {
     if (now - follow.flyStarted > follow.flyMs + 1500) endFollow();
     return;
   }
-  if (now > follow.until) { endFollow(); return; }
   if (!placeOf(record, date, gmst, _scratch.pos)) return;
   const world = _scratch.world.copy(_scratch.pos).applyMatrix4(active.group.matrixWorld);
   const radius = world.length();
@@ -1424,8 +1461,7 @@ function onFollowWheel(event) {
   const unit = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? 400 : 1;
   const next = follow.dist * Math.exp(event.deltaY * unit * 0.0015);
   if (next > FOLLOW_MAX_KM * KM_TO_UNITS) { endFollow(); return; }
-  follow.dist = Math.max(FOLLOW_MIN_KM * KM_TO_UNITS, next);
-  follow.until = performance.now() + FOLLOW_MS;
+  follow.dist = Math.max(followMinKm(follow.record) * KM_TO_UNITS, next);
 }
 
 /** A press on the globe (the start of a drag) hands the camera back. */
@@ -1464,7 +1500,7 @@ function flyToSatellite(record) {
   if (!placeOf(record, endSim, satellite.gstime(endSim), _scratch.pos)) return false;
   const local = _scratch.pos.clone().applyAxisAngle(new THREE.Vector3(0, 1, 0), clockRate.spin * durationMs);
   const endWorld = local.applyMatrix4(active.group.matrixWorld);
-  const landDist = LAND_KM * KM_TO_UNITS;
+  const landDist = landKm(record) * KM_TO_UNITS;
   const endPosition = endWorld.clone().multiplyScalar((endWorld.length() + landDist) / endWorld.length());
   endFollow();
   viewer.clearZoomTarget?.();
@@ -1474,7 +1510,6 @@ function flyToSatellite(record) {
     dist: landDist,
     flyStarted: performance.now(),
     flyMs: durationMs,
-    until: 0,
   };
   window.addEventListener("wheel", onFollowWheel, { capture: true, passive: false });
   const ok = viewer.flyCameraTo(endPosition, {
@@ -1486,8 +1521,7 @@ function flyToSatellite(record) {
       follow.phase = "follow";
       follow.landedAt = performance.now();
       follow.blendFrom = camera.position.clone();
-      follow.until = performance.now() + FOLLOW_MS;
-      say(`Following ${record.name} — scroll to zoom on it, drag the globe to let go.`);
+      say(`Following ${record.name} at true size (${Math.round(halfSpanKm(record) * 2000)} m across) — scroll to zoom, drag the globe to let go.`);
     },
   });
   if (!ok) { endFollow(); return false; }
