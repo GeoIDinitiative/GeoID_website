@@ -110,7 +110,6 @@
     }
     .boot-cap b { display: block; color: var(--boot-ink); font-weight: 600; font-size: 1.25em; letter-spacing: 0.06em; }
     .boot-cap small { display: block; font-size: 0.75em; color: rgba(255, 255, 255, 0.35); letter-spacing: 0.2em; }
-    .boot-cap .n { display: inline-block; margin-top: 0.7em; padding: 0.25em 0.7em; border: 1px solid var(--boot-bracket); color: var(--boot-bracket); font-size: 0.75em; }
     .boot-flare { position: absolute; top: 0; bottom: 0; width: 18%; left: -20%; opacity: 0; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.35), transparent); transform: skewX(-18deg); pointer-events: none; }
     .boot-field::before {
       content: ""; position: absolute; inset: 0; pointer-events: none; z-index: 1;
@@ -1444,7 +1443,7 @@
   <div class="boot" id="boot" role="status" aria-live="polite" aria-label="GeoHUB is starting">
     <div class="boot-field">
       <div class="boot-montage" id="boot-montage"></div>
-      <div class="boot-cap" id="boot-cap"><small class="c-kind">Frame</small><b class="c-place">—</b><small class="c-coord">—</small><small class="c-src">—</small><span class="n c-n">— / —</span></div>
+      <div class="boot-cap" id="boot-cap"><small class="c-kind">Frame</small><b class="c-place">—</b><small class="c-coord">—</small><small class="c-src">—</small></div>
       <div class="boot-log" id="boot-log">
         <div>▸ shell <i>ready</i> <em>✓</em></div>
         <div>▸ terrain tiles <i>streaming</i> <em>✓</em></div>
@@ -1621,7 +1620,7 @@
         var imgs = frames.map(function (f) { var im = new Image(); im.alt = ""; im.decoding = "async"; im.style.transitionDuration = fade + "ms"; montage.appendChild(im); return im; });
         var want = function (n) { var im = imgs[n % imgs.length]; if (!im.getAttribute("src")) im.src = "/load_screen/earth/" + frames[n % frames.length].file; };
         want(0); want(1);
-        var cap = { kind: capEl.querySelector(".c-kind"), place: capEl.querySelector(".c-place"), coord: capEl.querySelector(".c-coord"), src: capEl.querySelector(".c-src"), n: capEl.querySelector(".c-n") };
+        var cap = { kind: capEl.querySelector(".c-kind"), place: capEl.querySelector(".c-place"), coord: capEl.querySelector(".c-coord"), src: capEl.querySelector(".c-src") };
         var i = -1, timer = null, shownOnce = false;
         function show(n) {
           if (over) return;
@@ -1631,9 +1630,7 @@
           want(i + 2);
           if (!RM) imgs[i].animate([{ transform: "scale(1.06) translate(" + (i % 2 ? 1 : -1) + "%, 0)" }, { transform: "scale(1.14) translate(" + (i % 2 ? -1 : 1) + "%, -1%)" }], { duration: hold + fade + 400, fill: "forwards", easing: "linear" });
           var f = frames[i];
-          cap.kind.textContent = f.kind || "Frame"; cap.place.textContent = f.place || ""; cap.coord.textContent = f.coord || ""; cap.src.textContent = f.src || "";
-          cap.n.textContent = String(i + 1).padStart(2, "0") + " / " + String(frames.length).padStart(2, "0");
-          if (!shownOnce) { shownOnce = true; capEl.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 500, delay: 200, fill: "forwards" }); }
+          cap.kind.textContent = f.kind || "Frame"; cap.place.textContent = f.place || ""; cap.coord.textContent = f.coord || ""; cap.src.textContent = f.src || "";          if (!shownOnce) { shownOnce = true; capEl.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 500, delay: 200, fill: "forwards" }); }
           else cue.frame();
           timer = setTimeout(function () { show(i + 1); }, hold + fade);
         }

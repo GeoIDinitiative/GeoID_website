@@ -505,6 +505,7 @@ function render() {
   const fresh = arrivals(lastKeys, keys);
   const wasDescribing = lastKeys.length;
   lastKeys = keys;
+  nodes.forEach(collapseSingleSymbol);
   nodes.forEach(makeFoldable);
   if (!nodes.length) { setOpen(false); return; }
   /**
@@ -578,6 +579,78 @@ function entryCount(card) {
   return card.querySelectorAll(".legend-symbol-row").length
     + card.querySelectorAll(".legend-class").length
     + card.querySelectorAll(".legend-ramp").length;
+}
+
+/**
+ * Is this card ONE symbol -- and so owed the Plate Boundaries shape?
+ *
+ * Pure, so the rule is pinned under node. A card is single-symbol when it
+ * keys exactly one swatch-bearing thing (a symbol row or one class) and no
+ * ramp or gradient; or when its head already carries the mark (the layer
+ * box's own single-symbol cards) -- then anything still hanging under the
+ * head is extra text. A card that asked to start folded (the basemap, whose
+ * one swatch has a licence paragraph under it) is a different claim and is
+ * left alone.
+ */
+export function isSingleSymbolCard({ rows = 0, classes = 0, ramps = 0, gradients = 0,
+  headMark = false, foldCollapsed = false } = {}) {
+  if (foldCollapsed) return false;
+  if (ramps || gradients) return false;
+  if (headMark) return rows + classes === 0;
+  return rows + classes === 1;
+}
+
+/**
+ * EVERY SINGLE-SYMBOL ENTRY READS LIKE PLATE BOUNDARIES: one line, the mark
+ * on the left of the name, nothing under it.
+ *
+ * The layer box already built its no-palette layers that way; everything else
+ * did not -- a one-colour repaint (`paintSingle`) arrived as a class list of
+ * one row saying "4,023 lines", and the viewer's overlays as a head plus a
+ * symbol row plus descriptive copy. Normalising here, at the one place every
+ * source passes through, is what makes "every" true rather than true of the
+ * builders somebody remembered to fix. Idempotent: a collapsed card has no
+ * rows left and a mark in its head, so a re-render leaves it as it is.
+ */
+function collapseSingleSymbol(card) {
+  if (!card || card.dataset.singleSymbol === "1") return;
+  const badge = card.querySelector(".layer-type-badge, .legend-name");
+  if (!badge) return;
+  const rows = card.querySelectorAll(".legend-symbol-row");
+  const classes = card.querySelectorAll(".legend-class");
+  const shape = {
+    rows: rows.length,
+    classes: classes.length,
+    ramps: card.querySelectorAll(".legend-ramp").length,
+    gradients: card.querySelectorAll(".legend-gradient-block").length,
+    headMark: !!badge.querySelector(".legend-swatch"),
+    foldCollapsed: card.dataset.legendFold === "collapsed",
+  };
+  if (!isSingleSymbolCard(shape)) return;
+  if (!shape.headMark) {
+    const row = rows[0] || classes[0];
+    const from = row.querySelector(".legend-swatch, .legend-line, .legend-dot, .legend-class-swatch");
+    const mark = document.createElement("span");
+    mark.className = "legend-swatch";
+    if (from) {
+      const cls = from.classList;
+      if (cls.contains("legend-line") || cls.contains("is-line")) mark.classList.add("is-line");
+      else if (cls.contains("legend-dot") || cls.contains("is-point")) mark.classList.add("is-point");
+      // A `.legend-line` is painted by its top border, not its background.
+      mark.style.background = from.style.background
+        || from.style.borderTopColor || from.style.backgroundColor || "";
+      if (from.style.borderColor) mark.style.borderColor = from.style.borderColor;
+    }
+    badge.prepend(mark);
+  }
+  // Everything after the head is a count, a note or copy -- extra text.
+  let node = badge.nextSibling;
+  while (node) {
+    const next = node.nextSibling;
+    node.remove();
+    node = next;
+  }
+  card.dataset.singleSymbol = "1";
 }
 
 function makeFoldable(card) {
