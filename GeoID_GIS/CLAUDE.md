@@ -23587,3 +23587,17 @@ ten storm futures in 31, the 90th-percentile member 0.24 against a median of
 0.6 m surge screen, ash 1.25 while the wind blew toward the place, the seismic
 and volcanic grids read untickled, and "Very high risk to people" at 21,900
 within 5 km.
+
+## The ⓘ guide explains Earth Engine and projects, and its buttons are the real doors
+
+`#viewer-help-gee` in the Earth guide walks through using GeoID's endpoint,
+registering a Cloud project (and its SERVICE ACCOUNT — the project alone fails
+on the first request), deploying `services/gee-tiles` (the README's own
+command, pinned against it), pointing Settings ▸ Earth Engine at it, the exact
+form of an `ALLOWED_ORIGINS` entry, a project folder, and the sidecar.
+`gis/gee-help.js` wires four buttons to the controls the text names: the
+connection check (`GeoIDGeeCatalogue.check()` — asks this page's own
+endpoint's `?list` and says whose endpoint, how many curated collections, and
+whether the build resolves Google's whole catalogue), Settings with the
+endpoint field focused, the catalogue window, and the project dialog. A door
+not on the page is disabled, so the guide cannot point at nothing.

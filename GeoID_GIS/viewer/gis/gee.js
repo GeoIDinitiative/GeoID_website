@@ -10,26 +10,26 @@
 // its own opacity and draw order, is listed in the legend, and carries its
 // source and licence into the metadata panel like anything else imported.
 
-import { escapeHtml } from "./escape-html.js?v=20261011-cca6030";
-import { attachReliefAttributes, attachExactReliefAttributes, followRelief } from "./vector-render.js?v=20261011-cca6030";
-import { latLonToVector3, drapedRadius } from "./geo-utils.js?v=20261011-cca6030";
-import { geeSamplerFromImage, columnName } from "./gee-sample.js?v=20261011-cca6030";
+import { escapeHtml } from "./escape-html.js?v=20261011-805deda";
+import { attachReliefAttributes, attachExactReliefAttributes, followRelief } from "./vector-render.js?v=20261011-805deda";
+import { latLonToVector3, drapedRadius } from "./geo-utils.js?v=20261011-805deda";
+import { geeSamplerFromImage, columnName } from "./gee-sample.js?v=20261011-805deda";
 import { visibleBounds, viewChangedEnough, onViewSettled }
-  from "./view-extent.js?v=20261011-cca6030";
+  from "./view-extent.js?v=20261011-805deda";
 import {
   resolvePolygonExtent, refreshPolygonOptions, promptDrawTool, drawnOverlayBounds,
   persistExtent,
-} from "./extent-picker.js?v=20261011-cca6030";
-import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20261011-cca6030";
+} from "./extent-picker.js?v=20261011-805deda";
+import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20261011-805deda";
 import {
   // Aliased: this module already has a `loadCatalogue`, which fills the
   // dropdown from the SERVICE. Two catalogues, and the names have to say so.
   loadCatalogue as loadGeeCatalogue,
   catalogueReady, searchCatalogue, categories, datasetById, describeDataset,
   freshness, isNewDataset, isExtendedDataset, indexedHrefs, bakedOn,
-} from "./gee-catalogue-index.js?v=20261011-cca6030";
-import { checkCatalogue, describeCheck } from "./gee-watch.js?v=20261011-cca6030";
-import { may, refusal, dataPass } from "./membership.js?v=20261011-cca6030";
+} from "./gee-catalogue-index.js?v=20261011-805deda";
+import { checkCatalogue, describeCheck } from "./gee-watch.js?v=20261011-805deda";
+import { may, refusal, dataPass } from "./membership.js?v=20261011-805deda";
 
 // The page's own stamp. A dynamic import under any other query is a SECOND
 // module instance with its own state — the trap that made a stopped player
@@ -918,6 +918,31 @@ function geeCatalogueSeam() {
      * lets + GEE be wired the same way.
      */
     open(homeName) { return openGeeDialog(homeName || ""); },
+    /**
+     * The connection, checked on request — the guide's "Check my Earth Engine
+     * connection". Says which endpoint it asked, whether it answered, how many
+     * curated collections it serves and whether it resolves Google's whole
+     * catalogue, in the words the guide uses. Never throws.
+     */
+    async check() {
+      const url = endpoint();
+      if (!url) return { ok: false, endpoint: "", reason: "locked", text: "Earth Engine is part of membership — sign in, or use the master key in Settings for development." };
+      const own = (() => { try { return Boolean(window.localStorage.getItem(ENDPOINT_KEY)); } catch { return false; } })();
+      try {
+        const response = await serviceFetch(`${url}?list`);
+        if (!response.ok) return { ok: false, endpoint: url, own, text: `The endpoint answered HTTP ${response.status}. If it is your own deployment, check the function's logs and that the service account is registered for Earth Engine.` };
+        const data = await response.json();
+        const n = Array.isArray(data.datasets) ? data.datasets.length : 0;
+        return {
+          ok: n > 0, endpoint: url, own, datasets: n, catalogue: Boolean(data.catalogue),
+          text: n ? `Connected to ${own ? "your own" : "GeoID's"} endpoint: ${n} curated collection(s)`
+            + `${data.catalogue ? ", and every dataset in Google's published catalogue" : " — an older build, so only those (redeploy to serve the whole catalogue)"}.`
+            : "The endpoint answered with no datasets — is it the Earth Engine image service?",
+        };
+      } catch (error) {
+        return { ok: false, endpoint: url, own, text: `No answer (${error.message}). A CORS failure looks like this: the page's origin must be in the function's ALLOWED_ORIGINS exactly — scheme, host and port, no trailing slash.` };
+      }
+    },
     // Closed from outside too: its doorway toggles, as every other Workspace
     // door does, and a modal closes on Escape.
     close() { closeGeeDialog(); },
