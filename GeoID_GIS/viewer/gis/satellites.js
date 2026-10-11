@@ -342,7 +342,11 @@ function tick() {
     record.dead = false;
     const ecf = satellite.eciToEcf(state.eci, gmst);
     ecfToScene(ecf, scratch);
-    positions.setXYZ(i, scratch.x, scratch.y, scratch.z);
+    // A dot drawn over its close-in model is placed every frame by
+    // modelStep, lifted above the model; this coarser pass leaves it alone,
+    // or for one frame in every tick the dot (and its tag) drops onto the
+    // middle of the model.
+    if (!active.lifted?.has(i)) positions.setXYZ(i, scratch.x, scratch.y, scratch.z);
     record.feature.geometry.coordinates[0] = +state.lon.toFixed(4);
     record.feature.geometry.coordinates[1] = +state.lat.toFixed(4);
     Object.assign(record.feature.properties, satelliteProperties(record, state));
