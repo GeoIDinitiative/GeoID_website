@@ -494,7 +494,11 @@ check("no timestamp gets a sensible middle", recencyOpacity(null, now, day), 0.8
     && /if \(clashes\) \{ chip\.style\.display = "none"; continue; \}/.test(src), true);
   /* Measured over the Aleutians at 150, 80, 40 and 15 km: 7 to 8 chips and
      zero overlapping pairs at every one. */
-  check("nothing behind the globe is named", /world\.dot\(camera\.position\) <= 0/.test(src), true);
+  /* Nothing over the HORIZON is named -- the markers' own tangent-plane test,
+     p . c >= R^2 in the cloud's frame. The hemisphere test this replaced
+     (world . camera > 0) named events a continent away at close zoom. */
+  check("nothing over the horizon is named", /truth\[i \* 3\] \* cam\.x \+ truth\[i \* 3 \+ 1\] \* cam\.y \+ truth\[i \* 3 \+ 2\] \* cam\.z < horizon\) return;/.test(src), true);
+  check("and the hemisphere test is gone", /world\.dot\(camera\.position\) <= 0/.test(src), false);
   /* The chips are DOM and outlive the frame loop unless taken down with it. */
   check("switching the feed off takes the chips down",
     /if \(!active\) \{ sizeFrame = null; hideLabels\(\); return; \}/.test(src), true);

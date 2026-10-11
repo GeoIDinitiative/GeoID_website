@@ -23636,3 +23636,16 @@ Verified with a mocked service (25 synthetic JJA scenes, 64 × 48, the east half
 warming 0.8 °C/decade, a no-data corner): 25 renders, trend 0.75 °C/decade
 east (palette quantisation) at p 3e-7 and 0 west at p 0.98; 1,536 of 3,036
 valid pixels significant — exactly the east half; area trend 0.40 = half of it.
+
+## The events' name chips used a HEMISPHERE test, and named a continent
+
+Reported from 20 km over Norway, oblique: chips for floods in Iceland, Spain
+and Portugal, wildfires in Ukraine and Albania and a Greek earthquake, drawn
+over the fjords with no marker under any of them. The label pass culled with
+`world · camera > 0` — which keeps the whole near HEMISPHERE, not what is above
+the horizon. The markers were right all along: `cullBehindGlobe` uses the
+tangent-plane test p · c ≥ R² in the cloud's own frame. The chips now use the
+same test in the same frame (and skip a hidden cloud). At 20 km up an event
+1,500 km away is 13.5° round: p · c ≈ 9.99 < R² = 10.24, culled; the old test
+passed it. The pin that asserted the hemisphere test was re-argued, not
+deleted. Any "behind the globe" check must be the horizon, not the hemisphere.

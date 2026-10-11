@@ -16,9 +16,9 @@ import {
   gdacsPoints, resolveColour,
   MARKER_LIFT_MAX, liftForAltitude, dotSizePx, isQuake, publisherOf, restoreActive,
   stormCategory, stormScale, stormLabel, STORM_BASE_CAP, markerHitGeometry, nearestHit,
-} from "./event-sources.js?v=20261011-80184c0";
-import { escapeHtml, safeUrl } from "./escape-html.js?v=20261011-80184c0";
-import { holdLaunch } from "./launch-ready.js?v=20261011-80184c0";
+} from "./event-sources.js?v=20261011-11a94de";
+import { escapeHtml, safeUrl } from "./escape-html.js?v=20261011-11a94de";
+import { holdLaunch } from "./launch-ready.js?v=20261011-11a94de";
 
 const API = "https://eonet.gsfc.nasa.gov/api/v3/events";
 
@@ -1195,17 +1195,30 @@ function drawLabels(camera, altitudeMetres, dotPx) {
 
   const candidates = [];
   const world = new THREE.Vector3();
+  const radius = window.GeoIDViewer?.GLOBE_RADIUS || 3.2;
+  const horizon = radius * radius;
   markers.children.forEach((points) => {
     const list = points.userData?.events;
     const truth = points.userData?.truePositions;
     if (!list || !truth) return;
+    // A cloud the frame step has hidden (its category unticked, a hidden
+    // layer) names nothing either.
+    if (points.visible === false) return;
+    points.updateMatrixWorld();
+    const cam = points.worldToLocal(camera.position.clone());
     list.forEach((event, i) => {
+      /**
+       * OVER THE HORIZON: THE SAME TEST THE MARKERS ARE CULLED BY,
+       * p · c >= R² in the marker's own frame (`cullBehindGlobe`). It was
+       * `world · camera > 0`, which is a HEMISPHERE, not the horizon: from 20
+       * km over Norway it passed every event on the near half of the planet,
+       * and their chips were drawn over the fjords with no marker under them
+       * -- Iceland, Spain, Portugal, Ukraine, Greece, all "visible" because
+       * they are on the same side of the Earth's centre as the camera.
+       */
+      if (truth[i * 3] * cam.x + truth[i * 3 + 1] * cam.y + truth[i * 3 + 2] * cam.z < horizon) return;
       world.set(truth[i * 3], truth[i * 3 + 1], truth[i * 3 + 2]);
       points.localToWorld(world);
-      // Behind the globe: the same test the markers themselves are culled by,
-      // and a label for something over the horizon is a label pointing at
-      // nothing.
-      if (world.dot(camera.position) <= 0) return;
       const projected = world.clone().project(camera);
       if (projected.z > 1 || Math.abs(projected.x) > 1 || Math.abs(projected.y) > 1) return;
       const x = (projected.x * 0.5 + 0.5) * width;
@@ -2689,8 +2702,8 @@ async function showTrace(event) {
   }
 
   const [plot, { spectrogram }] = await Promise.all([
-    import("./seismogram-plot.js?v=20261011-80184c0"),
-    import("./research/dsp.js?v=20261011-80184c0"),
+    import("./seismogram-plot.js?v=20261011-11a94de"),
+    import("./research/dsp.js?v=20261011-11a94de"),
   ]);
   if (stale()) return;
 
