@@ -29,14 +29,14 @@
 
 import {
   HOMES, MIRRORS, grouped, addDataset, layerForDataset, loadLaunchDefaults,
-} from "./global-data.js?v=20261011-adbdf59";
-import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20261011-adbdf59";
-import { holdLaunch } from "./launch-ready.js?v=20261011-adbdf59";
-import { mathsFor } from "./equations.js?v=20261011-adbdf59";
+} from "./global-data.js?v=20261011-1056a12";
+import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20261011-1056a12";
+import { holdLaunch } from "./launch-ready.js?v=20261011-1056a12";
+import { mathsFor } from "./equations.js?v=20261011-1056a12";
 import { bandOf, bandRows, bandSymbology, describeFilter, magOf }
-  from "./seismic-magnitude.js?v=20261011-adbdf59";
+  from "./seismic-magnitude.js?v=20261011-1056a12";
 import { filterVolcanoes, yearRankOf, yearWords, DEFAULT_YEAR_RANK }
-  from "./volcano-filter.js?v=20261011-adbdf59";
+  from "./volcano-filter.js?v=20261011-1056a12";
 
 const byId = (id) => document.getElementById(id);
 
@@ -190,6 +190,26 @@ const TILED = {
       window.GeoIDHydroCover?.remove?.("hydro-ocean");
       window.GeoIDHydroCover?.say?.("");
     },
+  }],
+  "hazards": [{
+    id: "cyclone-forecast",
+    group: "Active storms",
+    label: "Active cyclones — forecast track and cone (GDACS)",
+    title: "Every active tropical cyclone's observed track, forecast track and cone of "
+      + "uncertainty, from the warning agencies' advisories via GDACS. Click a fix for its "
+      + "time and strength.",
+    info: {
+      summary: "Live: each storm with a current advisory, its observed fixes, the forecast "
+        + "positions and the cone the centre is expected to stay inside about two times in "
+        + "three. The agency's own cone where GDACS carries one; otherwise built here from the "
+        + "forecast track with the NHC's two-thirds-probability circle radii. The cone is not "
+        + "the storm's size: damaging winds and surge reach well outside it.",
+      citation: "GDACS — EC Joint Research Centre; cone radii: US National Hurricane Center",
+    },
+    ready: () => Boolean(window.GeoIDCycloneForecast?.add),
+    layerOf: () => window.GeoIDCycloneForecast?.layerOf?.() || null,
+    load: () => window.GeoIDCycloneForecast.add(),
+    unload: () => window.GeoIDCycloneForecast?.remove?.(),
   }],
   "exposure": [{
     id: "worldpop",
