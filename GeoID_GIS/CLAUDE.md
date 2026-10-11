@@ -23601,3 +23601,38 @@ endpoint's `?list` and says whose endpoint, how many curated collections, and
 whether the build resolves Google's whole catalogue), Settings with the
 endpoint field focused, the catalogue window, and the project dialog. A door
 not on the page is disabled, so the guide cannot point at nothing.
+
+## Climate change over time: one composite a year, read against a baseline
+
+Earth Observation ▸ Atmosphere ▸ "Climate change over time"
+(`climate-change.js`, pure, 41 checks; `climate-change-panel.js`). One Earth
+Engine composite of the same WINDOW (whole year, a season, a month — DJF is the
+winter ENDING in the year named) for every year asked for, through the same
+`fetchScene` and palette inversion as every other GEE reader, then:
+
+- **anomaly** per pixel against the mean of the baseline years, played through
+  the one time-lapse bar on a diverging palette whose range is fixed across the
+  sequence (98th percentile of |a|), so a colour means one departure in every
+  year; the bar parks on the latest year;
+- **trend per decade** as a layer of its own: Sen's slope (median of pairwise
+  slopes, robust to a wild year) with Mann–Kendall (Var S = n(n−1)(2n+5)/18,
+  continuity-corrected Z, two-sided p); p ≥ 0.05 drawn at a third of the alpha;
+- **area series** in the card, cos(lat)-weighted over the pixels valid in EVERY
+  year (else per frame, and it says so), with its own Sen's slope; CSV through
+  `downloadText`.
+
+**Variables are the deployed curated datasets only** — LST (MOD11A2, 2001–),
+CHIRPS rain (1981–, ±50°), NDVI (MOD13A2, 2001–), SMAP (2016–) — pinned against
+`services/gee-tiles/index.js`. A window still running is never asked for (a
+partial composite's anomaly is the missing part). A summed rainfall composite
+past a day runs off the deployed 0–300 mm ramp, so the panel defaults rain to a
+month, passes the (not yet deployed) `max`, and counts pixel-years at a ramp
+end in the status line. Each year is one billed render; past 30 the button
+asks for a second press. Both sheets answer a click (`probeAt`, in the
+feature-popup sheet chain): that pixel's value, anomaly, baseline and its own
+trend with p.
+
+Verified with a mocked service (25 synthetic JJA scenes, 64 × 48, the east half
+warming 0.8 °C/decade, a no-data corner): 25 renders, trend 0.75 °C/decade
+east (palette quantisation) at p 3e-7 and 0 west at p 0.98; 1,536 of 3,036
+valid pixels significant — exactly the east half; area trend 0.40 = half of it.
