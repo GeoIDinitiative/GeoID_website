@@ -52,12 +52,13 @@ export const WEATHER_LEVELS = {
   cold: { label: "Coldest it will feel", unit: "°C", floor: 0, level: -25, note: "frostbite in 30 minutes" },
   snow: { label: "Snow in 24 h", unit: "cm", level: 10, note: "significant" },
   cape: { label: "Instability (CAPE)", unit: "J/kg", level: 2500, note: "thunderstorms likely if triggered" },
+  fire: { label: "Fire weather", unit: "× Red Flag", level: 1, note: "RH ≤ 15% with wind ≥ 11.2 m/s, the US NWS thresholds; the fuel is not known" },
 };
 
 /** Default weights: 1 for a demand, less for a precursor (CAPE is not damage). */
 export const DEFAULT_WEIGHTS = {
   slope: 1, flood: 1, cyclone: 1, rain: 1, gust: 1, heat: 1, cold: 1, snow: 1, cape: 0.5,
-  aftershock: 1, eruption: 1, wildfire: 1, background: 1,
+  aftershock: 1, eruption: 1, wildfire: 1, background: 1, fire: 1,
 };
 
 /** The chance of at least one event inside `hours`, from an annual chance. */
@@ -137,7 +138,7 @@ export function fosTerm(key, model, fos, { atMs = null, nowMs = Date.now(), hori
   const L = lead(atMs, nowMs);
   const w = imminence(L, horizonHours);
   return {
-    key, model, h: (1 / fos) * w, raw: 1 / fos, lead: L, value: fos, unit: "FoS",
+    key, model, h: (1 / fos) * w, raw: 1 / fos, lead: L, atMs: Number.isFinite(atMs) ? atMs : null, value: fos, unit: "FoS",
     source, note: `${what || "factor of safety"} ${fos.toFixed(2)}${L != null ? ` in ${Math.round(L)} h` : ""}${w < 1 ? ` (×${w.toFixed(2)} for lead time)` : ""}`,
   };
 }
@@ -172,30 +173,75 @@ export function weatherTerms(series, { nowMs = Date.now(), horizonHours = 72, so
     }
     return at < 0 ? null : { value: best, atMs: times[at] };
   };
-  const term = (key, got, h) => {
+  // Hourly raw demand per model, for the time-resolved total: a 24 h total
+  // is the CENTRED sum, whose largest value is the same as the worst
+  // forward window's, so the series and the peak agree.
+  const centred24 = (arr) => times.map((t, i) => {
+    if (!Number.isFinite(t)) return NaN;
+    let sum = 0; let n = 0;
+    for (let j = 0; j < arr.length; j += 1) {
+      if (times[j] >= t - 12 * 3_600_000 && times[j] < t + 12 * 3_600_000 && Number.isFinite(arr[j])) { sum += arr[j]; n += 1; }
+    }
+    return n ? sum : NaN;
+  });
+  const seriesOf = (raw) => ({ tMs: times, h: raw });
+  const term = (key, got, h, series = null) => {
     if (!got) return;
     const lv = WEATHER_LEVELS[key];
     const L = lead(got.atMs, nowMs);
     const w = imminence(L, horizonHours);
     out.push({
-      key, model: lv.label, h: h * w, raw: h, lead: L, value: got.value, unit: lv.unit, source,
-      note: `${got.value.toFixed(lv.unit === "J/kg" ? 0 : 1)} ${lv.unit} against ${lv.level} ${lv.unit} (${lv.note})`
+      key, model: lv.label, h: h * w, raw: h, lead: L, atMs: got.atMs, value: got.value, unit: lv.unit, source,
+      series: series ? seriesOf(series) : null,
+      note: (key === "fire" ? `${got.value.toFixed(2)}× the Red Flag criteria (${lv.note})`
+        : `${got.value.toFixed(lv.unit === "J/kg" ? 0 : 1)} ${lv.unit} against ${lv.level} ${lv.unit} (${lv.note})`)
         + `${L != null ? `, in ${Math.round(L)} h` : ""}${w < 1 ? ` (×${w.toFixed(2)} for lead time)` : ""}`,
     });
   };
-  const rain = sum24(vals("precipitation"));
-  if (rain) term("rain", rain, rain.value / WEATHER_LEVELS.rain.level);
-  const gust = peak(vals("wind_gusts_10m"));
-  if (gust) term("gust", gust, gust.value / WEATHER_LEVELS.gust.level);
-  const hot = peak(vals("apparent_temperature"));
-  if (hot) term("heat", hot, Math.max(0, (hot.value - 27) / (39 - 27)));
-  const cold = peak(vals("apparent_temperature"), -1);
-  if (cold) term("cold", cold, Math.max(0, -cold.value / 25));
-  const snow = sum24(vals("snowfall"));
-  if (snow) term("snow", snow, snow.value / WEATHER_LEVELS.snow.level);
-  const cape = peak(vals("cape"));
-  if (cape) term("cape", cape, cape.value / WEATHER_LEVELS.cape.level);
+  const P = vals("precipitation");
+  const rain = sum24(P);
+  if (rain) term("rain", rain, rain.value / WEATHER_LEVELS.rain.level, centred24(P).map((v) => v / WEATHER_LEVELS.rain.level));
+  const G = vals("wind_gusts_10m");
+  const gust = peak(G);
+  if (gust) term("gust", gust, gust.value / WEATHER_LEVELS.gust.level, G.map((v) => v / WEATHER_LEVELS.gust.level));
+  const AT = vals("apparent_temperature");
+  const heatH = (v) => Math.max(0, (v - 27) / (39 - 27));
+  const coldH = (v) => Math.max(0, -v / 25);
+  const hot = peak(AT);
+  if (hot) term("heat", hot, heatH(hot.value), AT.map((v) => (Number.isFinite(v) ? heatH(v) : NaN)));
+  const cold = peak(AT, -1);
+  if (cold) term("cold", cold, coldH(cold.value), AT.map((v) => (Number.isFinite(v) ? coldH(v) : NaN)));
+  const S = vals("snowfall");
+  const snow = sum24(S);
+  if (snow) term("snow", snow, snow.value / WEATHER_LEVELS.snow.level, centred24(S).map((v) => v / WEATHER_LEVELS.snow.level));
+  const C = vals("cape");
+  const cape = peak(C);
+  if (cape) term("cape", cape, cape.value / WEATHER_LEVELS.cape.level, C.map((v) => v / WEATHER_LEVELS.cape.level));
+  const fire = fireWeatherSeries(vals("relative_humidity_2m"), vals("wind_speed_10m"), P);
+  if (fire.some(Number.isFinite)) {
+    const got = peak(fire);
+    if (got && got.value > 0) term("fire", got, got.value, fire);
+  }
   return out;
+}
+
+/**
+ * FIRE WEATHER, from the US National Weather Service's Red Flag criteria —
+ * relative humidity at or below 15% with sustained wind of 25 mph (11.2 m/s)
+ * or more — as a demand that reaches 1 exactly where both are met:
+ *
+ *   h = min(2, 15 / RH) × min(2, wind / 11.2)   (0 in any hour with rain)
+ *
+ * It is the WEATHER half of fire danger only: it knows nothing of the fuel,
+ * which is why a reading here is a reason to look, not a fire.
+ */
+export function fireWeatherSeries(rh, wind, precip = []) {
+  return (rh || []).map((r, i) => {
+    const w = wind?.[i];
+    if (!Number.isFinite(r) || !Number.isFinite(w)) return NaN;
+    if (Number.isFinite(precip[i]) && precip[i] >= 0.1) return 0;
+    return Math.min(2, 15 / Math.max(r, 1)) * Math.min(2, w / 11.2);
+  });
 }
 
 /**
@@ -204,7 +250,7 @@ export function weatherTerms(series, { nowMs = Date.now(), horizonHours = 72, so
  * at the centre passing over it — the cone is where the centre may go — and
  * outside it at the forecast distance.
  */
-export function cycloneTerm(threat, { horizonHours = 72, nowMs = Date.now() } = {}) {
+export function cycloneTerm(threat, { horizonHours = 72, nowMs = Date.now(), track = null, place = null } = {}) {
   if (!threat || !Number.isFinite(threat.km)) return null;
   const vmax = Number.isFinite(threat.wind) ? threat.wind : 64;
   const dEff = threat.inCone ? 0 : threat.km;
@@ -215,7 +261,8 @@ export function cycloneTerm(threat, { horizonHours = 72, nowMs = Date.now() } = 
   const raw = here / 64;
   return {
     key: "cyclone", model: `Tropical cyclone ${threat.storm || ""}`.trim(), h: raw * w, raw, lead: L,
-    value: here, unit: "kt", source: "GDACS forecast track",
+    value: here, unit: "kt", source: "GDACS forecast track", atMs: Number.isFinite(threat.time) ? threat.time : null,
+    series: track && place ? cycloneSeries(track, threat, place.lat, place.lon) : null,
     note: `${threat.inCone ? "inside the cone — the centre may pass over" : `centre ${Math.round(threat.km)} km away`}`
       + `; ${Math.round(here)} kt here against 64 kt (hurricane force), peak ${Math.round(vmax)} kt`
       + `${L != null ? `, in ${Math.round(L)} h` : ""}${w < 1 ? ` (×${w.toFixed(2)} for lead time)` : ""}`,
@@ -264,6 +311,107 @@ export function backgroundTerm(model, pYear, { horizonHours = 72, source = "" } 
     key: "background", model, h: raw, raw, lead: null, value: pYear, unit: "p/yr", source,
     note: `1 in ${Math.round(1 / pYear).toLocaleString()} years, so ${(P * 100).toPrecision(2)}% in the next ${Math.round(horizonHours)} h`,
   };
+}
+
+/**
+ * The wind a cyclone brings to a place HOUR BY HOUR along its forecast track,
+ * as demand against hurricane force. Inside the cone the centre may pass
+ * over, so the closest point is read at the centre; every other point at its
+ * own distance.
+ */
+export function cycloneSeries(track, threat, lat, lon) {
+  if (!Array.isArray(track) || !track.length || !Number.isFinite(lat) || !Number.isFinite(lon)) return null;
+  const tMs = []; const h = [];
+  let closest = -1; let best = Infinity;
+  track.forEach((p, i) => { const d = distanceKm(lat, lon, p.lat, p.lon); if (d < best) { best = d; closest = i; } });
+  track.forEach((p, i) => {
+    if (!Number.isFinite(p.time)) return;
+    const d = threat?.inCone && i === closest ? 0 : distanceKm(lat, lon, p.lat, p.lon);
+    tMs.push(p.time);
+    h.push(windAt(d, Number.isFinite(p.wind) ? p.wind : (threat?.wind ?? 64)) / 64);
+  });
+  return tMs.length ? { tMs, h } : null;
+}
+
+/**
+ * A river reach near the place, from the forecast pipeline's flood wave: the
+ * channel's own factor of safety (Q_bankfull / Q) through the run.
+ *   reach  { fos: [per frame], times: [ms per frame], widthM, km, name }
+ */
+export function floodTerm(reach, { horizonHours = 72, nowMs = Date.now() } = {}) {
+  if (!reach || !Array.isArray(reach.fos) || !reach.fos.length) return null;
+  const h = reach.fos.map((f) => (f > 0 && Number.isFinite(f) ? 1 / f : NaN));
+  let k = -1;
+  h.forEach((v, i) => { const t = reach.times[i]; if (Number.isFinite(v) && Number.isFinite(t) && t <= nowMs + horizonHours * 3_600_000 && (k < 0 || v > h[k])) k = i; });
+  if (k < 0) return null;
+  const L = lead(reach.times[k], nowMs);
+  const w = imminence(L, horizonHours);
+  const fos = 1 / h[k];
+  return {
+    key: "flood", model: `River flood${reach.widthM ? ` (${Math.round(reach.widthM)} m channel)` : ""}`,
+    h: h[k] * w, raw: h[k], lead: L, atMs: reach.times[k], value: fos, unit: "FoS",
+    source: "Landslide forecast — channel flood wave", series: { tMs: reach.times, h },
+    note: `channel factor of safety ${fos.toFixed(2)}${fos < 1 ? " — over its brim" : ""}, ${reach.km > 0.05 ? `${reach.km.toFixed(1)} km from the place` : "at the place"}`
+      + `${L != null ? `, in ${Math.round(L)} h` : ""}${w < 1 ? ` (×${w.toFixed(2)} for lead time)` : ""}`,
+  };
+}
+
+/** A term's raw demand at time t (before the lead discount), or 0 where it does not reach. */
+export function demandAt(term, tMs, { holdHours = 12 } = {}) {
+  const s = term.series;
+  if (s && s.tMs?.length) {
+    // Nearest sample in time, held over half the gap to its neighbours —
+    // beyond the series' own span the model has said nothing, which is 0.
+    const T = s.tMs; const n = T.length;
+    const gap = n > 1 ? Math.abs(T[n - 1] - T[0]) / (n - 1) : holdHours * 3_600_000;
+    if (tMs < T[0] - gap / 2 || tMs > T[n - 1] + gap / 2) return 0;
+    let best = 0; let bd = Infinity;
+    for (let i = 0; i < n; i += 1) { const d = Math.abs(T[i] - tMs); if (d < bd && Number.isFinite(s.h[i])) { bd = d; best = i; } }
+    return Number.isFinite(s.h[best]) ? s.h[best] : 0;
+  }
+  // An event with a time and no series stands at its peak for a while either
+  // side of it; one with no time (a risk map, an open eruption, an aftershock
+  // probability over the window) stands for the whole horizon.
+  if (Number.isFinite(term.atMs)) return Math.abs(tMs - term.atMs) <= holdHours * 3_600_000 ? (term.raw ?? term.h) : 0;
+  return term.raw ?? term.h;
+}
+
+/**
+ * THE TOTAL IN TIME. Summing each model's own worst moment adds peaks that
+ * may be days apart — rain on Tuesday and a gale on Thursday are not one
+ * storm. So the demand is summed HOUR BY HOUR over the horizon, each model
+ * discounted for that hour's lead, and the score is the worst hour:
+ *
+ *   H(t) = Σ wᵢ hᵢ(t) · imminence(t − now) ,   FoS = 1 / max_t H(t)
+ *
+ * Answers the combination at the worst hour (its terms' demand and share
+ * AT that hour), when it is, the whole curve, and what adding the separate
+ * peaks would have said, so the difference is visible rather than hidden.
+ */
+export function combineInTime(terms, weights = {}, { nowMs = Date.now(), horizonHours = 72, stepHours = 1 } = {}) {
+  const list = (terms || []).filter((t) => t && Number.isFinite(t.h) && t.h >= 0);
+  const wOf = (t) => (Number.isFinite(weights[t.key]) ? weights[t.key] : (DEFAULT_WEIGHTS[t.key] ?? 1));
+  const steps = Math.max(1, Math.round(horizonHours / stepHours));
+  const curve = [];
+  let worst = -1; let worstH = -1;
+  for (let k = 0; k <= steps; k += 1) {
+    const t = nowMs + k * stepHours * 3_600_000;
+    const im = imminence(k * stepHours, horizonHours);
+    let H = 0;
+    for (const term of list) H += wOf(term) * demandAt(term, t) * (term.series || Number.isFinite(term.atMs) ? im : 1);
+    curve.push({ tMs: t, demand: H, fos: H > 0 ? 1 / H : Infinity });
+    if (H > worstH) { worstH = H; worst = k; }
+  }
+  const at = curve[worst]?.tMs ?? nowMs;
+  const imAt = imminence((at - nowMs) / 3_600_000, horizonHours);
+  const atWorst = list.map((term) => {
+    const timed = Boolean(term.series || Number.isFinite(term.atMs));
+    const hNow = demandAt(term, at) * (timed ? imAt : 1);
+    return { ...term, peakH: term.h, h: hNow };
+  });
+  const result = combine(atWorst, weights);
+  const peaks = combine(list, weights);
+  return { ...result, atMs: at, lead: (at - nowMs) / 3_600_000, curve, peaksFos: peaks.fos };
 }
 
 /**

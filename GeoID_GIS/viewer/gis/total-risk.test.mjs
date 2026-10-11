@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import {
   horizonProbability, imminence, windAt, magnitudeReaching, aftershockProbability, weatherTerms,
   cycloneTerm, fosTerm, backgroundTerm, combine, riskClass, WEATHER_LEVELS, mainDangerSentence,
+  combineInTime, demandAt, fireWeatherSeries, floodTerm, cycloneSeries,
 } from "./total-risk.js";
 
 let pass = 0; let fail = 0;
@@ -62,4 +63,65 @@ ok(near(magnitudeReaching(20), 6.0, 0.01), "an M 6 reaches 20 km");
   ok(/lowestAt/.test(pipe.slice(pipe.indexOf("window.GeoIDLandslidePipeline"))), "the forecast pipeline publishes lowestAt");
   ok(/threatAt\(place\.lat, place\.lon\)/.test(panel) && /cycloneTerm\(/.test(panel), "the cyclone term is read through the forecast's own threatAt");
   ok(!/\beval\(|new Function\(/.test(panel), "nothing is evaluated");
+}
+
+{
+  // THE TOTAL IN TIME: peaks days apart are not one storm.
+  const now = Date.UTC(2026, 9, 1, 0);
+  const H = 3_600_000;
+  const hours = Array.from({ length: 97 }, (_, k) => now + k * H);
+  const spike = (at) => ({ tMs: hours, h: hours.map((t) => (t === now + at * H ? 1 : 0)) });
+  const rain = { key: "rain", model: "Rain", h: 1, raw: 1, series: spike(6) };
+  const gale = { key: "gust", model: "Gust", h: 1, raw: 1, series: spike(20) };
+  const apart = combineInTime([rain, gale], {}, { nowMs: now, horizonHours: 72 });
+  ok(near(apart.fos, 1, 1e-9) && near(apart.peaksFos, 0.5, 1e-9), `peaks 14 h apart score 1, not the 0.5 their sum says (${apart.fos}, ${apart.peaksFos})`);
+  ok(Math.round(apart.lead) === 6, "the worst hour is the first peak (ties go to the earliest)");
+  const together = combineInTime([rain, { ...gale, series: spike(6) }], {}, { nowMs: now, horizonHours: 72 });
+  ok(near(together.fos, 0.5, 1e-9) && Math.round(together.lead) === 6, "peaks in the same hour add in full");
+  const late = combineInTime([{ ...gale, series: spike(60) }], {}, { nowMs: now, horizonHours: 72 });
+  ok(near(late.fos, 1 / Math.exp(-36 / 48), 1e-9), "an hour 60 h out is discounted for its lead");
+  const bg = backgroundTerm("Seismic", 0.01, { horizonHours: 72 });
+  const withBg = combineInTime([rain, bg], {}, { nowMs: now, horizonHours: 72 });
+  ok(near(withBg.demand, 1 + bg.h, 1e-12), "a risk map's chance stands for the whole horizon");
+  ok(demandAt(rain, now + 90 * H) === 0 && demandAt(rain, now + 6 * H) === 1, "a series answers 0 where it is not");
+  ok(demandAt({ h: 2, raw: 2, atMs: now + 30 * H }, now + 41 * H) === 2 && demandAt({ h: 2, raw: 2, atMs: now + 30 * H }, now + 43 * H) === 0, "a timed event without a series stands 12 h either side");
+  ok(withBg.curve.length === 73 && withBg.terms.find((t) => t.key === "rain").peakH === 1, "the curve has every hour; each term keeps its own peak");
+}
+{
+  const f = fireWeatherSeries([15, 7.5, 30, 15, NaN], [11.2, 30, 11.2, 11.2, 5], [0, 0, 0, 2, 0]);
+  ok(near(f[0], 1, 1e-12), "Red Flag exactly: RH 15% with 11.2 m/s is 1");
+  ok(near(f[1], 4, 1e-12), "each factor is capped at 2");
+  ok(near(f[2], 0.5, 1e-12) && f[3] === 0 && Number.isNaN(f[4]), "humid halves it, rain clears it, a gap stays a gap");
+  const t0 = Date.UTC(2026, 9, 1, 0);
+  const time = Array.from({ length: 30 }, (_, k) => new Date(t0 + k * 3_600_000).toISOString().slice(0, 16));
+  const z = time.map(() => 0);
+  const terms = weatherTerms({ time, precipitation: z, wind_gusts_10m: z, apparent_temperature: z.map(() => 20), snowfall: z, cape: z,
+    relative_humidity_2m: time.map((_, k) => (k === 10 ? 10 : 50)), wind_speed_10m: time.map(() => 12) }, { nowMs: t0, horizonHours: 24 });
+  const fire = terms.find((t) => t.key === "fire");
+  ok(fire && near(fire.raw, 1.5 * 12 / 11.2, 1e-9) && Math.round(fire.lead) === 10, "the forecast's driest windy hour is the fire-weather peak");
+  ok(terms.every((t) => t.series?.h?.length === 30), "every weather term carries its hourly series");
+}
+{
+  const t0 = Date.UTC(2026, 9, 1, 0);
+  const reach = { fos: [3, 0.8, 2], times: [t0, t0 + 6 * 3_600_000, t0 + 12 * 3_600_000], widthM: 60, km: 1.2 };
+  const fl = floodTerm(reach, { nowMs: t0, horizonHours: 72 });
+  ok(fl.key === "flood" && near(fl.raw, 1.25, 1e-12) && near(fl.value, 0.8, 1e-12) && Math.round(fl.lead) === 6, "the channel's worst frame, h = 1 / FoS");
+  ok(/over its brim/.test(fl.note), "below 1 the reach is said to be over its brim");
+  ok(floodTerm({ fos: [], times: [] }) === null, "no frames, no term");
+}
+{
+  const t0 = Date.UTC(2026, 9, 1, 0);
+  const track = [0, 1, 2].map((k) => ({ lat: 20 + k, lon: -70, time: t0 + k * 12 * 3_600_000, wind: 100 }));
+  const s = cycloneSeries(track, { inCone: true, wind: 100 }, 21, -70.01);
+  ok(near(s.h[1], 100 / 64, 1e-9) && s.h[0] < s.h[1], "inside the cone the closest point is the centre over the place");
+  const c = cycloneTerm({ storm: "X", km: 1, wind: 100, time: track[1].time, inCone: true }, { nowMs: t0, horizonHours: 72, track, place: { lat: 21, lon: -70.01 } });
+  ok(c.series?.tMs.length === 3, "a cyclone term carries its track as a series");
+}
+{
+  const panel = readFileSync(new URL("./total-risk-panel.js", import.meta.url), "utf8");
+  const pipe = readFileSync(new URL("./landslide-pipeline.js", import.meta.url), "utf8");
+  ok(/relative_humidity_2m,wind_speed_10m/.test(panel), "the forecast asks for the fire-weather inputs");
+  ok(/combineInTime\(last\.terms/.test(panel) && !/combine\(last\.terms/.test(panel), "the card scores the worst HOUR, not the sum of peaks");
+  ok(/floodAt: \(lat, lon/.test(pipe.slice(pipe.indexOf("window.GeoIDLandslidePipeline"))) && /floodAt\?\.\(place\.lat, place\.lon\)/.test(panel), "the river flood comes from the forecast's own flood wave");
+  ok(/fl\.open\?\.\[i\]/.test(pipe.slice(pipe.indexOf("floodAt: (lat, lon"))), "an open reach is passed over, as the map passes over it");
 }

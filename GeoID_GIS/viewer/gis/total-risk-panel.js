@@ -12,6 +12,7 @@
  *   eruption/fire the live EONET feed (GeoIDEvents)
  *   slope         myGeoID's FoS run (GeoIDMode.fosNear) and the forecast
  *                 landslide run (GeoIDLandslidePipeline.lowestAt)
+ *   flood         the same run's channel flood wave (…floodAt)
  *   background    any risk map on the globe whose cells carry p_yr
  *
  * Weights are kept per browser; changing one recombines without refetching.
@@ -19,8 +20,8 @@
 
 import {
   weatherTerms, cycloneTerm, aftershockTerm, proximityTerm, fosTerm, backgroundTerm,
-  combine, mainDangerSentence, DEFAULT_WEIGHTS, distanceKm,
-} from "./total-risk.js?v=20261011-acf80cd";
+  combine, combineInTime, floodTerm, mainDangerSentence, DEFAULT_WEIGHTS, distanceKm,
+} from "./total-risk.js?v=20261011-f9a70c9";
 
 const byId = (id) => document.getElementById(id);
 const WEIGHTS_KEY = "geoid-gis:total-risk-weights";
@@ -30,6 +31,7 @@ const LABELS = {
   slope: "Slope stability", flood: "River flood", cyclone: "Tropical cyclone", rain: "Rain",
   gust: "Wind gusts", heat: "Heat", cold: "Cold", snow: "Snow", cape: "Storm instability (CAPE)",
   aftershock: "Aftershocks", eruption: "Eruption nearby", wildfire: "Wildfire nearby", background: "Long-term risk maps",
+  fire: "Fire weather",
 };
 
 let last = null;        // { terms, missing, place, horizon }
@@ -68,7 +70,7 @@ function placeFor(mode) {
 async function fetchWeather(place, horizonHours) {
   const params = new URLSearchParams({
     latitude: place.lat.toFixed(3), longitude: place.lon.toFixed(3),
-    hourly: "precipitation,wind_gusts_10m,apparent_temperature,snowfall,cape",
+    hourly: "precipitation,wind_gusts_10m,apparent_temperature,snowfall,cape,relative_humidity_2m,wind_speed_10m",
     forecast_hours: String(horizonHours + 24), past_hours: "1",
     wind_speed_unit: "ms", timezone: "GMT", models: "gfs_seamless",
   });
@@ -91,7 +93,11 @@ export async function gather(place, horizonHours, { nowMs = Date.now() } = {}) {
   const cyc = window.GeoIDCycloneForecast;
   if (cyc?.threatAt) {
     try { if (!cyc.storms?.()?.length) await cyc.refresh?.(); } catch { /* GDACS unreachable: said below */ }
-    const t = cycloneTerm(cyc.threatAt(place.lat, place.lon), opts);
+    const threat = cyc.threatAt(place.lat, place.lon);
+    // Hour by hour along its own track, so the total sums the storm with
+    // whatever else is happening WHILE it passes, not at some other time.
+    const track = threat ? (cyc.storms?.() || []).find((s) => s.name === threat.storm)?.track : null;
+    const t = cycloneTerm(threat, { ...opts, track, place });
     if (t) terms.push(t);
     else if (!cyc.storms?.()?.length) missing.push(["Tropical cyclones", "no active storm reported by GDACS (or GDACS did not answer)"]);
   }
@@ -117,6 +123,12 @@ export async function gather(place, horizonHours, { nowMs = Date.now() } = {}) {
   if (ls) slopes.push(fosTerm("slope", "Slope stability (landslide forecast)", ls.fos, { ...opts, atMs: ls.atMs, source: "Landslide forecast", what: "lowest governing factor of safety" }));
   // Two answers from two slope models for one slope: the worse one governs.
   const slope = slopes.filter(Boolean).sort((a, b) => b.h - a.h)[0];
+  const reach = window.GeoIDLandslidePipeline?.floodAt?.(place.lat, place.lon);
+  const flood = floodTerm(reach, opts);
+  if (flood) terms.push(flood);
+  else if (!window.GeoIDLandslidePipeline?.lowestAt?.(place.lat, place.lon)) {
+    missing.push(["River flood", "run Hazards ▸ Landslides ▸ Forecast landslide risk over this place — its flood wave gives each river its channel factor of safety"]);
+  }
   if (slope) terms.push(slope);
   else missing.push(["Slope stability", "enter myGeoID mode, or run Hazards ▸ Landslides ▸ Forecast landslide risk, over this place"]);
 
@@ -130,7 +142,45 @@ export async function gather(place, horizonHours, { nowMs = Date.now() } = {}) {
   });
   if (!seen.size) missing.push(["Long-term risk maps", "tick a cyclone, seismic or volcanic risk map in Hazards to count it"]);
 
-  return { terms, missing };
+  return { terms, missing, nowMs };
+}
+
+function whenText(atMs, leadH) {
+  const iso = new Date(atMs).toISOString();
+  const stamp = `${iso.slice(8, 10)}/${iso.slice(5, 7)} ${iso.slice(11, 13)}:00 UTC`;
+  return leadH < 1 ? `now (${stamp})` : `in ${Math.round(leadH)} h (${stamp})`;
+}
+
+/**
+ * The total's demand through the horizon: one line, the act level at 1, the
+ * worst hour marked. A sparkline, not a chart.
+ */
+function curveCanvas(r) {
+  const c = document.createElement("canvas");
+  c.className = "total-risk-curve";
+  c.setAttribute("role", "img");
+  c.setAttribute("aria-label", `Combined demand over the horizon, worst ${r.demand.toFixed(2)} ${whenText(r.atMs, r.lead)}`);
+  const W = 300; const H = 64; const dpr = window.devicePixelRatio || 1;
+  c.width = W * dpr; c.height = H * dpr;
+  const g = c.getContext("2d");
+  if (!g || !r.curve?.length) return c;
+  g.scale(dpr, dpr);
+  const top = Math.max(1.2, ...r.curve.map((p) => p.demand)) * 1.08;
+  const x = (k) => 2 + (k / (r.curve.length - 1 || 1)) * (W - 4);
+  const y = (v) => H - 12 - (v / top) * (H - 18);
+  g.strokeStyle = "rgba(229,50,45,.55)"; g.setLineDash([3, 3]); g.lineWidth = 1;
+  g.beginPath(); g.moveTo(0, y(1)); g.lineTo(W, y(1)); g.stroke(); g.setLineDash([]);
+  g.fillStyle = "rgba(229,50,45,.8)"; g.font = "9px system-ui, sans-serif"; g.fillText("act", W - 18, y(1) - 3);
+  g.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue("--nav-accent").trim() || "#ff2bd6";
+  g.lineWidth = 1.5; g.beginPath();
+  r.curve.forEach((p, k) => { if (k) g.lineTo(x(k), y(p.demand)); else g.moveTo(x(k), y(p.demand)); });
+  g.stroke();
+  const kw = r.curve.findIndex((p) => p.tMs === r.atMs);
+  if (kw >= 0) { g.fillStyle = r.class.colour; g.beginPath(); g.arc(x(kw), y(r.curve[kw].demand), 3, 0, Math.PI * 2); g.fill(); }
+  g.fillStyle = "rgba(255,255,255,.55)";
+  g.fillText("now", 2, H - 1);
+  g.fillText(`+${Math.round((r.curve.at(-1).tMs - r.curve[0].tMs) / 3_600_000)} h`, W - 30, H - 1);
+  return c;
 }
 
 const pct = (x) => `${(x * 100).toFixed(x < 0.1 ? 1 : 0)}%`;
@@ -140,13 +190,21 @@ function render() {
   const out = byId("total-risk-result");
   if (!out || !last) return;
   const weights = loadWeights();
-  const r = combine(last.terms, weights);
+  const r = combineInTime(last.terms, weights, { nowMs: last.nowMs, horizonHours: last.horizon });
   out.innerHTML = "";
   const head = document.createElement("div");
   head.className = "total-risk-head";
   head.innerHTML = `<span class="total-risk-fos" style="border-color:${r.class.colour};color:${r.class.colour}">${fmtFos(r.fos)}</span>
-    <span><strong>${r.class.label}</strong><br><small>Total-risk FoS at ${last.place.lat.toFixed(3)}°, ${last.place.lon.toFixed(3)}° (${last.place.what}), next ${last.horizon} h</small></span>`;
+    <span><strong>${r.class.label}</strong><br><small>Total-risk FoS at ${last.place.lat.toFixed(3)}°, ${last.place.lon.toFixed(3)}° (${last.place.what}), worst hour ${whenText(r.atMs, r.lead)} of the next ${last.horizon} h</small></span>`;
   out.appendChild(head);
+  out.appendChild(curveCanvas(r));
+  if (r.peaksFos < r.fos - 0.005) {
+    const peaks = document.createElement("p");
+    peaks.className = "compact-copy total-risk-peaks";
+    peaks.textContent = `The models' own worst moments do not coincide: adding every peak would read ${fmtFos(r.peaksFos)}, `
+      + `but no single hour carries them all. The score is the worst hour's.`;
+    out.appendChild(peaks);
+  }
   const main = document.createElement("p");
   main.className = "compact-copy";
   main.textContent = mainDangerSentence(r);
@@ -154,7 +212,7 @@ function render() {
 
   const table = document.createElement("table");
   table.className = "total-risk-table";
-  table.innerHTML = "<thead><tr><th>Model</th><th>Demand</th><th>Weight</th><th>Share</th></tr></thead>";
+  table.innerHTML = "<thead><tr><th>Model</th><th title=\"Demand at the worst hour; the model's own peak in brackets where it differs\">Demand</th><th>Weight</th><th>Share</th></tr></thead>";
   const body = document.createElement("tbody");
   r.terms.forEach((t) => {
     const tr = document.createElement("tr");
@@ -163,7 +221,15 @@ function render() {
     name.textContent = t.model;
     const h = document.createElement("td");
     // Nothing on the way reads as nought, not as four decimal places of it.
-    h.textContent = t.h === 0 ? "0" : t.h.toFixed(t.h < 0.01 ? 4 : 2);
+    const num = (v) => (v === 0 ? "0" : v.toFixed(v < 0.01 ? 4 : 2));
+    h.textContent = num(t.h);
+    if (Number.isFinite(t.peakH) && Math.abs(t.peakH - t.h) > 0.005) {
+      const pk = document.createElement("small");
+      pk.className = "total-risk-peak";
+      pk.textContent = ` (${num(t.peakH)})`;
+      pk.title = "This model's own worst, at another hour";
+      h.appendChild(pk);
+    }
     const w = document.createElement("td");
     const input = document.createElement("input");
     input.type = "number"; input.min = "0"; input.max = "3"; input.step = "0.25";
@@ -200,7 +266,7 @@ function render() {
   }
   const how = document.createElement("p");
   how.className = "compact-copy";
-  how.textContent = "Each model is a demand over its own capacity (1 = act); the total is 1 / Σ weight × demand. "
+  how.textContent = "Each model is a demand over its own capacity (1 = act), summed hour by hour as 1 / Σ weight × demand; the score is the worst hour. "
     + "A forecast more than a day out is discounted for its lead; a risk map's yearly chance is read over the horizon. "
     + "A screening score, not a warning — follow official warnings.";
   out.appendChild(how);
@@ -218,11 +284,11 @@ export async function compute() {
   if (button) button.disabled = true;
   say("Asking every model that can answer for this place…");
   try {
-    const { terms, missing } = await gather(place, horizon);
-    last = { terms, missing, place, horizon };
+    const { terms, missing, nowMs } = await gather(place, horizon);
+    last = { terms, missing, place, horizon, nowMs };
     render();
     say(`${terms.length} model reading${terms.length === 1 ? "" : "s"} combined.`);
-    return combine(terms, loadWeights());
+    return combineInTime(terms, loadWeights(), { nowMs, horizonHours: horizon });
   } catch (error) {
     say(`Could not compute: ${error.message}`);
     return null;
@@ -260,6 +326,8 @@ const STYLE = `
 #total-risk-card .total-risk-table td:last-child{white-space:nowrap}
 #total-risk-card .total-risk-bar{display:inline-block;width:3rem;height:.4rem;background:rgba(255,255,255,.1);border-radius:.2rem;vertical-align:middle}
 #total-risk-card .total-risk-bar i{display:block;height:100%;background:var(--nav-accent,#ff2bd6);border-radius:.2rem}
+#total-risk-card .total-risk-curve{display:block;width:100%;height:64px;margin:.15rem 0 .35rem}
+#total-risk-card .total-risk-peak{opacity:.6}
 #total-risk-card .total-risk-missing{margin:.2rem 0 .4rem 1rem;padding:0;font-size:.7rem;opacity:.8}
 `;
 

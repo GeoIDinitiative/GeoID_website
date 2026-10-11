@@ -23510,3 +23510,41 @@ Classes: act < 1, watch < 1.5, aware < 3, low.
 Verified on 8125 with a mocked forecast (12 h of 8 mm/h and 31 m/s gusts,
 30 h out): rain 1.73, gust 1.14, CAPE 0.65 → FoS 0.31 "Act", main danger rain
 at 54%; rain's weight set to 0 → 0.68 with no refetch.
+
+### The total is summed HOUR BY HOUR, and the score is the worst hour
+
+The first build added each model's own worst moment, so rain on day 1 and a
+gale on day 3 were scored as one storm. `combineInTime` sums every model's
+demand per hour, each discounted for that hour's lead, and takes the worst:
+
+    H(t) = Σ wᵢ hᵢ(t) · imminence(t − now) ,   FoS = 1 / max_t H(t)
+
+- **A term carries its own time**: weather terms an hourly `series` (24 h
+  totals as the CENTRED sum, whose maximum equals the worst forward window's,
+  so series and peak agree); a cyclone its forecast track, read hour by hour
+  at each point's distance (the closest point at the centre where the place is
+  in the cone); a river its flood-wave frames. A term with only a time holds
+  its peak 12 h either side; one with no time (a risk map, an aftershock
+  chance over the window, an open eruption) stands for the whole horizon.
+- **What adding the peaks would have said is kept** (`peaksFos`) and the card
+  says so when it differs; each row shows its demand at the worst hour and,
+  in brackets, its own peak.
+- **Fire weather** is a new model: the US NWS Red Flag thresholds (RH ≤ 15%
+  with wind ≥ 11.2 m/s) as h = min(2, 15/RH) × min(2, wind/11.2), 0 in a wet
+  hour. The weather half of fire danger only; the fuel is not known.
+- **River flood** reads the forecast pipeline's own flood wave
+  (`GeoIDLandslidePipeline.floodAt`): the nearest CLOSED reach within 2 km,
+  its channel FoS = Q_bankfull / Q every frame. An open reach has no FoS on
+  the map and none here.
+
+Measured with a mocked forecast (fire weather at +10 h, 96 mm of rain at +30,
+a gale at +55): the sum of peaks reads 0.25; the worst hour, +30 h, reads
+0.43. A stubbed run with a 100 m³/s brim and a 160 m³/s peak reads FoS 0.63
+at +6 h.
+
+**Gaps that remain, and why they are not filled yet**: no storm-surge or wave
+model (no surge forecast reachable from a page); no ensemble, so a GFS
+deterministic run is read as certain (Open-Meteo's ensemble API is the way);
+seismic and volcanic background count only if their risk maps are ticked;
+ash fall from an open eruption is a 15 km circle, not a plume down the wind;
+and the score is HAZARD, not risk — it does not know who or what is there.
