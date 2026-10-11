@@ -2,13 +2,13 @@ import * as THREE from "./vendor/three.module.js";
 // The polygon-area rule lives in one place, with a test. Stamped by hand
 // once: stamp.py only rewrites a ?v= that already exists.
 import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
-  from "./gis/geo-utils.js?v=20261011-29a38ce";
+  from "./gis/geo-utils.js?v=20261011-174399e";
 import { attachReliefAttributes, followRelief }
-  from "./gis/vector-render.js?v=20261011-29a38ce";
+  from "./gis/vector-render.js?v=20261011-174399e";
 import { rockClass, crustalSetting, rockClassLabel, classificationBasis }
-  from "./gis/rock-class.js?v=20261011-29a38ce";
+  from "./gis/rock-class.js?v=20261011-174399e";
 import { lithologyLabel }
-  from "./gis/lithology-label.js?v=20261011-29a38ce";
+  from "./gis/lithology-label.js?v=20261011-174399e";
 
 /**
  * This module's own cache stamp, read off its own URL.

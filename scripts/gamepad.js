@@ -20,6 +20,12 @@
  *   (The host page must therefore run this file BEFORE its iframes load:
  *   index.html includes it in <head> without `defer`.)
  *
+ * TAB NAVIGATION IS A SESSION. It is OFF until a D-pad press starts it (that
+ * press only shows the ring), and it ends by itself: the pointer moves more
+ * than ~10 px, a click or wheel, Circle with nothing left to close, five idle
+ * seconds, the host taking over, or the mode changing. While it is off there
+ * is no ring, nothing is focused and Cross does nothing.
+ *
  * WHAT THE PAGE DOES WITH THE PAD
  *   everywhere  D-pad   move the focus ring to the nearest tab in that
  *                       direction (geometry, not DOM order; one press, one
@@ -50,9 +56,16 @@
  *       a D-pad press found nothing further that way; the ring is released
  *       and D-pad / Cross / Circle go quiet until focus is handed back.
  *   {type: "controller-focus", has: true | false}
- *       whenever ownership of controller focus changes.
- * and the host hands focus back with
- *   {source: "atlas", type: "controller-focus-enter", direction, from}
+ *       true only while a navigation session is on.
+ *   {type: "controller-nav", active: true | false}
+ *       on every session start and end.
+ * and the host speaks with `source: "atlas"`:
+ *   controller-focus-enter {direction, from}  start a session at that edge
+ *   controller-focus-leave                    end it; the host has the D-pad
+ *   controller-owner {owner: "page"|"atlas"}  may / may not start a session
+ *   controller-hello {owner}                  the same, and re-announce all
+ * It is hosted when window.top is another window or window.__ATLAS_HOST is
+ * true (read live).
  * With no host (window.top is this page) the focus simply stops at an edge.
  *
  * TESTS: scripts/gamepad.test.html drives all of the above with a fake
@@ -74,7 +87,6 @@
   var REPEAT_FIRST = 350;    // ms before a held D-pad direction repeats
   var REPEAT_NEXT = 120;     // ms between repeats after that
   var INVERT_KEY = "geoid:pad-invert-y";
-  var HINT_MS = 6000;
 
   // ── pure helpers (exported for the tests) ───────────────────────────────
   function clamp(v, lo, hi) { return v < lo ? lo : (v > hi ? hi : v); }
@@ -270,18 +282,27 @@
     // focus
     var cur = null;                        // focused element (any same-origin document)
     var adjusting = false;                 // Cross on a slider / select: D-pad edits it
-    var owns = true;                       // controller focus is ours (vs the host's)
+    // TAB NAVIGATION IS A SESSION, NOT A STATE. It is off until a D-pad press
+    // starts it, and it ends on its own: the pointer moves, Circle runs out of
+    // things to close, five idle seconds pass, the host takes over, the mode
+    // changes. While it is off there is no ring, nothing is focused, and Cross
+    // does nothing at all.
+    var session = false;
+    var sessionUntil = 0;                  // idle deadline, engine clock
+    var ptr = null;                        // last pointer position, top-page px (null = unknown)
+    var barOrigin = null;                  // where focus was before it went down into a bar
+    var lastItems = null, lastItemsAt = 0; // the most recent collect(), for placing the hint
+    var anchor = null;                     // pointer position when the session began
+    var NAV_IDLE_MS = 5000;
+    var allowed = true;                    // the host lets the page start a session
     var hosted = false;                    // is there a host to hand focus to?
     try { hosted = root.top !== root; } catch (_e3) { hosted = true; }
     // Inside the Atlas app the page is a true webview, so window.top IS this
     // window. Atlas's bridge sets __ATLAS_HOST instead, possibly after this
     // file has run, so it is read at the moment it matters, never cached.
     function isHosted() { return hosted || root.__ATLAS_HOST === true; }
-    if (isHosted() && root.__ATLAS_HOST_FOCUS === "host") owns = false;
-    var padActive = false;                 // ring + hints showing
+    if (isHosted() && root.__ATLAS_HOST_FOCUS === "host") allowed = false;
     var ui = null;                         // {ring, hint, help…} built on first use
-    var hintTimer = 0;
-    var lastPointer = null;
     var watched = [];                      // windows we listen to for pointer movement
 
     function now() { return clock !== null ? clock : (root.performance ? root.performance.now() : Date.now()); }
@@ -353,10 +374,10 @@
       // let go of the sticks (flight) or take them back (app).
       announce(false);
       if (after !== before) {
+        setNav(false);
         if (ui) ui.rootEl.classList.toggle("is-flight", after === "flight");
         if (helpOpen()) openHelp();
         emit("mode", after);
-        if (padActive) showHint();
       }
     }
     function addChild(win) { recordFor(win); watch(win); flagDocs(); }
@@ -370,17 +391,54 @@
       backHandlers = backHandlers.filter(function (e) { return e.owner !== win; });
       if (cur && cur.ownerDocument && cur.ownerDocument.defaultView === win) setCur(null);
       if (logicalMode() !== before) {
+        setNav(false);
         if (ui) ui.rootEl.classList.toggle("is-flight", logicalMode() === "flight");
         emit("mode", logicalMode());
       }
       announce(false);
     }
-    function setOwns(v) {
-      v = Boolean(v);
-      if (owns === v) return;
-      owns = v;
-      post({ type: "controller-focus", has: owns });
-      mirror("geoid:controller-focus", { has: owns });
+    function sayFocus() {
+      post({ type: "controller-focus", has: session });
+      mirror("geoid:controller-focus", { has: session });
+    }
+    function sayNav() {
+      post({ type: "controller-nav", active: session });
+      mirror("geoid:controller-nav", { active: session });
+    }
+    /**
+     * Start or end the navigation session. The host is told both ways:
+     * `controller-focus has` is true only while a session is on, so it always
+     * knows whether the D-pad is free.
+     */
+    function setNav(v, why) {
+      v = Boolean(v) && connected && allowed;
+      if (v === session) { if (v) { sessionUntil = now() + NAV_IDLE_MS; } return; }
+      session = v;
+      if (v) {
+        build();
+        anchor = null;
+        sessionUntil = now() + NAV_IDLE_MS;
+        showHint();
+        if (ui) { ui.rootEl.classList.add("is-active"); ui.ring.classList.remove("is-fading"); }
+      } else {
+        adjusting = false;                 // no trapped D-pad on a slider
+        held = null;
+        cur = null;
+        barOrigin = null;
+        if (ui) {
+          ui.rootEl.classList.remove("is-active");
+          ui.hint.classList.remove("is-on");
+          ui.ring.classList.remove("is-adjust");
+          if (why === "idle" && !ui.ring.hidden) {
+            ui.ring.classList.add("is-fading");
+            root.setTimeout(function () { if (!session && ui) { ui.ring.hidden = true; ui.ring.classList.remove("is-fading"); } }, 320);
+          } else { ui.ring.hidden = true; }
+        }
+        emit("focus", null);
+      }
+      sayFocus();
+      sayNav();
+      emit("nav", session);
     }
 
     // ── the pad ───────────────────────────────────────────────────────────
@@ -410,7 +468,7 @@
         down = sample.buttons.map(function (v) { return v > 0.5; });
         flagDocs();
         emit("connect", { id: gp.id, mapping: gp.mapping });
-        if (isHosted()) post({ type: "controller-focus", has: owns });
+        if (isHosted()) post({ type: "controller-focus", has: session });
         announce(true);
         start();
       } else if (!gp && connected) {
@@ -419,7 +477,7 @@
         sample = normalise(null);
         down = [];
         held = null;
-        setActive(false);
+        setNav(false);
         hideHelp();
         flagDocs();
         emit("disconnect");
@@ -456,14 +514,13 @@
       lastT = t;
       var s = normalise(gp);
       sample = s;
-      var anyEdge = false, i;
+      var i;
       for (i = 0; i < NAMES.length; i += 1) {
         var isDown = s.buttons[i] > 0.5;
         if (isDown === Boolean(down[i])) continue;
         down[i] = isDown;
         var name = NAMES[i];
         if (isDown) {
-          anyEdge = true;
           // While the help overlay is up it owns the buttons: Square there is
           // "invert vertical", and must not also flip the sim's camera.
           if (!helpOpen()) {
@@ -482,9 +539,8 @@
         emit(held.dir + ":repeat", { name: held.dir, repeat: true });
         dpad(held.dir);
       }
-      if (anyEdge && !padActive && owns) setActive(true);
-      if (padActive) placeRing();
-      if (hintTimer && t >= hintTimer) { hintTimer = 0; if (ui) ui.hint.classList.remove("is-on"); }
+      if (session && t >= sessionUntil) setNav(false, "idle");
+      if (session) placeRing();
     }
 
     function shaped() {
@@ -531,15 +587,16 @@
       // While the host owns controller focus the page acts on none of its
       // menu buttons. (PS, button 16, is never acted on in any mode: there is
       // no branch for it here. Atlas uses it for hold-to-talk.)
-      if (!owns && (name === "triangle" || name === "options")) return;
+      if (!allowed && (name === "triangle" || name === "options")) return;
       if (name === "triangle") { if (helpOpen()) hideHelp(); else openHelp(); return; }
       if (helpOpen()) {
         if (name === "circle" || name === "cross") hideHelp();
         else if (name === "square") { setInvertY(!invertY); }
         return;
       }
-      if (name === "cross") { if (owns) activate(); return; }
-      if (name === "circle") { if (owns) back(); return; }
+      // Cross acts ONLY inside a session, on the target the ring is showing.
+      if (name === "cross") { if (session) { sessionUntil = t + NAV_IDLE_MS; activate(); } return; }
+      if (name === "circle") { if (allowed) { if (session) sessionUntil = t + NAV_IDLE_MS; back(); } return; }
       // Exploring: Options is the only other button the page acts on. L1 / R1,
       // the triggers and the sticks are the host's (window switching, pointer
       // speed, pointer, scroll) and are deliberately not touched.
@@ -548,8 +605,9 @@
 
     function dpad(dir) {
       if (helpOpen()) { if (dir === "up" || dir === "down") ui.helpBody.scrollTop += dir === "down" ? 80 : -80; return; }
-      if (!owns) return;
-      setActive(true);
+      if (!allowed) return;
+      if (!session) { held = null; begin(); return; }   // the first press only shows the ring
+      sessionUntil = now() + NAV_IDLE_MS;
       if (adjusting && cur && cur.isConnected) { adjust(dir); return; }
       move(dir);
     }
@@ -564,6 +622,10 @@
     // The site's own top navigation. Not a side tab: never a target while
     // flying, and otherwise entered only by going UP from the top row.
     var HEADER = 'nav.site-nav, .site-nav, [data-pad-header]';
+    // A BAR: one row of like things at the foot of the page (the planet icons).
+    // Down from the bottom of anything reaches it, left / right walks along it
+    // one at a time and never off it, up goes back to where focus came from.
+    var BAR = '.gis-planet-dock, [data-pad-bar]';
 
     function headerOf(c) {
       if (!c) return null;
@@ -659,11 +721,13 @@
       walk(doc, 0, 0, null, items);
       var present = [];
       var i;
+      lastItems = items; lastItemsAt = now();
       for (i = 0; i < items.length; i += 1) present.push(items[i].el);
       for (i = 0; i < items.length; i += 1) {
         var it = items[i], el = it.el;
         it.primary = true; it.scope = null; it.panel = null;
         it.header = Boolean(el.closest(HEADER));
+        it.bar = el.closest(BAR);
         if (el.tagName === "SUMMARY" && el.parentElement && el.parentElement.tagName === "DETAILS") {
           it.panel = el.parentElement;
           continue;
@@ -714,6 +778,8 @@
           if (flying) return false;
           if (!me.header && dir !== "up") return false;
         }
+        if (!vertical && me.bar) return it.bar === me.bar;       // along the bar, never off it
+        if (!vertical && it.bar) return false;                   // and never sideways onto it
         if (vertical) return true;
         return it.primary || (scope && it.scope === scope);
       });
@@ -739,36 +805,115 @@
       }
       return best;
     }
+    function gapTo(px, py, it) {
+      var gx = rectGap(px, px, it.x, it.x + it.w), gy = rectGap(py, py, it.y, it.y + it.h);
+      return Math.sqrt(gx * gx + gy * gy);
+    }
+    /**
+     * Where a press goes from `me`. Geometry first; then the two things
+     * geometry alone gets wrong for a bar at the foot of the page:
+     *   DOWN with nothing below goes to the bar (it is centred, so it is
+     *   rarely inside the cone of a side tab);
+     *   UP out of the bar goes back to where focus came from.
+     */
+    function targetFor(items, me, dir, origin) {
+      var cands = candidatesFor(items, me, dir);
+      if (dir === "up" && me.bar) {
+        var inBar = nearest(me, cands.filter(function (it) { return it.bar === me.bar; }), dir);
+        if (inBar) return inBar;
+        var was = origin && origin.isConnected ? find(items, origin) : null;
+        if (was && !was.bar) return was;
+        var out = cands.filter(function (it) { return !it.bar && it.y + it.h / 2 < me.y; });
+        var bestUp = null, du = Infinity;
+        for (var u = 0; u < out.length; u += 1) {
+          var d0 = gapTo(me.x + me.w / 2, me.y, out[u]);
+          if (d0 < du) { du = d0; bestUp = out[u]; }
+        }
+        return bestUp;
+      }
+      var hit = nearest(me, cands, dir);
+      if (hit || dir !== "down" || me.bar) return hit;
+      var bars = cands.filter(function (it) { return it.bar; });
+      var best = null, dist = Infinity, cx = me.x + me.w / 2;
+      for (var b = 0; b < bars.length; b += 1) {
+        var dd = Math.abs(bars[b].x + bars[b].w / 2 - cx);
+        if (dd < dist) { dist = dd; best = bars[b]; }
+      }
+      return best;
+    }
     function move(dir) {
       var items = collect();
       var me = cur ? find(items, cur) : null;
       if (!me) {
-        // Nothing focused (first press, or the old target has gone): land.
-        var first = initial(items);
-        if (first) setCur(first.el);
+        // What the ring was on has gone: land afresh, do not guess a move.
+        var first = startItem(items);
+        if (first) setCur(first.el); else setNav(false);
         return Boolean(first);
       }
-      var target = nearest(me, candidatesFor(items, me, dir), dir);
-      if (target) { setCur(target.el); return true; }
+      var target = targetFor(items, me, dir, barOrigin);
+      if (target) {
+        if (target.bar && !me.bar) barOrigin = me.el;
+        else if (!target.bar) barOrigin = null;
+        setCur(target.el);
+        return true;
+      }
       if (isHosted()) {
         // The edge of the page: the host's tabs are next.
         var r = me;
         post({ type: "controller-focus-exit", direction: dir,
           rect: { x: Math.round(r.x), y: Math.round(r.y), w: Math.round(r.w), h: Math.round(r.h) } });
         mirror("geoid:controller-focus-exit", { direction: dir });
-        releaseFocus();
+        releaseFocus();                    // ends the session; the host has the D-pad
         return false;
       }
       bump();
       return false;
     }
+    /**
+     * Where a session starts: the control nearest the POINTER when the pointer
+     * is somewhere in the page (point at the planet bar, press the D-pad, and
+     * that is where the ring appears); the first side tab when it is not.
+     */
+    function startItem(items) {
+      if (ptr && ptr.x >= 0 && ptr.y >= 0 && ptr.x <= root.innerWidth && ptr.y <= root.innerHeight) {
+        var flying = logicalMode() === "flight";
+        var best = null, bd = Infinity;
+        for (var i = 0; i < items.length; i += 1) {
+          var it = items[i];
+          if (it.header && flying) continue;
+          var d = gapTo(ptr.x, ptr.y, it) + (it.w * it.h) * 1e-7;   // inside two boxes: the smaller
+          if (d < bd) { bd = d; best = it; }
+        }
+        if (best) return best;
+      }
+      return initial(items);
+    }
+    function begin() {
+      var at = startItem(collect());
+      if (!at) return false;
+      setNav(true);
+      if (session) setCur(at.el);
+      return session;
+    }
+    /** For the audit: every control a session can reach from where it starts. */
+    function reach() {
+      var items = collect(), seen = [], queue = [];
+      var start = initial(items);
+      if (start) { seen.push(start); queue.push(start); }
+      while (queue.length) {
+        var me = queue.shift();
+        for (var d = 0; d < DIRS.length; d += 1) {
+          var t = targetFor(items, me, DIRS[d], null);
+          if (t && seen.indexOf(t) < 0) { seen.push(t); queue.push(t); }
+        }
+      }
+      return { all: items, reached: seen };
+    }
     /** Controller focus goes to the host: no ring, no hints, no overlay. */
     function releaseFocus() {
-      held = null;
-      setCur(null);
-      setActive(false);
+      allowed = false;
       hideHelp();
-      setOwns(false);
+      if (session) setNav(false); else sayFocus();
     }
     /** The host gives focus back: land on the tab nearest where it came from. */
     function enter(direction, from) {
@@ -790,15 +935,15 @@
         else score = (H - it.y - it.h) + 0.25 * Math.abs(it.x + it.w / 2 - W / 2);
         if (score < bestScore) { bestScore = score; best = it; }
       }
-      setOwns(true);
-      setActive(true);
-      if (best) setCur(best.el);
+      allowed = true;
+      if (best) { setNav(true); setCur(best.el); }
       return best ? best.el : null;
     }
 
     function setCur(el) {
       if (adjusting) { adjusting = false; }
-      cur = el || null;
+      if (!el) { setNav(false); return; }
+      cur = el;
       if (cur) {
         try { cur.scrollIntoView({ block: "nearest", inline: "nearest" }); } catch (_e) { /* old engine */ }
       }
@@ -809,8 +954,12 @@
       emit("focus", cur);
     }
     function activate() {
-      if (!cur || !cur.isConnected) { move("down"); return; }
-      setActive(true);
+      // Never a stale or hidden target: if what the ring was on has gone, or
+      // can no longer be reached, the session ends and nothing is clicked.
+      // Cross acts on the element the ring is VISIBLY on and on nothing else.
+      if (!cur || !cur.isConnected || !find(collect(), cur)) { setNav(false); return; }
+      placeRing();
+      if (!ui || ui.ring.hidden || ui.rootEl.hidden) return;
       var tag = cur.tagName;
       var type = (cur.getAttribute("type") || "").toLowerCase();
       if (tag === "SELECT" || (tag === "INPUT" && type === "range") || cur.getAttribute("role") === "slider") {
@@ -908,26 +1057,27 @@
       if (cur && found.box.contains(cur)) setCur(null);
       return true;
     }
+    /**
+     * Circle, in order: finish adjusting a slider; close the open dialog or
+     * popup; step out of a panel to its tab; END THE SESSION. With no session
+     * on, it is the page's own back handlers (in flight: the Control Centre).
+     */
     function back() {
       if (adjusting) { adjusting = false; if (ui) ui.ring.classList.remove("is-adjust"); showHint(); return; }
       if (closeTopmost()) return;
-      var items = null, me = null;
-      if (cur && cur.isConnected) { items = collect(); me = find(items, cur); }
-      if (me && !me.primary && me.scope) {
-        // Inside a panel: step back out to its tab.
-        var h = headerOf(me.scope);
-        if (h) { setActive(true); setCur(h); return; }
+      if (session) {
+        var me = (cur && cur.isConnected) ? find(collect(), cur) : null;
+        if (me && !me.primary && me.scope) {
+          var h = headerOf(me.scope);
+          if (h) { setCur(h); return; }
+        }
+        setNav(false);
+        return;
       }
       var list = backHandlers.slice();
       for (var i = list.length - 1; i >= 0; i -= 1) {
         try { if (list[i].fn() === true) return; } catch (err) { if (root.console) root.console.error("GeoIDPad back", err); }
       }
-      // On the tab of an open panel: close it.
-      if (me && me.panel && me.panel.tagName === "DETAILS" && me.panel.open && !me.panel.hasAttribute("data-pad-noclose")) {
-        me.panel.open = false;
-        return;
-      }
-      if (cur) bump();
     }
 
     // ── exploring: Options ────────────────────────────────────────────────
@@ -990,7 +1140,7 @@
         link.href = src ? src.replace(/\/scripts\/gamepad\.js/, "/styles/gamepad.css") : "/styles/gamepad.css";
         // Nothing is drawn until the rules have arrived: an unstyled ring is
         // a stray box at the foot of the page.
-        var styled = function () { if (ui) { ui.rootEl.hidden = false; placeRing(); } };
+        var styled = function () { if (ui) { ui.rootEl.hidden = false; placeRing(); if (session) showHint(); } };
         link.addEventListener("load", styled);
         link.addEventListener("error", styled);
         doc.head.appendChild(link);
@@ -1035,7 +1185,7 @@
     }
     function placeRing() {
       if (!ui) return;
-      if (!padActive || !cur || !cur.isConnected || !owns) { ui.ring.hidden = true; return; }
+      if (!session || !cur || !cur.isConnected) { ui.ring.hidden = true; return; }
       var r = topRect(cur);
       if (r.w < 1 && r.h < 1) { ui.ring.hidden = true; return; }
       var pad = 4;
@@ -1063,33 +1213,81 @@
         : [["dpad", "Tabs"], ["cross", "Select"], ["circle", flight ? "Control Centre / back" : "Back"],
           ["triangle", flight ? "Flying controls" : "Exploring controls"]];
       ui.hint.innerHTML = parts.map(function (p) { return "<span>" + glyph(p[0]) + "<b>" + esc(p[1]) + "</b></span>"; }).join("");
-      ui.hint.classList.add("is-on");
-      hintTimer = now() + HINT_MS;
+      placeHint();
     }
-    /** The ring and hints appear with the first pad input, go with the mouse. */
-    function setActive(v) {
-      v = Boolean(v) && connected;
-      if (v === padActive) { if (v) showHint(); return; }
-      padActive = v;
-      if (v) { build(); showHint(); }
-      if (ui) {
-        ui.rootEl.classList.toggle("is-active", v);
-        if (!v) { ui.hint.classList.remove("is-on"); hintTimer = 0; }
-        placeRing();
+    /**
+     * The hint strip never sits on a control. It tries a handful of slots
+     * round the edge of the page against the real boxes of everything
+     * interactive (and the bars and docks around them) and takes the first
+     * that is clear. If none is, it is not shown: the same words are one
+     * Triangle away.
+     */
+    var AVOID = '.gis-planet-dock, nav.site-nav, #ui, #layer-dock, #toolbar, #tool-rail, #top-right-controls, ' +
+      '#fs-hud-dock, #fs-meters, #fs-topbar, #fs-topright, #bottom-right-hud, #cursor-readout-bar, ' +
+      '#geoid-zoom-step, .gis-side-panel, [data-pad-avoid]';
+    function placeHint() {
+      var hint = ui.hint;
+      hint.classList.remove("is-on");
+      if (ui.rootEl.hidden) return;                // not styled yet: no size to place
+      var fresh = lastItems && Math.abs(now() - lastItemsAt) < 250 ? lastItems : collect();
+      var boxes = fresh.slice();
+      eachDoc(doc, function (d) {
+        var list = d.querySelectorAll(AVOID);
+        for (var i = 0; i < list.length; i += 1) {
+          if (!shown(list[i])) continue;
+          var r = topRect(list[i]);
+          if (r.w > 2 && r.h > 2) boxes.push(r);
+        }
+      });
+      var W = root.innerWidth, H = root.innerHeight;
+      var w = hint.offsetWidth, h = hint.offsetHeight, m = 12;
+      if (!w || !h || w + 2 * m > W) return;
+      // Edges only, never the middle of the globe: foot of the page first,
+      // then just under the site header.
+      var mid = (W - w) / 2;
+      var xs = [mid, mid + 70, mid - 70, m, W - w - m];
+      var ys = [H - h - m, H - h - m - 56, H - h - m - 112, m + 76, m + 124];
+      for (var yi = 0; yi < ys.length; yi += 1) {
+        for (var xi = 0; xi < xs.length; xi += 1) {
+          var x = xs[xi], y = ys[yi], clear = true;
+          for (var b = 0; b < boxes.length && clear; b += 1) {
+            var bx = boxes[b];
+            if (bx.x < x + w + 6 && bx.x + bx.w > x - 6 && bx.y < y + h + 6 && bx.y + bx.h > y - 6) clear = false;
+          }
+          if (!clear) continue;
+          hint.style.transform = "translate(" + Math.round(x) + "px," + Math.round(y) + "px)";
+          hint.classList.add("is-on");
+          return;
+        }
       }
     }
+    /**
+     * The pointer ends the session, in every mode. The owner steers it with
+     * the stick or the touchpad, so moving it means "I am using the pointer
+     * now". Ten pixels of slack, measured from where it was when the session
+     * began, so a resting hand does not cancel a press.
+     */
     function pointerSeen(e) {
-      if (!padActive) return;
-      if (e.type === "pointermove" || e.type === "mousemove") {
-        var p = { x: e.screenX, y: e.screenY };
-        var last = lastPointer;
-        lastPointer = p;
-        if (!last || (Math.abs(p.x - last.x) < 4 && Math.abs(p.y - last.y) < 4)) return;
+      if (e.type === "pointermove" || e.type === "pointerdown") {
+        // Where the pointer is, in top-page pixels: a session starts there.
+        var x = e.clientX, y = e.clientY;
+        try {
+          var w = e.view || (e.target && e.target.ownerDocument && e.target.ownerDocument.defaultView) || root;
+          while (w && w !== root && w.frameElement) {
+            var fr = w.frameElement.getBoundingClientRect();
+            x += fr.left + w.frameElement.clientLeft; y += fr.top + w.frameElement.clientTop;
+            w = w.parent;
+          }
+        } catch (_e) { /* detached frame */ }
+        ptr = { x: x, y: y };
       }
-      // In flight the pointer is the pad's own touchpad as often as not, and
-      // it must not cost the pilot the ring.
-      if (logicalMode() === "flight") return;
-      setActive(false);
+      if (!session) return;
+      if (e.type === "pointermove") {
+        if (!anchor) { anchor = { x: e.screenX, y: e.screenY }; return; }
+        var dx = e.screenX - anchor.x, dy = e.screenY - anchor.y;
+        if (dx * dx + dy * dy <= 100) return;
+      }
+      setNav(false);
     }
     function watch(w) {
       if (!w || watched.indexOf(w) >= 0) return;
@@ -1097,6 +1295,7 @@
       try {
         w.addEventListener("pointermove", pointerSeen, { passive: true });
         w.addEventListener("pointerdown", pointerSeen, { passive: true });
+        w.addEventListener("wheel", pointerSeen, { passive: true });
         w.addEventListener("pagehide", function () {
           var i = watched.indexOf(w);
           if (i >= 0) watched.splice(i, 1);
@@ -1119,6 +1318,7 @@
       { control: "l1 / r1", text: "Previous / next window in Atlas", unused: true },
       { control: "touchpad", text: "The pointer, as on any desktop", unused: true }
     ];
+    var NAV_TIP = "D-pad starts tab selection; move the pointer, press Circle, or wait a few seconds to leave it.";
     function helpOpen() { return Boolean(ui && !ui.help.hidden); }
     /** A page that can fly registers its FLYING map here (the sim does). */
     function setHelp(entries, title, win) {
@@ -1136,7 +1336,8 @@
     function sectionHtml(name, note, entries, live) {
       return '<section class="geoid-pad-help-map' + (live ? " is-live" : "") + '">' +
         '<h3 class="geoid-pad-help-mode"><span>' + esc(name) + "</span>" +
-        '<em>' + esc(live ? "Active now" : note) + "</em></h3>" + rowsHtml(entries) + "</section>";
+        '<em>' + esc(live ? "Active now" : note) + "</em></h3>" + rowsHtml(entries) +
+        '<p class="geoid-pad-help-tip">' + esc(NAV_TIP) + "</p></section>";
     }
     function openHelp() {
       if (!build()) return;
@@ -1193,7 +1394,8 @@
     root.addEventListener("message", function (e) {
       var m = e.data;
       if (!m || m.source !== "atlas") return;
-      if (m.type !== "controller-focus-enter" && m.type !== "controller-hello" && m.type !== "controller-focus-leave") return;
+      if (m.type !== "controller-focus-enter" && m.type !== "controller-hello" &&
+          m.type !== "controller-focus-leave" && m.type !== "controller-owner") return;
       var from = null;
       try { from = e.source; } catch (_e) { from = null; }
       var okSource = false;
@@ -1208,17 +1410,25 @@
       if (m.type === "controller-hello") {
         // Sent when the tile is ready and after each navigation. Whatever we
         // announced before may have gone to nobody, so say it all again.
-        if (m.owner === "atlas") releaseFocus();
-        else if (m.owner === "page") setOwns(true);
+        if (m.owner === "atlas") { allowed = false; hideHelp(); setNav(false); }
+        else if (m.owner === "page") allowed = true;      // may start on the next D-pad press
         announce(true);
-        post({ type: "controller-focus", has: owns });
-        mirror("geoid:controller-focus", { has: owns });
+        sayFocus();
+        sayNav();
+        return;
+      }
+      if (m.type === "controller-owner") {
+        // Ownership follows the pointer. "page" only PERMITS a session: the
+        // ring waits for a D-pad press.
+        if (m.owner === "atlas") { allowed = false; hideHelp(); if (session) setNav(false); else sayFocus(); }
+        else if (m.owner === "page") allowed = true;
         return;
       }
       if (!connected) scan();
       enter(m.direction, m.from || null);
     });
     watch(root);
+    doc.addEventListener("mouseleave", function () { ptr = null; });   // the pointer left the page
 
     function init() {
       scan();
@@ -1230,16 +1440,22 @@
     // ── public face ───────────────────────────────────────────────────────
     var focusApi = {
       current: function () { return cur; },
-      to: function (el) { if (typeof el === "string") el = doc.querySelector(el); if (el) { setActive(true); setCur(el); } return el || null; },
+      to: function (el) {
+        if (typeof el === "string") el = doc.querySelector(el);
+        if (!el) return null;
+        setNav(true);
+        if (session) setCur(el);
+        return session ? el : null;
+      },
       /** Focus the first tab inside `scope` (an element in any framed document). */
       first: function (scope) {
         var items = collect().filter(function (it) { return !scope || scope.contains(it.el); });
         var pickIt = tabsFirst(items)[0];
-        if (pickIt) { setActive(true); setCur(pickIt.el); }
-        return pickIt ? pickIt.el : null;
+        if (pickIt) { setNav(true); if (session) setCur(pickIt.el); }
+        return pickIt && session ? pickIt.el : null;
       },
       move: function (dir) { return move(dir); },
-      clear: function () { setCur(null); },
+      clear: function () { setNav(false); },
       list: function () { return collect(); }
     };
 
@@ -1250,7 +1466,7 @@
       focusApi: focusApi, scan: scan,
       isConnected: function () { return connected; },
       modeOf: function () { return logicalMode(); },
-      ownsFocus: function () { return owns; },
+      ownsFocus: function () { return session; },
       getInvertY: function () { return invertY; },
       setInvertY: setInvertY
     };
@@ -1270,14 +1486,16 @@
       _step: function (t) { stop(); clock = t; if (!connected) scan(); poll(t); },
       _realtime: function () { clock = null; lastT = 0; if (connected) start(); },
       _state: function () {
-        return { connected: connected, mode: logicalMode(), announced: lastAnnounced, owns: owns,
-          hosted: isHosted(), active: padActive, adjusting: adjusting, help: helpOpen(), polling: Boolean(rafId) };
+        return { connected: connected, mode: logicalMode(), announced: lastAnnounced, owns: session, allowed: allowed,
+          hosted: isHosted(), active: session, adjusting: adjusting, help: helpOpen(), polling: Boolean(rafId) };
       },
-      _setHosted: function (v) { hosted = Boolean(v); }
+      _setHosted: function (v) { hosted = Boolean(v); },
+      _forgetPointer: function () { ptr = null; },
+      _reach: reach
     };
     Object.defineProperty(api, "connected", { get: function () { return connected; } });
     Object.defineProperty(api, "mode", { get: logicalMode });
-    Object.defineProperty(api, "hasFocus", { get: function () { return owns; } });
+    Object.defineProperty(api, "hasFocus", { get: function () { return session; } });
     Object.defineProperty(api, "invertY", { get: function () { return invertY; }, set: setInvertY });
     return api;
   }

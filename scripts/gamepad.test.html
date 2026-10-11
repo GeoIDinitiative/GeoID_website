@@ -80,6 +80,12 @@
     <button id="m-model" class="abs nav-modebar-pill" style="left:390px;top:10px;width:80px;height:28px" type="button">Model</button>
     <button id="m-research" class="abs nav-modebar-pill" style="left:480px;top:10px;width:80px;height:28px" type="button">Research</button>
   </div>
+  <!-- the planet bar: centred at the foot, outside any side tab's cone -->
+  <div class="gis-planet-dock" id="dock">
+    <a id="p-mercury" class="abs planet-node" href="#mercury" style="left:300px;top:478px;width:30px;height:30px">☿</a>
+    <a id="p-venus" class="abs planet-node" href="#venus" style="left:340px;top:478px;width:30px;height:30px">♀</a>
+    <a id="p-earth" class="abs planet-node" href="#earth" style="left:380px;top:478px;width:30px;height:30px">♁</a>
+  </div>
   <button id="hidden-btn" class="abs" style="left:400px;top:200px;width:60px;height:30px" type="button" hidden>Hidden</button>
   <button id="covered-btn" class="abs" style="left:400px;top:300px;width:60px;height:30px" type="button">Covered</button>
   <div class="abs" style="left:380px;top:290px;width:100px;height:50px;background:#000"></div>
@@ -200,30 +206,149 @@
   set("right", 0); step();
   eq(focusId(), "m-model", "debounce: a press spanning several frames is still one move", tapsBefore);
 
-  // ── 5. the ring and the hints ────────────────────────────────────────
+  // ── 5. the navigation session ───────────────────────────────────────
   var ring = document.querySelector(".geoid-pad-ring");
   for (var w = 0; w < 100 && !document.getElementById("geoid-pad-css").sheet; w += 1) await tick(20);
   step();
   ok(Boolean(document.getElementById("geoid-pad-css").sheet), "ring: the module loaded its own stylesheet");
-  ok(ring && !ring.hidden, "ring: showing after controller input");
+  var hint = document.querySelector(".geoid-pad-hint");
+  function nav() { return P._state().active; }
+  // A pointer event that says nothing about WHERE in the page the pointer is.
+  function mouse(type, x, y) { window.dispatchEvent(new PointerEvent(type, { screenX: x, screenY: y })); P._forgetPointer(); }
+  ok(nav() && !ring.hidden, "session: on, with the ring showing, while navigating");
   var rr = ring.getBoundingClientRect(), tr = document.getElementById("m-model").getBoundingClientRect();
   ok(Math.abs(rr.left - (tr.left - 4)) <= 1 && Math.abs(rr.width - (tr.width + 8)) <= 1 && Math.abs(rr.top - (tr.top - 4)) <= 1,
     "ring: drawn around the focused element", { ring: [rr.left, rr.top, rr.width], target: [tr.left, tr.top, tr.width] });
-  ok(document.querySelector(".geoid-pad-hint").classList.contains("is-on"), "hints: showing after controller input");
-  window.dispatchEvent(new PointerEvent("pointermove", { screenX: 10, screenY: 10 }));
-  window.dispatchEvent(new PointerEvent("pointermove", { screenX: 60, screenY: 60 }));
-  step();
-  ok(ring.hidden, "ring: mouse movement hides it (app mode)");
-  eq(P._state().active, false, "hints: mouse movement puts the controller hints away");
-  tap("down");
-  ok(!ring.hidden, "ring: the next controller input brings it back");
+  ok(hint.classList.contains("is-on"), "hints: showing during a session");
+  // OFF: Circle with nothing left to close or step out of
+  await tick(); window.__msgs.length = 0;
+  tap("circle");
+  await tick();
+  ok(!nav() && ring.hidden && !hint.classList.contains("is-on") && focusId() === null,
+    "session off: Circle with nothing to close ends it: no ring, no hints, nothing focused");
+  ok(last("controller-nav") && last("controller-nav").active === false, "session off: announces controller-nav active:false");
+  ok(last("controller-focus") && last("controller-focus").has === false, "session off: announces controller-focus has:false");
+  // Cross is inert while off
+  var modelClicks = 0;
+  document.getElementById("m-model").addEventListener("click", function () { modelClicks += 1; });
+  tap("cross"); tap("cross");
+  ok(modelClicks === 0 && !nav(), "session off: Cross does nothing (it never activates a stale target)");
+  // ON: the first D-pad press only shows the ring
+  window.__msgs.length = 0;
+  tap("right");
+  await tick();
+  ok(nav() && !ring.hidden, "session on: a D-pad press starts it and the ring appears");
+  eq(focusId(), "t-explorer", "session on: that first press only shows the ring, on the first side tab (pointer position unknown); it does not also move");
+  ok(last("controller-nav").active === true && last("controller-focus").has === true,
+    "session on: announces controller-nav active:true and controller-focus has:true");
+  tap("down"); eq(focusId(), "t-map", "session on: the next press moves");
+  var mapOpenBefore = document.getElementById("d-map").open;
+  tap("cross"); await tick(140);
+  ok(nav() && document.getElementById("d-map").open !== mapOpenBefore, "session on: Cross acts again, on the element the ring is on");
+  document.getElementById("d-map").open = false; P.focus.to(document.getElementById("t-map"));
+  // OFF: pointer movement, with ten pixels of slack
+  mouse("pointermove", 100, 100); mouse("pointermove", 106, 104); step();
+  ok(nav(), "pointer: a movement under 10 px does not end the session");
+  mouse("pointermove", 100, 130); step();
+  ok(!nav() && ring.hidden, "pointer: a movement over 10 px ends it");
+  tap("down"); ok(nav(), "pointer: the next D-pad press starts a new one");
+  mouse("pointerdown", 5, 5); step();
+  ok(!nav(), "pointer: a mouse / touch press ends it");
+  tap("down"); window.dispatchEvent(new WheelEvent("wheel", { deltaY: 40 })); step();
+  ok(!nav(), "pointer: a wheel event ends it");
+  // OFF: five idle seconds, on the stepped clock
+  tap("down"); ok(nav(), "idle: session on");
+  step(4900); ok(nav() && !ring.hidden, "idle: still on at 4.9 s");
+  step(200); ok(!nav(), "idle: off after 5 s with no D-pad / Cross / Circle");
+  ok(ring.classList.contains("is-fading") || ring.hidden, "idle: the ring fades out rather than snapping");
+  await tick(380); ok(ring.hidden, "idle: …and is gone");
+  tap("down"); step(3000); tap("up"); step(3000);
+  ok(nav(), "idle: any D-pad press restarts the five seconds");
+  tap("cross"); step(3000); ok(nav(), "idle: so does Cross");
+  // OFF: the mode changing
+  P.setMode("flight"); ok(!nav() && ring.hidden, "mode: changing mode ends the session");
+  tap("down"); ok(nav(), "flight: a D-pad press starts a session there too");
+  mouse("pointermove", 300, 300); mouse("pointermove", 340, 340); step();
+  ok(!nav(), "flight: pointer movement ends it in flight as well");
+  P.setMode("app");
+  // adjust mode cannot outlive the session
+  document.getElementById("d-explorer").open = true;
+  P.focus.to(document.getElementById("c-range")); tap("cross");
+  ok(P._state().adjusting, "adjust: Cross on a slider starts adjusting");
+  mouse("pointermove", 10, 10); mouse("pointermove", 80, 80); step();
+  ok(!nav() && !P._state().adjusting, "adjust: ends with the session (no trapped D-pad)");
+  var rangeBefore = document.getElementById("c-range").value;
+  tap("right"); tap("right");
+  eq(document.getElementById("c-range").value, rangeBefore, "adjust: a later D-pad press navigates, it does not edit the slider");
+  document.getElementById("d-explorer").open = false;
+  // a target that has gone is never clicked
+  var ghost = document.createElement("button");
+  ghost.className = "abs"; ghost.style.cssText = "left:700px;top:250px;width:60px;height:30px"; ghost.textContent = "Ghost";
+  var ghostClicks = 0; ghost.addEventListener("click", function () { ghostClicks += 1; });
+  document.getElementById("stage").appendChild(ghost);
+  P.focus.to(ghost); ghost.hidden = true;
+  tap("cross");
+  ok(ghostClicks === 0 && !nav(), "stale: Cross on a target that has become hidden clicks nothing and ends the session");
+  ghost.remove();
+  // while off, Circle still closes a popup and Triangle still shows help
+  P.focus.clear();
+  document.getElementById("popup").hidden = false;
+  var closeOnce = function () { document.getElementById("popup").hidden = true; };
+  document.getElementById("popup-close").addEventListener("click", closeOnce);
+  tap("circle"); ok(document.getElementById("popup").hidden && !nav(), "session off: Circle still closes an open dialog");
+  tap("triangle"); ok(!document.querySelector(".geoid-pad-help").hidden && !nav(), "session off: Triangle still shows the help overlay");
+  ok(/D-pad starts tab selection; move the pointer, press Circle, or wait a few seconds to leave it\./.test(document.querySelector(".geoid-pad-help-map").textContent),
+    "help: the map says how tab selection starts and ends");
+  tap("triangle");
+
+  // ── 5b. a session starts where the pointer is ────────────────────────
+  P.focus.clear();
+  var pv = document.getElementById("p-venus").getBoundingClientRect();
+  window.dispatchEvent(new PointerEvent("pointermove", { clientX: pv.left + 8, clientY: pv.top + 8, screenX: 900, screenY: 900 }));
+  tap("left");
+  eq(focusId(), "p-venus", "start: pointing at the planet bar and pressing the D-pad starts the session ON that planet");
+  P.focus.clear();
+  var ra = document.getElementById("r-b").getBoundingClientRect();
+  window.dispatchEvent(new PointerEvent("pointermove", { clientX: ra.left - 30, clientY: ra.top + 10, screenX: 950, screenY: 950 }));
+  tap("up");
+  eq(focusId(), "r-b", "start: …and near the tool rail, on the nearest rail button");
+  P.focus.clear(); P._forgetPointer();
+  tap("up");
+  eq(focusId(), "t-explorer", "start: with the pointer position unknown, on the first side tab");
+  P.focus.clear();
 
   // ── 6. spatial, tab-first traversal ──────────────────────────────────
   P.focus.to(document.getElementById("t-explorer"));
   tap("down"); eq(focusId(), "t-map", "tabs: down from Explorer is Map (its closed panel's controls are not offered)");
   tap("down"); eq(focusId(), "t-geology", "tabs: down again is Geology, one tab per press");
-  tap("down"); eq(focusId(), "t-geology", "tabs: at the bottom edge with no host, focus stops (no wrap)");
-  eq(last("controller-focus-exit"), null, "tabs: …and no focus-exit is posted when the page is not embedded");
+  // the planet bar
+  await tick(40);                                  // let earlier <details> toggle events drain
+  var planetClicks = [], tabToggles = 0;
+  document.getElementById("dock").addEventListener("click", function (e) { e.preventDefault(); planetClicks.push(e.target.id); });
+  ["d-explorer", "d-map", "d-geology"].forEach(function (id) { document.getElementById(id).addEventListener("toggle", function () { tabToggles += 1; }); });
+  tap("down"); eq(focusId(), "p-mercury", "planet bar: DOWN from the last side tab reaches it, though it is far outside the tab's cone");
+  tap("right"); eq(focusId(), "p-venus", "planet bar: RIGHT moves along it one planet at a time");
+  tap("right"); eq(focusId(), "p-earth", "planet bar: …and again");
+  tap("right"); eq(focusId(), "p-earth", "planet bar: at its end, with no host, focus stops (no wrap, and never sideways off the bar)");
+  eq(last("controller-focus-exit"), null, "planet bar: …and no focus-exit is posted when the page is not embedded");
+  tap("cross"); await tick(120);
+  ok(planetClicks.join(",") === "p-earth" && tabToggles === 0, "planet bar: Cross fires the focused planet's click and nothing else (no side tab)", { planetClicks: planetClicks, tabToggles: tabToggles });
+  tap("left"); eq(focusId(), "p-venus", "planet bar: LEFT comes back along it");
+  tap("down"); eq(focusId(), "p-venus", "planet bar: nothing below it");
+  tap("up"); eq(focusId(), "t-geology", "planet bar: UP leaves it back to where focus came from");
+  var dockR = document.getElementById("dock").getBoundingClientRect();
+  var pr = ["p-mercury", "p-venus", "p-earth"].map(function (id) { return document.getElementById(id).getBoundingClientRect(); });
+  function clearOf(a, list) { return list.every(function (b) { return a.right <= b.left || a.left >= b.right || a.bottom <= b.top || a.top >= b.bottom; }); }
+  var hr = hint.getBoundingClientRect();
+  ok(hint.classList.contains("is-on") && hr.width > 20, "overlay: the hint strip is showing during the session");
+  var controls = pr.concat([dockR], ["m-gis", "m-model", "m-research", "t-explorer", "t-map", "t-geology", "r-a", "r-b", "r-c"].map(function (id) { return document.getElementById(id).getBoundingClientRect(); }));
+  ok(clearOf(hr, controls), "overlay: the hint strip does not intersect the planet bar, the mode bar, the side tabs or the rail", [hr.left, hr.top, hr.width, hr.height]);
+  ok([document.querySelector(".geoid-pad-ui"), ring, hint].every(function (el) { return getComputedStyle(el).pointerEvents === "none"; }),
+    "overlay: the layer, the ring and the hint strip are all pointer-events: none");
+  P.focus.to(document.getElementById("p-venus")); step();
+  var pvc = document.getElementById("p-venus").getBoundingClientRect();
+  eq(document.elementFromPoint(pvc.left + pvc.width / 2, pvc.top + pvc.height / 2).id, "p-venus", "overlay: with the ring on a planet, a click at that point still lands on the planet");
+  P.focus.to(document.getElementById("t-geology"));
   tap("up"); tap("up"); eq(focusId(), "t-explorer", "tabs: up twice returns to Explorer");
   tap("right"); eq(focusId(), "m-gis", "tabs: right from Explorer is the nearest tab that way, across to the mode bar");
   P.focus.to(document.getElementById("m-research"));
@@ -256,11 +381,11 @@
   tap("up"); eq(focusId(), "c-select", "panel: and up from it comes back into the open panel");
   tap("circle"); eq(focusId(), "t-explorer", "circle: inside a panel, steps back out to its tab");
   eq(document.getElementById("d-explorer").open, true, "circle: …leaving the panel open");
-  tap("circle"); eq(document.getElementById("d-explorer").open, false, "circle: on the tab of an open panel, closes it");
+  tap("circle"); ok(!P._state().active && document.getElementById("d-explorer").open, "circle: on the tab, with nothing left to step out of, ends the session (the panel stays as it is)");
+  document.getElementById("d-explorer").open = false;
 
   // Circle closes a popup before anything else.
   document.getElementById("popup").hidden = false;
-  document.getElementById("popup-close").addEventListener("click", function () { document.getElementById("popup").hidden = true; });
   tap("circle"); eq(document.getElementById("popup").hidden, true, "circle: closes an open dialog through its own close button");
 
   // ── 7. modes and the announcement ────────────────────────────────────
@@ -323,11 +448,9 @@
   P.focus.clear();
   tap("circle"); eq(backCalls, 1, "flight: Circle with nothing open reaches the page's back handler (the Control Centre)");
   P.focus.to(document.getElementById("t-map")); step();
-  window.dispatchEvent(new PointerEvent("pointermove", { screenX: 200, screenY: 200 }));
-  window.dispatchEvent(new PointerEvent("pointermove", { screenX: 300, screenY: 300 }));
+  mouse("pointermove", 200, 200); mouse("pointermove", 300, 300);
   step();
-  ok(!ring.hidden, "flight: pointer movement (the touchpad) does NOT hide the ring");
-  eq(P._state().active, true, "flight: …nor the hints");
+  ok(ring.hidden && !P._state().active, "flight: pointer movement ends the session here too");
   set("r2", 0.5); pad.axes = [0.5, 0, 0, 0]; step();
   var ax = P.axes();
   ok(ax.r2 > 0.4 && ax.r2 < 0.55, "flight: R2 reads as an analogue value", ax.r2);
@@ -374,6 +497,7 @@
     "hand-off: rect is the focused element's viewport rectangle", ex && ex.rect);
   var own = last("controller-focus");
   ok(own && own.has === false, "hand-off: announces controller-focus has:false", own);
+  ok(last("controller-nav").active === false, "hand-off: …and controller-nav active:false (the edge press ended the session)");
   eq(P.hasFocus, false, "hand-off: the page no longer owns controller focus");
   ok(ring.hidden, "hand-off: the ring is released");
   step(400); step(130);
@@ -426,9 +550,9 @@
   eq(P._state().hosted, false, "webview: not hosted without a frame or a flag");
   window.__ATLAS_HOST = true;                      // set AFTER load, as the bridge may
   eq(P._state().hosted, true, "webview: window.__ATLAS_HOST === true makes the page hosted, read live");
-  P.focus.to(document.getElementById("t-geology")); tap("down");
+  P.focus.to(document.getElementById("t-geology")); tap("left");
   await tick();
-  ok(last("controller-focus-exit") && last("controller-focus-exit").direction === "down",
+  ok(last("controller-focus-exit") && last("controller-focus-exit").direction === "left",
     "webview: an edge press with the flag set posts controller-focus-exit");
   window.postMessage({ source: "atlas", type: "controller-focus-enter", direction: "up", from: null }, "*");
   await tick(40);
@@ -475,9 +599,9 @@
   window.__msgs.length = 0;
   window.postMessage({ source: "atlas", type: "controller-hello", mode: "geoid", owner: "page" }, "*");
   await tick(40);
-  eq(P.hasFocus, true, "hello owner page: the page owns controller focus");
-  ok(modes().join(",") === "app" && last("controller-focus").has === true, "hello owner page: re-announces mode and has:true", window.__msgs);
-  tap("down"); ok(focusId() !== null, "hello owner page: the D-pad works");
+  ok(P._state().allowed && !P._state().active && ring.hidden, "hello owner page: a session MAY start, but no ring yet");
+  ok(modes().join(",") === "app" && last("controller-focus").has === false, "hello owner page: re-announces mode, and has:false until a session is on", window.__msgs);
+  tap("down"); ok(focusId() !== null && last("controller-focus") && P.hasFocus, "hello owner page: the next D-pad press starts the session");
   tap("triangle"); ok(!helpEl().hidden, "hello owner page: Triangle works");
   window.__msgs.length = 0;
   window.postMessage({ source: "atlas", type: "controller-focus-leave" }, "*");
@@ -493,6 +617,24 @@
   window.postMessage({ source: "atlas", type: "controller-focus-enter", direction: "right", from: null }, "*");
   await tick(40);
   eq(P.hasFocus, true, "focus-leave: focus-enter brings it back");
+  // controller-owner: ownership follows the pointer
+  window.__msgs.length = 0;
+  window.postMessage({ source: "atlas", type: "controller-owner", owner: "atlas" }, "*");
+  await tick(40);
+  ok(!P._state().active && !P._state().allowed && ring.hidden, "owner atlas: ends the session and the page stays quiet");
+  ok(last("controller-focus").has === false && last("controller-nav").active === false, "owner atlas: announces has:false and nav active:false");
+  tap("down"); tap("cross"); ok(!P._state().active, "owner atlas: a D-pad press starts nothing");
+  window.__msgs.length = 0;
+  window.postMessage({ source: "atlas", type: "controller-owner", owner: "page" }, "*");
+  await tick(40);
+  ok(P._state().allowed && !P._state().active && ring.hidden, "owner page: permitted, but the ring is NOT shown yet");
+  eq(window.__msgs.length, 0, "owner page: nothing is announced until a session actually starts");
+  tap("down"); await tick();
+  ok(P._state().active && !ring.hidden && last("controller-focus").has === true && last("controller-nav").active === true,
+    "owner page: the next D-pad press starts the session and announces it");
+  window.postMessage({ source: "intruder", type: "controller-owner", owner: "atlas" }, "*");
+  await tick(40);
+  ok(P._state().active, "owner: ignored unless it is from source atlas");
   // PS (button 16) is Atlas's hold-to-talk: the page never acts on it.
   var psFocus = focusId(), psMsgs = window.__msgs.length;
   optBefore = optionClicks; backB = backCalls;
@@ -500,7 +642,7 @@
   await tick();
   ok(focusId() === psFocus && window.__msgs.length === psMsgs && optionClicks === optBefore && backCalls === backB && helpEl().hidden && P.mode === "app",
     "PS: pressing and holding it does nothing while exploring");
-  P.setMode("flight"); await tick(); psMsgs = window.__msgs.length;
+  P.setMode("flight"); await tick(); psMsgs = window.__msgs.length; psFocus = focusId();
   set("ps", 1); step(); step(400); set("ps", 0); step();
   await tick();
   ok(focusId() === psFocus && window.__msgs.length === psMsgs && backCalls === backB && helpEl().hidden && P.mode === "flight",
