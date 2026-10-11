@@ -1499,6 +1499,7 @@
     ));
 
     fs.active = true;
+    window.GeoIDPad?.setMode("flight");
     // Re-run relief sync now that flight is officially active — it re-enables
     // the terrain slider (kept disabled in CTX modes outside flight).
     hooks.syncTerrainReliefState();
@@ -1518,6 +1519,7 @@
   function disengage() {
     if (!fs.active) return;
     fs.active = false;
+    window.GeoIDPad?.setMode("app");
     document.body.classList.remove("fs-flying");
     document.getElementById("nav-tab")?.click(); // reopen the nav panel on exit
     fs.forceRelief = false;
@@ -1743,19 +1745,28 @@
     if (keys.ArrowRight) yaw -= YAW_RATE;
     if (keys.KeyA) roll += ROLL_RATE;
     if (keys.KeyD) roll -= ROLL_RATE;
+    // Controller: stick deflection scales the same body rates, added to the keys.
+    const pad = readPad();
+    if (pad.live) {
+      pitch = Math.max(-PITCH_RATE, Math.min(PITCH_RATE, pitch + PITCH_RATE * pad.pitch));
+      yaw = Math.max(-YAW_RATE, Math.min(YAW_RATE, yaw + YAW_RATE * pad.yaw));
+      roll = Math.max(-ROLL_RATE, Math.min(ROLL_RATE, roll + ROLL_RATE * pad.roll));
+    }
     const dq = new THREE.Quaternion().setFromEuler(new THREE.Euler(pitch * dts, yaw * dts, roll * dts, "XYZ"));
     s.quat.multiply(dq).normalize();
 
     // throttle trim
     if (keys.KeyW) s.throttle = Math.min(1, s.throttle + 0.5 * dts);
     if (keys.KeyS) s.throttle = Math.max(0, s.throttle - 0.6 * dts);
+    if (pad.thrUp) s.throttle = Math.min(1, s.throttle + 0.5 * dts);
+    if (pad.thrDown) s.throttle = Math.max(0, s.throttle - 0.6 * pad.thrDown * dts);
 
     // boost energy
-    s.boosting = Boolean(keys.ShiftLeft || keys.ShiftRight) && s.boost > 0.02;
+    s.boosting = Boolean(keys.ShiftLeft || keys.ShiftRight || pad.boost) && s.boost > 0.02;
     if (s.boosting) s.boost = Math.max(0, s.boost - 0.28 * dts);
     else s.boost = Math.min(1, s.boost + 0.12 * dts);
 
-    s.braking = Boolean(keys.Space);
+    s.braking = Boolean(keys.Space) || pad.brake;
 
     // speed dynamics (scene units)
     const maxSpeed = (MAX_SPEED_MS * speedMultiplier() / METERS_PER_UNIT) * (s.boosting ? BOOST_MULT : 1);
@@ -2088,6 +2099,73 @@
     if (e.code === "Escape") disengage();
   });
   window.addEventListener("keyup", (e) => { for (const t of keyTokens(e)) keys[t] = false; });
+
+  // ---- controller (scripts/gamepad.js) ----
+  // Ported from the shared sim (/scripts/flightsim.js), same mapping:
+  //   left stick X roll, Y pitch · right stick X yaw, Y fine pitch
+  //   L1 throttle up (held) · L2 throttle down (analogue rate)
+  //   R1 brake (held) · R2 boost (held: this older boost is a fixed
+  //   multiplier on an energy bar, so there is nothing for the trigger's
+  //   travel to scale) · Square camera · L3 re-level
+  //   Circle opens / closes the Control Centre. No pause in this build.
+  // The touchpad is not read: it stays the system pointer.
+  const PAD_IDLE = { live: false, pitch: 0, yaw: 0, roll: 0, thrUp: false, thrDown: 0, boost: false, brake: false };
+  function readPad() {
+    const P = window.GeoIDPad;
+    if (!P || !P.connected) return PAD_IDLE;
+    const a = P.axes();
+    const inv = P.invertY ? -1 : 1;
+    return {
+      live: true,
+      pitch: Math.max(-1, Math.min(1, (-a.ly - a.ry * 0.4) * inv)),
+      yaw: -a.rx,
+      roll: -a.lx,
+      thrUp: P.pressed("l1"),
+      thrDown: a.l2,
+      boost: a.r2 > 0.3,
+      brake: P.pressed("r1"),
+    };
+  }
+  const PAD_HELP = [
+    { control: "ls", text: "Roll (left / right) and pitch (up / down)" },
+    { control: "rs", text: "Yaw (left / right) and fine pitch (up / down)" },
+    { control: "l1", text: "Throttle up, while held" },
+    { control: "l2", text: "Throttle down: squeeze harder to drop it faster" },
+    { control: "r2", text: "Boost, while held and while the bar lasts" },
+    { control: "r1", text: "Brake, while held" },
+    { control: "square", text: "Camera: chase / cockpit" },
+    { control: "l3", text: "Re-level the ship" },
+    { heading: "Menus" },
+    { control: "circle", text: "Open the Control Centre; again, or with anything open, back / close" },
+    { control: "dpad", text: "Move to the nearest tab in that direction" },
+    { control: "cross", text: "Select, or open the focused panel" },
+    { control: "triangle", text: "Show or hide this map" },
+    { heading: "Not used here" },
+    { control: "options", text: "Pause: this older build cannot pause", unused: true },
+    { control: "r3", text: "Free look: this sim has no free-look camera", unused: true },
+    { control: "share", text: "Screenshot: this sim has no screenshot", unused: true },
+    { control: "touchpad", text: "Not read by the sim: it stays the pointer", unused: true },
+  ];
+  (function wireController() {
+    const P = window.GeoIDPad;
+    if (!P) return;
+    P.setHelp(PAD_HELP);          // this page's "Flying" map, for the overlay
+    P.on("square", () => { if (fs.active) toggleCam(); });
+    P.on("l3", () => { if (fs.active) levelOut(); });
+    P.onBack(() => {
+      const ui = document.getElementById("ui");
+      if (!fs.active || !ui) return false;
+      if (ui.classList.contains("is-collapsed")) {
+        document.getElementById("nav-tab")?.click();
+        setTimeout(() => { if (fs.active) P.focus.first(ui); }, 260);
+      } else {
+        document.getElementById("nav-collapse-btn")?.click();
+        P.focus.clear();
+      }
+      return true;
+    });
+    document.getElementById("flightsim-section")?.setAttribute("data-pad-noclose", "");
+  })();
   window.addEventListener("blur", () => { for (const k of Object.keys(keys)) keys[k] = false; });
   // DIRECT MANIPULATION. The throttle is drawn on screen as a slider, so it
   // behaves like one: click or drag anywhere along the track to set it, wheel to

@@ -561,6 +561,26 @@ body.is-embedded .fs-tr-buttons {
   border: 1px solid rgba(var(--nav-accent-rgb), 0.4);
   border-radius: 0.18rem;
 }
+/* Controller equivalents. scripts/gamepad.js stamps html.geoid-pad-on while a
+   pad is connected; until then the legend is the keyboard's alone. The chips
+   are the same <kbd> as the keys, set apart by a hairline rather than a new
+   colour, so the row still reads as one control with two ways to reach it. */
+.fs-cp-list .fs-pad-eq,
+.fs-cp-list .fs-pad-row { display: none; }
+html.geoid-pad-on .fs-cp-list .fs-pad-eq { display: inline; }
+html.geoid-pad-on .fs-cp-list dt.fs-pad-row,
+html.geoid-pad-on .fs-cp-list dd.fs-pad-row { display: block; }
+html.geoid-pad-on .fs-cp-list dt > .fs-pad-eq {
+  margin-left: 0.4rem; padding-left: 0.4rem;
+  border-left: 1px solid rgba(var(--nav-accent-rgb), 0.35);
+}
+.fs-cp-list .fs-pad-note { color: rgba(255, 255, 255, 0.5); }
+html.geoid-pad-on #fs-controls-panel { width: 22rem; }
+/* Paused: the instruments dim so the held frame does not read as a hang. */
+body.fs-paused #fs-hud-dock,
+body.fs-paused #fs-meters,
+body.fs-paused #fs-topbar { opacity: 0.45; }
+
 /* The .fs-k typography lives under `.fs-cell .fs-k`, and these labels are no
    longer inside a cell — without repeating it they render at the inherited
    body size and tower over the instrument row. Orbitron here (already loaded

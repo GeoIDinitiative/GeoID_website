@@ -1,0 +1,287 @@
+/* ═══════════════════════════════════════════════════════════════════════
+   Controller support — the focus ring, the hint strip and the help overlay.
+
+   Loaded by scripts/gamepad.js itself (from its own URL, stamp and all) the
+   first time a controller does something, so a page without a pad never
+   fetches it. Everything hangs off .geoid-pad-ui, which the script appends
+   to <body> of the outermost document: one ring for the whole page, drawn
+   over the iframes it reaches into.
+
+   COLOUR comes from the theme tokens (--skin-*) that viewer-skin.css and
+   viewer-themes.css define, so the ring is magenta-and-cyan in GeoHUB, green
+   in the CRT theme, and so on. The fallbacks are GeoHUB's own values, for a
+   page that carries neither file. In flight the viewer turns amber by
+   stamping data-mode on ITS root, which the shell document around it never
+   sees — hence .is-flight restating the flight palette here.
+   ═══════════════════════════════════════════════════════════════════════ */
+.geoid-pad-ui {
+  --pad-chrome: var(--skin-chrome, #ff2bd6);
+  --pad-chrome-rgb: var(--skin-chrome-rgb, 255, 43, 214);
+  --pad-data: var(--skin-data, #00e5ff);
+  --pad-data-rgb: var(--skin-data-rgb, 0, 229, 255);
+  --pad-panel: var(--skin-panel, 22, 9, 51);
+  --pad-ink: var(--skin-ink, #fdf7ff);
+  --pad-muted: var(--skin-muted, 214, 194, 255);
+  --pad-font: var(--skin-body, "Exo 2", "Segoe UI", system-ui, sans-serif);
+  position: fixed; inset: 0;
+  z-index: 2147483000;
+  pointer-events: none;
+  font-family: var(--pad-font);
+}
+.geoid-pad-ui.is-flight {
+  --pad-chrome: #ffc93c;
+  --pad-chrome-rgb: 255, 201, 60;
+  --pad-data: #ff9d2e;
+  --pad-data-rgb: 255, 157, 46;
+  --pad-panel: 20, 14, 3;
+  --pad-ink: #fff6e2;
+  --pad-muted: 189, 162, 105;
+}
+
+/* ── focus ring ──────────────────────────────────────────────────────────
+   A hairline in the data colour with four chrome corner brackets: the
+   targeting frame from the loading screen, shrunk to fit a button. It is
+   positioned with a transform so moving it never lays the page out. */
+.geoid-pad-ring {
+  position: absolute; left: 0; top: 0;
+  box-sizing: border-box;
+  border: 1.5px solid rgba(var(--pad-data-rgb), 0.95);
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.55),
+    0 0 14px rgba(var(--pad-data-rgb), 0.45),
+    inset 0 0 10px rgba(var(--pad-data-rgb), 0.16);
+  transition: transform 110ms cubic-bezier(0.2, 0.8, 0.2, 1),
+              width 110ms cubic-bezier(0.2, 0.8, 0.2, 1),
+              height 110ms cubic-bezier(0.2, 0.8, 0.2, 1),
+              border-radius 110ms linear;
+  will-change: transform;
+}
+.geoid-pad-ring[hidden] { display: none; }
+.geoid-pad-ring > i {
+  position: absolute; width: 9px; height: 9px;
+  border: 0 solid var(--pad-chrome);
+  filter: drop-shadow(0 0 3px rgba(var(--pad-chrome-rgb), 0.8));
+}
+.geoid-pad-ring > i:nth-child(1) { left: -4px;  top: -4px;    border-width: 2px 0 0 2px; }
+.geoid-pad-ring > i:nth-child(2) { right: -4px; top: -4px;    border-width: 2px 2px 0 0; }
+.geoid-pad-ring > i:nth-child(3) { left: -4px;  bottom: -4px; border-width: 0 0 2px 2px; }
+.geoid-pad-ring > i:nth-child(4) { right: -4px; bottom: -4px; border-width: 0 2px 2px 0; }
+
+/* Cross on a slider or a select: the D-pad now edits the value. */
+.geoid-pad-ring.is-adjust {
+  border-color: var(--pad-chrome);
+  border-width: 2px;
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.55),
+    0 0 18px rgba(var(--pad-chrome-rgb), 0.6),
+    inset 0 0 12px rgba(var(--pad-chrome-rgb), 0.22);
+}
+.geoid-pad-ring.is-pulse { animation: geoid-pad-pulse 260ms ease-out; }
+.geoid-pad-ring.is-bump  { animation: geoid-pad-bump 220ms ease-out; }
+@keyframes geoid-pad-pulse {
+  0%   { box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.55), 0 0 0 0 rgba(var(--pad-chrome-rgb), 0.75); }
+  100% { box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.55), 0 0 0 12px rgba(var(--pad-chrome-rgb), 0); }
+}
+/* Nothing further that way. Opacity, not movement: the ring's transform is
+   its position, and a shake would fight it. */
+@keyframes geoid-pad-bump {
+  0%, 100% { opacity: 1; }
+  40%      { opacity: 0.35; }
+}
+
+/* ── glyphs ──────────────────────────────────────────────────────────────
+   The same chip as the flight legend's <kbd>, so a pad control and a key
+   read as the same kind of thing. */
+.geoid-pad-glyph {
+  display: inline-flex; align-items: center; justify-content: center;
+  box-sizing: border-box;
+  min-width: 1.7em; height: 1.7em; padding: 0 0.42em;
+  font: 600 0.82em/1 var(--pad-font, "Exo 2", "Segoe UI", sans-serif);
+  letter-spacing: 0.06em; text-transform: uppercase; white-space: nowrap;
+  color: var(--pad-chrome, var(--nav-accent, #ff2bd6));
+  background: rgba(var(--pad-chrome-rgb, var(--nav-accent-rgb, 255, 43, 214)), 0.12);
+  border: 1px solid rgba(var(--pad-chrome-rgb, var(--nav-accent-rgb, 255, 43, 214)), 0.42);
+  border-radius: 0.3em;
+  vertical-align: middle;
+}
+.geoid-pad-glyph.is-shape { padding: 0; border-radius: 50%; }
+.geoid-pad-glyph.is-stick { border-radius: 50%; padding: 0; border-width: 2px; }
+.geoid-pad-glyph svg {
+  width: 1.05em; height: 1.05em;
+  fill: none; stroke: currentColor; stroke-width: 1.7;
+  stroke-linecap: round; stroke-linejoin: round;
+}
+.geoid-pad-glyph svg .f { fill: currentColor; stroke: none; }
+.geoid-pad-join { margin: 0 0.3em; color: rgba(var(--pad-muted, 214, 194, 255), 0.7); font-size: 0.85em; }
+
+/* ── hint strip ──────────────────────────────────────────────────────────
+   Shows with the first controller input and fades after a few seconds; the
+   full map is one Triangle away, so this never needs to stay. */
+.geoid-pad-hint {
+  position: absolute; left: 50%; bottom: calc(0.9rem + env(safe-area-inset-bottom, 0px));
+  transform: translate(-50%, 0.5rem);
+  display: flex; flex-wrap: wrap; justify-content: center; gap: 0.3rem 0.9rem;
+  max-width: calc(100vw - 2rem);
+  padding: 0.4rem 0.8rem;
+  font-size: 0.72rem;
+  color: var(--pad-ink);
+  background: rgba(var(--pad-panel), 0.92);
+  border: 1px solid rgba(var(--pad-chrome-rgb), 0.38);
+  border-radius: 0.55rem;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.5);
+  opacity: 0;
+  transition: opacity 180ms ease, transform 180ms ease;
+}
+.geoid-pad-hint.is-on { opacity: 1; transform: translate(-50%, 0); }
+/* The instrument row owns the bottom of the screen in flight. */
+.geoid-pad-ui.is-flight .geoid-pad-hint {
+  bottom: auto; top: calc(5.4rem + env(safe-area-inset-top, 0px));
+}
+.geoid-pad-hint > span { display: inline-flex; align-items: center; gap: 0.4rem; white-space: nowrap; }
+.geoid-pad-hint b {
+  font-weight: 600; font-size: 0.62rem;
+  letter-spacing: 0.14em; text-transform: uppercase;
+  color: rgba(var(--pad-muted), 0.95);
+}
+
+/* ── help overlay ───────────────────────────────────────────────────────── */
+.geoid-pad-help {
+  position: absolute; inset: 0;
+  display: grid; place-items: center;
+  padding: max(1rem, env(safe-area-inset-top, 0px)) 1rem max(1rem, env(safe-area-inset-bottom, 0px));
+  background: rgba(3, 2, 10, 0.62);
+  backdrop-filter: blur(4px);
+  pointer-events: auto;
+  animation: geoid-pad-fade 160ms ease-out;
+}
+.geoid-pad-help[hidden] { display: none; }
+@keyframes geoid-pad-fade { from { opacity: 0; } to { opacity: 1; } }
+.geoid-pad-help-card {
+  display: flex; flex-direction: column;
+  width: min(34rem, 100%);
+  max-height: min(40rem, 100%);
+  color: var(--pad-ink);
+  background:
+    linear-gradient(180deg, rgba(var(--pad-chrome-rgb), 0.1), transparent 5.5rem),
+    rgba(var(--pad-panel), 0.97);
+  border: 1px solid rgba(var(--pad-chrome-rgb), 0.45);
+  border-radius: 0.75rem;
+  box-shadow: 0 0 0 1px rgba(var(--pad-data-rgb), 0.12), 0 24px 70px rgba(0, 0, 0, 0.65),
+              0 0 40px rgba(var(--pad-chrome-rgb), 0.12);
+  overflow: hidden;
+}
+.geoid-pad-help-head {
+  display: flex; align-items: flex-end; justify-content: space-between; gap: 1rem;
+  padding: 1rem 1.15rem 0.8rem;
+  border-bottom: 1px solid rgba(var(--pad-chrome-rgb), 0.28);
+}
+.geoid-pad-help-eyebrow {
+  margin: 0 0 0.2rem;
+  font-size: 0.6rem; font-weight: 600;
+  letter-spacing: 0.24em; text-transform: uppercase;
+  color: var(--pad-data);
+}
+.geoid-pad-help-head h2 {
+  margin: 0;
+  font: 600 1.05rem/1.2 var(--skin-display, var(--pad-font));
+  letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--pad-ink);
+}
+.geoid-pad-help-close,
+.geoid-pad-help-invert {
+  display: inline-flex; align-items: center; gap: 0.45rem;
+  padding: 0.3rem 0.6rem 0.3rem 0.35rem;
+  font: 600 0.62rem/1 var(--pad-font);
+  letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--pad-ink);
+  background: rgba(var(--pad-chrome-rgb), 0.1);
+  border: 1px solid rgba(var(--pad-chrome-rgb), 0.4);
+  border-radius: 0.4rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.geoid-pad-help-close:hover,
+.geoid-pad-help-invert:hover { background: rgba(var(--pad-chrome-rgb), 0.24); }
+.geoid-pad-help-close:focus-visible,
+.geoid-pad-help-invert:focus-visible { outline: 2px solid var(--pad-data); outline-offset: 2px; }
+.geoid-pad-help-body {
+  flex: 1 1 auto; min-height: 0;
+  overflow-y: auto; overscroll-behavior: contain;
+  padding: 0.5rem 1.15rem 0.7rem;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(var(--pad-chrome-rgb), 0.5) transparent;
+}
+/* Two maps, one per mode. The live one is lit and says so; the other is
+   there to be read, plainly not the one in force. */
+.geoid-pad-help-map { padding: 0.2rem 0 0.5rem; }
+.geoid-pad-help-map + .geoid-pad-help-map {
+  margin-top: 0.5rem; padding-top: 0.7rem;
+  border-top: 1px dashed rgba(var(--pad-muted), 0.3);
+}
+.geoid-pad-help-mode {
+  display: flex; align-items: center; justify-content: space-between; gap: 0.75rem;
+  margin: 0.35rem 0 0.3rem;
+  font: 600 0.78rem/1 var(--skin-display, var(--pad-font));
+  letter-spacing: 0.18em; text-transform: uppercase;
+  color: rgba(var(--pad-muted), 0.9);
+}
+.geoid-pad-help-mode em {
+  font: 600 0.56rem/1 var(--pad-font);
+  letter-spacing: 0.16em; text-transform: uppercase; font-style: normal;
+  padding: 0.28rem 0.5rem;
+  color: rgba(var(--pad-muted), 0.85);
+  border: 1px solid rgba(var(--pad-muted), 0.3);
+  border-radius: 999px;
+  white-space: nowrap;
+}
+.geoid-pad-help-map.is-live .geoid-pad-help-mode { color: var(--pad-chrome); }
+.geoid-pad-help-map.is-live .geoid-pad-help-mode em {
+  color: var(--pad-ink);
+  background: rgba(var(--pad-chrome-rgb), 0.22);
+  border-color: rgba(var(--pad-chrome-rgb), 0.6);
+}
+.geoid-pad-help-map:not(.is-live) .geoid-pad-help-row { opacity: 0.62; }
+.geoid-pad-help-group {
+  margin: 0.85rem 0 0.25rem;
+  font: 600 0.6rem/1 var(--pad-font);
+  letter-spacing: 0.22em; text-transform: uppercase;
+  color: var(--pad-data);
+}
+.geoid-pad-help-row {
+  display: grid; grid-template-columns: 8.6rem 1fr; align-items: center; gap: 0.9rem;
+  padding: 0.42rem 0;
+  border-bottom: 1px solid rgba(var(--pad-muted), 0.12);
+  font-size: 0.82rem; line-height: 1.35;
+}
+.geoid-pad-help-row:last-child { border-bottom: 0; }
+.geoid-pad-help-keys { display: flex; flex-wrap: wrap; align-items: center; gap: 0.25rem; font-size: 0.86rem; }
+.geoid-pad-help-text { color: var(--pad-ink); }
+.geoid-pad-help-row.is-unused .geoid-pad-help-text { color: rgba(var(--pad-muted), 0.7); }
+.geoid-pad-help-row.is-unused .geoid-pad-glyph { opacity: 0.55; }
+.geoid-pad-help-foot {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.6rem 1rem;
+  padding: 0.7rem 1.15rem 0.85rem;
+  border-top: 1px solid rgba(var(--pad-chrome-rgb), 0.28);
+  background: rgba(0, 0, 0, 0.18);
+}
+.geoid-pad-help-note { font-size: 0.7rem; color: rgba(var(--pad-muted), 0.85); }
+
+/* Phones: the card takes the screen, the rows stack tighter. */
+@media (max-width: 520px) {
+  .geoid-pad-help { padding: 0.5rem; }
+  .geoid-pad-help-card { max-height: 100%; border-radius: 0.6rem; }
+  .geoid-pad-help-head { padding: 0.8rem 0.85rem 0.65rem; }
+  .geoid-pad-help-body { padding: 0.35rem 0.85rem 0.5rem; }
+  .geoid-pad-help-row { grid-template-columns: 6.6rem 1fr; gap: 0.6rem; font-size: 0.78rem; }
+  .geoid-pad-help-foot { padding: 0.6rem 0.85rem 0.7rem; }
+  .geoid-pad-hint { font-size: 0.66rem; gap: 0.25rem 0.6rem; padding: 0.35rem 0.6rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .geoid-pad-ring,
+  .geoid-pad-hint { transition: none; }
+  .geoid-pad-ring.is-pulse,
+  .geoid-pad-ring.is-bump,
+  .geoid-pad-help { animation: none; }
+  .geoid-pad-hint { transform: translate(-50%, 0); }
+}

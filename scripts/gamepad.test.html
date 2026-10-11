@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="robots" content="noindex, nofollow">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GeoIDPad tests</title>
+<!--
+  Browser tests for scripts/gamepad.js. Not linked from the site.
+
+  There is no controller here: `navigator.getGamepads` is replaced with a fake
+  pad BEFORE the module loads, and the engine is advanced by hand with
+  `GeoIDPad._step(ms)` so the timing assertions (350 ms / 120 ms repeat) do
+  not depend on the frame rate of whatever runs this.
+
+  Open it in a browser and read the list, or drive it headlessly and read
+  `window.__results` ({pass, fail, lines}) once `window.__done` is true.
+-->
+<style>
+  html, body { margin: 0; background: #0d0221; color: #fdf7ff; font: 13px/1.5 "Exo 2", system-ui, sans-serif; }
+  #stage { position: relative; width: 900px; height: 520px; border-bottom: 1px solid #40205f; overflow: hidden; }
+  #stage button, #stage summary, #stage a { box-sizing: border-box; font: inherit; color: inherit; background: #1b0b3a; border: 1px solid #ff2bd6; border-radius: 6px; }
+  .abs { position: absolute; margin: 0; }
+  #side { position: absolute; left: 10px; top: 60px; width: 220px; }
+  #side details { margin: 0 0 8px; }
+  #side summary { display: block; height: 36px; padding: 8px; cursor: pointer; }
+  #side .body { padding: 6px 0 0 12px; }
+  #side .body > * { display: block; width: 180px; height: 28px; margin: 0 0 6px; }
+  #log { margin: 12px; padding: 0; list-style: none; font-family: ui-monospace, monospace; font-size: 12px; }
+  #log .pass { color: #7dffb0; } #log .fail { color: #ff6b6b; font-weight: 700; }
+  #summary { margin: 12px; font-size: 16px; font-weight: 600; }
+</style>
+<script>
+  // The fake pad. `window.__pads` is what navigator.getGamepads() returns.
+  window.__pad = {
+    id: "Fake DualShock 4 (STANDARD GAMEPAD Vendor: 054c Product: 09cc)",
+    index: 0, connected: true, mapping: "standard", timestamp: 0,
+    buttons: Array.from({ length: 18 }, function () { return { pressed: false, touched: false, value: 0 }; }),
+    axes: [0, 0, 0, 0]
+  };
+  window.__pads = [];                       // starts with NO pad connected
+  Object.defineProperty(navigator, "getGamepads", { configurable: true, value: function () { return window.__pads; } });
+  // Everything the page tells its host, in order.
+  window.__msgs = [];
+  window.addEventListener("message", function (e) {
+    if (e.data && e.data.source === "geoid") window.__msgs.push(e.data);
+  });
+  try { localStorage.removeItem("geoid:pad-invert-y"); } catch (e) {}
+</script>
+<script src="gamepad.js"></script>
+</head>
+<body>
+<div id="stage">
+  <!-- top row: mode pills, deliberately AFTER the sidebar in the DOM order of
+       the things they sit above, to prove navigation is geometric -->
+  <div id="side">
+    <details id="d-explorer">
+      <summary id="t-explorer">Explorer</summary>
+      <div class="body">
+        <button id="c-one" type="button">One</button>
+        <input id="c-range" type="range" min="0" max="10" step="1" value="5">
+        <select id="c-select"><option>A</option><option>B</option><option>C</option></select>
+      </div>
+    </details>
+    <details id="d-map">
+      <summary id="t-map">Map</summary>
+      <div class="body"><button id="c-map" type="button">Map control</button></div>
+    </details>
+    <details id="d-geology">
+      <summary id="t-geology">Geology</summary>
+      <div class="body"><button id="c-geo" type="button">Geology control</button></div>
+    </details>
+  </div>
+  <!-- right rail: DOM order is bottom-to-top, geometry is top-to-bottom -->
+  <button id="r-c" class="abs" style="left:840px;top:160px;width:40px;height:40px" type="button">C</button>
+  <button id="r-b" class="abs" style="left:840px;top:110px;width:40px;height:40px" type="button">B</button>
+  <button id="r-a" class="abs" style="left:840px;top:60px;width:40px;height:40px" type="button">A</button>
+  <div class="nav-modebar">
+    <button id="m-gis" class="abs nav-modebar-pill is-active" style="left:300px;top:10px;width:80px;height:28px" type="button">GIS</button>
+    <button id="m-model" class="abs nav-modebar-pill" style="left:390px;top:10px;width:80px;height:28px" type="button">Model</button>
+    <button id="m-research" class="abs nav-modebar-pill" style="left:480px;top:10px;width:80px;height:28px" type="button">Research</button>
+  </div>
+  <button id="hidden-btn" class="abs" style="left:400px;top:200px;width:60px;height:30px" type="button" hidden>Hidden</button>
+  <button id="covered-btn" class="abs" style="left:400px;top:300px;width:60px;height:30px" type="button">Covered</button>
+  <div class="abs" style="left:380px;top:290px;width:100px;height:50px;background:#000"></div>
+  <div id="popup" role="dialog" class="abs" style="left:20px;top:400px;width:200px;height:90px;background:#160933;border:1px solid #00e5ff" hidden>
+    <button id="popup-close" type="button" aria-label="Close">×</button>
+    <button id="popup-ok" type="button">OK</button>
+  </div>
+  <iframe id="frame" class="abs" style="left:560px;top:380px;width:240px;height:120px;border:0" title="framed document"
+    srcdoc="<!doctype html><body style='margin:0;background:#12062b'><button id='f-btn' type='button' style='position:absolute;left:20px;top:30px;width:120px;height:40px'>Framed</button><script src='gamepad.js'></script></body>"></iframe>
+</div>
+<div id="summary">Running…</div>
+<ul id="log"></ul>
+<script>
+(async function () {
+  "use strict";
+  var P = window.GeoIDPad, U = P._util;
+  var results = { pass: 0, fail: 0, lines: [] };
+  window.__results = results;
+  var log = document.getElementById("log");
+  function ok(cond, name, extra) {
+    var pass = Boolean(cond);
+    results[pass ? "pass" : "fail"] += 1;
+    var line = (pass ? "PASS  " : "FAIL  ") + name + (!pass && extra !== undefined ? "   → " + JSON.stringify(extra) : "");
+    results.lines.push(line);
+    var li = document.createElement("li");
+    li.className = pass ? "pass" : "fail";
+    li.textContent = line;
+    log.appendChild(li);
+  }
+  function eq(a, b, name) { ok(a === b, name, { got: a, want: b }); }
+  function near(a, b, tol, name) { ok(Math.abs(a - b) <= tol, name, { got: a, want: b }); }
+  function tick(ms) { return new Promise(function (r) { setTimeout(r, ms || 15); }); }
+  var pad = window.__pad;
+  var T = 1000;                                  // the hand-stepped clock, ms
+  function step(ms) { T += (ms === undefined ? 16 : ms); P._step(T); }
+  function set(name, v) {
+    var i = U.NAMES.indexOf(name);
+    pad.buttons[i] = { pressed: v > 0.5, touched: v > 0, value: v };
+  }
+  function tap(name) { set(name, 1); step(); set(name, 0); step(); }
+  function focusId() { var el = P.focus.current(); return el ? el.id : null; }
+  function modes() { return window.__msgs.filter(function (m) { return m.type === "controller-mode"; }).map(function (m) { return m.mode; }); }
+  function last(type) { var l = window.__msgs.filter(function (m) { return m.type === type; }); return l[l.length - 1] || null; }
+  var frame = document.getElementById("frame");
+  if (!frame.contentWindow.GeoIDPad) await new Promise(function (r) { frame.addEventListener("load", r, { once: true }); });
+  await tick(30);
+
+  // ── 1. dead zone, curve, layouts ─────────────────────────────────────
+  eq(U.deadzone(0.1, 0.12), 0, "dead zone: 0.10 is inside 0.12 and reads 0");
+  eq(U.deadzone(-0.12, 0.12), 0, "dead zone: exactly on the edge reads 0");
+  near(U.deadzone(1, 0.12), 1, 1e-9, "dead zone: full deflection still reads 1");
+  near(U.deadzone(-0.56, 0.12), -0.5, 1e-9, "dead zone: rescaled, so half the live travel reads 0.5");
+  var s1 = U.shapeStick(0.08, 0.08, 0.12, 1.8);
+  ok(s1.x === 0 && s1.y === 0, "stick: radial dead zone swallows a small diagonal");
+  var s2 = U.shapeStick(0.3, 0, 0.12, 1.8), s3 = U.shapeStick(0.6, 0, 0.12, 1.8), s4 = U.shapeStick(1, 0, 0.12, 1.8);
+  ok(s2.x > 0 && s2.x < s3.x && s3.x < s4.x, "stick: response is monotonic");
+  ok(s2.x < 0.1, "stick: curve keeps a small movement small", s2.x);
+  near(s4.x, 1, 1e-9, "stick: full deflection reaches 1");
+  var s5 = U.shapeStick(0.5, -0.5, 0.12, 1.8);
+  near(s5.x, -s5.y, 1e-9, "stick: the curve does not bend the direction");
+  var raw = U.normalise({ mapping: "", buttons: [0, 1, 0, 1, 0, 0, 1, 0, 0, 0, 0, 1, 0].map(function (v) { return { pressed: v > 0, value: v }; }),
+    axes: [0.5, -0.5, 0, 0.25, -0.25, 0, -1, 1] });
+  ok(raw.buttons[1] === 1 && raw.buttons[2] === 1 && raw.buttons[3] === 0 && raw.buttons[10] === 1,
+    "raw DS4 layout: Circle, Square (raw 3) and L3 (raw 11) land on their standard indices", raw.buttons);
+  near(raw.buttons[6], 0.5, 1e-9, "raw DS4 layout: L2 axis at rest (0) reads half only while its button is down");
+  ok(raw.buttons[14] === 1 && raw.buttons[13] === 1 && raw.buttons[12] === 0, "raw DS4 layout: the hat axes become the D-pad");
+  ok(raw.axes[2] === 0.25 && raw.axes[3] === -0.25, "raw DS4 layout: right stick comes from axes 3 and 4");
+  eq(U.normalise(pad).buttons.length, 17, "standard layout: 17 buttons, the touchpad click (17) is not read");
+
+  // ── 2. no pad: quiet, and the host is told "none" ────────────────────
+  eq(P.connected, false, "no pad: not connected");
+  eq(P._state().polling, false, "no pad: nothing is polling");
+  eq(modes().join(","), "none", "no pad: page load announces mode none");
+  eq(document.querySelector(".geoid-pad-ui"), null, "no pad: no DOM was added");
+
+  // ── 3. connect ───────────────────────────────────────────────────────
+  var modeEvents = [];
+  window.addEventListener("geoid:controller-mode", function (e) { modeEvents.push(e.detail.mode); });
+  window.__pads = [pad];
+  window.dispatchEvent(new Event("gamepadconnected"));
+  eq(P.connected, true, "connect: the pad is seen");
+  eq(P._state().polling, true, "connect: polling starts in requestAnimationFrame");
+  eq(document.documentElement.classList.contains("geoid-pad-on"), true, "connect: html.geoid-pad-on is set (the flight legend keys off it)");
+  eq(frame.contentDocument.documentElement.classList.contains("geoid-pad-on"), true, "connect: …in the framed document too");
+  await tick();
+  eq(modes().join(","), "none,app", "connect: announces mode app to window.top");
+  eq(modeEvents.join(","), "app", "connect: and as a geoid:controller-mode event");
+  step(0);                                        // hand over to the stepped clock
+  eq(P._state().polling, false, "tests: the stepped clock has replaced the frame loop");
+
+  // ── 4. edges and repeat timing ───────────────────────────────────────
+  var hits = { press: 0, release: 0, rep: 0 };
+  P.on("square", function () { hits.press += 1; });
+  P.on("square:release", function () { hits.release += 1; });
+  set("square", 1); step(); step(); step();
+  eq(hits.press, 1, "edge: a held button fires pressed once, not every frame");
+  set("square", 0); step(); step();
+  eq(hits.release, 1, "edge: released fires once");
+  P.on("right:repeat", function () { hits.rep += 1; });
+  P.focus.to(document.getElementById("m-gis"));
+  set("right", 1); step(0);
+  eq(hits.rep, 1, "repeat: the press itself acts at once");
+  eq(focusId(), "m-model", "repeat: …and moves exactly one tab");
+  step(349);
+  eq(hits.rep, 1, "repeat: nothing more before 350 ms");
+  step(1);
+  eq(hits.rep, 2, "repeat: first repeat at 350 ms");
+  eq(focusId(), "m-research", "repeat: …one more tab, not two");
+  step(119);
+  eq(hits.rep, 2, "repeat: nothing more before a further 120 ms");
+  step(1);
+  eq(hits.rep, 3, "repeat: then every 120 ms");
+  set("right", 0); step(); step(500);
+  eq(hits.rep, 3, "repeat: stops with the button");
+  var tapsBefore = focusId();
+  P.focus.to(document.getElementById("m-gis"));
+  for (var k = 0; k < 6; k += 1) { set("right", 1); step(4); }   // six frames of one short press
+  set("right", 0); step();
+  eq(focusId(), "m-model", "debounce: a press spanning several frames is still one move", tapsBefore);
+
+  // ── 5. the ring and the hints ────────────────────────────────────────
+  var ring = document.querySelector(".geoid-pad-ring");
+  for (var w = 0; w < 100 && !document.getElementById("geoid-pad-css").sheet; w += 1) await tick(20);
+  step();
+  ok(Boolean(document.getElementById("geoid-pad-css").sheet), "ring: the module loaded its own stylesheet");
+  ok(ring && !ring.hidden, "ring: showing after controller input");
+  var rr = ring.getBoundingClientRect(), tr = document.getElementById("m-model").getBoundingClientRect();
+  ok(Math.abs(rr.left - (tr.left - 4)) <= 1 && Math.abs(rr.width - (tr.width + 8)) <= 1 && Math.abs(rr.top - (tr.top - 4)) <= 1,
+    "ring: drawn around the focused element", { ring: [rr.left, rr.top, rr.width], target: [tr.left, tr.top, tr.width] });
+  ok(document.querySelector(".geoid-pad-hint").classList.contains("is-on"), "hints: showing after controller input");
+  window.dispatchEvent(new PointerEvent("pointermove", { screenX: 10, screenY: 10 }));
+  window.dispatchEvent(new PointerEvent("pointermove", { screenX: 60, screenY: 60 }));
+  step();
+  ok(ring.hidden, "ring: mouse movement hides it (app mode)");
+  eq(P._state().active, false, "hints: mouse movement puts the controller hints away");
+  tap("down");
+  ok(!ring.hidden, "ring: the next controller input brings it back");
+
+  // ── 6. spatial, tab-first traversal ──────────────────────────────────
+  P.focus.to(document.getElementById("t-explorer"));
+  tap("down"); eq(focusId(), "t-map", "tabs: down from Explorer is Map (its closed panel's controls are not offered)");
+  tap("down"); eq(focusId(), "t-geology", "tabs: down again is Geology, one tab per press");
+  tap("down"); eq(focusId(), "t-geology", "tabs: at the bottom edge with no host, focus stops (no wrap)");
+  eq(last("controller-focus-exit"), null, "tabs: …and no focus-exit is posted when the page is not embedded");
+  tap("up"); tap("up"); eq(focusId(), "t-explorer", "tabs: up twice returns to Explorer");
+  tap("right"); eq(focusId(), "m-gis", "tabs: right from Explorer is the nearest tab that way, across to the mode bar");
+  P.focus.to(document.getElementById("m-research"));
+  tap("right"); eq(focusId(), "r-a", "tabs: right from the last mode is the NEAREST rail button (A), though it is last in the DOM");
+  tap("down"); eq(focusId(), "r-b", "tabs: rail walks top to bottom by geometry, not DOM order");
+  tap("down"); eq(focusId(), "r-c", "tabs: …and again");
+  var listed = P.focus.list().map(function (i) { return i.el.id; });
+  ok(listed.indexOf("hidden-btn") < 0, "focusable: a [hidden] control is never offered");
+  ok(listed.indexOf("covered-btn") < 0, "focusable: a control under another element is never offered");
+  ok(listed.indexOf("f-btn") >= 0, "focusable: a control inside a same-origin iframe is offered");
+  ok(listed.indexOf("c-one") < 0, "focusable: a closed panel's controls are not offered");
+
+  // Cross opens a tab and steps in; Circle steps back out, then closes it.
+  P.focus.to(document.getElementById("t-explorer"));
+  tap("cross"); await tick(140);
+  eq(document.getElementById("d-explorer").open, true, "cross: opens the focused tab");
+  eq(focusId(), "c-one", "cross: …and steps inside to its first control");
+  var clicks = 0;
+  document.getElementById("c-one").addEventListener("click", function () { clicks += 1; });
+  tap("cross"); eq(clicks, 1, "cross: clicks the focused control, once");
+  tap("down"); eq(focusId(), "c-range", "panel: down moves through the open panel's controls");
+  tap("cross"); eq(P._state().adjusting, true, "slider: Cross starts adjusting");
+  tap("right"); eq(document.getElementById("c-range").value, "6", "slider: D-pad right steps the value");
+  eq(focusId(), "c-range", "slider: …without moving the focus");
+  tap("circle"); eq(P._state().adjusting, false, "slider: Circle ends adjusting");
+  tap("down"); eq(focusId(), "c-select", "panel: next control");
+  tap("cross"); tap("down"); eq(document.getElementById("c-select").value, "B", "select: Cross then D-pad down picks the next option");
+  tap("cross");
+  tap("down"); eq(focusId(), "t-map", "panel: past the last control, down is the next tab");
+  tap("up"); eq(focusId(), "c-select", "panel: and up from it comes back into the open panel");
+  tap("circle"); eq(focusId(), "t-explorer", "circle: inside a panel, steps back out to its tab");
+  eq(document.getElementById("d-explorer").open, true, "circle: …leaving the panel open");
+  tap("circle"); eq(document.getElementById("d-explorer").open, false, "circle: on the tab of an open panel, closes it");
+
+  // Circle closes a popup before anything else.
+  document.getElementById("popup").hidden = false;
+  document.getElementById("popup-close").addEventListener("click", function () { document.getElementById("popup").hidden = true; });
+  tap("circle"); eq(document.getElementById("popup").hidden, true, "circle: closes an open dialog through its own close button");
+
+  // ── 7. modes and the announcement ────────────────────────────────────
+  window.__msgs.length = 0;
+  var pillClicks = [];
+  ["m-gis", "m-model", "m-research"].forEach(function (id) {
+    document.getElementById(id).addEventListener("click", function () {
+      pillClicks.push(id);
+      document.querySelectorAll(".nav-modebar-pill").forEach(function (b) { b.classList.toggle("is-active", b.id === id); });
+    });
+  });
+  var optionClicks = 0;
+  var settings = document.createElement("button");
+  settings.setAttribute("data-modebar", "settings"); settings.className = "abs";
+  settings.style.cssText = "left:600px;top:10px;width:28px;height:28px";
+  settings.addEventListener("click", function () { optionClicks += 1; });
+  document.getElementById("stage").appendChild(settings);
+  tap("r1"); tap("l1");
+  eq(pillClicks.length, 0, "exploring: L1 / R1 are ignored by the page (they are the host's)");
+  tap("options"); eq(optionClicks, 1, "exploring: Options opens Settings");
+  // Exploring: the sticks and triggers are the pointer and the wheel. Not read.
+  window.GeoIDViewer = {
+    camera: { position: { x: 0, y: 0, z: 10 }, lookAt: function () {} },
+    controls: { target: { x: 0, y: 0, z: 0 }, rotateSpeed: 0.75, enabled: true, minDistance: 4, maxDistance: 40, update: function () {} }
+  };
+  var focusBefore = focusId();
+  pad.axes = [1, -1, 1, 1]; set("l2", 1); set("r2", 1);
+  for (var q = 0; q < 30; q += 1) step(16);
+  var ex0 = P.axes();
+  ok(ex0.lx === 0 && ex0.ly === 0 && ex0.rx === 0 && ex0.ry === 0 && ex0.l2 === 0 && ex0.r2 === 0,
+    "exploring: axes() reads zero whatever the sticks and triggers are doing", ex0);
+  ok(P.value("l2") === 0 && P.value("r2") === 0, "exploring: value(l2 / r2) reads zero");
+  var cp = window.GeoIDViewer.camera.position;
+  ok(cp.x === 0 && cp.y === 0 && cp.z === 10, "exploring: full stick and both triggers held for half a second leave the globe camera untouched", cp);
+  eq(focusId(), focusBefore, "exploring: …and move no focus");
+  var backCalls = 0;
+  P.onBack(function () { backCalls += 1; return true; });
+  P.setMode("flight");
+  await tick();
+  eq(P.mode, "flight", "mode: setMode(flight) takes");
+  eq(modes().slice(-1).join(","), "flight", "mode: announces flight to window.top");
+  eq(modes().length, 1, "mode: …exactly once");
+  eq(modeEvents[modeEvents.length - 1], "flight", "mode: and as a geoid:controller-mode event");
+  tap("l1"); tap("r1");
+  eq(pillClicks.length, 0, "flight: L1 / R1 belong to the sim, the mode bar does not move");
+  tap("options"); eq(optionClicks, 1, "flight: Options is the sim's (pause), Settings does not open");
+  var fl0 = P.axes();
+  ok(fl0.lx > 0.6 && fl0.rx > 0.5 && fl0.l2 === 1 && fl0.r2 === 1,
+    "transition: the moment the mode is flight, the still-held sticks and triggers read for the sim", fl0);
+  P.setMode("app");
+  var back0 = P.axes();
+  ok(back0.lx === 0 && back0.rx === 0 && back0.l2 === 0 && back0.r2 === 0,
+    "transition: the moment the mode is app again they read zero, though still held (no residual, no stuck axis)", back0);
+  eq(modeEvents.slice(-2).join(","), "flight,app", "transition: both changes were announced synchronously, in order");
+  P.setMode("flight");
+  pad.axes = [0, 0, 0, 0]; set("l2", 0); set("r2", 0); step();
+  await tick();
+  window.__msgs.length = 0;
+  window.__msgs.push({ source: "geoid", type: "controller-mode", mode: "flight" });
+  P.focus.clear();
+  tap("circle"); eq(backCalls, 1, "flight: Circle with nothing open reaches the page's back handler (the Control Centre)");
+  P.focus.to(document.getElementById("t-map")); step();
+  window.dispatchEvent(new PointerEvent("pointermove", { screenX: 200, screenY: 200 }));
+  window.dispatchEvent(new PointerEvent("pointermove", { screenX: 300, screenY: 300 }));
+  step();
+  ok(!ring.hidden, "flight: pointer movement (the touchpad) does NOT hide the ring");
+  eq(P._state().active, true, "flight: …nor the hints");
+  set("r2", 0.5); pad.axes = [0.5, 0, 0, 0]; step();
+  var ax = P.axes();
+  ok(ax.r2 > 0.4 && ax.r2 < 0.55, "flight: R2 reads as an analogue value", ax.r2);
+  ok(ax.lx > 0 && ax.lx < 0.5, "flight: the stick reads analogue, shaped by dead zone and curve", ax.lx);
+  eq(P.pressed("r1"), false, "flight: pressed() is false for a button that is up");
+  set("r1", 1); step(); eq(P.pressed("r1"), true, "flight: pressed() is true while R1 is held");
+  set("r1", 0); set("r2", 0); pad.axes = [0, 0, 0, 0]; step();
+  P.setMode("app");
+  await tick();
+  eq(modes().join(","), "flight,app", "mode: back to app announces app");
+  P.setMode("app");
+  await tick();
+  eq(modes().length, 2, "mode: setting the same mode again announces nothing");
+
+  // a framed document sets the mode through its proxy
+  var FP = frame.contentWindow.GeoIDPad;
+  var frameEvents = [];
+  frame.contentWindow.addEventListener("geoid:controller-mode", function (e) { frameEvents.push(e.detail.mode); });
+  ok(FP && !FP._engine, "frames: the framed document got a proxy, not a second engine");
+  eq(FP.connected, true, "frames: the proxy reports the same pad");
+  FP.setMode("flight");
+  await tick();
+  eq(P.mode, "flight", "frames: flight set inside the iframe is the page's mode");
+  eq(last("controller-mode").mode, "flight", "frames: …and reaches window.top");
+  eq(frameEvents.join(","), "flight", "frames: …and the frame hears its own event");
+  var framePress = 0;
+  FP.on("l3", function () { framePress += 1; });
+  tap("l3"); eq(framePress, 1, "frames: a listener registered through the proxy fires");
+  FP.setMode("app");
+  await tick();
+  eq(last("controller-mode").mode, "app", "frames: the frame leaving flight announces app");
+
+  // ── 8. hand-off with a host ──────────────────────────────────────────
+  window.__msgs.length = 0;
+  P._setHosted(true);                              // as if Atlas framed this page
+  P.focus.to(document.getElementById("t-map"));
+  var want = document.getElementById("t-map").getBoundingClientRect();
+  set("left", 1); step();
+  await tick();
+  var ex = last("controller-focus-exit");
+  ok(ex && ex.direction === "left", "hand-off: left at the left edge posts controller-focus-exit, direction left", ex);
+  ok(ex && ex.rect && ex.rect.x === Math.round(want.left) && ex.rect.y === Math.round(want.top) &&
+    ex.rect.w === Math.round(want.width) && ex.rect.h === Math.round(want.height),
+    "hand-off: rect is the focused element's viewport rectangle", ex && ex.rect);
+  var own = last("controller-focus");
+  ok(own && own.has === false, "hand-off: announces controller-focus has:false", own);
+  eq(P.hasFocus, false, "hand-off: the page no longer owns controller focus");
+  ok(ring.hidden, "hand-off: the ring is released");
+  step(400); step(130);
+  eq(window.__msgs.filter(function (m) { return m.type === "controller-focus-exit"; }).length, 1,
+    "hand-off: the still-held D-pad does not repeat the exit");
+  set("left", 0); step();
+  tap("down"); tap("right");
+  eq(focusId(), null, "hand-off: the D-pad is quiet while the host has focus");
+  clicks = 0; P.focus.clear();
+  tap("cross"); eq(focusId(), null, "hand-off: Cross is quiet while the host has focus");
+  var backBefore = backCalls;
+  tap("circle"); eq(backCalls, backBefore, "hand-off: Circle is quiet while the host has focus");
+  // the host hands it back, coming from a dock on the left, level with Geology
+  var g = document.getElementById("t-geology").getBoundingClientRect();
+  window.postMessage({ source: "atlas", type: "controller-focus-enter", direction: "right",
+    from: { x: -60, y: g.top + 2, w: 48, h: 30 } }, "*");
+  await tick(40);
+  eq(P.hasFocus, true, "hand-back: controller-focus-enter restores ownership");
+  eq(focusId(), "t-geology", "hand-back: focus lands on the tab nearest `from`");
+  ok(last("controller-focus").has === true, "hand-back: announces controller-focus has:true");
+  ok(!ring.hidden, "hand-back: the ring is showing again");
+  tap("up"); eq(focusId(), "t-map", "hand-back: the D-pad works again");
+  // exit downwards from the bottom tab, then back in with no `from`
+  P.focus.to(document.getElementById("r-c")); tap("right");
+  await tick();
+  eq(last("controller-focus-exit").direction, "right", "hand-off: right at the right edge exits right");
+  window.postMessage({ source: "atlas", type: "controller-focus-enter", direction: "left", from: null }, "*");
+  await tick(40);
+  ok(/^r-/.test(focusId() || ""), "hand-back: with no `from`, entering leftwards lands on a tab at the right edge", focusId());
+  window.postMessage({ source: "someone-else", type: "controller-focus-enter", direction: "right" }, "*");
+  await tick(40);
+  ok(/^r-/.test(focusId() || ""), "hand-back: a message that is not from the host is ignored");
+  // flight: the D-pad hands off the same way, the sticks never do
+  P.setMode("flight");
+  P.focus.to(document.getElementById("t-explorer")); tap("left");
+  await tick();
+  eq(P.hasFocus, false, "hand-off in flight: the D-pad still hands focus to the host");
+  pad.axes = [0.9, 0, 0, 0]; set("r2", 1); step();
+  ok(P.axes().lx > 0.5 && P.axes().r2 === 1, "hand-off in flight: sticks and triggers still read for the sim");
+  pad.axes = [0, 0, 0, 0]; set("r2", 0); step();
+  window.postMessage({ source: "atlas", type: "controller-focus-enter", direction: "right", from: null }, "*");
+  await tick(40);
+  eq(P.hasFocus, true, "hand-off in flight: and comes back the same way");
+  P.setMode("app");
+  P._setHosted(false);
+  await tick();
+
+  // ── 8b. the Atlas webview flag, and the site header ─────────────────
+  window.__msgs.length = 0;
+  eq(P._state().hosted, false, "webview: not hosted without a frame or a flag");
+  window.__ATLAS_HOST = true;                      // set AFTER load, as the bridge may
+  eq(P._state().hosted, true, "webview: window.__ATLAS_HOST === true makes the page hosted, read live");
+  P.focus.to(document.getElementById("t-geology")); tap("down");
+  await tick();
+  ok(last("controller-focus-exit") && last("controller-focus-exit").direction === "down",
+    "webview: an edge press with the flag set posts controller-focus-exit");
+  window.postMessage({ source: "atlas", type: "controller-focus-enter", direction: "up", from: null }, "*");
+  await tick(40);
+  eq(P.hasFocus, true, "webview: focus comes back the same way");
+  window.__ATLAS_HOST = false;
+  P._setHosted(false);                             // the enter message above marked a host; undo for the rest
+  var hdr = document.createElement("nav");
+  hdr.className = "site-nav";
+  hdr.innerHTML = '<a id="h-geohub" href="#" class="abs" style="left:250px;top:44px;width:70px;height:14px">GeoHUB</a>' +
+    '<a id="h-about" href="#" class="abs" style="left:330px;top:44px;width:70px;height:14px">About</a>';
+  document.getElementById("stage").appendChild(hdr);
+  P.focus.to(document.getElementById("t-explorer"));
+  tap("right"); eq(focusId(), "m-gis", "header: sideways from a side tab never lands on a site-header link");
+  P.focus.to(document.getElementById("m-gis"));
+  tap("down"); ok(!/^h-/.test(focusId()), "header: nor does down", focusId());
+  P.focus.to(document.getElementById("t-explorer"));
+  tap("up"); eq(focusId(), "h-geohub", "header: UP from the top row of tabs reaches it");
+  tap("right"); eq(focusId(), "h-about", "header: once there, left / right moves along it");
+  tap("down"); ok(!/^h-/.test(focusId()), "header: and down leaves it", focusId());
+  P.setMode("flight");
+  P.focus.to(document.getElementById("t-explorer"));
+  tap("up"); eq(focusId(), "t-explorer", "header in flight: UP from the top tab is an edge, the header is not a target");
+  ok(P.focus.list().some(function (i) { return i.header; }), "header in flight: (the links are still on the page, just not offered)");
+  P.setMode("app");
+  hdr.remove();
+  await tick();
+
+  // ── 8c. controller-hello and controller-focus-leave ─────────────────
+  window.__msgs.length = 0;
+  P.focus.to(document.getElementById("t-map")); step();
+  window.postMessage({ source: "atlas", type: "controller-hello", mode: "atlas", owner: "atlas" }, "*");
+  await tick(40);
+  eq(P._state().hosted, true, "hello: marks the page hosted");
+  eq(P.hasFocus, false, "hello owner atlas: the page does not own controller focus");
+  ok(ring.hidden && focusId() === null, "hello owner atlas: the ring is dropped");
+  ok(modes().join(",") === "app" && last("controller-focus").has === false,
+    "hello: re-announces controller-mode and controller-focus at once", window.__msgs);
+  eq(last("controller-focus-exit"), null, "hello: posts no focus-exit");
+  var helpEl = function () { return document.querySelector(".geoid-pad-help"); };
+  var optBefore = optionClicks, backB = backCalls;
+  tap("down"); tap("cross"); tap("circle"); tap("triangle"); tap("options");
+  ok(focusId() === null && backCalls === backB && optionClicks === optBefore && (!helpEl() || helpEl().hidden),
+    "hello owner atlas: D-pad, Cross, Circle, Triangle and Options are all quiet");
+  window.__msgs.length = 0;
+  window.postMessage({ source: "atlas", type: "controller-hello", mode: "geoid", owner: "page" }, "*");
+  await tick(40);
+  eq(P.hasFocus, true, "hello owner page: the page owns controller focus");
+  ok(modes().join(",") === "app" && last("controller-focus").has === true, "hello owner page: re-announces mode and has:true", window.__msgs);
+  tap("down"); ok(focusId() !== null, "hello owner page: the D-pad works");
+  tap("triangle"); ok(!helpEl().hidden, "hello owner page: Triangle works");
+  window.__msgs.length = 0;
+  window.postMessage({ source: "atlas", type: "controller-focus-leave" }, "*");
+  await tick(40);
+  eq(P.hasFocus, false, "focus-leave: the host took focus, the page no longer owns it");
+  ok(ring.hidden && helpEl().hidden, "focus-leave: the ring and the overlay are dropped");
+  ok(last("controller-focus") && last("controller-focus").has === false, "focus-leave: announces controller-focus has:false");
+  eq(last("controller-focus-exit"), null, "focus-leave: posts no focus-exit in response");
+  tap("down"); tap("cross"); eq(focusId(), null, "focus-leave: quiet afterwards, as after a focus-exit");
+  window.postMessage({ source: "nobody", type: "controller-hello", owner: "page" }, "*");
+  await tick(40);
+  eq(P.hasFocus, false, "hello: ignored unless it is from source atlas");
+  window.postMessage({ source: "atlas", type: "controller-focus-enter", direction: "right", from: null }, "*");
+  await tick(40);
+  eq(P.hasFocus, true, "focus-leave: focus-enter brings it back");
+  // PS (button 16) is Atlas's hold-to-talk: the page never acts on it.
+  var psFocus = focusId(), psMsgs = window.__msgs.length;
+  optBefore = optionClicks; backB = backCalls;
+  set("ps", 1); step(); step(400); step(130); set("ps", 0); step();
+  await tick();
+  ok(focusId() === psFocus && window.__msgs.length === psMsgs && optionClicks === optBefore && backCalls === backB && helpEl().hidden && P.mode === "app",
+    "PS: pressing and holding it does nothing while exploring");
+  P.setMode("flight"); await tick(); psMsgs = window.__msgs.length;
+  set("ps", 1); step(); step(400); set("ps", 0); step();
+  await tick();
+  ok(focusId() === psFocus && window.__msgs.length === psMsgs && backCalls === backB && helpEl().hidden && P.mode === "flight",
+    "PS: …nor while flying");
+  P.setMode("app");
+  P._setHosted(false);
+  await tick();
+
+  // ── 9. help overlay ──────────────────────────────────────────────────
+  tap("triangle");
+  var help = document.querySelector(".geoid-pad-help");
+  ok(help && !help.hidden, "help: Triangle opens the controller map");
+  eq(help.querySelector("h2").textContent, "Exploring", "help: outside flight the map is titled Exploring");
+  var live = help.querySelector(".geoid-pad-help-map.is-live");
+  ok(live && /Exploring/.test(live.querySelector(".geoid-pad-help-mode").textContent) && /Active now/.test(live.textContent),
+    "help: the Exploring map is marked as the active one");
+  ok(/pointer/i.test(live.textContent) && /mapper/i.test(live.textContent) && !/rotate the globe|zoom out/i.test(live.textContent),
+    "help: Exploring says the sticks are the pointer / scroll with a mapper, and lists no page action for them");
+  ok(/L1[\s\S]*R1/.test(live.textContent) && /window in Atlas/.test(live.textContent), "help: Exploring says L1 / R1 are Atlas's");
+  eq(help.querySelectorAll(".geoid-pad-help-map").length, 1, "help: a page with no sim shows no Flying map");
+  P.setHelp([{ control: "ls", text: "Roll and pitch" }, { control: "l1", text: "Throttle up" }]);
+  tap("triangle"); tap("triangle");
+  var maps = help.querySelectorAll(".geoid-pad-help-map");
+  ok(maps.length === 2 && maps[0].classList.contains("is-live") && /Exploring/.test(maps[0].textContent) &&
+    !maps[1].classList.contains("is-live") && /Flying/.test(maps[1].querySelector(".geoid-pad-help-mode").textContent),
+    "help: with a sim on the page both maps show, Exploring live, Flying clearly the other one");
+  P.setMode("flight");
+  maps = help.querySelectorAll(".geoid-pad-help-map");
+  ok(help.querySelector("h2").textContent === "Flying" && maps[0].classList.contains("is-live") && /Throttle up/.test(maps[0].textContent) &&
+    !maps[1].classList.contains("is-live"), "help: entering flight swaps them: Flying first and live, Exploring second");
+  P.setMode("app"); P.setHelp(null);
+  P.focus.to(document.getElementById("t-explorer"));
+  tap("down"); eq(focusId(), "t-explorer", "help: the D-pad does not move focus underneath it");
+  eq(P.invertY, false, "invert: off by default");
+  tap("square");
+  eq(P.invertY, true, "invert: Square in the help overlay turns it on");
+  eq(localStorage.getItem("geoid:pad-invert-y"), "1", "invert: remembered in localStorage");
+  tap("square");
+  tap("circle"); ok(help.hidden, "help: Circle closes it");
+  P.showHelp([{ heading: "Flying" }, { control: "l1", text: "Throttle up" }, { control: "l2 / r2", text: "Down / boost" }], "Flight");
+  eq(help.querySelector("h2").textContent, "Flight", "help: showHelp(entries, title) shows a page's own map");
+  eq(help.querySelectorAll(".geoid-pad-help-row").length, 2, "help: …with its entries");
+  tap("triangle"); ok(help.hidden, "help: Triangle again closes it");
+
+  await tick();
+  delete window.GeoIDViewer;
+
+  // ── 11. hidden, unloaded, disconnected ───────────────────────────────
+  window.__msgs.length = 0;
+  Object.defineProperty(document, "hidden", { configurable: true, get: function () { return true; } });
+  document.dispatchEvent(new Event("visibilitychange"));
+  await tick();
+  eq(modes().join(","), "none", "hidden: the page going hidden announces none");
+  delete document.hidden;
+  document.dispatchEvent(new Event("visibilitychange"));
+  await tick();
+  P._step(T += 16);
+  eq(modes().join(","), "none,app", "hidden: coming back announces the real mode again");
+  window.dispatchEvent(new Event("pagehide"));
+  await tick();
+  eq(last("controller-mode").mode, "none", "unload: pagehide announces none");
+  window.dispatchEvent(new Event("pageshow"));
+  await tick();
+  eq(last("controller-mode").mode, "app", "unload: a page restored from the back-forward cache announces again");
+  window.__pads = [];
+  window.dispatchEvent(new Event("gamepaddisconnected"));
+  await tick();
+  eq(P.connected, false, "disconnect: the pad is gone");
+  eq(last("controller-mode").mode, "none", "disconnect: announces none");
+  ok(ring.hidden, "disconnect: the ring goes with it");
+  eq(document.documentElement.classList.contains("geoid-pad-on"), false, "disconnect: html.geoid-pad-on is cleared");
+  eq(P._state().polling, false, "disconnect: polling stops");
+
+  document.getElementById("summary").textContent =
+    (results.fail ? "FAIL" : "PASS") + " — " + results.pass + " passed, " + results.fail + " failed";
+  document.getElementById("summary").style.color = results.fail ? "#ff6b6b" : "#7dffb0";
+  window.__done = true;
+})().catch(function (err) {
+  document.getElementById("summary").textContent = "FAIL — the test run threw: " + err;
+  window.__results.fail += 1;
+  window.__results.lines.push("FAIL  threw: " + (err && err.stack || err));
+  window.__done = true;
+});
+</script>
+</body>
+</html>

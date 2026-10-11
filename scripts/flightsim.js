@@ -223,21 +223,29 @@
       <span>Help — flight controls</span>
       <button type="button" id="fs-controls-close" aria-label="Close">×</button>
     </div>
+    <!-- Each row carries its controller equivalent in .fs-pad-eq, and the
+         .fs-pad-row rows are controller-only. Both stay hidden until
+         scripts/gamepad.js stamps html.geoid-pad-on, i.e. a pad is connected. -->
     <dl class="fs-cp-list">
       <dt>Drag / scroll bar</dt><dd>Set throttle</dd>
-      <dt><kbd>W</kbd> <kbd>S</kbd></dt><dd>Throttle up / down</dd>
+      <dt><kbd>W</kbd> <kbd>S</kbd><span class="fs-pad-eq"><kbd>L1</kbd> <kbd>L2</kbd></span></dt><dd>Throttle up / down</dd>
       <dt><kbd>1</kbd>–<kbd>9</kbd></dt><dd>Set throttle 10–90%</dd>
       <dt><kbd>0</kbd></dt><dd>Full throttle</dd>
       <dt><kbd>X</kbd></dt><dd>Cut throttle</dd>
-      <dt><kbd>&uarr;</kbd> <kbd>&darr;</kbd></dt><dd>Pitch</dd>
-      <dt><kbd>&larr;</kbd> <kbd>&rarr;</kbd></dt><dd>Yaw — turn left / right</dd>
-      <dt><kbd>A</kbd> <kbd>D</kbd></dt><dd>Roll — bank left / right</dd>
-      <dt><kbd>Shift</kbd></dt><dd>Boost</dd>
-      <dt><kbd>Space</kbd></dt><dd>Brake</dd>
-      <dt><kbd>C</kbd></dt><dd>Camera — chase / cockpit</dd>
-      <dt><kbd>R</kbd></dt><dd>Re-level</dd>
+      <dt><kbd>&uarr;</kbd> <kbd>&darr;</kbd><span class="fs-pad-eq"><kbd>L stick &varr;</kbd></span></dt><dd>Pitch<span class="fs-pad-eq fs-pad-note"> (right stick &varr; = fine)</span></dd>
+      <dt><kbd>&larr;</kbd> <kbd>&rarr;</kbd><span class="fs-pad-eq"><kbd>R stick &harr;</kbd></span></dt><dd>Yaw — turn left / right</dd>
+      <dt><kbd>A</kbd> <kbd>D</kbd><span class="fs-pad-eq"><kbd>L stick &harr;</kbd></span></dt><dd>Roll — bank left / right</dd>
+      <dt><kbd>Shift</kbd><span class="fs-pad-eq"><kbd>R2</kbd></span></dt><dd>Boost<span class="fs-pad-eq fs-pad-note"> (squeeze for less)</span></dd>
+      <dt><kbd>Space</kbd><span class="fs-pad-eq"><kbd>R1</kbd></span></dt><dd>Brake</dd>
+      <dt><kbd>C</kbd><span class="fs-pad-eq"><kbd>&#9633;</kbd></span></dt><dd>Camera — chase / cockpit</dd>
+      <dt><kbd>R</kbd><span class="fs-pad-eq"><kbd>L3</kbd></span></dt><dd>Re-level</dd>
+      <dt><kbd>P</kbd><span class="fs-pad-eq"><kbd>Options</kbd></span></dt><dd>Pause / resume</dd>
       <dt><kbd>H</kbd></dt><dd>Show / hide HUD</dd>
       <dt><kbd>Esc</kbd></dt><dd>Exit flight</dd>
+      <dt class="fs-pad-row"><kbd>&#9675;</kbd></dt><dd class="fs-pad-row">Control Centre — open / back</dd>
+      <dt class="fs-pad-row"><kbd>D-pad</kbd></dt><dd class="fs-pad-row">Move between tabs</dd>
+      <dt class="fs-pad-row"><kbd>&#10005;</kbd></dt><dd class="fs-pad-row">Select</dd>
+      <dt class="fs-pad-row"><kbd>&#9651;</kbd></dt><dd class="fs-pad-row">Controller map</dd>
     </dl>
   </div>
   <div id="fs-hud-dock">
@@ -2661,6 +2669,10 @@
     ));
 
     fs.active = true;
+    fs.paused = false;
+    // The controller now belongs to the sim. gamepad.js tells the host
+    // (Atlas), which stands its own pad-to-mouse mapping down.
+    window.GeoIDPad?.setMode("flight");
     // Re-run relief sync now that flight is officially active — it re-enables
     // the terrain slider (kept disabled in CTX modes outside flight).
     hooks.syncTerrainReliefState();
@@ -2679,6 +2691,12 @@
 
   function disengage() {
     if (!fs.active) return;
+    // FIRST, before any teardown: hand the sticks back. gamepad.js announces
+    // "app" synchronously and its axes() read zero from this line on, so the
+    // desktop mapper has the pointer again before the camera has moved.
+    window.GeoIDPad?.setMode("app");
+    fs.paused = false;
+    document.body.classList.remove("fs-paused");
     fs.active = false;
     document.body.classList.remove("fs-flying");
     document.getElementById("nav-tab")?.click(); // reopen the nav panel on exit
@@ -3237,6 +3255,9 @@
       if (liveName !== (flightMoon ? flightMoon.name : null)) { disengage(); return; }
     }
     stepMoonFrame();
+    // PAUSED: hold everything where it is. Zeroing lastT makes the first frame
+    // after resuming a zero-length step instead of one long catch-up.
+    if (fs.paused) { state.lastT = 0; return; }
 
     const now = performance.now();
     let dt = state.lastT ? (now - state.lastT) / 1000 : 0;
@@ -3285,12 +3306,24 @@
     if (keys.ArrowRight) yaw -= YAW_RATE;
     if (keys.KeyA) roll += ROLL_RATE;
     if (keys.KeyD) roll -= ROLL_RATE;
+    // CONTROLLER. Analogue stays analogue: stick deflection scales the same
+    // body rates the keys apply flat out, and the two simply add (clamped, so
+    // a key plus a full stick is not a double-rate turn).
+    const pad = readPad();
+    if (pad.live) {
+      pitch = Math.max(-PITCH_RATE, Math.min(PITCH_RATE, pitch + PITCH_RATE * pad.pitch));
+      yaw = Math.max(-YAW_RATE, Math.min(YAW_RATE, yaw + YAW_RATE * pad.yaw));
+      roll = Math.max(-ROLL_RATE, Math.min(ROLL_RATE, roll + ROLL_RATE * pad.roll));
+    }
     const dq = new THREE.Quaternion().setFromEuler(new THREE.Euler(pitch * dts, yaw * dts, roll * dts, "XYZ"));
     s.quat.multiply(dq).normalize();
 
     // throttle trim
     if (keys.KeyW) s.throttle = Math.min(1, s.throttle + 0.5 * dts);
     if (keys.KeyS) s.throttle = Math.max(0, s.throttle - 0.6 * dts);
+    // L1 is W. L2 is S with a rate: a light squeeze eases the throttle back.
+    if (pad.thrUp) s.throttle = Math.min(1, s.throttle + 0.5 * dts);
+    if (pad.thrDown) s.throttle = Math.max(0, s.throttle - 0.6 * pad.thrDown * dts);
 
     // BOOST IS A RAMP, NOT A SWITCH. It used to be a fixed x2.6 gated by an
     // energy bar that drained in ~3.5 s, so top speed arrived instantly and
@@ -3299,11 +3332,18 @@
     // ceiling from cruise up to the altitude-allowed maximum. The existing HUD
     // bar reads as "how far up the speed range you are" instead of "how much
     // boost is left", which is the same bar showing something more useful.
-    s.boosting = Boolean(keys.ShiftLeft || keys.ShiftRight);
-    if (s.boosting) s.boost = Math.min(1, s.boost + 0.22 * dts);   // ~4.5 s to full
-    else s.boost = Math.max(0, s.boost - 0.5 * dts);               // ~2 s to shed
+    const keyBoost = Boolean(keys.ShiftLeft || keys.ShiftRight);
+    s.boosting = keyBoost || pad.boost > 0;
+    // R2 is analogue, and the ramp makes that mean something: the trigger sets
+    // HOW FAR UP the ramp boost may climb. Fully squeezed is exactly Shift
+    // (and is the only way into warp, which needs the ramp full); half
+    // squeezed holds half the boost range. Easing off sheds down to the new
+    // level at the release rate.
+    const boostCap = keyBoost ? 1 : pad.boost;
+    if (s.boosting && s.boost < boostCap) s.boost = Math.min(boostCap, s.boost + 0.22 * dts);   // ~4.5 s to full
+    else if (s.boost > boostCap) s.boost = Math.max(boostCap, s.boost - 0.5 * dts);             // ~2 s to shed
 
-    s.braking = Boolean(keys.Space);
+    s.braking = Boolean(keys.Space) || pad.brake;
 
     // speed dynamics (scene units)
     //
@@ -3794,6 +3834,7 @@
     if (pressed(e, "KeyX")) { setThrottle(0); flash("THROTTLE CUT"); e.preventDefault(); return; }
     if (pressed(e, "KeyC")) toggleCam();
     if (pressed(e, "KeyR")) levelOut();
+    if (pressed(e, "KeyP")) setPaused(!fs.paused);
     if (pressed(e, "KeyH")) {
       state.hudVisible = !state.hudVisible;
       hud?.classList.toggle("fs-hud-hidden", !state.hudVisible);
@@ -3801,6 +3842,99 @@
     if (e.code === "Escape") disengage();
   });
   window.addEventListener("keyup", (e) => { for (const t of keyTokens(e)) keys[t] = false; });
+
+  // ---- pause ----
+  // Nothing here paused before; a controller's Options button needs it to, and
+  // the keyboard gets P for the same thing. update() returns early while it is
+  // set, so the ship, the camera and the instruments all hold.
+  function setPaused(on) {
+    if (!fs.active || state.crashed) on = false;
+    if (Boolean(fs.paused) === Boolean(on)) return;
+    fs.paused = Boolean(on);
+    document.body.classList.toggle("fs-paused", fs.paused);
+    if (fs.paused) {
+      // update() is what fades the message, so while paused this one stays up.
+      if (hudMsg) { hudMsg.textContent = "PAUSED"; hudMsg.style.opacity = "1"; }
+    } else if (fs.active) {
+      flash("RESUMED");
+    }
+  }
+
+  // ---- controller (scripts/gamepad.js) ----
+  // The mapping is the owner's:
+  //   left stick   X roll, Y pitch            right stick  X yaw, Y fine pitch
+  //   L1 throttle up (held)                   L2 throttle down (analogue rate)
+  //   R1 brake (held)                         R2 boost (analogue)
+  //   Square camera · L3 re-level · Options pause
+  //   Circle opens / closes the Control Centre; D-pad, Cross and Triangle are
+  //   the page's own navigation and are handled in gamepad.js.
+  // The pad's TOUCHPAD is not read at all: it is the system pointer.
+  // Stick up is nose up, matching the Up arrow; "Invert vertical" in the
+  // controller help (remembered in localStorage) gives the yoke convention.
+  const PAD_IDLE = { live: false, pitch: 0, yaw: 0, roll: 0, thrUp: false, thrDown: 0, boost: 0, brake: false };
+  const FINE_PITCH = 0.4;
+  function readPad() {
+    const P = window.GeoIDPad;
+    if (!P || !P.connected) return PAD_IDLE;
+    const a = P.axes();
+    const inv = P.invertY ? -1 : 1;
+    return {
+      live: true,
+      pitch: Math.max(-1, Math.min(1, (-a.ly - a.ry * FINE_PITCH) * inv)),
+      yaw: -a.rx,
+      roll: -a.lx,
+      thrUp: P.pressed("l1"),
+      thrDown: a.l2,
+      boost: a.r2,
+      brake: P.pressed("r1"),
+    };
+  }
+  const PAD_HELP = [
+    { control: "ls", text: "Roll (left / right) and pitch (up / down)" },
+    { control: "rs", text: "Yaw (left / right) and fine pitch (up / down)" },
+    { control: "l1", text: "Throttle up, while held" },
+    { control: "l2", text: "Throttle down: squeeze harder to drop it faster" },
+    { control: "r2", text: "Boost: squeeze for more, hold it full for warp at altitude" },
+    { control: "r1", text: "Brake, while held" },
+    { control: "square", text: "Camera: chase / cockpit" },
+    { control: "l3", text: "Re-level the ship" },
+    { control: "options", text: "Pause / resume" },
+    { heading: "Menus" },
+    { control: "circle", text: "Open the Control Centre; again, or with anything open, back / close" },
+    { control: "dpad", text: "Move to the nearest tab in that direction" },
+    { control: "cross", text: "Select, or open the focused panel" },
+    { control: "triangle", text: "Show or hide this map" },
+    { heading: "Not used here" },
+    { control: "r3", text: "Free look: this sim has no free-look camera", unused: true },
+    { control: "share", text: "Screenshot: this sim has no screenshot", unused: true },
+    { control: "touchpad", text: "Not read by the sim: it stays the pointer", unused: true },
+  ];
+  function controlCentre() {
+    const ui = document.getElementById("ui");
+    if (!ui) return false;
+    const P = window.GeoIDPad;
+    if (ui.classList.contains("is-collapsed")) {
+      document.getElementById("nav-tab")?.click();
+      // Land on the first tab once the panel has slid in and can be hit.
+      setTimeout(() => { if (fs.active) P?.focus.first(ui); }, 260);
+    } else {
+      document.getElementById("nav-collapse-btn")?.click();
+      P?.focus.clear();
+    }
+    return true;
+  }
+  (function wireController() {
+    const P = window.GeoIDPad;
+    if (!P) return;
+    P.setHelp(PAD_HELP);          // this page's "Flying" map, for the overlay
+    P.on("square", () => { if (fs.active && !fs.paused) toggleCam(); });
+    P.on("l3", () => { if (fs.active && !fs.paused) levelOut(); });
+    P.on("options", () => { if (fs.active) setPaused(!fs.paused); });
+    P.onBack(() => (fs.active ? controlCentre() : false));
+    // Circle must not fold the flight section shut from under a running sim:
+    // its header is the Enter / Exit switch, not an ordinary tab.
+    document.getElementById("flightsim-section")?.setAttribute("data-pad-noclose", "");
+  })();
   window.addEventListener("blur", () => { for (const k of Object.keys(keys)) keys[k] = false; });
   // DIRECT MANIPULATION. The throttle is drawn on screen as a slider, so it
   // behaves like one: click or drag anywhere along the track to set it, wheel to
