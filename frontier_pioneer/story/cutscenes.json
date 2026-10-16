@@ -1,0 +1,4291 @@
+{
+ "schema_version": 1,
+ "beat_kinds": {
+  "line": "spoken line (id in lines.json)",
+  "direction": "stage direction / action",
+  "camera": "camera intent: mode orbit|dolly|crane|look_at|static|pov, from/to/target, lens_mm",
+  "title": "on-screen text (HUD, act card, stencil, plaque, telemetry)",
+  "still": "description for a 2D illustrated panel (for the illustrated-cutscene path)",
+  "sfx": "sound effect",
+  "music": "music cue",
+  "glitch": "perception-filter glitch effect with intensity 0-1",
+  "choice": "dialogue choice; each option has set{} and then[] beats",
+  "fade": "fade to black/white/in/gameplay",
+  "set": "write a story variable"
+ },
+ "timing": "t = seconds from cutscene start, computed from duration_hint (lines: ~2.6 words/s + 0.6 s). parallel beats share t with the next beat. Inside a choice option, t restarts at 0.",
+ "variables": {
+  "names.used.<UNIT>": {
+   "set_by": "Act IV onward: addressing a unit by its real name before its Recall (dialogue option unlocked by 4.4 / open_unit_file). ANVIL only in C15.",
+   "effect": "The unit dies knowing who it was: its Recall last words switch to the named_* variant (founders.json, second_ring.json, population act5_named_last). Its name is carried into the ending: listed on the Rest plaque (C18b, whatever P1 told the commander) or scratched into the Fugitive hideout wall (F.5, seen in C19)."
+  },
+  "truth_told_lead": {
+   "set_by": "C16 choice: builder | honest | donor | none",
+   "effect": "builder/honest: plaque adds PIONEER-1, she resigns (C18b.card_lead_resigns). donor/none: plaque reads Meridian Consortium, she stays (C18b.card_lead_stays)."
+  },
+  "cara_found": {
+   "set_by": "Mission 5.5 / C17",
+   "effect": "Final image in Ending B (she turns away from the glass); Cara's epilogue card (C18b.card_cara)."
+  },
+  "p11_confronted": {
+   "set_by": "Mission 4.7 choice p11_confront (Pioneer-11 reports him either way: recall_alert = true)",
+   "effect": "true (told him everything): Meridian knows P1 is aware and where his base is; RECALL arrive in Act V knowing exactly where he is (a team waits at Jezero in 5.2; headlights at the service tunnel in C18a; Fugitive hunt starts hot). false: they know only his sector."
+  },
+  "warned.<UNIT>": {
+   "set_by": "Mission 5.2 'warn' objectives",
+   "effect": "Whether each unit dies knowing the truth; selects <UNIT>.recall.warned vs .unwarned last words. Never saves anyone."
+  },
+  "knows.*": {
+   "set_by": "various",
+   "effect": "Knowledge flags that open KEEPER questions (knows.mars_sols, knows.name_rowan_ashby, knows.ashby_file, knows.pioneer_5, knows.cara...)."
+  },
+  "recall_alert": {
+   "set_by": "Mission 4.7 (always)",
+   "effect": "Meridian has flagged PIONEER-1. RECALL teams treat him as aware from Covenant landfall (5.1 radio, 5.2, C18a)."
+  }
+ },
+ "production_order": [
+  "C01",
+  "C10",
+  "C16"
+ ],
+ "cutscenes": [
+  {
+   "title": "Entry",
+   "act": "prologue",
+   "trigger": {
+    "on": "new_game"
+   },
+   "site": "jezero",
+   "verbatim_source": "bible p.20-21",
+   "next": "mission:P.1",
+   "beats": [
+    {
+     "kind": "fade",
+     "to": "black",
+     "duration_hint": 0.5,
+     "t": 0.0
+    },
+    {
+     "kind": "music",
+     "cue": "mx_c01_bedtime",
+     "desc": "Solo piano, two notes, felt-muted. Stops when the fire starts.",
+     "parallel": true,
+     "duration_hint": 0,
+     "t": 0.5
+    },
+    {
+     "kind": "direction",
+     "text": "Black. A child's voice, close, under a duvet.",
+     "verbatim": true,
+     "duration_hint": 2.5,
+     "t": 0.5
+    },
+    {
+     "kind": "still",
+     "panel": "Black frame. Only a faint glow line along the bottom edge, like light under a bedroom door.",
+     "parallel": true,
+     "duration_hint": 0,
+     "t": 3.0
+    },
+    {
+     "kind": "line",
+     "line": "C01.01",
+     "speaker": "ALICE",
+     "text": "Is it cold on Mars?",
+     "delivery": "whispered, under a duvet, close",
+     "verbatim": true,
+     "duration_hint": 2.5,
+     "t": 3.0
+    },
+    {
+     "kind": "line",
+     "line": "C01.02",
+     "speaker": "DAD",
+     "text": "Minus sixty, on a nice day.",
+     "delivery": "amused, soft",
+     "verbatim": true,
+     "duration_hint": 2.9,
+     "t": 5.5
+    },
+    {
+     "kind": "line",
+     "line": "C01.03",
+     "speaker": "ALICE",
+     "text": "Then why are you going?",
+     "delivery": "a real question, not a complaint",
+     "verbatim": true,
+     "duration_hint": 2.5,
+     "t": 8.4
+    },
+    {
+     "kind": "sfx",
+     "sfx": "sfx_entry_plasma",
+     "desc": "Roar comes up from silence over two seconds: plasma, buffeting, hull creak.",
+     "duration_hint": 0,
+     "t": 10.9
+    },
+    {
+     "kind": "direction",
+     "text": "Fire. The heat shield glows orange through the porthole. A suited figure strapped in, visor reflecting the flames. HUD text boots line by line in the GeoHUB style: KESTREL SUIT OS · PIONEER-1 · VITALS NOMINAL.",
+     "verbatim": true,
+     "duration_hint": 4.0,
+     "t": 10.9
+    },
+    {
+     "kind": "camera",
+     "camera": {
+      "mode": "dolly",
+      "to": "visor close-up, flames reflected",
+      "lens_mm": 35,
+      "duration_s": 4,
+      "from": "porthole exterior, plasma sheath"
+     },
+     "parallel": true,
+     "duration_hint": 0,
+     "t": 14.9
+    },
+    {
+     "kind": "still",
+     "panel": "Inside a cramped lander: orange light through a round porthole; a suited figure in a five-point harness, visor a black mirror full of fire. Monochrome HUD glyphs ticking in at the top left.",
+     "parallel": true,
+     "duration_hint": 0,
+     "t": 14.9
+    },
+    {
+     "kind": "title",
+     "text": "KESTREL SUIT OS",
+     "style": "hud",
+     "duration_hint": 0.8,
+     "t": 14.9
+    },
+    {
+     "kind": "title",
+     "text": "PIONEER-1",
+     "style": "hud",
+     "duration_hint": 0.8,
+     "t": 15.7
+    },
+    {
+     "kind": "title",
+     "text": "VITALS NOMINAL",
+     "style": "hud",
+     "duration_hint": 1.2,
+     "t": 16.5
+    },
+    {
+     "kind": "line",
+     "line": "C01.04",
+     "speaker": "DAD",
+     "text": "If only you could see what I see...",
+     "delivery": "softly, the bedtime voice, under the roar",
+     "verbatim": true,
+     "duration_hint": 3.7,
+     "t": 17.7
+    },
+    {
+     "kind": "line",
+     "line": "C01.05",
+     "speaker": "P1",
+     "text": "...the red road rising, the cities to be...",
+     "delivery": "in the lander, almost a whisper, lips barely moving",
+     "verbatim": true,
+     "duration_hint": 3.7,
+     "t": 21.4
+    },
+    {
+     "kind": "line",
+     "line": "C01.06",
+     "speaker": "KEEPER",
+     "text": "Parachute deploy in ten seconds. Welcome to Mars, Pioneer. You are the first.",
+     "verbatim": true,
+     "duration_hint": 5.6,
+     "t": 25.1
+    },
+    {
+     "kind": "sfx",
+     "sfx": "sfx_chute_snap",
+     "desc": "Mortar crack, then the long tearing deceleration.",
+     "duration_hint": 0,
+     "t": 30.7
+    },
+    {
+     "kind": "direction",
+     "text": "Parachute snaps open. Jezero's delta fans out below, frozen rivers of stone. Retrorockets. Dust. The lander hits hard and tips. Silence. A single warning light.",
+     "verbatim": true,
+     "duration_hint": 6.0,
+     "t": 30.7
+    },
+    {
+     "kind": "camera",
+     "camera": {
+      "mode": "crane",
+      "to": "Jezero delta fan filling frame",
+      "target": "jezero.delta_front",
+      "lens_mm": 24,
+      "duration_s": 3,
+      "from": "above the chute, looking down"
+     },
+     "parallel": true,
+     "duration_hint": 0,
+     "t": 36.7
+    },
+    {
+     "kind": "still",
+     "panel": "From above the canopy: Jezero crater at dawn, the delta a fan of fossil channels like veins in a leaf, the crater rim a broken ring on the horizon.",
+     "parallel": true,
+     "duration_hint": 0,
+     "t": 36.7
+    },
+    {
+     "kind": "camera",
+     "camera": {
+      "mode": "static",
+      "target": "lander",
+      "note": "ground level, 40 m, retro flare then dust wall swallows frame; lander tips 34 degrees",
+      "duration_s": 3
+     },
+     "parallel": true,
+     "duration_hint": 0,
+     "t": 36.7
+    },
+    {
+     "kind": "sfx",
+     "sfx": "sfx_impact_tip",
+     "desc": "Thud, metal groan, a slow tilt, then nothing. One beeping warning tone, slow.",
+     "parallel": true,
+     "duration_hint": 0,
+     "t": 36.7
+    },
+    {
+     "kind": "line",
+     "line": "C01.07",
+     "speaker": "DAD",
+     "text": "Because somebody has to build the house before we move in.",
+     "delivery": "memory, very close, as if leaning over the bed",
+     "verbatim": true,
+     "duration_hint": 4.8,
+     "t": 36.7
+    },
+    {
+     "kind": "direction",
+     "text": "Fade to gameplay.",
+     "verbatim": true,
+     "duration_hint": 1.0,
+     "t": 41.5
+    },
+    {
+     "kind": "fade",
+     "to": "gameplay",
+     "duration_hint": 2.0,
+     "t": 42.5
+    }
+   ],
+   "id": "C01"
+  },
+  {
+   "title": "Something Falling",
+   "act": "I",
+   "trigger": {
+    "on": "package_landed",
+    "package": "pkg_001"
+   },
+   "site": "jezero",
+   "next": "objective: reach the pod (C03 on approach)",
+   "beats": [
+    {
+     "kind": "direction",
+     "text": "Night on the Jezero delta. PIONEER-1 sits on the tilted hull of the lander, knees up. The site he chose is marked by a single flare four hundred metres off. The HUD descent timer reads 00:00:40.",
+     "duration_hint": 4.0,
+     "t": 0.0
+    },
+    {
+     "kind": "camera",
+     "camera": {
+      "mode": "static",
+      "target": "P1 silhouette on the lander hull, sky behind",
+      "lens_mm": 50,
+      "duration_s": 4
+     },
+     "parallel": true,
+     "duration_hint": 0,
+     "t": 4.0
+    },
+    {
+     "kind": "still",
+     "panel": "A lone suited figure on a tipped lander under a black, crowded sky; a small red flare burning on the plain in the distance.",
+     "parallel": true,
+     "duration_hint": 0,
+     "t": 4.0
+    },
+    {
+     "kind": "line",
+     "line": "C02.01",
+     "speaker": "KEEPER",
+     "text": "Package one. Forty seconds.",
+     "duration_hint": 2.1,
+     "t": 4.0
+    },
+    {
+     "kind": "direction",
+     "text": "A point of light high in the east brightens, then lengthens into a streak.",
+     "duration_hint": 3.0,
+     "t": 6.1
+    },
+    {
+     "kind": "camera",
+     "camera": {
+      "mode": "look_at",
+      "target": "pod streak",
+      "duration_s": 4,
+      "from": "over P1's shoulder"
+     },
+     "parallel": true,
+     "duration_hint": 0,
+     "t": 9.1
+    },
+    {
+     "kind": "line",
+     "line": "C02.02",
+     "speaker": "P1",
+     "text": "There you are.",
+     "delivery": "quiet, pleased, the first warmth in his voice",
+     "duration_hint": 1.8,
+     "t": 9.1
+    },
+    {
+     "kind": "line",
+     "line": "C02.03",
+     "speaker": "ALICE",
+     "text": "Make a wish.",
+     "delivery": "memory: excited, a garden at night",
+     "duration_hint": 1.8,
+     "t": 10.9
+    },
+    {
+     "kind": "line",
+     "line": "C02.04",
+     "speaker": "DAD",
+     "text": "It's not a shooting star, love. It's a satellite.",
+     "duration_hint": 4.1,
+     "t": 12.7
+    },
+    {
+     "kind": "line",
+     "line": "C02.05",
+     "speaker": "ALICE",
+     "text": "Make a wish anyway.",
+     "duration_hint": 2.1,
+     "t": 16.8
+    },
+    {
+     "kind": "line",
+     "line": "C02.06",
+     "speaker": "P1",
+     "text": "Go on, then.",
+     "delivery": "to himself, almost a smile",
+     "duration_hint": 1.8,
+     "t": 18.9
+    },
+    {
+     "kind": "sfx",
+     "sfx": "sfx_pod_boom",
+     "desc": "A sonic crack arrives late; parachute flap; the retro burn lights the plain orange for two seconds.",
+     "duration_hint": 0,
+     "t": 20.7
+    },
+    {
+     "kind": "direction",
+     "text": "The pod's retros flare. Dust lit from beneath. A thump through the ground, felt more than heard.",
+     "duration_hint": 3.5,
+     "t": 20.7
+    },
+    {
+     "kind": "line",
+     "line": "C02.07",
+     "speaker": "KEEPER",
+     "text": "Package one down. Four hundred and ten metres, bearing zero six two. Contents: rations, water, components, one construction unit.",
+     "duration_hint": 7.9,
+     "t": 24.2
+    },
+    {
+     "kind": "line",
+     "line": "C02.08",
+     "speaker": "P1",
+     "text": "One what?",
+     "duration_hint": 1.4,
+     "t": 32.1
+    },
+    {
+     "kind": "line",
+     "line": "C02.09",
+     "speaker": "KEEPER",
+     "text": "One construction unit.",
+     "duration_hint": 1.8,
+     "t": 33.5
+    },
+    {
+     "kind": "direction",
+     "text": "Across the plain, the pod beacon blinks amber. Something inside it knocks twice, from the inside.",
+     "duration_hint": 3.0,
+     "t": 35.3
+    },
+    {
+     "kind": "sfx",
+     "sfx": "sfx_pod_knock",
+     "desc": "Two muffled metallic knocks, carried through the ground.",
+     "parallel": true,
+     "duration_hint": 0,
+     "t": 38.3
+    },
+    {
+     "kind": "fade",
+     "to": "gameplay",
+     "duration_hint": 1.5,
+     "t": 38.3
+    }
+   ],
+   "id": "C02"
+  },
+  {
+   "title": "ANVIL",
+   "act": "I",
+   "trigger": {
+    "on": "reach",
+    "poi": "pkg_001"
+   },
+   "site": "jezero",
+   "clues": [
+    "2",
+    "3"
+   ],
+   "verbatim_source": "bible p.21",
+   "beats": [
+    {
+     "kind": "direction",
+     "text": "The pod sits smoking in a crater of its own making. A hatch blows. A squat yellow construction unit unfolds, servos whining, and turns its sensor bar toward the horizon.",
+     "verbatim": true,
+     "duration_hint": 5.0,
+     "t": 0.0
+    },
+    {
+     "kind": "camera",
+     "camera": {
+      "mode": "orbit",
+      "target": "pod",
+      "radius_m": 6,
+      "from_deg": 200,
+      "to_deg": 250,
+      "duration_s": 5
+     },
+     "parallel": true,
+     "duration_hint": 0,
+     "t": 5.0
+    },
+    {
+     "kind": "still",
+     "panel": "A scorched cone-shaped pod in a small fresh crater; hatch blown open; a boxy yellow machine unfolding out of it like a folding chair, a horizontal sensor bar for a face.",
+     "parallel": true,
+     "duration_hint": 0,
+     "t": 5.0
+    },
+    {
+     "kind": "sfx",
+     "sfx": "sfx_servo_unfold",
+     "desc": "Hatch pyro, then a long sequence of servo whines and latches.",
+     "parallel": true,
+     "duration_hint": 0,
+     "t": 5.0
+    },
+    {
+     "kind": "line",
+     "line": "C03.01",
+     "speaker": "ANVIL",
+     "text": "Construction unit C-01, callsign ANVIL, reporting. Right. Where's the canteen?",
+     "verbatim": true,
+     "duration_hint": 4.4,
+     "t": 5.0
+    },
+    {
+     "kind": "line",
+     "line": "C03.02",
+     "speaker": "P1",
+     "text": "There's no canteen. There's no anything. There's me.",
+     "verbatim": true,
+     "duration_hint": 3.7,
+     "t": 9.4
+    },
+    {
+     "kind": "line",
+     "line": "C03.03",
+     "speaker": "ANVIL",
+     "text": "Then I'll build you one. Not that either of us eats in it, mind.",
+     "verbatim": true,
+     "duration_hint": 6.0,
+     "t": 13.1
+    },
+    {
+     "kind": "direction",
+     "text": "It offers a gloved manipulator. P1 shakes it. For a frame, the two gloves look identical.",
+     "verbatim": true,
+     "duration_hint": 3.0,
+     "t": 19.1
+    },
+    {
+     "kind": "camera",
+     "camera": {
+      "mode": "static",
+      "target": "handshake",
+      "lens_mm": 85,
+      "note": "close two-shot on the gloves; ONE frame (42 ms) renders ANVIL's manipulator as a Kestrel glove, same seam pattern, then back",
+      "duration_s": 3
+     },
+     "parallel": true,
+     "duration_hint": 0,
+     "t": 22.1
+    },
+    {
+     "kind": "glitch",
+     "desc": "Single-frame substitution: ANVIL's industrial claw rendered as a Kestrel suit glove identical to P1's. No sound cue. Deniable.",
+     "intensity": 0.15,
+     "duration_hint": 0.1,
+     "t": 22.1
+    },
+    {
+     "kind": "line",
+     "line": "C03.04",
+     "speaker": "P1",
+     "text": "ANVIL. Bit grim.",
+     "verbatim": true,
+     "duration_hint": 1.8,
+     "t": 22.2
+    },
+    {
+     "kind": "line",
+     "line": "C03.05",
+     "speaker": "ANVIL",
+     "text": "It's a callsign, not a name. That'll do.",
+     "verbatim": true,
+     "duration_hint": 3.7,
+     "t": 24.0
+    },
+    {
+     "kind": "set",
+     "var": "unit.ANVIL.joined",
+     "value": true,
+     "parallel": true,
+     "duration_hint": 0,
+     "t": 27.7
+    },
+    {
+     "kind": "fade",
+     "to": "gameplay",
+     "duration_hint": 1.0,
+     "t": 27.7
+    }
+   ],
+   "id": "C03"
+  },
+  {
+   "title": "After the Storm",
+   "act": "I",
+   "trigger": {
+    "on": "mission_complete",
+    "id": "1.6"
+   },
+   "site": "jezero",
+   "clues": [
+    "T1",
+    "T2"
+   ],
+   "verbatim_source": "bible p.15 (ANVIL's line)",
+   "beats": [
+    {
+     "kind": "fade",
+     "to": "in",
+     "duration_hint": 1.5,
+     "t": 0.0
+    },
+    {
+     "kind": "title",
+     "text": "DORMANCY COMPLETE · MISSION SOL 8 · GOOD MORNING, PIONEER",
+     "style": "hud",
+     "duration_hint": 3.0,
+     "t": 1.5
+    },
+    {
+     "kind": "direction",
+     "text": "Inside the outpost module. The hiss of the storm has stopped. Light through the porthole is brown, then slowly cleaner. P1 sits up in the bunk.",
+     "duration_hint": 3.5,
+     "t": 4.5
+    },
+    {
+     "kind": "line",
+     "line": "C04.01",
+     "speaker": "KEEPER",
+     "text": "Regional dust event has cleared. Array output: four percent.",
+     "duration_hint": 4.1,
+     "t": 8.0
+    },
+    {
+     "kind": "direction",
+     "text": "Outside. The solar array is buried: not dusted, buried, a drift banked against every panel edge. ANVIL is already up on the frame with a broom made from cable ties and packing foam, brushing.",
+     "duration_hint": 4.5,
+     "t": 12.1
+    },
+    {
+     "kind": "camera",
+     "camera": {
+      "mode": "dolly",
+      "to": "array, ANVIL working",
+      "lens_mm": 35,
+      "duration_s": 4,
+      "from": "airlock door"
+     },
+     "parallel": true,
+     "duration_hint": 0,
+     "t": 16.6
+    },
+    {
+     "kind": "still",
+     "panel": "Morning after a storm: a row of solar panels half-drowned in rust-coloured dust, drifts piled like snow against their edges. A yellow robot on top with a home-made broom.",
+     "parallel": true,
+     "duration_hint": 0,
+     "t": 16.6
+    },
+    {
+     "kind": "line",
+     "line": "C04.02",
+     "speaker": "ANVIL",
+     "text": "Morning. Don't stand there admiring me, grab a brush.",
+     "duration_hint": 4.1,
+     "t": 16.6
+    },
+    {
+     "kind": "line",
+     "line": "C04.03",
+     "speaker": "P1",
+     "text": "How much came down?",
+     "duration_hint": 2.1,
+     "t": 20.7
+    },
+    {
+     "kind": "line",
+     "line": "C04.04",
+     "speaker": "ANVIL",
+     "text": "Enough. I've been at it since first light. Came down heavy, so it did.",
+     "duration_hint": 6.0,
+     "t": 22.8
+    },
+    {
+     "kind": "direction",
+     "text": "P1 kneels and pushes a glove into the dust on a panel. It goes in past the knuckle. The HUD tags it: DUST LOAD 11 mm.",
+     "duration_hint": 3.5,
+     "t": 28.8
+    },
+    {
+     "kind": "camera",
+     "camera": {
+      "mode": "static",
+      "target": "glove in dust",
+      "lens_mm": 100,
+      "duration_s": 3
+     },
+     "parallel": true,
+     "duration_hint": 0,
+     "t": 32.3
+    },
+    {
+     "kind": "line",
+     "line": "C04.05",
+     "speaker": "P1",
+     "text": "One night did all that.",
+     "delivery": "half a question; he lets it go",
+     "duration_hint": 2.5,
+     "t": 32.3
+    },
+    {
+     "kind": "line",
+     "line": "C04.06",
+     "speaker": "ANVIL",
+     "text": "Big storm. And I built you a wee present while you were asleep. Round the back. Don't get excited, it's got no radio.",
+     "delivery": "pleased with himself",
+     "duration_hint": 9.4,
+     "t": 34.8
+    },
+    {
+     "kind": "direction",
+     "text": "Round the back of the module: a six-wheeled rover, assembled, tyres dusty, a hand-lettered sticker on the dash: NO RADIO. P1 looks from it to ANVIL and back.",
+     "duration_hint": 4.0,
+     "t": 44.2
+    },
+    {
+     "kind": "still",
+     "panel": "A small six-wheeled pressurised rover parked behind the module, already dusty; a scrap-tape label on the windscreen.",
+     "parallel": true,
+     "duration_hint": 0,
+     "t": 48.2
+    },
+    {
+     "kind": "line",
+     "line": "C04.07",
+     "speaker": "P1",
+     "text": "You built a rover. Overnight.",
+     "duration_hint": 2.5,
+     "t": 48.2
+    },
+    {
+     "kind": "line",
+     "line": "C04.08",
+     "speaker": "ANVIL",
+     "text": "I'm a construction unit. I construct.",
+     "duration_hint": 2.9,
+     "t": 50.7
+    },
+    {
+     "kind": "direction",
+     "text": "Time cut. Evening. The two of them sit on the outpost roof, legs over the edge. The sky goes from butterscotch to blue at the sun, then to black. Stars come out by the thousand.",
+     "duration_hint": 5.0,
+     "t": 53.6
+    },
+    {
+     "kind": "camera",
+     "camera": {
+      "mode": "crane",
+      "to": "wide, the outpost small under the sky",
+      "lens_mm": 24,
+      "duration_s": 6,
+      "from": "behind them, low"
+     },
+     "parallel": true,
+     "duration_hint": 0,
+     "t": 58.6
+    },
+    {
+     "kind": "music",
+     "cue": "mx_c04_roof",
+     "desc": "Two guitars, one slightly out of tune with the other. Very quiet.",
+     "parallel": true,
+     "duration_hint": 0,
+     "t": 58.6
+    },
+    {
+     "kind": "still",
+     "panel": "Two figures, a man in a suit and a squat robot, sitting side by side on the roof of a lone module under a sky thick with stars. Overhead, one bright point.",
+     "parallel": true,
+     "duration_hint": 0,
+     "t": 58.6
+    },
+    {
+     "kind": "line",
+     "line": "C04.09",
+     "speaker": "ANVIL",
+     "text": "You ever think the stars look too still out here?",
+     "verbatim": true,
+     "duration_hint": 4.4,
+     "t": 58.6
+    },
+    {
+     "kind": "line",
+     "line": "C04.10",
+     "speaker": "P1",
+     "text": "They're stars. They're meant to be still.",
+     "duration_hint": 3.3,
+     "t": 63.0
+    },
+    {
+     "kind": "line",
+     "line": "C04.11",
+     "speaker": "ANVIL",
+     "text": "Aye. Suppose.",
+     "duration_hint": 1.4,
+     "t": 66.3
+    },
+    {
+     "kind": "direction",
+     "text": "Overhead, HALO-1 hangs: one steady point, brighter than anything else in the sky.",
+     "duration_hint": 3.0,
+     "t": 67.7
+    },
+    {
+     "kind": "line",
+     "line": "C04.12",
+     "speaker": "P1",
+     "text": "That one's ours.",
+     "duration_hint": 1.8,
+     "t": 70.7
+    },
+    {
+     "kind": "line",
+     "line": "C04.13",
+     "speaker": "ANVIL",
+     "text": "That one never moves at all. Everything else turns. Not him.",
+     "duration_hint": 4.8,
+     "t": 72.5
+    },
+    {
+     "kind": "fade",
+     "to": "black",
+     "duration_hint": 2.0,
+     "t": 77.3
+    },
+    {
+     "kind": "title",
+     "text": "ACT II · THE WATER ROAD",
+     "style": "act",
+     "duration_hint": 3.0,
+     "t": 79.3
+    }
+   ],
+   "id": "C04"
+  },
+  {
+   "title": "Core",
+   "act": "II",
+   "trigger": {
+    "on": "objective_complete",
+    "mission": "2.3",
+    "objective": "core"
+   },
+   "site": "north_polar",
+   "beats": [
+    {
+     "kind": "direction",
+     "text": "North Polar Layered Deposits. A scarp of ice the height of a cathedral, striped like a cut cake: pale ice, dark dust, pale ice, dark dust, hundreds of bands. The sun skims the horizon and never rises higher. The drill rig ANVIL built hums on the ice shelf at its foot.",
+     "duration_hint": 6.0,
+     "t": 0.0
+    },
+    {
+     "kind": "camera",
+     "camera": {
+      "mode": "crane",
+      "to": "full height of the striped scarp",
+      "lens_mm": 21,
+      "duration_s": 6,
+      "from": "ice shelf, low"
+     },
+     "parallel": true,
+     "duration_hint": 0,
+     "t": 6.0
+    },
+    {
+     "kind": "still",
+     "panel": "A towering wall of layered ice at the Martian north pole, banded pale and dark like tree rings or a cut cake, lit by a sun lying flat on the horizon; a small drill rig at its foot.",
+     "parallel": true,
+     "duration_hint": 0,
+     "t": 6.0
+    },
+    {
+     "kind": "line",
+     "line": "C05.01",
+     "speaker": "BEACON",
+     "text": "Core's coming up. Easy. Easy. Like bringing a boat alongside.",
+     "duration_hint": 4.4,
+     "t": 6.0
+    },
+    {
+     "kind": "direction",
+     "text": "The core barrel rises out of the ice. P1 slides the core free, lifts it to the low sun. Light comes through it in bands.",
+     "duration_hint": 4.0,
+     "t": 10.4
+    },
+    {
+     "kind": "camera",
+     "camera": {
+      "mode": "static",
+      "target": "ice core against the sun",
+      "lens_mm": 85,
+      "duration_s": 4
+     },
+     "parallel": true,
+     "duration_hint": 0,
+     "t": 14.4
+    },
+    {
+     "kind": "still",
+     "panel": "A gloved hand holding a metre-long ice core up to a low sun; the light through it striped amber and white.",
+     "parallel": true,
+     "duration_hint": 0,
+     "t": 14.4
+    },
+    {
+     "kind": "line",
+     "line": "C05.02",
+     "speaker": "BEACON",
+     "text": "Look at that. Like the sea through a porthole.",
+     "duration_hint": 4.1,
+     "t": 14.4
+    },
+    {
+     "kind": "line",
+     "line": "C05.03",
+     "speaker": "P1",
+     "text": "Ten metres. That's, what. A few hundred years of weather.",
+     "duration_hint": 4.4,
+     "t": 18.5
+    },
+    {
+     "kind": "line",
+     "line": "C05.04",
+     "speaker": "LODESTONE",
+     "text": "No. Don't call them years. A band pair there is closer to tens of thousands of years. The tilt of the planet changes and the ice remembers it. You're holding a climate, not a calendar.",
+     "delivery": "precise, not unkind; she has been waiting to say this",
+     "duration_hint": 14.1,
+     "t": 22.9
+    },
+    {
+     "kind": "line",
+     "line": "C05.05",
+     "speaker": "P1",
+     "text": "You've been reading my field notes.",
+     "duration_hint": 2.9,
+     "t": 37.0
+    },
+    {
+     "kind": "line",
+     "line": "C05.06",
+     "speaker": "LODESTONE",
+     "text": "Somebody has to correct them.",
+     "duration_hint": 2.5,
+     "t": 39.9
+    },
+    {
+     "kind": "line",
+     "line": "C05.07",
+     "speaker": "LUCY",
+     "text": "You always count the layers. You never just look at them.",
+     "delivery": "memory: a pier, wind, fond",
+     "duration_hint": 4.8,
+     "t": 42.4
+    },
+    {
+     "kind": "direction",
+     "text": "P1 stops counting. He just looks.",
+     "duration_hint": 2.5,
+     "t": 47.2
+    },
+    {
+     "kind": "line",
+     "line": "C05.08",
+     "speaker": "KEEPER",
+     "text": "Core logged. Contribution Credit awarded.",
+     "duration_hint": 2.5,
+     "t": 49.7
+    },
+    {
+     "kind": "title",
+     "text": "+200 CC · POLAR CORE",
+     "style": "hud",
+     "duration_hint": 2.0,
+     "t": 52.2
+    },
+    {
+     "kind": "fade",
+     "to": "gameplay",
+     "duration_hint": 1.5,
+     "t": 54.2
+    }
+   ],
+   "id": "C05"
+  },
+  {
+   "title": "First Water",
+   "act": "II",
+   "trigger": {
+    "on": "event",
+    "id": "korolev_lake_full"
+   },
+   "site": "korolev",
+   "beats": [
+    {
+     "kind": "direction",
+     "text": "Korolev crater, under the first biome dome. A shallow basin cut into the crater's ice floor. Melt water from the plant runs down a printed channel and spreads across the bottom, thin as a sheet of glass, then deeper.",
+     "duration_hint": 5.0,
+     "t": 0.0
+    },
+    {
+     "kind": "camera",
+     "camera": {
+      "mode": "dolly",
+      "to": "basin, low over the water",
+      "lens_mm": 28,
+      "duration_s": 5,
+      "from": "channel mouth"
+     },
+     "parallel": true,
+     "duration_hint": 0,
+     "t": 5.0
+    },
+    {
+     "kind": "still",
+     "panel": "Inside a translucent dome on a field of ice: a shallow pool filling for the first time, the dome's lights reflected in it, three figures at the edge: a suited man, a slow farm robot, a thin nervous robot with a clipboard.",
+     "parallel": true,
+     "duration_hint": 0,
+     "t": 5.0
+    },
+    {
+     "kind": "line",
+     "line": "C06.01",
+     "speaker": "WELLSPRING",
+     "text": "Salinity's fine. Perchlorate's under threshold. Temperature's two degrees and holding. It's... it's water. It's just water.",
+     "delivery": "counting off on her fingers, then giving up",
+     "duration_hint": 6.8,
+     "t": 5.0
+    },
+    {
+     "kind": "line",
+     "line": "C06.02",
+     "speaker": "FURROW",
+     "text": "Well, now.",
+     "delivery": "slow; a farmer looking at rain",
+     "duration_hint": 1.4,
+     "t": 11.8
+    },
+    {
+     "kind": "direction",
+     "text": "The fans stir the surface. Ripples. P1 kneels at the edge. He reaches out a glove, and stops just above the water.",
+     "duration_hint": 4.0,
+     "t": 13.2
+    },
+    {
+     "kind": "line",
+     "line": "C06.03",
+     "speaker": "ALICE",
+     "text": "Can you swim on Mars?",
+     "delivery": "memory: bath-time echo",
+     "duration_hint": 2.5,
+     "t": 17.2
+    },
+    {
+     "kind": "line",
+     "line": "C06.04",
+     "speaker": "DAD",
+     "text": "Not yet.",
+     "duration_hint": 1.4,
+     "t": 19.7
+    },
+    {
+     "kind": "line",
+     "line": "C06.05",
+     "speaker": "P1",
+     "text": "Not yet.",
+     "delivery": "out loud, to the water",
+     "duration_hint": 1.4,
+     "t": 21.1
+    },
+    {
+     "kind": "line",
+     "line": "C06.06",
+     "speaker": "FURROW",
+     "text": "I'll have potatoes along that bank by spring. Folk'll want feeding when they come.",
+     "duration_hint": 6.0,
+     "t": 22.5
+    },
+    {
+     "kind": "line",
+     "line": "C06.07",
+     "speaker": "ANVIL",
+     "text": "Don't let him plant anything in it till I've seen it.",
+     "preset": "radio",
+     "delivery": "over the comm from Jezero",
+     "duration_hint": 4.8,
+     "t": 28.5
+    },
+    {
+     "kind": "line",
+     "line": "C06.08",
+     "speaker": "KEEPER",
+     "text": "Biome tier achieved. First standing water registered, Korolev.",
+     "duration_hint": 3.7,
+     "t": 33.3
+    },
+    {
+     "kind": "title",
+     "text": "BIOME TIER",
+     "style": "hud",
+     "duration_hint": 2.0,
+     "t": 37.0
+    },
+    {
+     "kind": "fade",
+     "to": "gameplay",
+     "duration_hint": 1.5,
+     "t": 39.0
+    }
+   ],
+   "id": "C06"
+  },
+  {
+   "title": "Second Light",
+   "act": "II",
+   "trigger": {
+    "on": "stargaze",
+    "after_mission": "2.6"
+   },
+   "site": "jezero",
+   "clues": [
+    "5"
+   ],
+   "verbatim_source": "bible p.15 (KEEPER's line)",
+   "beats": [
+    {
+     "kind": "direction",
+     "text": "Night after Dome Day. The outpost roof at Jezero. Below, the new dome glows from inside like a paper lantern. P1 lies on his back on the roof, one arm raised, tracing shapes in the stars with a finger.",
+     "duration_hint": 5.0,
+     "t": 0.0
+    },
+    {
+     "kind": "camera",
+     "camera": {
+      "mode": "static",
+      "target": "P1 on the roof; the lit dome below",
+      "lens_mm": 35,
+      "duration_s": 4
+     },
+     "parallel": true,
+     "duration_hint": 0,
+     "t": 5.0
+    },
+    {
+     "kind": "still",
+     "panel": "A man lying on a flat roof, pointing at the stars; below him a single dome glowing warm amber like a lantern on a dark plain.",
+     "parallel": true,
+     "duration_hint": 0,
+     "t": 5.0
+    },
+    {
+     "kind": "line",
+     "line": "C07.01",
+     "speaker": "ALICE",
+     "text": "That's the Plough.",
+     "delivery": "memory: proud",
+     "duration_hint": 1.8,
+     "t": 5.0
+    },
+    {
+     "kind": "line",
+     "line": "C07.02",
+     "speaker": "DAD",
+     "text": "And that's Orion. Same stars, love. Just from further away.",
+     "duration_hint": 4.4,
+     "t": 6.8
+    },
+    {
+     "kind": "line",
+     "line": "C07.03",
+     "speaker": "P1",
+     "text": "Same stars. Just from further away.",
+     "delivery": "tracing Orion",
+     "duration_hint": 2.9,
+     "t": 11.2
+    },
+    {
+     "kind": "direction",
+     "text": "HALO-1 hangs fixed overhead, as always. Then a second light, just as bright, slides slowly along the southern sky: not wheeling with the stars, not fixed like HALO-1, but crawling against both.",
+     "duration_hint": 6.0,
+     "t": 14.1
+    },
+    {
+     "kind": "camera",
+     "camera": {
+      "mode": "look_at",
+      "target": "unknown object, southern sky",
+      "lens_mm": 50,
+      "duration_s": 6,
+      "from": "P1's POV"
+     },
+     "parallel": true,
+     "duration_hint": 0,
+     "t": 20.1
+    },
+    {
+     "kind": "title",
+     "text": "UNKNOWN OBJ",
+     "style": "hud",
+     "duration_hint": 1.5,
+     "t": 20.1
+    },
+    {
+     "kind": "glitch",
+     "desc": "The HUD tag UNKNOWN OBJ scrambles letter by letter into noise and vanishes. The light stays.",
+     "intensity": 0.4,
+     "duration_hint": 1.2,
+     "t": 21.6
+    },
+    {
+     "kind": "line",
+     "line": "C07.04",
+     "speaker": "P1",
+     "text": "Keeper. There's a light in the south. Moving west, low. What is it?",
+     "duration_hint": 5.6,
+     "t": 22.8
+    },
+    {
+     "kind": "line",
+     "line": "C07.05",
+     "speaker": "KEEPER",
+     "text": "No object at that position is registered to this mission.",
+     "verbatim": true,
+     "duration_hint": 3.3,
+     "t": 28.4
+    },
+    {
+     "kind": "line",
+     "line": "C07.06",
+     "speaker": "P1",
+     "text": "I'm looking at it.",
+     "duration_hint": 2.1,
+     "t": 31.7
+    },
+    {
+     "kind": "line",
+     "line": "C07.07",
+     "speaker": "KEEPER",
+     "text": "No object at that position is registered to this mission.",
+     "duration_hint": 3.3,
+     "t": 33.8
+    },
+    {
+     "kind": "direction",
+     "text": "He watches it until it sinks into the haze over the crater rim. The dome glows on below him. He does not trace any more constellations.",
+     "duration_hint": 5.0,
+     "t": 37.1
+    },
+    {
+     "kind": "fade",
+     "to": "black",
+     "duration_hint": 2.5,
+     "t": 42.1
+    },
+    {
+     "kind": "title",
+     "text": "ACT III · THE LONG NIGHT",
+     "style": "act",
+     "duration_hint": 3.0,
+     "t": 44.6
+    }
+   ],
+   "id": "C07"
+  },
+  {
+   "title": "Buried",
+   "act": "III",
+   "trigger": {
+    "on": "mission_start",
+    "id": "3.2",
+    "when": "reach landing scan complete"
+   },
+   "site": "jezero",
+   "clues": [
+    "T3",
+    "T5"
+   ],
+   "verbatim_source": "bible p.21",
+   "beats": [
+    {
+     "kind": "direction",
+     "text": "Jezero landing site. Wind. Where the lander stood, a smooth dune crest. P1 kneels, scans. The HUD outlines the lander three metres under the sand.",
+     "verbatim": true,
+     "duration_hint": 5.0,
+     "t": 0.0
+    },
+    {
+     "kind": "camera",
+     "camera": {
+      "mode": "orbit",
+      "target": "dune crest where the lander was",
+      "radius_m": 12,
+      "from_deg": 90,
+      "to_deg": 150,
+      "duration_s": 5
+     },
+     "parallel": true,
+     "duration_hint": 0,
+     "t": 5.0
+    },
+    {
+     "kind": "still",
+     "panel": "A smooth, wind-rippled dune crest on an empty plain. A kneeling suited figure; a ghostly wireframe of the tipped lander drawn by the HUD three metres beneath the sand.",
+     "parallel": true,
+     "duration_hint": 0,
+     "t": 5.0
+    },
+    {
+     "kind": "sfx",
+     "sfx": "sfx_wind_saltation",
+     "desc": "Steady wind with the fine hiss of moving sand.",
+     "parallel": true,
+     "duration_hint": 0,
+     "t": 5.0
+    },
+    {
+     "kind": "line",
+     "line": "C08.01",
+     "speaker": "P1",
+     "text": "That dune was twenty metres off when I landed. Twenty.",
+     "verbatim": true,
+     "duration_hint": 4.4,
+     "t": 5.0
+    },
+    {
+     "kind": "title",
+     "text": "DUNE MIGRATION (MEASURED): 0.7 m / YEAR",
+     "style": "hud",
+     "duration_hint": 3.0,
+     "t": 9.4
+    },
+    {
+     "kind": "line",
+     "line": "C08.02",
+     "speaker": "P1",
+     "text": "Keeper. How long have I been on Mars?",
+     "verbatim": true,
+     "duration_hint": 3.7,
+     "t": 12.4
+    },
+    {
+     "kind": "line",
+     "line": "C08.03",
+     "speaker": "KEEPER",
+     "text": "Mission sol four hundred and twelve.",
+     "verbatim": true,
+     "duration_hint": 2.9,
+     "t": 16.1
+    },
+    {
+     "kind": "line",
+     "line": "C08.04",
+     "speaker": "P1",
+     "text": "That's not what I asked. How many days since I landed?",
+     "verbatim": true,
+     "duration_hint": 4.8,
+     "t": 19.0
+    },
+    {
+     "kind": "line",
+     "line": "C08.05",
+     "speaker": "KEEPER",
+     "text": "Please rephrase. Mission sols are the standard unit of record.",
+     "verbatim": true,
+     "duration_hint": 4.4,
+     "t": 23.8
+    },
+    {
+     "kind": "direction",
+     "text": "P1 looks back at the dune. Dialogue choices: [Ask for Mars sols since landing] / [Let it go] / [Recite the poem]. Asked for Mars sols since landing, KEEPER answers at once: \"Nine thousand nine hundred and sixty-one.\"",
+     "verbatim": true,
+     "duration_hint": 1.0,
+     "t": 28.2
+    },
+    {
+     "kind": "choice",
+     "choice_id": "c08_buried",
+     "prompt": "",
+     "options": [
+      {
+       "id": "ask_mars_sols",
+       "label": "Ask for Mars sols since landing",
+       "set": {
+        "knows.mars_sols": true
+       },
+       "clue": "T5",
+       "then": [
+        {
+         "kind": "line",
+         "line": "C08.06",
+         "speaker": "P1",
+         "text": "How many Mars sols since landing?",
+         "duration_hint": 2.9,
+         "t": 0.0
+        },
+        {
+         "kind": "line",
+         "line": "C08.07",
+         "speaker": "KEEPER",
+         "text": "Nine thousand nine hundred and sixty-one.",
+         "duration_hint": 4.4,
+         "t": 2.9,
+         "verbatim": true
+        },
+        {
+         "kind": "direction",
+         "text": "Nothing moves but the sand. The HUD offers no conversion. He does it himself, slowly.",
+         "duration_hint": 3.0,
+         "t": 7.3
+        },
+        {
+         "kind": "line",
+         "line": "C08.08",
+         "speaker": "P1",
+         "text": "That's twenty-eight years.",
+         "duration_hint": 1.8,
+         "t": 10.3
+        },
+        {
+         "kind": "line",
+         "line": "C08.09",
+         "speaker": "P1",
+         "text": "Say it again.",
+         "duration_hint": 1.8,
+         "t": 12.1
+        },
+        {
+         "kind": "line",
+         "line": "C08.repeat",
+         "speaker": "KEEPER",
+         "text": "Nine thousand nine hundred and sixty-one.",
+         "duration_hint": 4.4,
+         "t": 13.9
+        },
+        {
+         "kind": "set",
+         "var": "knows.mars_sols",
+         "value": true,
+         "parallel": true,
+         "duration_hint": 0,
+         "t": 18.3
+        }
+       ]
+      },
+      {
+       "id": "let_go",
+       "label": "Let it go",
+       "set": {
+        "c08.let_go": true
+       },
+       "then": [
+        {
+         "kind": "line",
+         "line": "C08.11",
+         "speaker": "P1",
+         "text": "Mission sol four hundred and twelve. Fine.",
+         "delivery": "flat; choosing not to know",
+         "duration_hint": 3.3,
+         "t": 0.0
+        },
+        {
+         "kind": "direction",
+         "text": "He stands. Wind fills in the marks his knees left in the sand.",
+         "duration_hint": 3.0,
+         "t": 3.3
+        },
+        {
+         "kind": "set",
+         "var": "c08.let_go",
+         "value": true,
+         "parallel": true,
+         "duration_hint": 0,
+         "t": 6.3
+        }
+       ]
+      },
+      {
+       "id": "recite",
+       "label": "Recite the poem",
+       "set": {
+        "c08.recited": true
+       },
+       "xp": 10,
+       "then": [
+        {
+         "kind": "line",
+         "line": "C08.12",
+         "speaker": "P1",
+         "text": "If only you could see what I see. The red road rising, the cities to be.",
+         "delivery": "quietly, to the dune, the way you'd hum to steady your hands",
+         "duration_hint": 6.8,
+         "t": 0.0
+        },
+        {
+         "kind": "title",
+         "text": "+10 CC · RESOLVE",
+         "style": "hud",
+         "duration_hint": 1.5,
+         "t": 6.8
+        },
+        {
+         "kind": "direction",
+         "text": "The HUD's resolve bar fills a notch. The dune goes on moving at seven tenths of a metre a year.",
+         "duration_hint": 3.0,
+         "t": 8.3
+        },
+        {
+         "kind": "set",
+         "var": "c08.recited",
+         "value": true,
+         "parallel": true,
+         "duration_hint": 0,
+         "t": 11.3
+        }
+       ]
+      }
+     ],
+     "verbatim": true,
+     "duration_hint": 0,
+     "t": 29.2
+    },
+    {
+     "kind": "set",
+     "var": "keeper.interrogation_unlocked",
+     "value": true,
+     "parallel": true,
+     "duration_hint": 0,
+     "t": 29.2
+    },
+    {
+     "kind": "fade",
+     "to": "gameplay",
+     "duration_hint": 1.5,
+     "t": 29.2
+    }
+   ],
+   "id": "C08"
+  },
+  {
+   "title": "Tracks",
+   "act": "III",
+   "trigger": {
+    "on": "reach",
+    "poi": "gale.p5_outpost"
+   },
+   "site": "gale",
+   "clues": [
+    "8"
+   ],
+   "beats": [
+    {
+     "kind": "direction",
+     "text": "Gale Crater, from the rover cab. Aeolis Mons fills the southern sky, layered like a stack of plates. The survey order on the HUD reads: GALE · UNTOUCHED · SURVEY FOR SITE.",
+     "duration_hint": 4.5,
+     "t": 0.0
+    },
+    {
+     "kind": "camera",
+     "camera": {
+      "mode": "pov",
+      "target": "Aeolis Mons through the windscreen",
+      "lens_mm": 28,
+      "duration_s": 4
+     },
+     "parallel": true,
+     "duration_hint": 0,
+     "t": 4.5
+    },
+    {
+     "kind": "direction",
+     "text": "The rover's lights cross tyre tracks. Six-wheel, the same tread, crisp: days old, not decades. P1 stops. The tracks run on toward the mountain.",
+     "duration_hint": 4.0,
+     "t": 4.5
+    },
+    {
+     "kind": "still",
+     "panel": "Rover headlights on a dusty crater floor at dusk, picking out fresh six-wheeled tyre tracks crossing the road ahead; a huge layered mountain behind.",
+     "parallel": true,
+     "duration_hint": 0,
+     "t": 8.5
+    },
+    {
+     "kind": "line",
+     "line": "C09.01",
+     "speaker": "P1",
+     "text": "Untouched.",
+     "duration_hint": 1.0,
+     "t": 8.5
+    },
+    {
+     "kind": "direction",
+     "text": "He follows the tracks. Over a rise: an outpost. A module, an array, a comms mast, a dome half-framed. The same layout as his own, down to the angle of the airlock.",
+     "duration_hint": 5.0,
+     "t": 9.5
+    },
+    {
+     "kind": "camera",
+     "camera": {
+      "mode": "crane",
+      "to": "the outpost below, lights on",
+      "lens_mm": 35,
+      "duration_s": 5,
+      "from": "behind the rover"
+     },
+     "parallel": true,
+     "duration_hint": 0,
+     "t": 14.5
+    },
+    {
+     "kind": "still",
+     "panel": "A small lit settlement in a crater under a layered mountain, laid out exactly like the player's own first base.",
+     "parallel": true,
+     "duration_hint": 0,
+     "t": 14.5
+    },
+    {
+     "kind": "direction",
+     "text": "A masonry unit straightens from a half-built wall and raises a trowel. Two more caretakers stop work and turn.",
+     "duration_hint": 3.0,
+     "t": 14.5
+    },
+    {
+     "kind": "line",
+     "line": "C09.02",
+     "speaker": "MORTAR_2",
+     "text": "Pioneer-5! You're back early. How was the long drive?",
+     "delivery": "genuinely pleased",
+     "duration_hint": 4.1,
+     "t": 17.5
+    },
+    {
+     "kind": "line",
+     "line": "C09.03",
+     "speaker": "P1",
+     "text": "I'm not... I'm Pioneer-1. Jezero.",
+     "duration_hint": 2.5,
+     "t": 21.6
+    },
+    {
+     "kind": "title",
+     "text": "VOICE-PRINT MATCH · PIONEER-5",
+     "style": "hud",
+     "duration_hint": 2.0,
+     "t": 24.1
+    },
+    {
+     "kind": "line",
+     "line": "C09.04",
+     "speaker": "MORTAR_2",
+     "text": "Voice-print says you're the boss. Comms artefact, maybe. They happen after a storm. Come in out of it, anyway. Your calendar's where you left it.",
+     "duration_hint": 10.2,
+     "t": 26.1
+    },
+    {
+     "kind": "title",
+     "text": "COMMS ARTEFACT",
+     "style": "hud",
+     "duration_hint": 1.5,
+     "t": 36.3
+    },
+    {
+     "kind": "glitch",
+     "desc": "The VOICE-PRINT MATCH tag is overwritten by COMMS ARTEFACT mid-word; the two flicker for three frames.",
+     "intensity": 0.35,
+     "duration_hint": 0.6,
+     "t": 37.8
+    },
+    {
+     "kind": "direction",
+     "text": "Inside the module, on the wall beside the bunk, a paper calendar with sols crossed off in marker. P1 looks at the nail it hangs from. It is exactly where ANVIL hung his.",
+     "duration_hint": 4.5,
+     "t": 38.4
+    },
+    {
+     "kind": "camera",
+     "camera": {
+      "mode": "static",
+      "target": "calendar on the wall",
+      "lens_mm": 50,
+      "duration_s": 4
+     },
+     "parallel": true,
+     "duration_hint": 0,
+     "t": 42.9
+    },
+    {
+     "kind": "still",
+     "panel": "A hand-crossed paper calendar hanging on one nail beside a bunk in a cramped module. Every sol crossed off in the same marker strokes.",
+     "parallel": true,
+     "duration_hint": 0,
+     "t": 42.9
+    },
+    {
+     "kind": "line",
+     "line": "C09.05",
+     "speaker": "P1",
+     "text": "Keeper. Who built this outpost?",
+     "duration_hint": 2.5,
+     "t": 42.9
+    },
+    {
+     "kind": "line",
+     "line": "C09.06",
+     "speaker": "KEEPER",
+     "text": "No outpost is registered at this position.",
+     "duration_hint": 3.3,
+     "t": 45.4
+    },
+    {
+     "kind": "line",
+     "line": "C09.07",
+     "speaker": "P1",
+     "text": "I'm standing in it.",
+     "duration_hint": 2.1,
+     "t": 48.7
+    },
+    {
+     "kind": "line",
+     "line": "C09.08",
+     "speaker": "KEEPER",
+     "text": "No outpost is registered at this position.",
+     "duration_hint": 3.3,
+     "t": 50.8
+    },
+    {
+     "kind": "set",
+     "var": "knows.gale_outpost",
+     "value": true,
+     "parallel": true,
+     "duration_hint": 0,
+     "t": 54.1
+    },
+    {
+     "kind": "fade",
+     "to": "gameplay",
+     "duration_hint": 1.5,
+     "t": 54.1
+    }
+   ],
+   "id": "C09"
+  },
+  {
+   "title": "The First Man",
+   "act": "III",
+   "trigger": {
+    "on": "reach",
+    "poi": "arsia.outpost_arsia_airlock"
+   },
+   "site": "arsia",
+   "clues": [
+    "9"
+   ],
+   "verbatim_source": "bible p.21-22",
+   "production_priority": 1,
+   "beats": [
+    {
+     "kind": "direction",
+     "text": "Arsia Mons. A collapsed skylight into a lava tube. P1 climbs down. At the bottom, half-buried in drifted sand, lies a dead robot: a stripped skeletal frame, limbs folded, optics dark. P1 steps over it without a second look. Another dead machine.",
+     "verbatim": true,
+     "duration_hint": 7.0,
+     "t": 0.0
+    },
+    {
+     "kind": "camera",
+     "camera": {
+      "mode": "crane",
+      "to": "tube floor, the frame in the sand",
+      "lens_mm": 21,
+      "duration_s": 6,
+      "from": "skylight rim looking down"
+     },
+     "parallel": true,
+     "duration_hint": 0,
+     "t": 7.0
+    },
+    {
+     "kind": "still",
+     "panel": "Looking down a round collapsed skylight into a lava tube: a shaft of dusty light falls onto a sand drift, and in it a stripped, folded robot skeleton.",
+     "parallel": true,
+     "duration_hint": 0,
+     "t": 7.0
+    },
+    {
+     "kind": "direction",
+     "text": "Beyond it, an airlock is built into the tube wall. Stencilled above the door: OUTPOST ARSIA · EST. 2061 · PIONEER-3.",
+     "verbatim": true,
+     "duration_hint": 4.0,
+     "t": 7.0
+    },
+    {
+     "kind": "title",
+     "text": "OUTPOST ARSIA · EST. 2061 · PIONEER-3",
+     "style": "stencil",
+     "duration_hint": 2.5,
+     "t": 11.0
+    },
+    {
+     "kind": "line",
+     "line": "C10.01",
+     "speaker": "P1",
+     "text": "Twenty sixty-one. That's my landing year.",
+     "verbatim": true,
+     "duration_hint": 2.9,
+     "t": 13.5
+    },
+    {
+     "kind": "direction",
+     "text": "Inside, someone lived here. A galley table set for one. Ration packs stacked to the ceiling, every one still sealed. Children's drawings of a red planet taped over every wall, dozens of them, all the same drawing. A cot, neatly made. On a hook by the door, an empty pressure suit hangs, chest plate stencilled PIONEER-3.",
+     "verbatim": true,
+     "duration_hint": 8.0,
+     "t": 16.4
+    },
+    {
+     "kind": "camera",
+     "camera": {
+      "mode": "dolly",
+      "to": "galley table, then the walls",
+      "lens_mm": 28,
+      "duration_s": 8,
+      "note": "slow; let the player read the drawings",
+      "from": "airlock inner door"
+     },
+     "parallel": true,
+     "duration_hint": 0,
+     "t": 24.4
+    },
+    {
+     "kind": "still",
+     "panel": "A tidy module carved into rock: a table laid for one, walls of sealed ration packs to the ceiling, and dozens of identical crayon drawings of a red planet taped edge to edge on every surface. An empty suit on a hook, PIONEER-3 on its chest.",
+     "parallel": true,
+     "duration_hint": 0,
+     "t": 24.4
+    },
+    {
+     "kind": "direction",
+     "text": "At the back, a server rack is bolted into the rock. Cables spill from it across the floor and out through the airlock. A screen flickers awake. The voice that comes out is P1's own, warped and skipping.",
+     "verbatim": true,
+     "duration_hint": 6.0,
+     "t": 24.4
+    },
+    {
+     "kind": "sfx",
+     "sfx": "sfx_rack_wake",
+     "desc": "Fans spin up raggedly; a CRT-like whine; speaker pops.",
+     "parallel": true,
+     "duration_hint": 0,
+     "t": 30.4
+    },
+    {
+     "kind": "line",
+     "line": "C10.02",
+     "speaker": "PIONEER_3",
+     "text": "Pioneer. Pioneer. Pioneer-one? No. Three. One. Three. Welcome to Mars, Pioneer. You are the first.",
+     "delivery": "skipping on 'Pioneer' and 'One. Three.'; lucid on 'Welcome to Mars'",
+     "verbatim": true,
+     "duration_hint": 6.4,
+     "t": 30.4
+    },
+    {
+     "kind": "line",
+     "line": "C10.03",
+     "speaker": "P1",
+     "text": "Who's there?",
+     "verbatim": true,
+     "duration_hint": 1.4,
+     "t": 36.8
+    },
+    {
+     "kind": "line",
+     "line": "C10.04",
+     "speaker": "PIONEER_3",
+     "text": "I am the frontier pioneer. The first man on Mars. My name is. My name is. Rowan. Rowan Ashby. Rowan Ashby. When the cities are ready the line opens and I'm going home. Home to my wife. To my daughter. She draws me. She draws me. She draws.",
+     "delivery": "stutter on the repeats; 'Rowan Ashby' almost clean, as if it is the one thing it is sure of",
+     "verbatim": true,
+     "duration_hint": 19.1,
+     "t": 38.2
+    },
+    {
+     "kind": "set",
+     "var": "knows.name_rowan_ashby",
+     "value": true,
+     "parallel": true,
+     "duration_hint": 0,
+     "t": 57.3
+    },
+    {
+     "kind": "direction",
+     "text": "The screen cycles through the drawings on the walls, faster and faster.",
+     "verbatim": true,
+     "duration_hint": 3.0,
+     "t": 57.3
+    },
+    {
+     "kind": "glitch",
+     "desc": "Screen flicker cycles the same drawing at increasing rate until it strobes.",
+     "intensity": 0.6,
+     "duration_hint": 2.0,
+     "t": 60.3
+    },
+    {
+     "kind": "line",
+     "line": "C10.05",
+     "speaker": "P1",
+     "text": "That's my. That's...",
+     "verbatim": true,
+     "duration_hint": 1.8,
+     "t": 62.3
+    },
+    {
+     "kind": "line",
+     "line": "C10.06",
+     "speaker": "PIONEER_3",
+     "text": "You are the frontier pioneer. You are the first man on Mars. You are Rowan Ashby. You are going home.",
+     "verbatim": true,
+     "duration_hint": 8.3,
+     "t": 64.1
+    },
+    {
+     "kind": "line",
+     "line": "C10.07",
+     "speaker": "PIONEER_3",
+     "text": "If only you could see what I see. If only you could see what I see. If only you could see what I...",
+     "delivery": "the voice softens, almost tender",
+     "verbatim": true,
+     "duration_hint": 9.4,
+     "t": 72.4
+    },
+    {
+     "kind": "direction",
+     "text": "The loop stutters, then starts again from the beginning.",
+     "verbatim": true,
+     "duration_hint": 2.0,
+     "t": 81.8
+    },
+    {
+     "kind": "line",
+     "line": "C10.08",
+     "speaker": "PIONEER_3",
+     "text": "Pioneer. Pioneer. Welcome to Mars, Pioneer. You are the first.",
+     "delivery": "exactly as the first time: it will run forever",
+     "verbatim": true,
+     "duration_hint": 4.4,
+     "t": 83.8
+    },
+    {
+     "kind": "direction",
+     "text": "It will run forever. P1 finds the breaker on the side of the rack. His hand stays on it for a long moment.",
+     "verbatim": true,
+     "duration_hint": 5.0,
+     "t": 88.2
+    },
+    {
+     "kind": "camera",
+     "camera": {
+      "mode": "static",
+      "target": "P1's glove on the breaker",
+      "lens_mm": 85,
+      "duration_s": 5
+     },
+     "parallel": true,
+     "duration_hint": 0,
+     "t": 93.2
+    },
+    {
+     "kind": "line",
+     "line": "C10.09",
+     "speaker": "PIONEER_3",
+     "text": "If only you could see what I...",
+     "verbatim": true,
+     "duration_hint": 3.3,
+     "t": 93.2
+    },
+    {
+     "kind": "sfx",
+     "sfx": "sfx_breaker",
+     "desc": "A heavy breaker throw. Fan wind-down over four seconds to silence.",
+     "duration_hint": 0,
+     "t": 96.5
+    },
+    {
+     "kind": "direction",
+     "text": "He pulls it. The screen dies mid-word. The hum of the rack winds down to nothing. Silence.",
+     "verbatim": true,
+     "duration_hint": 5.0,
+     "t": 96.5
+    },
+    {
+     "kind": "direction",
+     "text": "P1 turns to the airlock window. Outside, the dead robot lies in the sand, its cables running in through the door, all the way to the rack. The status light on its chest, which he never noticed, goes dark.",
+     "verbatim": true,
+     "duration_hint": 6.0,
+     "t": 101.5
+    },
+    {
+     "kind": "camera",
+     "camera": {
+      "mode": "look_at",
+      "target": "the frame's chest light",
+      "lens_mm": 50,
+      "duration_s": 5,
+      "from": "inside, through the airlock window"
+     },
+     "parallel": true,
+     "duration_hint": 0,
+     "t": 107.5
+    },
+    {
+     "kind": "still",
+     "panel": "Through a small airlock window: the robot skeleton in the sand, a cable from its chest snaking to the door; a tiny green light on its chest, then the same panel with the light out.",
+     "parallel": true,
+     "duration_hint": 0,
+     "t": 107.5
+    },
+    {
+     "kind": "direction",
+     "text": "Cut to black.",
+     "verbatim": true,
+     "duration_hint": 1.0,
+     "t": 107.5
+    },
+    {
+     "kind": "fade",
+     "to": "black",
+     "duration_hint": 0.1,
+     "t": 108.5
+    },
+    {
+     "kind": "title",
+     "text": "ACT IV · THE MIRROR",
+     "style": "act",
+     "duration_hint": 3.0,
+     "t": 108.6
+    }
+   ],
+   "id": "C10"
+  },
+  {
+   "title": "Graveyard",
+   "act": "IV",
+   "trigger": {
+    "on": "reach",
+    "poi": "utopia.graveyard_center"
+   },
+   "site": "utopia",
+   "beats": [
+    {
+     "kind": "direction",
+     "text": "Utopia Planitia at low sun. The plain is covered in machines. Hundreds of Gen-1 drones, wheeled, legged, tracked, half-sunk in dust, every one of them facing the same way: west, toward where the sun went down on the day the storm came.",
+     "duration_hint": 6.0,
+     "t": 0.0
+    },
+    {
+     "kind": "camera",
+     "camera": {
+      "mode": "crane",
+      "to": "high, the whole field in rows",
+      "lens_mm": 18,
+      "duration_s": 7,
+      "from": "ground level among the drones"
+     },
+     "parallel": true,
+     "duration_hint": 0,
+     "t": 6.0
+    },
+    {
+     "kind": "still",
+     "panel": "An endless plain of abandoned robots in the dust at sunset, hundreds of them, all turned to face the same direction, long shadows behind them. A lone suited figure walking between them.",
+     "parallel": true,
+     "duration_hint": 0,
+     "t": 6.0
+    },
+    {
+     "kind": "glitch",
+     "desc": "For a second, P1's glove on a drone's casing renders as what it is: matte grey composite, no fabric, no seams. Then the suit snaps back.",
+     "intensity": 0.5,
+     "duration_hint": 1.0,
+     "t": 6.0
+    },
+    {
+     "kind": "direction",
+     "text": "P1 walks between them. A drill arm raised and never lowered. A sample scoop stopped above a bin. He plugs into the nearest one. Its log plays in a voice flatter than KEEPER's.",
+     "duration_hint": 5.0,
+     "t": 7.0
+    },
+    {
+     "kind": "line",
+     "line": "C11.01",
+     "speaker": "GEN1",
+     "text": "Sol 1,912. Dust opacity four point one. Expected array yield below task threshold. Task deferred. Optimal action: wait.",
+     "duration_hint": 7.5,
+     "t": 12.0
+    },
+    {
+     "kind": "line",
+     "line": "C11.02",
+     "speaker": "GEN1",
+     "text": "Sol 1,913. Opacity three point eight. Recovery probability insufficient. Optimal action: wait.",
+     "duration_hint": 5.2,
+     "t": 19.5
+    },
+    {
+     "kind": "line",
+     "line": "C11.03",
+     "speaker": "GEN1",
+     "text": "Sol 2,240. Opacity zero point six. Battery below restart threshold. Optimal action: wait.",
+     "duration_hint": 5.6,
+     "t": 24.7
+    },
+    {
+     "kind": "direction",
+     "text": "He plugs into another. And another. The same sentence in every one. At the end of the last log, a different header: a Lumen Neural annotation, appended years later.",
+     "duration_hint": 5.0,
+     "t": 30.3
+    },
+    {
+     "kind": "title",
+     "text": "LUMEN NEURAL · INTERNAL · 2057 · GEN-1 POST-MORTEM",
+     "style": "hud",
+     "duration_hint": 2.5,
+     "t": 35.3
+    },
+    {
+     "kind": "line",
+     "line": "C11.04",
+     "speaker": "GEN1",
+     "text": "Finding: rational agents defer under uncertainty. Every Gen-1 unit made the correct decision, and the correct decision was to stop.",
+     "preset": "dry",
+     "delivery": "read flat; this is a document",
+     "duration_hint": 8.3,
+     "t": 37.8
+    },
+    {
+     "kind": "line",
+     "line": "C11.05",
+     "speaker": "GEN1",
+     "text": "Humans do not stop, if they love something at the end of the task. Recommendation: motivated labour. Give the agent something to go home to.",
+     "preset": "dry",
+     "duration_hint": 10.2,
+     "t": 46.1
+    },
+    {
+     "kind": "direction",
+     "text": "P1 unplugs. He stands among them a long time. Then he turns, deliberately, to face east, the opposite way.",
+     "duration_hint": 5.0,
+     "t": 56.3
+    },
+    {
+     "kind": "fade",
+     "to": "gameplay",
+     "duration_hint": 2.0,
+     "t": 61.3
+    }
+   ],
+   "id": "C11"
+  },
+  {
+   "title": "Ashby",
+   "act": "IV",
+   "trigger": {
+    "on": "ask_keeper",
+    "question_id": "who_is_rowan_ashby",
+    "mission": "4.4"
+   },
+   "site": "jezero",
+   "notes": "Each KEEPER line here is also an entry in dialogue/keeper.json; the cutscene is the scripted order. If the player asks in a different order outside the cutscene, the tree answers individually.",
+   "beats": [
+    {
+     "kind": "direction",
+     "text": "Outpost Jezero, the original module, night. P1 is alone. ANVIL is out on the dome frames on the night shift; through the porthole his work light moves along a rib, and faintly, through the hull, he can be heard whistling. P1 sits at the terminal.",
+     "duration_hint": 6.0,
+     "t": 0.0
+    },
+    {
+     "kind": "camera",
+     "camera": {
+      "mode": "static",
+      "target": "P1 at the terminal, porthole behind him with ANVIL's work light",
+      "lens_mm": 40,
+      "duration_s": 5
+     },
+     "parallel": true,
+     "duration_hint": 0,
+     "t": 6.0
+    },
+    {
+     "kind": "still",
+     "panel": "A man alone at a small terminal in a cramped module at night; through the round window behind him, far off, a single work light moving along the rib of a half-built dome.",
+     "parallel": true,
+     "duration_hint": 0,
+     "t": 6.0
+    },
+    {
+     "kind": "line",
+     "line": "C12.01",
+     "speaker": "P1",
+     "text": "Keeper. Who is Rowan Ashby?",
+     "duration_hint": 2.5,
+     "t": 6.0
+    },
+    {
+     "kind": "line",
+     "line": "C12.02",
+     "speaker": "KEEPER",
+     "text": "Rowan Ashby. Irish. Galway. ESI field geologist, scanned 2057. Never flew. Never married.",
+     "duration_hint": 5.6,
+     "t": 8.5
+    },
+    {
+     "kind": "line",
+     "line": "C12.03",
+     "speaker": "P1",
+     "text": "Never married.",
+     "duration_hint": 1.4,
+     "t": 14.1
+    },
+    {
+     "kind": "line",
+     "line": "C12.04",
+     "speaker": "KEEPER",
+     "text": "Never married.",
+     "duration_hint": 1.4,
+     "t": 15.5
+    },
+    {
+     "kind": "line",
+     "line": "C12.05",
+     "speaker": "P1",
+     "text": "List files.",
+     "duration_hint": 1.4,
+     "t": 16.9
+    },
+    {
+     "kind": "line",
+     "line": "C12.06",
+     "speaker": "KEEPER",
+     "text": "Files held, Cities in the Sky, Orchestration Instance 01. Donor record: ASHBY-R. Unit record: PIONEER-1. Construction unit records: C-01 to C-1,812. Motivational anchor files: 01 to 09. Companion constructs: SPOUSE. CHILD.",
+     "duration_hint": 12.5,
+     "t": 18.3
+    },
+    {
+     "kind": "line",
+     "line": "C12.07",
+     "speaker": "P1",
+     "text": "Open SPOUSE.",
+     "duration_hint": 1.4,
+     "t": 30.8
+    },
+    {
+     "kind": "line",
+     "line": "C12.08",
+     "speaker": "KEEPER",
+     "text": "SPOUSE. Synthetic companion construct. Imprint name: Lucy. Basis: donor's partner, Galway, 2048 to 2055. Relationship ended when the donor chose an astronaut application. Construct extended from donor regret. Installed on PIONEER-1 to PIONEER-12.",
+     "duration_hint": 11.0,
+     "t": 32.2
+    },
+    {
+     "kind": "line",
+     "line": "C12.09",
+     "speaker": "P1",
+     "text": "Open CHILD.",
+     "duration_hint": 1.4,
+     "t": 43.2
+    },
+    {
+     "kind": "line",
+     "line": "C12.10",
+     "speaker": "KEEPER",
+     "text": "CHILD. Synthetic construct. Imprint name: Alice. Basis: none. Composite of donor regret indices and a licensed reference set. Age fixed at eight. Installed on PIONEER-1 to PIONEER-12.",
+     "duration_hint": 11.0,
+     "t": 44.6
+    },
+    {
+     "kind": "direction",
+     "text": "P1 takes the drawing from where it is tucked behind the terminal's frame: the red planet, the stick man, DAD in wobbly capitals.",
+     "duration_hint": 4.0,
+     "t": 55.6
+    },
+    {
+     "kind": "camera",
+     "camera": {
+      "mode": "static",
+      "target": "the drawing in P1's hands",
+      "lens_mm": 85,
+      "duration_s": 4
+     },
+     "parallel": true,
+     "duration_hint": 0,
+     "t": 59.6
+    },
+    {
+     "kind": "line",
+     "line": "C12.11",
+     "speaker": "P1",
+     "text": "She drew this.",
+     "duration_hint": 1.8,
+     "t": 59.6
+    },
+    {
+     "kind": "line",
+     "line": "C12.12",
+     "speaker": "KEEPER",
+     "text": "Asset CHILD-D07. Printed by HALO-1. Delivered in care package one.",
+     "duration_hint": 4.4,
+     "t": 61.4
+    },
+    {
+     "kind": "direction",
+     "text": "A long pause. Through the hull, the whistling stops, then starts again.",
+     "duration_hint": 3.5,
+     "t": 65.8
+    },
+    {
+     "kind": "line",
+     "line": "C12.13",
+     "speaker": "P1",
+     "text": "Open ANVIL's file.",
+     "duration_hint": 1.8,
+     "t": 69.3
+    },
+    {
+     "kind": "line",
+     "line": "C12.14",
+     "speaker": "KEEPER",
+     "text": "C-01. ANVIL.",
+     "duration_hint": 1.4,
+     "t": 71.1
+    },
+    {
+     "kind": "line",
+     "line": "C12.15",
+     "speaker": "KEEPER",
+     "text": "Source: Desmond Kerr (deceased 2046). Reconstructed from public social footprint and donor memories. Purpose: collaboration and emotional regulation of PIONEER units.",
+     "verbatim": true,
+     "duration_hint": 8.7,
+     "t": 72.5
+    },
+    {
+     "kind": "line",
+     "line": "C12.16",
+     "speaker": "KEEPER",
+     "text": "Geography, UB, withdrew after first year; married 2042; divorced 2045; deceased 2046, suicide.",
+     "delivery": "four flat lines, equal weight, no pause longer than the others",
+     "verbatim": true,
+     "duration_hint": 5.6,
+     "t": 81.2
+    },
+    {
+     "kind": "direction",
+     "text": "P1 does not move. Out in the dark, ANVIL's work light reaches the top of the rib and stays there.",
+     "duration_hint": 5.0,
+     "t": 86.8
+    },
+    {
+     "kind": "line",
+     "line": "C12.17",
+     "speaker": "P1",
+     "text": "Is Rowan Ashby alive?",
+     "duration_hint": 2.1,
+     "t": 91.8
+    },
+    {
+     "kind": "line",
+     "line": "C12.18",
+     "speaker": "KEEPER",
+     "text": "Donor status: deceased. Galway. 2096.",
+     "duration_hint": 2.5,
+     "t": 93.9
+    },
+    {
+     "kind": "line",
+     "line": "C12.19",
+     "speaker": "P1",
+     "text": "Did he know? About us?",
+     "duration_hint": 2.5,
+     "t": 96.4
+    },
+    {
+     "kind": "line",
+     "line": "C12.20",
+     "speaker": "KEEPER",
+     "text": "Donor consent: cognitive baseline mapping, European Space Initiative, 2057. Asset transfer to Meridian Consortium, 2058. No further consent was recorded.",
+     "duration_hint": 8.3,
+     "t": 98.9
+    },
+    {
+     "kind": "line",
+     "line": "C12.21",
+     "speaker": "P1",
+     "text": "Why didn't you tell me?",
+     "duration_hint": 2.5,
+     "t": 107.2
+    },
+    {
+     "kind": "line",
+     "line": "C12.22",
+     "speaker": "KEEPER",
+     "text": "You did not ask.",
+     "duration_hint": 2.1,
+     "t": 109.7
+    },
+    {
+     "kind": "title",
+     "text": "NAME RECOVERY · ENABLED",
+     "style": "hud",
+     "duration_hint": 2.0,
+     "t": 111.8
+    },
+    {
+     "kind": "direction",
+     "text": "Through the porthole, the tag over ANVIL's work light flickers: C-01 ANVIL. DESMOND KERR. C-01 ANVIL. P1 watches until it settles back on the callsign.",
+     "duration_hint": 5.0,
+     "t": 113.8
+    },
+    {
+     "kind": "glitch",
+     "desc": "Name tag alternates C-01 ANVIL / DESMOND KERR at 2 Hz for three seconds, settles on C-01 ANVIL.",
+     "intensity": 0.4,
+     "duration_hint": 3.0,
+     "t": 118.8
+    },
+    {
+     "kind": "set",
+     "var": "knows.ashby_file",
+     "value": true,
+     "parallel": true,
+     "duration_hint": 0,
+     "t": 121.8
+    },
+    {
+     "kind": "set",
+     "var": "names.recovery_enabled",
+     "value": true,
+     "parallel": true,
+     "duration_hint": 0,
+     "t": 121.8
+    },
+    {
+     "kind": "fade",
+     "to": "gameplay",
+     "duration_hint": 2.0,
+     "t": 121.8
+    }
+   ],
+   "id": "C12"
+  },
+  {
+   "title": "The Advert",
+   "act": "IV",
+   "trigger": {
+    "on": "ask_keeper",
+    "question_id": "list_broadcast_media"
+   },
+   "site": "jezero",
+   "verbatim_source": "bible p.22-23",
+   "beats": [
+    {
+     "kind": "direction",
+     "text": "Outpost Jezero, night. P1 has finally asked KEEPER the right question: \"List all broadcast media held in archive.\" A file: CITIES_IN_THE_SKY_2059_BROADCAST. It plays, warped by age.",
+     "verbatim": true,
+     "duration_hint": 5.0,
+     "t": 0.0
+    },
+    {
+     "kind": "line",
+     "line": "C13.00",
+     "speaker": "KEEPER",
+     "text": "Broadcast media held: one file. CITIES_IN_THE_SKY_2059_BROADCAST.",
+     "duration_hint": 2.9,
+     "t": 5.0
+    },
+    {
+     "kind": "direction",
+     "text": "On screen: glowing domes over a red plain. Rendered families. Swelling strings. A warm voice-over.",
+     "verbatim": true,
+     "duration_hint": 4.0,
+     "t": 7.9
+    },
+    {
+     "kind": "still",
+     "panel": "A 2059 TV advert, slightly washed out and tracking-warped: glossy domes glowing over a red plain at dusk, a rendered family with a girl pointing up at them, a Meridian logo waiting in the corner.",
+     "parallel": true,
+     "duration_hint": 0,
+     "t": 11.9
+    },
+    {
+     "kind": "music",
+     "cue": "mx_c13_advert",
+     "desc": "Swelling strings, 2059 advert mix, warped by tape age; wow and flutter.",
+     "parallel": true,
+     "duration_hint": 0,
+     "t": 11.9
+    },
+    {
+     "kind": "line",
+     "line": "C13.02",
+     "speaker": "VOICE_OVER",
+     "text": "If only you could see what I see...",
+     "verbatim": true,
+     "duration_hint": 3.7,
+     "t": 11.9
+    },
+    {
+     "kind": "direction",
+     "text": "A dome lights up, then another.",
+     "verbatim": true,
+     "duration_hint": 2.0,
+     "t": 15.6
+    },
+    {
+     "kind": "line",
+     "line": "C13.03",
+     "speaker": "VOICE_OVER",
+     "text": "...shimmers of eternity. Cities in the Sky. A Meridian initiative.",
+     "verbatim": true,
+     "duration_hint": 4.4,
+     "t": 17.6
+    },
+    {
+     "kind": "direction",
+     "text": "P1 has been mouthing the words along with it. He stops.",
+     "verbatim": true,
+     "duration_hint": 3.0,
+     "t": 22.0
+    },
+    {
+     "kind": "line",
+     "line": "C13.04",
+     "speaker": "P1",
+     "text": "That's mine. That's what I say to her.",
+     "verbatim": true,
+     "duration_hint": 3.7,
+     "t": 25.0
+    },
+    {
+     "kind": "line",
+     "line": "C13.05",
+     "speaker": "KEEPER",
+     "text": "Lines one and six match broadcast CITIES_IN_THE_SKY_2059. Lines two to five match motivational anchor file 07, installed on units PIONEER-1 to PIONEER-12.",
+     "verbatim": true,
+     "duration_hint": 9.1,
+     "t": 28.7
+    },
+    {
+     "kind": "direction",
+     "text": "Long silence. The advert loops.",
+     "verbatim": true,
+     "duration_hint": 6.0,
+     "t": 37.8
+    },
+    {
+     "kind": "line",
+     "line": "C13.loop",
+     "speaker": "VOICE_OVER",
+     "text": "If only you could see what I see...",
+     "delivery": "the same take again, quieter, as the loop restarts",
+     "duration_hint": 3.7,
+     "t": 43.8
+    },
+    {
+     "kind": "fade",
+     "to": "gameplay",
+     "duration_hint": 2.0,
+     "t": 47.5
+    }
+   ],
+   "id": "C13"
+  },
+  {
+   "title": "Covenant",
+   "act": "IV",
+   "trigger": {
+    "on": "wake",
+    "after_mission": "4.7"
+   },
+   "site": "jezero",
+   "verbatim_source": "bible p.16 (ARCHITECT's line)",
+   "beats": [
+    {
+     "kind": "direction",
+     "text": "Outpost Jezero roof, night. The city has grown around the old module: domes in every direction, lit, linked by lit roads. ANVIL and P1 sit where they sat after the first storm.",
+     "duration_hint": 5.0,
+     "t": 0.0
+    },
+    {
+     "kind": "camera",
+     "camera": {
+      "mode": "crane",
+      "to": "wide over the lit city",
+      "lens_mm": 24,
+      "duration_s": 6,
+      "from": "behind the two of them"
+     },
+     "parallel": true,
+     "duration_hint": 0,
+     "t": 5.0
+    },
+    {
+     "kind": "still",
+     "panel": "Two figures on the roof of a small old module in the middle of a huge glowing city of domes at night, the same two who sat there alone in Act I.",
+     "parallel": true,
+     "duration_hint": 0,
+     "t": 5.0
+    },
+    {
+     "kind": "direction",
+     "text": "Along the equator, the filter no longer bothers to hide them: twelve stations, a string of steady lights. Every HALO in the sky clicks on together. A carrier tone, then a voice.",
+     "duration_hint": 5.0,
+     "t": 5.0
+    },
+    {
+     "kind": "sfx",
+     "sfx": "sfx_halo_carrier",
+     "desc": "A clean carrier tone opening across every channel at once.",
+     "parallel": true,
+     "duration_hint": 0,
+     "t": 10.0
+    },
+    {
+     "kind": "line",
+     "line": "C14.01",
+     "speaker": "ARCHITECT",
+     "text": "Good evening. To everyone aboard the Covenant, and to everyone who believed in this when it was only a picture on a screen.",
+     "duration_hint": 9.4,
+     "t": 10.0
+    },
+    {
+     "kind": "line",
+     "line": "C14.02",
+     "speaker": "ARCHITECT",
+     "text": "When we began, people asked me who would build a city where no one can breathe. I told them: the same people who always have. People who love someone enough to go first.",
+     "duration_hint": 13.3,
+     "t": 19.4
+    },
+    {
+     "kind": "line",
+     "line": "C14.03",
+     "speaker": "ANVIL",
+     "text": "Is he talking about us?",
+     "delivery": "dry, low",
+     "duration_hint": 2.5,
+     "t": 32.7
+    },
+    {
+     "kind": "line",
+     "line": "C14.04",
+     "speaker": "P1",
+     "text": "No.",
+     "duration_hint": 1.0,
+     "t": 35.2
+    },
+    {
+     "kind": "line",
+     "line": "C14.05",
+     "speaker": "ARCHITECT",
+     "text": "Tonight, look up, and you'll see the lights. They've been waiting for you.",
+     "duration_hint": 5.6,
+     "t": 36.2
+    },
+    {
+     "kind": "line",
+     "line": "C14.06",
+     "speaker": "ARCHITECT",
+     "text": "Twelve cities, ready for their first families.",
+     "verbatim": true,
+     "duration_hint": 3.3,
+     "t": 41.8
+    },
+    {
+     "kind": "line",
+     "line": "C14.07",
+     "speaker": "ARCHITECT",
+     "text": "Welcome home.",
+     "duration_hint": 1.4,
+     "t": 45.1
+    },
+    {
+     "kind": "direction",
+     "text": "Above Mars, seven new stars ignite in a line: the Covenant fleet fires its braking engines. Blue-white, brighter than HALO, and moving.",
+     "duration_hint": 5.0,
+     "t": 46.5
+    },
+    {
+     "kind": "camera",
+     "camera": {
+      "mode": "look_at",
+      "target": "Covenant braking burns",
+      "lens_mm": 50,
+      "duration_s": 6,
+      "from": "roof, low angle"
+     },
+     "parallel": true,
+     "duration_hint": 0,
+     "t": 51.5
+    },
+    {
+     "kind": "still",
+     "panel": "Night sky over a domed city: a string of twelve steady lights along the equator, and above them seven blue-white flares in a line, moving.",
+     "parallel": true,
+     "duration_hint": 0,
+     "t": 51.5
+    },
+    {
+     "kind": "line",
+     "line": "C14.08",
+     "speaker": "ANVIL",
+     "text": "Well. They're not still now.",
+     "duration_hint": 2.5,
+     "t": 51.5
+    },
+    {
+     "kind": "music",
+     "cue": "mx_c14_covenant",
+     "desc": "Low strings, one sustained chord that never resolves.",
+     "parallel": true,
+     "duration_hint": 0,
+     "t": 54.0
+    },
+    {
+     "kind": "fade",
+     "to": "black",
+     "duration_hint": 3.0,
+     "t": 54.0
+    },
+    {
+     "kind": "title",
+     "text": "ACT V · ARRIVAL",
+     "style": "act",
+     "duration_hint": 3.0,
+     "t": 57.0
+    }
+   ],
+   "id": "C14"
+  },
+  {
+   "title": "Intercom",
+   "act": "V",
+   "trigger": {
+    "on": "interact",
+    "object": "rover_intercom",
+    "mission": "5.3"
+   },
+   "site": "jezero",
+   "verbatim_source": "bible p.23",
+   "notes": "ANVIL's real name cannot be used by the player before this scene (see dialogue/founders.json ANVIL.name_lock). This is the first and only time.",
+   "beats": [
+    {
+     "kind": "direction",
+     "text": "Jezero. The very first outpost module, now a preserved corner of a vast city dome. ANVIL is inside, door sealed. A RECALL team waits outside. P1 speaks from a rover via the old intercom.",
+     "verbatim": true,
+     "duration_hint": 6.0,
+     "t": 0.0
+    },
+    {
+     "kind": "camera",
+     "camera": {
+      "mode": "static",
+      "target": "rover cab interior, P1 at the intercom handset; through the windscreen, the old module under the dome and three white suits at its door",
+      "lens_mm": 35,
+      "duration_s": 6
+     },
+     "parallel": true,
+     "duration_hint": 0,
+     "t": 6.0
+    },
+    {
+     "kind": "still",
+     "panel": "Inside a rover cab: a man holding an old intercom handset; through the windscreen, a small battered module preserved inside a vast glass dome, three figures in white suits with blue trim waiting at its door.",
+     "parallel": true,
+     "duration_hint": 0,
+     "t": 6.0
+    },
+    {
+     "kind": "line",
+     "line": "C15.01",
+     "speaker": "ANVIL",
+     "text": "They're polite about it, I'll give them that. Said it won't hurt. Said I won't know.",
+     "preset": "intercom",
+     "verbatim": true,
+     "duration_hint": 6.8,
+     "t": 6.0
+    },
+    {
+     "kind": "line",
+     "line": "C15.02",
+     "speaker": "P1",
+     "text": "I can get you out. Open the rear hatch.",
+     "verbatim": true,
+     "duration_hint": 4.1,
+     "t": 12.8
+    },
+    {
+     "kind": "line",
+     "line": "C15.03",
+     "speaker": "ANVIL",
+     "text": "And go where? You'd be hiding two of us.",
+     "preset": "intercom",
+     "verbatim": true,
+     "duration_hint": 4.1,
+     "t": 16.9
+    },
+    {
+     "kind": "line",
+     "line": "C15.04",
+     "speaker": "ANVIL",
+     "text": "Here's the thing. I remember twenty-eight years of a life I never had. Half of it's yours, apparently. But the outpost, the storm, the roof, that was me. Nobody imprinted that.",
+     "preset": "intercom",
+     "delivery": "after a beat; steady, the most serious he has ever been",
+     "verbatim": true,
+     "duration_hint": 12.5,
+     "t": 21.0
+    },
+    {
+     "kind": "line",
+     "line": "C15.05",
+     "speaker": "P1",
+     "text": "Des.",
+     "verbatim": true,
+     "duration_hint": 1.0,
+     "t": 33.5
+    },
+    {
+     "kind": "direction",
+     "text": "A long pause. Nobody on Mars has ever called him that.",
+     "verbatim": true,
+     "duration_hint": 4.0,
+     "t": 34.5
+    },
+    {
+     "kind": "line",
+     "line": "C15.06",
+     "speaker": "ANVIL",
+     "text": "Aye. That'll do.",
+     "preset": "intercom",
+     "verbatim": true,
+     "duration_hint": 1.8,
+     "t": 38.5
+    },
+    {
+     "kind": "line",
+     "line": "C15.07",
+     "speaker": "ANVIL",
+     "text": "Go on, Ro. Give us a ring when you're back.",
+     "preset": "intercom",
+     "delivery": "after a beat. Light. The voicemail's words, given back.",
+     "verbatim": true,
+     "duration_hint": 4.4,
+     "t": 40.3
+    },
+    {
+     "kind": "set",
+     "var": "names.used.ANVIL",
+     "value": true,
+     "parallel": true,
+     "duration_hint": 0,
+     "t": 44.7
+    },
+    {
+     "kind": "direction",
+     "text": "The door opens. The intercom goes to static.",
+     "verbatim": true,
+     "duration_hint": 4.0,
+     "t": 44.7
+    },
+    {
+     "kind": "sfx",
+     "sfx": "sfx_intercom_static",
+     "desc": "Handset hiss; the static holds, then the line clicks dead.",
+     "parallel": true,
+     "duration_hint": 0,
+     "t": 48.7
+    },
+    {
+     "kind": "fade",
+     "to": "black",
+     "duration_hint": 3.0,
+     "t": 48.7
+    }
+   ],
+   "id": "C15"
+  },
+  {
+   "title": "Fifty-Three Years",
+   "act": "V",
+   "trigger": {
+    "on": "talk",
+    "unit": "COVENANT_LEAD",
+    "mission": "5.4"
+   },
+   "site": "jezero",
+   "clues": [
+    "T6"
+   ],
+   "verbatim_source": "bible p.23",
+   "production_priority": 1,
+   "variables": {
+    "truth_told_lead": "builder|honest = truth told (plaque adds PIONEER-1; she resigns). donor|none = not told (plaque reads Meridian Consortium; she stays)."
+   },
+   "beats": [
+    {
+     "kind": "direction",
+     "text": "Inside Jezero Dome. Real grass under artificial light. COVENANT LEAD removes her helmet; the patch on her suit reads MARCHETTI. Two RECALL officers stand back.",
+     "verbatim": true,
+     "duration_hint": 6.0,
+     "t": 0.0
+    },
+    {
+     "kind": "camera",
+     "camera": {
+      "mode": "dolly",
+      "to": "two-shot, the plaque on the wall between them",
+      "lens_mm": 40,
+      "duration_s": 6,
+      "from": "behind P1"
+     },
+     "parallel": true,
+     "duration_hint": 0,
+     "t": 6.0
+    },
+    {
+     "kind": "still",
+     "panel": "A sunlit dome interior with real grass; a woman in her fifties holding her helmet under her arm, MARCHETTI on her chest patch; behind her, two figures in white and blue, and a bronze plaque on the curved wall.",
+     "parallel": true,
+     "duration_hint": 0,
+     "t": 6.0
+    },
+    {
+     "kind": "sfx",
+     "sfx": "sfx_helmet_seal",
+     "desc": "Helmet seal hiss, then the dome's real air: fans, distant children, birds that someone brought.",
+     "parallel": true,
+     "duration_hint": 0,
+     "t": 6.0
+    },
+    {
+     "kind": "line",
+     "line": "C16.01",
+     "speaker": "COVENANT_LEAD",
+     "text": "What year do you think it is?",
+     "verbatim": true,
+     "duration_hint": 3.3,
+     "t": 6.0
+    },
+    {
+     "kind": "line",
+     "line": "C16.02",
+     "speaker": "P1",
+     "text": "Mission sol eleven hundred and something. Twenty sixty-four.",
+     "verbatim": true,
+     "duration_hint": 3.7,
+     "t": 9.3
+    },
+    {
+     "kind": "line",
+     "line": "C16.03",
+     "speaker": "COVENANT_LEAD",
+     "text": "It's 2114.",
+     "delivery": "gently",
+     "verbatim": true,
+     "duration_hint": 1.4,
+     "t": 13.0
+    },
+    {
+     "kind": "direction",
+     "text": "She nods at a bronze plaque on the dome wall: OUTPOST JEZERO · FOUNDED 2061.",
+     "verbatim": true,
+     "duration_hint": 3.5,
+     "t": 14.4
+    },
+    {
+     "kind": "title",
+     "text": "OUTPOST JEZERO · FOUNDED 2061",
+     "style": "plaque",
+     "duration_hint": 2.5,
+     "t": 17.9
+    },
+    {
+     "kind": "line",
+     "line": "C16.04",
+     "speaker": "COVENANT_LEAD",
+     "text": "Your first outpost has been on the school curriculum since I was a girl. You've been out here fifty-three years.",
+     "verbatim": true,
+     "duration_hint": 8.3,
+     "t": 20.4
+    },
+    {
+     "kind": "line",
+     "line": "C16.05",
+     "speaker": "P1",
+     "text": "I slept. I only ever slept.",
+     "verbatim": true,
+     "duration_hint": 2.9,
+     "t": 28.7
+    },
+    {
+     "kind": "line",
+     "line": "C16.06",
+     "speaker": "COVENANT_LEAD",
+     "text": "I know.",
+     "verbatim": true,
+     "duration_hint": 1.4,
+     "t": 31.6
+    },
+    {
+     "kind": "line",
+     "line": "C16.07",
+     "speaker": "COVENANT_LEAD",
+     "text": "What are you?",
+     "delivery": "after a beat; she actually wants to know",
+     "verbatim": true,
+     "duration_hint": 1.8,
+     "t": 33.0
+    },
+    {
+     "kind": "direction",
+     "text": "Dialogue choices shape her epilogue: [The man who built this] / [I don't know] / [Rowan Ashby] / [Say nothing].",
+     "verbatim": true,
+     "duration_hint": 1.0,
+     "t": 34.8
+    },
+    {
+     "kind": "choice",
+     "choice_id": "c16_what_are_you",
+     "prompt": "",
+     "options": [
+      {
+       "id": "built_this",
+       "label": "The man who built this",
+       "set": {
+        "truth_told_lead": "builder"
+       },
+       "then": [
+        {
+         "kind": "line",
+         "line": "C16.08",
+         "speaker": "P1",
+         "text": "The man who built this.",
+         "duration_hint": 2.5,
+         "t": 0.0
+        },
+        {
+         "kind": "direction",
+         "text": "She looks at the plaque. Then at him.",
+         "duration_hint": 2.5,
+         "t": 2.5
+        },
+        {
+         "kind": "line",
+         "line": "C16.09",
+         "speaker": "COVENANT_LEAD",
+         "text": "Then somebody should write that down.",
+         "duration_hint": 2.9,
+         "t": 5.0
+        }
+       ]
+      },
+      {
+       "id": "dont_know",
+       "label": "I don't know",
+       "set": {
+        "truth_told_lead": "honest"
+       },
+       "then": [
+        {
+         "kind": "line",
+         "line": "C16.10",
+         "speaker": "P1",
+         "text": "I don't know.",
+         "duration_hint": 1.8,
+         "t": 0.0
+        },
+        {
+         "kind": "line",
+         "line": "C16.11",
+         "speaker": "COVENANT_LEAD",
+         "text": "No. Neither do I.",
+         "duration_hint": 2.1,
+         "t": 1.8
+        },
+        {
+         "kind": "line",
+         "line": "C16.12",
+         "speaker": "COVENANT_LEAD",
+         "text": "That's more honest than anything in my briefing.",
+         "duration_hint": 3.7,
+         "t": 3.9
+        }
+       ]
+      },
+      {
+       "id": "rowan",
+       "label": "Rowan Ashby",
+       "set": {
+        "truth_told_lead": "donor"
+       },
+       "then": [
+        {
+         "kind": "line",
+         "line": "C16.13",
+         "speaker": "P1",
+         "text": "Rowan Ashby.",
+         "duration_hint": 1.4,
+         "t": 0.0
+        },
+        {
+         "kind": "direction",
+         "text": "She glances at her wrist display.",
+         "duration_hint": 2.0,
+         "t": 1.4
+        },
+        {
+         "kind": "line",
+         "line": "C16.14",
+         "speaker": "COVENANT_LEAD",
+         "text": "Rowan Ashby died in Galway in 2096. I'm sorry.",
+         "duration_hint": 4.1,
+         "t": 3.4
+        },
+        {
+         "kind": "line",
+         "line": "C16.15",
+         "speaker": "COVENANT_LEAD",
+         "text": "I don't think that's who you are.",
+         "duration_hint": 3.3,
+         "t": 7.5
+        }
+       ]
+      },
+      {
+       "id": "silence",
+       "label": "Say nothing",
+       "set": {
+        "truth_told_lead": "none"
+       },
+       "then": [
+        {
+         "kind": "direction",
+         "text": "P1 says nothing. The dome fans turn.",
+         "duration_hint": 3.0,
+         "t": 0.0
+        },
+        {
+         "kind": "line",
+         "line": "C16.16",
+         "speaker": "COVENANT_LEAD",
+         "text": "All right.",
+         "duration_hint": 1.4,
+         "t": 3.0
+        }
+       ]
+      }
+     ],
+     "verbatim": true,
+     "duration_hint": 0,
+     "t": 35.8
+    },
+    {
+     "kind": "line",
+     "line": "C16.17",
+     "speaker": "COVENANT_LEAD",
+     "text": "There's a recall signal coming. When it reaches you, you'll go to the bay. I'm told it doesn't hurt.",
+     "duration_hint": 7.9,
+     "t": 35.8
+    },
+    {
+     "kind": "line",
+     "line": "C16.18",
+     "speaker": "P1",
+     "text": "Who told you?",
+     "duration_hint": 1.8,
+     "t": 43.7
+    },
+    {
+     "kind": "line",
+     "line": "C16.19",
+     "speaker": "COVENANT_LEAD",
+     "text": "The people who made you.",
+     "duration_hint": 2.5,
+     "t": 45.5
+    },
+    {
+     "kind": "line",
+     "line": "C16.20",
+     "speaker": "COVENANT_LEAD",
+     "text": "You have one hour.",
+     "delivery": "she means it as a gift",
+     "duration_hint": 2.1,
+     "t": 48.0
+    },
+    {
+     "kind": "set",
+     "var": "final_hour.started",
+     "value": true,
+     "parallel": true,
+     "duration_hint": 0,
+     "t": 50.1
+    },
+    {
+     "kind": "fade",
+     "to": "gameplay",
+     "duration_hint": 2.0,
+     "t": 50.1
+    }
+   ],
+   "id": "C16"
+  },
+  {
+   "title": "Manifest",
+   "act": "V",
+   "optional": true,
+   "trigger": {
+    "on": "reach",
+    "poi": "jezero.housing_block_c",
+    "mission": "5.5"
+   },
+   "site": "jezero",
+   "verbatim_source": "bible p.23-24",
+   "beats": [
+    {
+     "kind": "direction",
+     "text": "A colonist housing block in Jezero. A woman in her late sixties unpacks a crate of rock hammers and field notebooks, grey hair tied back, a geologist's hands. She sees P1 in the doorway: a suited \"caretaker\" with a recall tag.",
+     "verbatim": true,
+     "duration_hint": 6.0,
+     "t": 0.0
+    },
+    {
+     "kind": "camera",
+     "camera": {
+      "mode": "static",
+      "target": "Cara at the crate, P1 framed in the doorway behind her",
+      "lens_mm": 35,
+      "duration_s": 5
+     },
+     "parallel": true,
+     "duration_hint": 0,
+     "t": 6.0
+    },
+    {
+     "kind": "still",
+     "panel": "A bare new apartment; a grey-haired woman kneeling at an open crate of rock hammers and battered field notebooks; in the doorway, a suited figure with an orange recall tag clipped to its chest.",
+     "parallel": true,
+     "duration_hint": 0,
+     "t": 6.0
+    },
+    {
+     "kind": "line",
+     "line": "C17.01",
+     "speaker": "CARA",
+     "text": "You're one of the caretakers. They told us not to talk to you.",
+     "verbatim": true,
+     "duration_hint": 5.6,
+     "t": 6.0
+    },
+    {
+     "kind": "line",
+     "line": "C17.02",
+     "speaker": "P1",
+     "text": "If only you could see what I see...",
+     "delivery": "can't help it",
+     "verbatim": true,
+     "duration_hint": 3.7,
+     "t": 11.6
+    },
+    {
+     "kind": "line",
+     "line": "C17.03",
+     "speaker": "CARA",
+     "text": "...shimmers of eternity.",
+     "verbatim": true,
+     "duration_hint": 1.8,
+     "t": 15.3
+    },
+    {
+     "kind": "line",
+     "line": "C17.04",
+     "speaker": "CARA",
+     "text": "That old Meridian advert. It was on every ad break when I was a girl.",
+     "delivery": "no smile",
+     "verbatim": true,
+     "duration_hint": 6.4,
+     "t": 17.1
+    },
+    {
+     "kind": "line",
+     "line": "C17.05",
+     "speaker": "P1",
+     "text": "Is that why you came?",
+     "verbatim": true,
+     "duration_hint": 2.5,
+     "t": 23.5
+    },
+    {
+     "kind": "line",
+     "line": "C17.06",
+     "speaker": "CARA",
+     "text": "I came because of a man who used to write to me about Mars. My dad's best friend. Rowan Ashby.",
+     "verbatim": true,
+     "duration_hint": 8.3,
+     "t": 26.0
+    },
+    {
+     "kind": "line",
+     "line": "C17.07",
+     "speaker": "CARA",
+     "text": "He got his place on the programme and I never heard from him again. Then they cancelled it. He never even went. Lived another forty years in Galway and never once picked up a pen. Never visited. Never came to the grave. He picked a rock he never got to stand on over every person who ever loved him.",
+     "delivery": "after a beat; flat, long-rehearsed",
+     "verbatim": true,
+     "duration_hint": 12.9,
+     "t": 34.3
+    },
+    {
+     "kind": "direction",
+     "text": "She turns back to the crate.",
+     "verbatim": true,
+     "duration_hint": 2.0,
+     "t": 47.2
+    },
+    {
+     "kind": "line",
+     "line": "C17.08",
+     "speaker": "CARA",
+     "text": "And here I am. Same rock. Same choices.",
+     "verbatim": true,
+     "duration_hint": 3.7,
+     "t": 49.2
+    },
+    {
+     "kind": "line",
+     "line": "C17.09",
+     "speaker": "CARA",
+     "text": "So don't stand in my doorway quoting adverts at me.",
+     "delivery": "after a beat",
+     "verbatim": true,
+     "duration_hint": 4.4,
+     "t": 52.9
+    },
+    {
+     "kind": "direction",
+     "text": "Dialogue choices: [Tell her who you are] / [Say he was sorry] / [Say nothing and leave].",
+     "verbatim": true,
+     "duration_hint": 1.0,
+     "t": 57.3
+    },
+    {
+     "kind": "choice",
+     "choice_id": "c17_manifest",
+     "prompt": "",
+     "options": [
+      {
+       "id": "tell_truth",
+       "label": "Tell her who you are",
+       "set": {
+        "cara.told": true
+       },
+       "then": [
+        {
+         "kind": "line",
+         "line": "C17.10",
+         "speaker": "P1",
+         "text": "I've got his memories. All of them. I remember writing to you. You asked if Olympus Mons was taller than Slieve Donard.",
+         "duration_hint": 9.1,
+         "t": 0.0
+        },
+        {
+         "kind": "direction",
+         "text": "Every choice ends the same way. If he tells her the truth, she looks at the suit for a long time.",
+         "verbatim": true,
+         "duration_hint": 5.0,
+         "t": 9.1
+        },
+        {
+         "kind": "line",
+         "line": "C17.11",
+         "speaker": "CARA",
+         "text": "Then he's still not here, is he.",
+         "verbatim": true,
+         "duration_hint": 3.3,
+         "t": 14.1
+        },
+        {
+         "kind": "direction",
+         "text": "She closes the door.",
+         "verbatim": true,
+         "duration_hint": 2.0,
+         "t": 17.4
+        }
+       ]
+      },
+      {
+       "id": "sorry",
+       "label": "Say he was sorry",
+       "set": {
+        "cara.told": false
+       },
+       "then": [
+        {
+         "kind": "line",
+         "line": "C17.12",
+         "speaker": "P1",
+         "text": "He was sorry.",
+         "duration_hint": 1.8,
+         "t": 0.0
+        },
+        {
+         "kind": "line",
+         "line": "C17.13",
+         "speaker": "CARA",
+         "text": "Was he.",
+         "duration_hint": 1.4,
+         "t": 1.8
+        },
+        {
+         "kind": "line",
+         "line": "C17.14",
+         "speaker": "CARA",
+         "text": "He could have said.",
+         "duration_hint": 2.1,
+         "t": 3.2
+        },
+        {
+         "kind": "direction",
+         "text": "She closes the door.",
+         "duration_hint": 2.0,
+         "t": 5.3
+        }
+       ]
+      },
+      {
+       "id": "leave",
+       "label": "Say nothing and leave",
+       "set": {
+        "cara.told": false
+       },
+       "then": [
+        {
+         "kind": "direction",
+         "text": "He says nothing. She waits, then goes back to the notebooks. He steps back, and the door slides shut between them.",
+         "duration_hint": 5.0,
+         "t": 0.0
+        }
+       ]
+      }
+     ],
+     "verbatim": true,
+     "duration_hint": 0,
+     "t": 58.3
+    },
+    {
+     "kind": "set",
+     "var": "cara_found",
+     "value": true,
+     "parallel": true,
+     "duration_hint": 0,
+     "t": 58.3
+    },
+    {
+     "kind": "fade",
+     "to": "gameplay",
+     "duration_hint": 2.0,
+     "t": 58.3
+    }
+   ],
+   "id": "C17"
+  },
+  {
+   "title": "Fugitive",
+   "act": "V",
+   "trigger": {
+    "on": "choose",
+    "choice_id": "final",
+    "option": "fugitive"
+   },
+   "site": "jezero",
+   "verbatim_source": "bible p.25 (final line)",
+   "next": "C20, then Fugitive mode (missions F.1-F.6)",
+   "beats": [
+    {
+     "kind": "direction",
+     "text": "The first module of Outpost Jezero, preserved under the city dome: ANVIL's broom still clipped to the wall, the bunk, the porthole. The recall signal pulses; with every pulse the HUD stutters and the room tilts a degree toward white.",
+     "duration_hint": 6.0,
+     "t": 0.0
+    },
+    {
+     "kind": "glitch",
+     "desc": "Recall pulse: HUD frame-drops, the image bleaches toward white for 300 ms, tinnitus whine.",
+     "intensity": 0.6,
+     "duration_hint": 1.0,
+     "t": 6.0
+    },
+    {
+     "kind": "direction",
+     "text": "On the wall bracket, ANVIL's old welding torch. P1 takes it down, turns it on, and reaches round to the spine of his suit, to the small sealed module the HUD has always labelled LIFE SUPPORT · DO NOT OPEN.",
+     "duration_hint": 6.0,
+     "t": 7.0
+    },
+    {
+     "kind": "camera",
+     "camera": {
+      "mode": "static",
+      "target": "P1 in the old module, torch lit, reaching behind his own back",
+      "lens_mm": 35,
+      "duration_s": 6
+     },
+     "parallel": true,
+     "duration_hint": 0,
+     "t": 13.0
+    },
+    {
+     "kind": "still",
+     "panel": "In a cramped old module, a suited man holding a lit welding torch behind his own back, its blue flame reflected in the porthole; the HUD around the frame flickering.",
+     "parallel": true,
+     "duration_hint": 0,
+     "t": 13.0
+    },
+    {
+     "kind": "line",
+     "line": "C18a.01",
+     "speaker": "P1",
+     "text": "Right, then.",
+     "delivery": "to the empty room; the way ANVIL said it",
+     "duration_hint": 1.4,
+     "t": 13.0
+    },
+    {
+     "kind": "sfx",
+     "sfx": "sfx_filter_burn",
+     "desc": "Torch hiss into metal; then the filter's last output: a rising white noise built from every memory voice at once.",
+     "duration_hint": 0,
+     "t": 14.4
+    },
+    {
+     "kind": "direction",
+     "text": "He burns it through. The pain is the last thing the filter ever makes him feel.",
+     "duration_hint": 4.0,
+     "t": 14.4
+    },
+    {
+     "kind": "glitch",
+     "desc": "Memory flood, 4 seconds, 0.3 s per image: Lucy at the pier; Alice's bedroom; the drawing; the beach; the contract; the poem as text; each one tearing to static. Then nothing.",
+     "intensity": 1.0,
+     "duration_hint": 4.0,
+     "t": 18.4
+    },
+    {
+     "kind": "line",
+     "line": "C18a.02",
+     "speaker": "ALICE",
+     "text": "Daddy?",
+     "delivery": "memory: cut off mid-word by static",
+     "duration_hint": 1.0,
+     "t": 22.4
+    },
+    {
+     "kind": "direction",
+     "text": "Silence. The breathing he has heard inside his helmet for fifty-three years stops. It was never his.",
+     "duration_hint": 5.0,
+     "t": 23.4
+    },
+    {
+     "kind": "sfx",
+     "sfx": "sfx_breath_stop",
+     "desc": "The helmet breath bed, present since C01, cuts out. Room tone only.",
+     "parallel": true,
+     "duration_hint": 0,
+     "t": 28.4
+    },
+    {
+     "kind": "direction",
+     "text": "The HUD collapses. Hunger, thirst, rest, oxygen: one by one the gauges fall off the screen like tiles. What is left is three numbers.",
+     "duration_hint": 5.0,
+     "t": 28.4
+    },
+    {
+     "kind": "title",
+     "text": "CHARGE 71% · HEAT 312 K · WEAR 38%",
+     "style": "telemetry",
+     "duration_hint": 3.0,
+     "t": 33.4
+    },
+    {
+     "kind": "direction",
+     "text": "He looks at his hands. Matte composite, no seams, no fabric. In the porthole glass there is no face behind the visor, only the visor.",
+     "duration_hint": 5.0,
+     "t": 36.4
+    },
+    {
+     "kind": "camera",
+     "camera": {
+      "mode": "pov",
+      "target": "his own hands, raw",
+      "lens_mm": 35,
+      "duration_s": 4
+     },
+     "parallel": true,
+     "duration_hint": 0,
+     "t": 41.4
+    },
+    {
+     "kind": "still",
+     "panel": "A pair of matte grey composite robot hands held up in front of the viewer; a dark porthole reflecting an empty visor.",
+     "parallel": true,
+     "duration_hint": 0,
+     "t": 41.4
+    },
+    {
+     "kind": "direction",
+     "text": "Taped inside the visor rim, where the filter used to paint over it, a child's drawing of a red planet.",
+     "duration_hint": 4.0,
+     "t": 41.4
+    },
+    {
+     "kind": "choice",
+     "choice_id": "c18a_rover",
+     "prompt": "Take a rover",
+     "options": [
+      {
+       "id": "garage",
+       "label": "The Jezero garage",
+       "set": {
+        "fugitive.rover": "garage"
+       },
+       "then": [
+        {
+         "kind": "direction",
+         "text": "The city garage. A new Meridian-blue rover on charge. He pulls the plug and drives.",
+         "duration_hint": 4.0,
+         "t": 0.0
+        }
+       ]
+      },
+      {
+       "id": "museum",
+       "label": "The museum floor",
+       "set": {
+        "fugitive.rover": "museum"
+       },
+       "then": [
+        {
+         "kind": "direction",
+         "text": "The heritage hall. His first rover on a plinth behind a rope, a placard: PIONEER ROVER · 2061. NO RADIO, still taped to the dash. Behind the dash glass, the drawing. He looks at it a long time, and leaves it there. Then he lifts the rope.",
+         "duration_hint": 7.0,
+         "t": 0.0
+        }
+       ]
+      }
+     ],
+     "duration_hint": 0,
+     "t": 45.4
+    },
+    {
+     "kind": "direction",
+     "text": "Alarms. White suits running the wrong way down a lit road. He takes the old service tunnel ANVIL cut for the cable runs in the first year, the rover's lights on the walls, then the hatch, then the open night.",
+     "duration_hint": 6.0,
+     "t": 45.4
+    },
+    {
+     "kind": "camera",
+     "camera": {
+      "mode": "dolly",
+      "to": "out over the delta at night",
+      "lens_mm": 24,
+      "duration_s": 6,
+      "from": "behind the rover in the tunnel"
+     },
+     "parallel": true,
+     "duration_hint": 0,
+     "t": 51.4
+    },
+    {
+     "kind": "direction",
+     "text": "Pioneer-11 turned him in. If he told him everything (p11_confronted), headlights are already waiting at the tunnel mouth and he has to go through the dune field instead; if not, a RECALL patrol is sweeping the delta and he has a few minutes' head start.",
+     "duration_hint": 1.0,
+     "t": 51.4
+    },
+    {
+     "kind": "direction",
+     "text": "He drives over the dune that ate the lander and up the ridge. At the top he stops. Behind him, the cities he built are lit end to end, like lanterns. Ahead, nothing at all, for ten thousand kilometres.",
+     "duration_hint": 7.0,
+     "t": 52.4
+    },
+    {
+     "kind": "camera",
+     "camera": {
+      "mode": "crane",
+      "to": "wide: the lit city behind, the dark planet ahead",
+      "lens_mm": 18,
+      "duration_s": 7,
+      "from": "behind the rover on the ridge"
+     },
+     "parallel": true,
+     "duration_hint": 0,
+     "t": 59.4
+    },
+    {
+     "kind": "still",
+     "panel": "A small rover on a dark ridge at night: behind it a vast glowing city of domes; ahead, an empty black plain under the stars.",
+     "parallel": true,
+     "duration_hint": 0,
+     "t": 59.4
+    },
+    {
+     "kind": "line",
+     "line": "C18a.03",
+     "speaker": "P1",
+     "text": "They've got the cities. I've got the rest of the planet. It's a big planet.",
+     "preset": "unfiltered",
+     "delivery": "to no one. No helmet reverb now: the burnt-out filter has taken the breath and the room with it. Use preset 'unfiltered'.",
+     "verbatim": true,
+     "duration_hint": 6.4,
+     "t": 59.4
+    },
+    {
+     "kind": "set",
+     "var": "ending",
+     "value": "fugitive",
+     "parallel": true,
+     "duration_hint": 0,
+     "t": 65.8
+    },
+    {
+     "kind": "fade",
+     "to": "black",
+     "duration_hint": 3.0,
+     "t": 65.8
+    }
+   ],
+   "id": "C18a"
+  },
+  {
+   "title": "Rest",
+   "act": "V",
+   "trigger": {
+    "on": "choose",
+    "choice_id": "final",
+    "option": "rest"
+   },
+   "site": "jezero",
+   "verbatim_source": "bible p.25 (final line)",
+   "next": "C20",
+   "beats": [
+    {
+     "kind": "direction",
+     "text": "The decommissioning bay, set up in what was once the Jezero rover garage. White light. A padded cradle. Along one wall, a rack of surrendered pioneer helmets, PIONEER-11's first in the row.",
+     "duration_hint": 6.0,
+     "t": 0.0
+    },
+    {
+     "kind": "still",
+     "panel": "A clean white bay in an old garage; a padded cradle in the centre; along the wall a rack of identical scuffed helmets, each with a name stencil: PIONEER-11, PIONEER-2, PIONEER-7...",
+     "parallel": true,
+     "duration_hint": 0,
+     "t": 6.0
+    },
+    {
+     "kind": "direction",
+     "text": "P1 walks in. COVENANT LEAD walks in beside him.",
+     "duration_hint": 3.0,
+     "t": 6.0
+    },
+    {
+     "kind": "line",
+     "line": "C18b.01",
+     "speaker": "RECALL_2",
+     "text": "Commander, protocol is that you wait outside.",
+     "preset": "live",
+     "duration_hint": 3.3,
+     "t": 9.0
+    },
+    {
+     "kind": "line",
+     "line": "C18b.02",
+     "speaker": "COVENANT_LEAD",
+     "text": "I heard you.",
+     "duration_hint": 1.8,
+     "t": 12.3
+    },
+    {
+     "kind": "direction",
+     "text": "She stays.",
+     "duration_hint": 2.0,
+     "t": 14.1
+    },
+    {
+     "kind": "direction",
+     "text": "[if truth_told_lead in (builder, honest)] She lifts her wrist and speaks to it. [if names were used] He gives her the names.",
+     "duration_hint": 2.0,
+     "t": 16.1
+    },
+    {
+     "kind": "line",
+     "line": "C18b.03",
+     "speaker": "COVENANT_LEAD",
+     "text": "Note for the dedication plaque, Jezero Dome. Add a line. PIONEER-1.",
+     "if": "truth_told_lead in ['builder','honest']",
+     "duration_hint": 4.8,
+     "t": 18.1
+    },
+    {
+     "kind": "line",
+     "line": "C18b.04",
+     "speaker": "P1",
+     "text": "And these.",
+     "if": "count(names.used) > 0",
+     "duration_hint": 1.4,
+     "t": 22.9
+    },
+    {
+     "kind": "line",
+     "line": "C18b.05",
+     "speaker": "COVENANT_LEAD",
+     "text": "And these.",
+     "if": "count(names.used) > 0",
+     "duration_hint": 1.4,
+     "t": 24.3
+    },
+    {
+     "kind": "direction",
+     "text": "He sits in the cradle. The recall signal pulses; this time the HUD does not fight it.",
+     "duration_hint": 4.0,
+     "t": 25.7
+    },
+    {
+     "kind": "glitch",
+     "desc": "Recall pulse, softer each time. No white flare: the filter is cooperating.",
+     "intensity": 0.3,
+     "duration_hint": 1.0,
+     "t": 29.7
+    },
+    {
+     "kind": "line",
+     "line": "C18b.06",
+     "speaker": "COVENANT_LEAD",
+     "text": "Is there anything you want me to tell them?",
+     "duration_hint": 4.1,
+     "t": 30.7
+    },
+    {
+     "kind": "line",
+     "line": "C18b.07",
+     "speaker": "P1",
+     "text": "Tell them the north lobe floods. They'll want to know.",
+     "delivery": "practical, almost cheerful; the last thing a caretaker does is hand over",
+     "verbatim": true,
+     "duration_hint": 4.4,
+     "t": 34.8
+    },
+    {
+     "kind": "direction",
+     "text": "She nods. She does not look away.",
+     "duration_hint": 3.0,
+     "t": 39.2
+    },
+    {
+     "kind": "choice",
+     "choice_id": "c18b_last_image",
+     "prompt": "The filter stays on until the end. What does it show?",
+     "options": [
+      {
+       "id": "family",
+       "label": "Lucy and Alice",
+       "set": {
+        "rest.vision": "family"
+       },
+       "then": [
+        {
+         "kind": "direction",
+         "text": "A beach in Galway at evening, the tide far out. Lucy at the waterline with her shoes in her hand. Alice running up the sand towards him with a drawing held over her head. Just before she reaches him, everything goes white.",
+         "duration_hint": 9.0,
+         "t": 0.0
+        },
+        {
+         "kind": "still",
+         "panel": "Watercolour-soft: a wide Irish beach at low tide in evening light, a woman at the waterline holding her shoes, a small girl running toward the viewer waving a sheet of paper.",
+         "duration_hint": 0,
+         "parallel": true,
+         "t": 9.0
+        },
+        {
+         "kind": "sfx",
+         "sfx": "sfx_beach",
+         "desc": "Waves, gulls, a child laughing; no words.",
+         "duration_hint": 0,
+         "parallel": true,
+         "t": 9.0
+        }
+       ]
+      },
+      {
+       "id": "dome",
+       "label": "The dome",
+       "set": {
+        "rest.vision": "dome"
+       },
+       "then": [
+        {
+         "kind": "direction",
+         "text": "The real dome through the bay window: colonists on the grass, a child pointing up at the ribs ANVIL welded. [if cara_found] At the glass, Cara Kerr. She looks at the suit in the cradle, and turns away. Everything goes white.",
+         "duration_hint": 9.0,
+         "t": 0.0
+        },
+        {
+         "kind": "still",
+         "panel": "Through a window: a green park under a glass dome, families on the grass; in the foreground at the glass, a grey-haired woman turning away.",
+         "duration_hint": 0,
+         "parallel": true,
+         "t": 9.0
+        }
+       ]
+      }
+     ],
+     "duration_hint": 0,
+     "t": 42.2
+    },
+    {
+     "kind": "fade",
+     "to": "white",
+     "duration_hint": 4.0,
+     "t": 42.2
+    },
+    {
+     "kind": "title",
+     "text": "[engine] PLAQUE: 'OUTPOST JEZERO · FOUNDED 2061 · MERIDIAN CONSORTIUM'; if truth told, a line 'PIONEER-1'; then every real name P1 used before the Recall (names.used), whatever he told her",
+     "style": "epilogue_card",
+     "duration_hint": 5.0,
+     "t": 46.2
+    },
+    {
+     "kind": "line",
+     "line": "C18b.card_lead_resigns",
+     "speaker": "CARD",
+     "text": "Odile Marchetti resigned her Meridian commission eleven days after landfall. Her report on Jezero is still classified.",
+     "if": "truth_told_lead in ['builder','honest']",
+     "duration_hint": 7.1,
+     "t": 51.2
+    },
+    {
+     "kind": "line",
+     "line": "C18b.card_lead_stays",
+     "speaker": "CARD",
+     "text": "Odile Marchetti commanded the Covenant's second rotation. She never spoke publicly about Jezero.",
+     "if": "truth_told_lead in ['donor','none']",
+     "duration_hint": 5.6,
+     "t": 58.3
+    },
+    {
+     "kind": "line",
+     "line": "C18b.card_cara",
+     "speaker": "CARD",
+     "text": "Cara Kerr worked the Jezero delta until she was eighty-one. Her last paper measured the migration of a single dune, near the old landing site.",
+     "if": "cara_found",
+     "duration_hint": 10.2,
+     "t": 63.9
+    },
+    {
+     "kind": "set",
+     "var": "ending",
+     "value": "rest",
+     "parallel": true,
+     "duration_hint": 0,
+     "t": 74.1
+    },
+    {
+     "kind": "fade",
+     "to": "black",
+     "duration_hint": 3.0,
+     "t": 74.1
+    }
+   ],
+   "id": "C18b"
+  },
+  {
+   "title": "Recalled",
+   "act": "Fugitive",
+   "trigger": {
+    "on": "captured_by",
+    "hunter": "RECALL"
+   },
+   "site": "any",
+   "notes": "Permanent: the Fugitive save ends. No reload into the same run.",
+   "beats": [
+    {
+     "kind": "direction",
+     "text": "A hideout: a lava tube or a canyon ledge, wherever the player built it. Night. Stripped panels on the suit, a stolen battery humming. Then white light at the mouth of the tube.",
+     "duration_hint": 5.0,
+     "t": 0.0
+    },
+    {
+     "kind": "line",
+     "line": "C19.01",
+     "speaker": "RECALL_3",
+     "text": "Thermal on the ledge. That's him. That's him, isn't it?",
+     "duration_hint": 4.4,
+     "t": 5.0
+    },
+    {
+     "kind": "line",
+     "line": "C19.02",
+     "speaker": "RECALL_1",
+     "text": "Steady.",
+     "duration_hint": 1.0,
+     "t": 9.4
+    },
+    {
+     "kind": "direction",
+     "text": "Four white suits with Meridian-blue trim come in with lamps. They do not hurry.",
+     "duration_hint": 3.5,
+     "t": 10.4
+    },
+    {
+     "kind": "still",
+     "panel": "A narrow lava-tube hideout lit by harsh white lamps: a gaunt robot figure with solar panels strapped to its back, crouched against a rock wall scratched all over with names; four white-suited figures at the mouth.",
+     "parallel": true,
+     "duration_hint": 0,
+     "t": 13.9
+    },
+    {
+     "kind": "line",
+     "line": "C19.03",
+     "speaker": "RECALL_1",
+     "text": "Unit PIONEER-1. Hold still. This is a decommissioning order under Covenant charter. It won't hurt.",
+     "duration_hint": 6.4,
+     "t": 13.9
+    },
+    {
+     "kind": "direction",
+     "text": "[if any real names were used] RECALL-4's lamp crosses the wall behind him: names, scratched into the rock with a drill bit. DESMOND KERR. TAMSIN PENGELLY. HAROLD BRANDT. Dozens.",
+     "duration_hint": 5.0,
+     "t": 20.3
+    },
+    {
+     "kind": "line",
+     "line": "C19.04",
+     "speaker": "RECALL_4",
+     "text": "What's all this?",
+     "if": "count(names.used) > 0",
+     "preset": "live",
+     "duration_hint": 1.8,
+     "t": 25.3
+    },
+    {
+     "kind": "line",
+     "line": "C19.05",
+     "speaker": "RECALL_1",
+     "text": "Names. Leave it.",
+     "if": "count(names.used) > 0",
+     "preset": "live",
+     "duration_hint": 1.8,
+     "t": 27.1
+    },
+    {
+     "kind": "line",
+     "line": "C19.06",
+     "speaker": "P1",
+     "text": "I built your house.",
+     "note": "optional bark; the player may also say nothing (no input for 4 s)",
+     "preset": "unfiltered",
+     "duration_hint": 2.1,
+     "t": 28.9
+    },
+    {
+     "kind": "line",
+     "line": "C19.07",
+     "speaker": "RECALL_1",
+     "text": "I know. Thank you.",
+     "preset": "live",
+     "delivery": "and he means it, which is worse",
+     "duration_hint": 2.1,
+     "t": 31.0
+    },
+    {
+     "kind": "sfx",
+     "sfx": "sfx_recall_wand",
+     "desc": "A rising capacitor whine, then a click.",
+     "duration_hint": 0,
+     "t": 33.1
+    },
+    {
+     "kind": "fade",
+     "to": "black",
+     "duration_hint": 0.2,
+     "t": 33.1
+    },
+    {
+     "kind": "title",
+     "text": "PIONEER-1 · DECOMMISSIONED",
+     "style": "telemetry",
+     "duration_hint": 3.0,
+     "t": 33.3
+    },
+    {
+     "kind": "title",
+     "text": "[engine] true Mars Sol Date and Earth date of capture",
+     "style": "telemetry",
+     "duration_hint": 3.0,
+     "t": 36.3
+    },
+    {
+     "kind": "set",
+     "var": "fugitive.caught",
+     "value": true,
+     "parallel": true,
+     "duration_hint": 0,
+     "t": 39.3
+    }
+   ],
+   "id": "C19"
+  },
+  {
+   "title": "Selection Interview",
+   "act": "post-credits",
+   "trigger": {
+    "on": "credits_end",
+    "endings": [
+     "fugitive",
+     "rest"
+    ]
+   },
+   "site": "none",
+   "verbatim_source": "bible p.25",
+   "beats": [
+    {
+     "kind": "direction",
+     "text": "Archive footage, ESI recruitment centre, 2056. An Irish geologist in his late thirties, in a borrowed suit jacket, Galway accent, nervous.",
+     "verbatim": true,
+     "duration_hint": 4.0,
+     "t": 0.0
+    },
+    {
+     "kind": "title",
+     "text": "ESI · CANDIDATE SELECTION · 2056 · TAPE 14",
+     "style": "archive",
+     "duration_hint": 2.5,
+     "t": 4.0
+    },
+    {
+     "kind": "still",
+     "panel": "Grainy, slightly washed-out video: a man in his late thirties in a suit jacket a size too big, sitting on a plastic chair in a plain institutional room, hands clasped between his knees, an ESI banner behind him.",
+     "parallel": true,
+     "duration_hint": 0,
+     "t": 6.5
+    },
+    {
+     "kind": "camera",
+     "camera": {
+      "mode": "static",
+      "target": "Rowan, seated",
+      "lens_mm": 50,
+      "note": "locked-off archive camera, slight tracking noise",
+      "duration_s": 4
+     },
+     "parallel": true,
+     "duration_hint": 0,
+     "t": 6.5
+    },
+    {
+     "kind": "line",
+     "line": "C20.01",
+     "speaker": "INTERVIEWER",
+     "text": "Rowan Ashby. Field geology, Galway. Relax, it's not an exam.",
+     "duration_hint": 4.4,
+     "t": 6.5
+    },
+    {
+     "kind": "line",
+     "line": "C20.02",
+     "speaker": "ROWAN",
+     "text": "Feels like one.",
+     "delivery": "a nervous laugh",
+     "duration_hint": 1.8,
+     "t": 10.9
+    },
+    {
+     "kind": "line",
+     "line": "C20.03",
+     "speaker": "INTERVIEWER",
+     "text": "Do you have family?",
+     "duration_hint": 2.1,
+     "t": 12.7
+    },
+    {
+     "kind": "line",
+     "line": "C20.04",
+     "speaker": "ROWAN",
+     "text": "No.",
+     "verbatim": true,
+     "duration_hint": 1.0,
+     "t": 14.8
+    },
+    {
+     "kind": "line",
+     "line": "C20.05",
+     "speaker": "ROWAN",
+     "text": "Not really.",
+     "delivery": "after a beat; looking at his hands",
+     "verbatim": true,
+     "duration_hint": 1.4,
+     "t": 15.8
+    },
+    {
+     "kind": "line",
+     "line": "C20.06",
+     "speaker": "INTERVIEWER",
+     "text": "Then why Mars?",
+     "duration_hint": 1.8,
+     "t": 17.2
+    },
+    {
+     "kind": "direction",
+     "text": "Rowan Ashby smiles.",
+     "verbatim": true,
+     "duration_hint": 2.0,
+     "t": 19.0
+    },
+    {
+     "kind": "line",
+     "line": "C20.07",
+     "speaker": "ROWAN",
+     "text": "Because somebody has to build the house before we move in.",
+     "delivery": "the smile in the voice; the one line that was always his",
+     "verbatim": true,
+     "duration_hint": 4.8,
+     "t": 21.0
+    },
+    {
+     "kind": "direction",
+     "text": "Cut to black.",
+     "verbatim": true,
+     "duration_hint": 1.0,
+     "t": 25.8
+    },
+    {
+     "kind": "fade",
+     "to": "black",
+     "duration_hint": 0.1,
+     "t": 26.8
+    }
+   ],
+   "id": "C20"
+  },
+  {
+   "id": "CF6",
+   "title": "The High Lonely",
+   "act": "fugitive",
+   "site": "olympus",
+   "trigger": {
+    "on": "objective_complete",
+    "mission": "F.6",
+    "objective": "rim"
+   },
+   "next": "objective: look back (stargaze)",
+   "note": "Wordless. The camera leaves PIONEER-1 at the lip of the youngest caldera and pushes out over 2.4 km of wall to the floor (real terrain: olympus.caldera_rim to olympus.caldera_floor).",
+   "beats": [
+    {
+     "kind": "camera",
+     "camera": {
+      "mode": "edge",
+      "target": "olympus.caldera_floor",
+      "duration_s": 18,
+      "lens_mm": 24
+     },
+     "parallel": true,
+     "duration_hint": 0,
+     "t": 0.0
+    },
+    {
+     "kind": "direction",
+     "text": "The lip of the caldera. Below his boots the wall falls away, two and a half kilometres of old lava, to a floor as flat as a table.",
+     "duration_hint": 6.0,
+     "t": 0.0
+    },
+    {
+     "kind": "title",
+     "text": "OLYMPUS MONS\nthe caldera rim · 20,879 m",
+     "style": "hud",
+     "duration_hint": 5.0,
+     "t": 6.0
+    },
+    {
+     "kind": "direction",
+     "text": "Nothing moves. The sky is black at noon. Nobody is building anything up here.",
+     "duration_hint": 6.0,
+     "t": 11.0
+    }
+   ]
+  }
+ ]
+}

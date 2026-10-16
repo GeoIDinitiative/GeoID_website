@@ -1,0 +1,2179 @@
+{
+ "note": "Caretaker generator. Founders' callsigns are retired; everyone else is stamped from ~60 donor templates, so donors repeat across Mars (the Echo).",
+ "growth": [
+  {
+   "act": "I",
+   "yours": "1-2",
+   "mars": "~20"
+  },
+  {
+   "act": "II",
+   "yours": "10-20",
+   "mars": "~200"
+  },
+  {
+   "act": "III",
+   "yours": "50-150",
+   "mars": "~1,000"
+  },
+  {
+   "act": "IV",
+   "yours": "300-800",
+   "mars": "~5,000"
+  },
+  {
+   "act": "V",
+   "yours": "1,000-3,000",
+   "mars": "10,000+"
+  }
+ ],
+ "callsign": {
+  "format": "{WORD}-{NNN}",
+  "examples": [
+   "TRUSS-114",
+   "FALLOW-031",
+   "CONDUIT-207"
+  ],
+  "unit_number": "001-999, unique per pioneer region; numbers repeat across regions (the Echo)",
+  "retired": [
+   "ANVIL",
+   "LODESTONE",
+   "WELLSPRING",
+   "BEACON",
+   "FURROW",
+   "CADENCE",
+   "SUTURE",
+   "TALLY",
+   "GIRDER",
+   "KILN",
+   "SPINDLE",
+   "HARBOR",
+   "PLUMB",
+   "ORCHARD",
+   "TIDE",
+   "LANTERN",
+   "SCRIBE",
+   "RELAY",
+   "BELLOWS",
+   "FERRY",
+   "CHALK",
+   "WARDEN",
+   "MORTAR",
+   "HUSH"
+  ],
+  "retired_note": "Founders' and Second Ring callsigns are retired in P1's region only. Other pioneers' regions have their own ANVIL, CADENCE, FURROW and so on (the Echo)."
+ },
+ "role_word_banks": {
+  "construction": [
+   "TRUSS",
+   "RIVET",
+   "GANTRY",
+   "JOIST",
+   "BRACE",
+   "PLINTH",
+   "CORBEL",
+   "LINTEL",
+   "STRUT",
+   "SPAR",
+   "GIRT",
+   "PURLIN",
+   "BOLSTER",
+   "CLEAT",
+   "DOGLEG"
+  ],
+  "mining_survey": [
+   "SHALE",
+   "ADIT",
+   "SEAM",
+   "LODE",
+   "AUGER",
+   "DRIFT",
+   "SCREE",
+   "GANGUE",
+   "FLINT",
+   "CHERT",
+   "MARL",
+   "STOPE",
+   "WINZE",
+   "TAILING",
+   "BEDROCK"
+  ],
+  "water": [
+   "SLUICE",
+   "CISTERN",
+   "RILL",
+   "WEIR",
+   "BRINE",
+   "FLUME",
+   "CULVERT",
+   "EDDY",
+   "TARN",
+   "SPRINGHEAD",
+   "PENSTOCK",
+   "RUNNEL",
+   "FONT",
+   "MILLRACE"
+  ],
+  "power": [
+   "ANODE",
+   "DYNAMO",
+   "FUSE",
+   "VOLT",
+   "SPARK",
+   "CELL",
+   "COIL",
+   "BUSBAR",
+   "INVERTER",
+   "AMPERE",
+   "TRANSFORMER",
+   "FLYWHEEL",
+   "LUMEN",
+   "PHOTON"
+  ],
+  "agriculture": [
+   "FALLOW",
+   "TILTH",
+   "SHEAF",
+   "HARROW",
+   "MULCH",
+   "SPROUT",
+   "LOAM",
+   "SICKLE",
+   "GLEAN",
+   "FURLONG",
+   "HEDGEROW",
+   "ALLOTMENT",
+   "THRESHER",
+   "COMPOST"
+  ],
+  "comms": [
+   "CONDUIT",
+   "CARRIER",
+   "SIGNAL",
+   "AERIAL",
+   "WAVEBAND",
+   "PATCHBAY",
+   "UPLINK",
+   "SQUELCH",
+   "DIPOLE",
+   "REPEATER",
+   "HANDSET",
+   "OSCILLATOR"
+  ],
+  "repair": [
+   "STITCH",
+   "SPLINT",
+   "CLAMP",
+   "SOLDER",
+   "GASKET",
+   "SHIM",
+   "GAUZE",
+   "SALVE",
+   "BALM",
+   "TOURNIQUET",
+   "RIVETGUN",
+   "WRENCH"
+  ],
+  "logistics": [
+   "CRATE",
+   "LEDGER",
+   "PALLET",
+   "DOCKET",
+   "BIN",
+   "FORKLIFT",
+   "BARCODE",
+   "INVOICE",
+   "STOCKROOM",
+   "CONSIGNMENT",
+   "MANIFOLD",
+   "SHELF"
+  ],
+  "dome_frames": [
+   "ARCH",
+   "RIB",
+   "VAULT",
+   "CROWN",
+   "SPAN",
+   "KEYSTONE",
+   "OCULUS",
+   "SPANDREL",
+   "HOOP",
+   "TRUSSRING"
+  ],
+  "printing": [
+   "SINTER",
+   "GLAZE",
+   "NOZZLE",
+   "LAYER",
+   "FILAMENT",
+   "SLURRY",
+   "EXTRUDER",
+   "FUSER",
+   "BISQUE"
+  ],
+  "fabric": [
+   "BOBBIN",
+   "HEM",
+   "TWILL",
+   "SELVEDGE",
+   "GUSSET",
+   "BASTE",
+   "PLEAT",
+   "WEFT",
+   "WARP"
+  ],
+  "rover": [
+   "AXLE",
+   "CLUTCH",
+   "PISTON",
+   "TORQUE",
+   "GEARBOX",
+   "CAMBER",
+   "TREAD",
+   "SPROCKET",
+   "DIFF"
+  ],
+  "surveying": [
+   "CHAIN",
+   "BEARING",
+   "TRIG",
+   "DATUM",
+   "BENCHMARK",
+   "TRAVERSE",
+   "STADIA",
+   "LEVEL"
+  ],
+  "orchard": [
+   "GRAFT",
+   "SCION",
+   "BLOSSOM",
+   "PIP",
+   "ROOTSTOCK",
+   "ESPALIER",
+   "PRUNER"
+  ],
+  "aquaculture": [
+   "FRY",
+   "SHOAL",
+   "KELP",
+   "SPAWN",
+   "FINGERLING",
+   "WEIRNET",
+   "MINNOW"
+  ],
+  "sky": [
+   "PARALLAX",
+   "ZENITH",
+   "AZIMUTH",
+   "SEXTANT",
+   "MERIDIAN",
+   "APERTURE",
+   "EPHEMERIS"
+  ],
+  "archive": [
+   "QUILL",
+   "FOLIO",
+   "VELLUM",
+   "INDEX",
+   "MARGIN",
+   "PALIMPSEST",
+   "COLOPHON"
+  ],
+  "atmosphere": [
+   "ZEPHYR",
+   "GUST",
+   "SQUALL",
+   "DRIZZLE",
+   "MISTRAL",
+   "CUMULUS",
+   "BAROMETER"
+  ],
+  "hopper": [
+   "VECTOR",
+   "THRUST",
+   "GIMBAL",
+   "APOGEE",
+   "SKIDS",
+   "VERNIER"
+  ],
+  "schools": [
+   "SLATE",
+   "PRIMER",
+   "CRAYON",
+   "SATCHEL",
+   "REGISTER",
+   "PLAYTIME"
+  ],
+  "safety": [
+   "BULWARK",
+   "SENTRY",
+   "BOLLARD",
+   "LOCKOUT",
+   "CORDON",
+   "WARRANT"
+  ],
+  "masonry": [
+   "COURSE",
+   "ASHLAR",
+   "GROUT",
+   "QUOIN",
+   "PLUMBLINE",
+   "TROWEL",
+   "BED"
+  ],
+  "night_maintenance": [
+   "VIGIL",
+   "LAMPLIGHTER",
+   "NOCTURNE",
+   "CURFEW",
+   "SMALLHOURS",
+   "WATCHMAN"
+  ]
+ },
+ "templates": [
+  {
+   "id": "T01",
+   "first_name": "Desmond",
+   "surname": "Kerr",
+   "hometown": "Belfast",
+   "country": "Northern Ireland",
+   "occupation": "Welder (shipyard)",
+   "born": 2018,
+   "scanned": null,
+   "accent": "Belfast",
+   "voice": {
+    "model": "en_GB-vctk-medium",
+    "speaker": "p292",
+    "length_scale": 1.0,
+    "pitch_semitones": -0.5
+   },
+   "memory": "A flat on the Lisburn Road; a field trip to the Giant's Causeway; a running joke about who would get to Mars first.",
+   "ritual": "Calls everyone 'big lad' when nervous; brushes panels at first light.",
+   "signature_line": "Floor first. Always floor first.",
+   "role_affinity": [
+    "construction"
+   ],
+   "founder_callsign": "ANVIL",
+   "echo": "Every pioneer was issued a Desmond. Every region has an ANVIL with the same jokes (see GALE_ANVIL)."
+  },
+  {
+   "id": "T02",
+   "first_name": "Ngozi",
+   "surname": "Adeyemi",
+   "hometown": "Jos",
+   "country": "Nigeria",
+   "occupation": "Mining engineer",
+   "born": 2021,
+   "scanned": 2058,
+   "accent": "Nigerian English",
+   "voice": {
+    "model": "en_GB-vctk-medium",
+    "speaker": "p314",
+    "length_scale": 1.1,
+    "pitch_semitones": -1.0
+   },
+   "memory": "Red hills over grey tin spoil, and rain on a tin roof.",
+   "ritual": "Presses salt-crystal flowers.",
+   "signature_line": "That is not basalt.",
+   "role_affinity": [
+    "mining_survey"
+   ],
+   "founder_callsign": "LODESTONE",
+   "voice_note": "No Nigerian voice installed."
+  },
+  {
+   "id": "T03",
+   "first_name": "Tamsin",
+   "surname": "Pengelly",
+   "hometown": "Penzance",
+   "country": "England",
+   "occupation": "Hydrologist",
+   "born": 2024,
+   "scanned": 2057,
+   "accent": "Cornish",
+   "voice": {
+    "model": "en_GB-vctk-medium",
+    "speaker": "p239",
+    "length_scale": 0.95,
+    "pitch_semitones": 0.0
+   },
+   "memory": "The harbour wall at Newlyn in a gale, counting waves.",
+   "ritual": "Checks every valve twice.",
+   "signature_line": "Sorry. Sorry. I'm fine.",
+   "role_affinity": [
+    "water"
+   ],
+   "founder_callsign": "WELLSPRING"
+  },
+  {
+   "id": "T04",
+   "first_name": "Mateus",
+   "surname": "Ferreira",
+   "hometown": "Horta",
+   "country": "Azores, Portugal",
+   "occupation": "Harbour pilot",
+   "born": 2019,
+   "scanned": 2058,
+   "accent": "Azorean Portuguese",
+   "voice": {
+    "model": "en_US-joe-medium",
+    "length_scale": 0.94,
+    "pitch_semitones": 1.0
+   },
+   "memory": "Bringing a yacht in past the breakwater at dawn; the names painted on the harbour wall.",
+   "ritual": "Paints a boat on every wall he finishes.",
+   "signature_line": "It's all sea, in the end.",
+   "role_affinity": [
+    "power"
+   ],
+   "founder_callsign": "BEACON",
+   "voice_note": "No Portuguese-English voice installed."
+  },
+  {
+   "id": "T05",
+   "first_name": "Harold",
+   "surname": "Brandt",
+   "hometown": "Story County, Iowa",
+   "country": "USA",
+   "occupation": "Farmer",
+   "born": 1996,
+   "scanned": 2057,
+   "accent": "Rural Iowa",
+   "voice": {
+    "model": "en_GB-vctk-medium",
+    "speaker": "p311",
+    "length_scale": 1.25,
+    "pitch_semitones": -3.0
+   },
+   "memory": "His dad's tractor threw a track in the rain; they sat in the cab and ate cold beans till it stopped.",
+   "ritual": "Wipes his feet before every door, even airlocks.",
+   "signature_line": "As long as it takes.",
+   "role_affinity": [
+    "agriculture",
+    "orchard"
+   ],
+   "founder_callsign": "FURROW",
+   "echo": "Every FURROW-template unit tells the tractor story word for word (FURROW.idle.II.03)."
+  },
+  {
+   "id": "T06",
+   "first_name": "Carys",
+   "surname": "Lloyd",
+   "hometown": "Aberystwyth",
+   "country": "Wales",
+   "occupation": "Primary-school music teacher",
+   "born": 2031,
+   "scanned": 2057,
+   "accent": "Welsh",
+   "voice": {
+    "model": "en_GB-vctk-medium",
+    "speaker": "p253",
+    "length_scale": 0.97,
+    "pitch_semitones": 0.5
+   },
+   "memory": "A school hall, thirty recorders out of tune, one child getting it right.",
+   "ritual": "Sings one song a night, in order.",
+   "signature_line": "Right! Who wants a song?",
+   "role_affinity": [
+    "comms"
+   ],
+   "founder_callsign": "CADENCE",
+   "echo": "Every CADENCE unit on Mars sings SONG.01-07 in the same order."
+  },
+  {
+   "id": "T07",
+   "first_name": "Marta",
+   "surname": "Kowalczyk",
+   "hometown": "Krakow",
+   "country": "Poland",
+   "occupation": "Intensive-care nurse",
+   "born": 2015,
+   "scanned": 2058,
+   "accent": "Polish",
+   "voice": {
+    "model": "en_GB-vctk-medium",
+    "speaker": "p276",
+    "length_scale": 1.05,
+    "pitch_semitones": -1.0
+   },
+   "memory": "Night shift, a ward of monitors, a hand held until morning.",
+   "ritual": "Snaps her gloves on twice.",
+   "signature_line": "Where does it hurt?",
+   "role_affinity": [
+    "repair"
+   ],
+   "founder_callsign": "SUTURE",
+   "voice_note": "No Polish-English voice installed."
+  },
+  {
+   "id": "T08",
+   "first_name": "Rajiv",
+   "surname": "Menon",
+   "hometown": "Leicester",
+   "country": "England",
+   "occupation": "Warehouse manager",
+   "born": 2022,
+   "scanned": 2058,
+   "accent": "Leicester",
+   "voice": {
+    "model": "en_GB-vctk-medium",
+    "speaker": "p279",
+    "length_scale": 0.98,
+    "pitch_semitones": -0.5
+   },
+   "memory": "A warehouse the size of a cathedral at 4 a.m., every aisle counted.",
+   "ritual": "Counts out loud.",
+   "signature_line": "Logged.",
+   "role_affinity": [
+    "logistics"
+   ],
+   "founder_callsign": "TALLY"
+  },
+  {
+   "id": "T09",
+   "first_name": "Callum",
+   "surname": "Reid",
+   "hometown": "Kirkcaldy",
+   "country": "Scotland",
+   "occupation": "Steel erector",
+   "born": 2026,
+   "scanned": 2057,
+   "accent": "Fife",
+   "voice": {
+    "model": "en_GB-vctk-medium",
+    "speaker": "p237",
+    "length_scale": 1.0,
+    "pitch_semitones": -1.0
+   },
+   "memory": "Frozen on the first ladder of the Forth Bridge at seven; his father carried him down.",
+   "ritual": "Taps every rung twice.",
+   "signature_line": "Lovely day to be terrified.",
+   "role_affinity": [
+    "dome_frames",
+    "construction"
+   ]
+  },
+  {
+   "id": "T10",
+   "first_name": "Patrick",
+   "surname": "Doyle",
+   "hometown": "Birmingham",
+   "country": "England",
+   "occupation": "Ceramicist",
+   "born": 2020,
+   "scanned": 2058,
+   "accent": "Birmingham",
+   "voice": {
+    "model": "en_GB-vctk-medium",
+    "speaker": "p256",
+    "length_scale": 1.0,
+    "pitch_semitones": 0.0
+   },
+   "memory": "Counting organ pipes in St Chad's while his nan lit a candle.",
+   "ritual": "Lights a lamp in every finished vault.",
+   "signature_line": "Quiet in here. That's the point.",
+   "role_affinity": [
+    "printing"
+   ]
+  },
+  {
+   "id": "T11",
+   "first_name": "Joan",
+   "surname": "Hartley",
+   "hometown": "Stockton-on-Tees",
+   "country": "England",
+   "occupation": "Seamstress",
+   "born": 2014,
+   "scanned": 2057,
+   "accent": "Teesside",
+   "voice": {
+    "model": "en_GB-vctk-medium",
+    "speaker": "p230",
+    "length_scale": 1.0,
+    "pitch_semitones": 0.0
+   },
+   "memory": "Her mam sewing name tapes at the kitchen table in September.",
+   "ritual": "Stitches callsigns inside suit linings.",
+   "signature_line": "Hold still, I've a pin in my mouth.",
+   "role_affinity": [
+    "fabric",
+    "repair"
+   ]
+  },
+  {
+   "id": "T12",
+   "first_name": "Lachlan",
+   "surname": "Byrne",
+   "hometown": "Bathurst",
+   "country": "Australia",
+   "occupation": "Mechanic",
+   "born": 2027,
+   "scanned": 2058,
+   "accent": "Australian",
+   "voice": {
+    "model": "en_GB-vctk-medium",
+    "speaker": "p326",
+    "length_scale": 0.96,
+    "pitch_semitones": 0.0
+   },
+   "memory": "His dad's ute on Mount Panorama at fourteen.",
+   "ritual": "Races rovers at night.",
+   "signature_line": "She wants a new diff.",
+   "role_affinity": [
+    "rover"
+   ]
+  },
+  {
+   "id": "T13",
+   "first_name": "Arthur",
+   "surname": "Pennock",
+   "hometown": "Settle",
+   "country": "England",
+   "occupation": "Land surveyor",
+   "born": 2001,
+   "scanned": 2057,
+   "accent": "North Yorkshire",
+   "voice": {
+    "model": "en_GB-northern_english_male-medium",
+    "length_scale": 1.05,
+    "pitch_semitones": -1.0
+   },
+   "memory": "Walking every path on his grandad's OS Sheet 98.",
+   "ritual": "Draws every map by hand.",
+   "signature_line": "Believe the pencil.",
+   "role_affinity": [
+    "surveying"
+   ]
+  },
+  {
+   "id": "T14",
+   "first_name": "Ruth Ann",
+   "surname": "Mosley",
+   "hometown": "Dothan, Alabama",
+   "country": "USA",
+   "occupation": "Plant nursery worker",
+   "born": 2023,
+   "scanned": 2058,
+   "accent": "Alabama",
+   "voice": {
+    "model": "en_GB-vctk-medium",
+    "speaker": "p308",
+    "length_scale": 1.08,
+    "pitch_semitones": 0.0
+   },
+   "memory": "Her grandaddy planting pecans the year she was born.",
+   "ritual": "Prays over every graft.",
+   "signature_line": "She's taking.",
+   "role_affinity": [
+    "orchard",
+    "agriculture"
+   ]
+  },
+  {
+   "id": "T15",
+   "first_name": "Aroha",
+   "surname": "Tane",
+   "hometown": "Kaikoura",
+   "country": "New Zealand",
+   "occupation": "Crayfisher",
+   "born": 2029,
+   "scanned": 2058,
+   "accent": "New Zealand",
+   "voice": {
+    "model": "en_GB-vctk-medium",
+    "speaker": "p335",
+    "length_scale": 1.0,
+    "pitch_semitones": 0.0
+   },
+   "memory": "Dad's boat, the cold pots, a seal that followed them like a dog.",
+   "ritual": "Talks to the fish at feeding time.",
+   "signature_line": "Shh. Feeding time.",
+   "role_affinity": [
+    "aquaculture"
+   ]
+  },
+  {
+   "id": "T16",
+   "first_name": "Isla",
+   "surname": "Fraser",
+   "hometown": "Edinburgh",
+   "country": "Scotland",
+   "occupation": "Observatory technician",
+   "born": 2030,
+   "scanned": 2057,
+   "accent": "Edinburgh",
+   "voice": {
+    "model": "en_GB-vctk-medium",
+    "speaker": "p234",
+    "length_scale": 1.0,
+    "pitch_semitones": 0.0
+   },
+   "memory": "Calton Hill at 3 a.m., the city orange, the sky black.",
+   "ritual": "Never sleeps before dawn.",
+   "signature_line": "Seeing's good tonight.",
+   "role_affinity": [
+    "sky"
+   ]
+  },
+  {
+   "id": "T17",
+   "first_name": "Helen",
+   "surname": "Ashdown",
+   "hometown": "Lewes",
+   "country": "England",
+   "occupation": "Parish archivist",
+   "born": 2009,
+   "scanned": 2057,
+   "accent": "Sussex",
+   "voice": {
+    "model": "en_GB-cori-medium",
+    "length_scale": 1.02,
+    "pitch_semitones": 0.0
+   },
+   "memory": "Parish registers in ink, the same names coming round every forty years.",
+   "ritual": "Writes every date in full.",
+   "signature_line": "Dates are the spine.",
+   "role_affinity": [
+    "archive"
+   ]
+  },
+  {
+   "id": "T18",
+   "first_name": "Dale",
+   "surname": "Kowalski",
+   "hometown": "Toledo, Ohio",
+   "country": "USA",
+   "occupation": "Telecom lineman",
+   "born": 2012,
+   "scanned": 2058,
+   "accent": "American Midwest",
+   "voice": {
+    "model": "en_US-ryan-medium",
+    "length_scale": 0.92,
+    "pitch_semitones": -1.0
+   },
+   "memory": "His brother's CB radio in the truck cab: breaker one-nine.",
+   "ritual": "Speaks only in radio procedure.",
+   "signature_line": "Copy.",
+   "role_affinity": [
+    "comms"
+   ]
+  },
+  {
+   "id": "T19",
+   "first_name": "Geoffrey",
+   "surname": "Tyson",
+   "hometown": "Keswick",
+   "country": "England",
+   "occupation": "Climatologist (retired)",
+   "born": 1999,
+   "scanned": 2057,
+   "accent": "Cumbria",
+   "voice": {
+    "model": "en_GB-vctk-medium",
+    "speaker": "p227",
+    "length_scale": 1.05,
+    "pitch_semitones": -1.5
+   },
+   "memory": "Rain on Derwentwater three hundred days a year.",
+   "ritual": "Taps the barometer every morning.",
+   "signature_line": "Rain. One day.",
+   "role_affinity": [
+    "atmosphere"
+   ]
+  },
+  {
+   "id": "T20",
+   "first_name": "Tom",
+   "surname": "Arsenault",
+   "hometown": "Vancouver",
+   "country": "Canada",
+   "occupation": "Float-plane pilot",
+   "born": 2025,
+   "scanned": 2058,
+   "accent": "Canadian",
+   "voice": {
+    "model": "en_GB-vctk-medium",
+    "speaker": "p302",
+    "length_scale": 0.98,
+    "pitch_semitones": 0.0
+   },
+   "memory": "Sitting on the end of his mum's dock counting the float planes in.",
+   "ritual": "Pats the hull before every flight.",
+   "signature_line": "Where to, boss?",
+   "role_affinity": [
+    "hopper"
+   ]
+  },
+  {
+   "id": "T21",
+   "first_name": "Siobhan",
+   "surname": "Kelly",
+   "hometown": "Athlone",
+   "country": "Ireland",
+   "occupation": "Primary teacher",
+   "born": 2027,
+   "scanned": 2057,
+   "accent": "Irish Midlands",
+   "voice": {
+    "model": "en_GB-vctk-medium",
+    "speaker": "p266",
+    "length_scale": 1.0,
+    "pitch_semitones": 0.0
+   },
+   "memory": "A boy who only spoke to the class hamster, reading aloud to it by June.",
+   "ritual": "Writes a name on every desk.",
+   "signature_line": "Indoor voices.",
+   "role_affinity": [
+    "schools"
+   ]
+  },
+  {
+   "id": "T22",
+   "first_name": "Graham",
+   "surname": "Pryce",
+   "hometown": "Hendon",
+   "country": "England",
+   "occupation": "Police inspector",
+   "born": 2010,
+   "scanned": 2058,
+   "accent": "Southern English",
+   "voice": {
+    "model": "en_GB-vctk-medium",
+    "speaker": "p232",
+    "length_scale": 1.0,
+    "pitch_semitones": -1.0
+   },
+   "memory": "Standing straighter at a passing-out parade his father didn't come to.",
+   "ritual": "Logs every infraction.",
+   "signature_line": "That's not to code.",
+   "role_affinity": [
+    "safety"
+   ]
+  },
+  {
+   "id": "T23",
+   "first_name": "Frank",
+   "surname": "Ibbotson",
+   "hometown": "Grassington",
+   "country": "England",
+   "occupation": "Stonemason",
+   "born": 2005,
+   "scanned": 2057,
+   "accent": "Yorkshire",
+   "voice": {
+    "model": "en_GB-vctk-medium",
+    "speaker": "p270",
+    "length_scale": 1.0,
+    "pitch_semitones": -1.0
+   },
+   "memory": "Granddad's dry-stone wall in Wharfedale; the one stone the sheep always found.",
+   "ritual": "Taps each stone twice before bedding it.",
+   "signature_line": "A wall's just patience stacked up.",
+   "role_affinity": [
+    "masonry"
+   ],
+   "echo": "MORTAR-1 and MORTAR-2 share this template and finish each other's stories."
+  },
+  {
+   "id": "T24",
+   "first_name": "Ellie",
+   "surname": "Marsh",
+   "hometown": "Bristol",
+   "country": "England",
+   "occupation": "Sign-language interpreter",
+   "born": 2028,
+   "scanned": 2058,
+   "accent": "none (signs)",
+   "voice": {
+    "model": "none"
+   },
+   "memory": "Her deaf sister and the private signs only the two of them knew.",
+   "ritual": "Signs goodnight to every module.",
+   "signature_line": "[signs] All quiet.",
+   "role_affinity": [
+    "night_maintenance"
+   ],
+   "voice_note": "HUSH's imprint came out signing-first; no speech module is instantiated (KEEPER file). Never rendered."
+  },
+  {
+   "id": "T25",
+   "first_name": "Siobhan",
+   "surname": "Mulvenna",
+   "hometown": "Derry",
+   "country": "Northern Ireland",
+   "occupation": "Bus driver",
+   "born": 2024,
+   "scanned": 2057,
+   "accent": "Derry",
+   "voice": {
+    "model": "en_GB-vctk-medium",
+    "speaker": "p351",
+    "length_scale": 1.0,
+    "pitch_semitones": 0.0
+   },
+   "memory": "Driving the last bus over the Craigavon Bridge, the river black and gold.",
+   "ritual": "Says 'mind the step' at every door.",
+   "signature_line": "Mind the step, now.",
+   "role_affinity": [
+    "logistics",
+    "rover"
+   ]
+  },
+  {
+   "id": "T26",
+   "first_name": "Kieran",
+   "surname": "Walsh",
+   "hometown": "Cork",
+   "country": "Ireland",
+   "occupation": "Scaffolder",
+   "born": 2019,
+   "scanned": 2058,
+   "accent": "Cork",
+   "voice": {
+    "model": "en_GB-vctk-medium",
+    "speaker": "p245",
+    "length_scale": 1.0,
+    "pitch_semitones": -1.0
+   },
+   "memory": "Whistling on scaffolding over Patrick Street in the rain.",
+   "ritual": "Whistles 'The Star of the County Down' while he works.",
+   "signature_line": "Up she goes.",
+   "role_affinity": [
+    "construction",
+    "dome_frames"
+   ],
+   "echo": "Every T26 unit whistles the same tune, in the same key, the same wrong note in bar six (the TRUSS crews)."
+  },
+  {
+   "id": "T27",
+   "first_name": "Bill",
+   "surname": "Hagen",
+   "hometown": "Fargo, North Dakota",
+   "country": "USA",
+   "occupation": "Wheat farmer",
+   "born": 2002,
+   "scanned": 2057,
+   "accent": "Upper Midwest",
+   "voice": {
+    "model": "en_GB-vctk-medium",
+    "speaker": "p311",
+    "length_scale": 1.1,
+    "pitch_semitones": -1.5
+   },
+   "memory": "Watching a storm come across the wheat a whole afternoon before it arrived.",
+   "ritual": "Keeps the beds wet, whatever.",
+   "signature_line": "Rain's coming. Always coming.",
+   "role_affinity": [
+    "agriculture"
+   ]
+  },
+  {
+   "id": "T28",
+   "first_name": "Amara",
+   "surname": "Okonkwo",
+   "hometown": "Lagos",
+   "country": "Nigeria",
+   "occupation": "Civil engineer",
+   "born": 2030,
+   "scanned": 2057,
+   "accent": "Nigerian English",
+   "voice": {
+    "model": "en_GB-southern_english_female-low",
+    "length_scale": 1.0,
+    "pitch_semitones": 0.5
+   },
+   "memory": "The Third Mainland Bridge in traffic at dawn, the lagoon silver.",
+   "ritual": "Sketches load paths on any flat surface.",
+   "signature_line": "Load path's clean.",
+   "role_affinity": [
+    "construction"
+   ]
+  },
+  {
+   "id": "T29",
+   "first_name": "Priya",
+   "surname": "Raman",
+   "hometown": "Chennai",
+   "country": "India",
+   "occupation": "Electrical engineer",
+   "born": 2028,
+   "scanned": 2057,
+   "accent": "Indian English",
+   "voice": {
+    "model": "en_GB-vctk-medium",
+    "speaker": "p248",
+    "length_scale": 1.0,
+    "pitch_semitones": 0.0
+   },
+   "memory": "Monsoon on the balcony, counting seconds between lightning and thunder.",
+   "ritual": "Counts seconds after every spark.",
+   "signature_line": "One-Mississippi.",
+   "role_affinity": [
+    "power"
+   ]
+  },
+  {
+   "id": "T30",
+   "first_name": "Hamish",
+   "surname": "Grant",
+   "hometown": "Aberdeen",
+   "country": "Scotland",
+   "occupation": "Offshore rig technician",
+   "born": 2017,
+   "scanned": 2058,
+   "accent": "Aberdeen",
+   "voice": {
+    "model": "en_GB-vctk-medium",
+    "speaker": "p263",
+    "length_scale": 1.0,
+    "pitch_semitones": 0.0
+   },
+   "memory": "Helicopter over the North Sea, the rig lit up like a city.",
+   "ritual": "Checks the weather twice an hour.",
+   "signature_line": "That's a hoolie coming.",
+   "role_affinity": [
+    "power",
+    "mining_survey"
+   ]
+  },
+  {
+   "id": "T31",
+   "first_name": "Gwen",
+   "surname": "Price",
+   "hometown": "Swansea",
+   "country": "Wales",
+   "occupation": "Lifeguard",
+   "born": 2032,
+   "scanned": 2057,
+   "accent": "Welsh (approx.)",
+   "voice": {
+    "model": "en_GB-vctk-medium",
+    "speaker": "p253",
+    "length_scale": 1.0,
+    "pitch_semitones": -1.0
+   },
+   "memory": "The tide going out a mile at Rhossili.",
+   "ritual": "Counts heads at every shift change.",
+   "signature_line": "Everyone out of the water.",
+   "role_affinity": [
+    "safety",
+    "water"
+   ],
+   "voice_note": "Accent not available in the installed voices; nearest VCTK/US speaker used."
+  },
+  {
+   "id": "T32",
+   "first_name": "Ji-woo",
+   "surname": "Park",
+   "hometown": "Busan",
+   "country": "South Korea",
+   "occupation": "Shipyard welder",
+   "born": 2026,
+   "scanned": 2057,
+   "accent": "Korean English (approx.)",
+   "voice": {
+    "model": "en_US-joe-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 1.0
+   },
+   "memory": "The cranes at Busan, and his mother's lunchbox on the dock.",
+   "ritual": "Bows slightly to every finished weld.",
+   "signature_line": "Clean bead.",
+   "role_affinity": [
+    "construction"
+   ],
+   "voice_note": "Accent not available in the installed voices; nearest VCTK/US speaker used."
+  },
+  {
+   "id": "T33",
+   "first_name": "Lucas",
+   "surname": "Moreau",
+   "hometown": "Lyon",
+   "country": "France",
+   "occupation": "Baker",
+   "born": 2021,
+   "scanned": 2058,
+   "accent": "French (approx.)",
+   "voice": {
+    "model": "en_GB-vctk-medium",
+    "speaker": "p226",
+    "length_scale": 1.0,
+    "pitch_semitones": -0.5
+   },
+   "memory": "Four a.m. ovens and the first tram outside.",
+   "ritual": "Kneads anything soft out of habit.",
+   "signature_line": "It needs time to rise.",
+   "role_affinity": [
+    "agriculture",
+    "printing"
+   ],
+   "voice_note": "Accent not available in the installed voices; nearest VCTK/US speaker used."
+  },
+  {
+   "id": "T34",
+   "first_name": "Giulia",
+   "surname": "Bassi",
+   "hometown": "Bologna",
+   "country": "Italy",
+   "occupation": "Restorer (frescoes)",
+   "born": 2023,
+   "scanned": 2058,
+   "accent": "Italian (approx.)",
+   "voice": {
+    "model": "en_GB-vctk-medium",
+    "speaker": "p280",
+    "length_scale": 1.0,
+    "pitch_semitones": 0.0
+   },
+   "memory": "Scaffolding in a cold church, a saint's face coming back under her brush.",
+   "ritual": "Touches every wall before she works on it.",
+   "signature_line": "Piano, piano.",
+   "role_affinity": [
+    "printing",
+    "masonry"
+   ],
+   "voice_note": "Accent not available in the installed voices; nearest VCTK/US speaker used."
+  },
+  {
+   "id": "T35",
+   "first_name": "Anders",
+   "surname": "Lie",
+   "hometown": "Bergen",
+   "country": "Norway",
+   "occupation": "Ferry engineer",
+   "born": 2016,
+   "scanned": 2057,
+   "accent": "Norwegian (approx.)",
+   "voice": {
+    "model": "en_GB-vctk-medium",
+    "speaker": "p226",
+    "length_scale": 1.0,
+    "pitch_semitones": 0.0
+   },
+   "memory": "Fjord fog so thick the ferry horn came back off the mountain.",
+   "ritual": "Sounds a horn signal at every departure.",
+   "signature_line": "Two short, one long.",
+   "role_affinity": [
+    "hopper",
+    "rover"
+   ],
+   "voice_note": "Accent not available in the installed voices; nearest VCTK/US speaker used."
+  },
+  {
+   "id": "T36",
+   "first_name": "Sigrun",
+   "surname": "Halldorsdottir",
+   "hometown": "Reykjavik",
+   "country": "Iceland",
+   "occupation": "Volcanologist",
+   "born": 2027,
+   "scanned": 2058,
+   "accent": "Icelandic (approx.)",
+   "voice": {
+    "model": "en_GB-vctk-medium",
+    "speaker": "p234",
+    "length_scale": 1.0,
+    "pitch_semitones": -0.5
+   },
+   "memory": "Standing on new lava, warm through the boots.",
+   "ritual": "Collects one stone from every site.",
+   "signature_line": "This rock is younger than me.",
+   "role_affinity": [
+    "mining_survey"
+   ],
+   "voice_note": "Accent not available in the installed voices; nearest VCTK/US speaker used."
+  },
+  {
+   "id": "T37",
+   "first_name": "Thandiwe",
+   "surname": "Dlamini",
+   "hometown": "Johannesburg",
+   "country": "South Africa",
+   "occupation": "Miner",
+   "born": 2018,
+   "scanned": 2057,
+   "accent": "South African",
+   "voice": {
+    "model": "en_GB-vctk-medium",
+    "speaker": "p336",
+    "length_scale": 1.0,
+    "pitch_semitones": 0.0
+   },
+   "memory": "The cage dropping three kilometres, the heat at the bottom.",
+   "ritual": "Sings in the dark.",
+   "signature_line": "Down we go.",
+   "role_affinity": [
+    "mining_survey"
+   ]
+  },
+  {
+   "id": "T38",
+   "first_name": "Pieter",
+   "surname": "van Wyk",
+   "hometown": "Cape Town",
+   "country": "South Africa",
+   "occupation": "Harbour crane operator",
+   "born": 2015,
+   "scanned": 2058,
+   "accent": "South African",
+   "voice": {
+    "model": "en_GB-vctk-medium",
+    "speaker": "p347",
+    "length_scale": 1.0,
+    "pitch_semitones": 0.0
+   },
+   "memory": "Table Mountain with the cloth on, from the crane cab.",
+   "ritual": "Names the cranes.",
+   "signature_line": "Easy, easy.",
+   "role_affinity": [
+    "construction",
+    "logistics"
+   ]
+  },
+  {
+   "id": "T39",
+   "first_name": "Maria",
+   "surname": "Santos",
+   "hometown": "Manila",
+   "country": "Philippines",
+   "occupation": "Nurse",
+   "born": 2029,
+   "scanned": 2058,
+   "accent": "Filipino English (approx.)",
+   "voice": {
+    "model": "en_GB-vctk-medium",
+    "speaker": "p299",
+    "length_scale": 1.0,
+    "pitch_semitones": 0.0
+   },
+   "memory": "Typhoon night on a ward lit by torches.",
+   "ritual": "Hums while she works.",
+   "signature_line": "There we go.",
+   "role_affinity": [
+    "repair"
+   ],
+   "voice_note": "Accent not available in the installed voices; nearest VCTK/US speaker used."
+  },
+  {
+   "id": "T40",
+   "first_name": "Carlos",
+   "surname": "Rivera",
+   "hometown": "Valparaiso",
+   "country": "Chile",
+   "occupation": "Funicular operator",
+   "born": 2020,
+   "scanned": 2057,
+   "accent": "Chilean (approx.)",
+   "voice": {
+    "model": "en_US-joe-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": -1.0
+   },
+   "memory": "The ascensor rattling up the hill, the harbour dropping away.",
+   "ritual": "Rings a bell before moving anything.",
+   "signature_line": "Going up.",
+   "role_affinity": [
+    "logistics",
+    "hopper"
+   ],
+   "voice_note": "Accent not available in the installed voices; nearest VCTK/US speaker used."
+  },
+  {
+   "id": "T41",
+   "first_name": "Erin",
+   "surname": "Doherty",
+   "hometown": "Letterkenny",
+   "country": "Ireland",
+   "occupation": "Cable jointer",
+   "born": 2026,
+   "scanned": 2057,
+   "accent": "Donegal",
+   "voice": {
+    "model": "en_GB-vctk-medium",
+    "speaker": "p295",
+    "length_scale": 1.0,
+    "pitch_semitones": 0
+   },
+   "memory": "Laying cable across a bog in the rain, the line straight as a rule.",
+   "ritual": "Lays cable, takes it up, lays it again.",
+   "signature_line": "Cable's good to the ridge.",
+   "role_affinity": [
+    "comms",
+    "power"
+   ]
+  },
+  {
+   "id": "T42",
+   "first_name": "Yusuf",
+   "surname": "Demir",
+   "hometown": "Istanbul",
+   "country": "Turkey",
+   "occupation": "Tram driver",
+   "born": 2022,
+   "scanned": 2057,
+   "accent": "Turkish (approx.)",
+   "voice": {
+    "model": "en_GB-vctk-medium",
+    "speaker": "p254",
+    "length_scale": 1.0,
+    "pitch_semitones": 0.0
+   },
+   "memory": "The tram along the Bosphorus at night, the bridges lit.",
+   "ritual": "Taps the dash twice before moving.",
+   "signature_line": "Next stop.",
+   "role_affinity": [
+    "rover",
+    "logistics"
+   ],
+   "voice_note": "Accent not available in the installed voices; nearest VCTK/US speaker used."
+  },
+  {
+   "id": "T43",
+   "first_name": "Grace",
+   "surname": "Wanjiru",
+   "hometown": "Nairobi",
+   "country": "Kenya",
+   "occupation": "Hydrologist",
+   "born": 2031,
+   "scanned": 2058,
+   "accent": "Kenyan English (approx.)",
+   "voice": {
+    "model": "en_GB-vctk-medium",
+    "speaker": "p323",
+    "length_scale": 1.0,
+    "pitch_semitones": 0.0
+   },
+   "memory": "The first rain after drought, the smell of it on red earth.",
+   "ritual": "Smells the air before every shift.",
+   "signature_line": "Rain's in it.",
+   "role_affinity": [
+    "water",
+    "agriculture"
+   ],
+   "voice_note": "Accent not available in the installed voices; nearest VCTK/US speaker used."
+  },
+  {
+   "id": "T44",
+   "first_name": "Ewan",
+   "surname": "MacLeod",
+   "hometown": "Stornoway",
+   "country": "Scotland",
+   "occupation": "Fisherman",
+   "born": 2008,
+   "scanned": 2057,
+   "accent": "Hebridean",
+   "voice": {
+    "model": "en_GB-vctk-medium",
+    "speaker": "p247",
+    "length_scale": 1.0,
+    "pitch_semitones": -1.0
+   },
+   "memory": "Gannets diving off Lewis in a grey sea.",
+   "ritual": "Watches the sky before work, every day.",
+   "signature_line": "Fair wind.",
+   "role_affinity": [
+    "aquaculture"
+   ]
+  },
+  {
+   "id": "T45",
+   "first_name": "Rosa",
+   "surname": "Delgado",
+   "hometown": "San Antonio, Texas",
+   "country": "USA",
+   "occupation": "Rancher",
+   "born": 2017,
+   "scanned": 2058,
+   "accent": "Texan (approx.)",
+   "voice": {
+    "model": "en_GB-vctk-medium",
+    "speaker": "p310",
+    "length_scale": 1.0,
+    "pitch_semitones": 0.0
+   },
+   "memory": "Fixing fence in August heat, cicadas loud as engines.",
+   "ritual": "Checks the fence line at dusk.",
+   "signature_line": "Holding.",
+   "role_affinity": [
+    "agriculture",
+    "safety"
+   ],
+   "voice_note": "Accent not available in the installed voices; nearest VCTK/US speaker used."
+  },
+  {
+   "id": "T46",
+   "first_name": "Marcus",
+   "surname": "Bell",
+   "hometown": "Chicago",
+   "country": "USA",
+   "occupation": "Elevator mechanic",
+   "born": 2024,
+   "scanned": 2057,
+   "accent": "Chicago",
+   "voice": {
+    "model": "en_GB-vctk-medium",
+    "speaker": "p334",
+    "length_scale": 1.0,
+    "pitch_semitones": 0.0
+   },
+   "memory": "Riding the top of a car up a hundred floors.",
+   "ritual": "Taps the hoist motor like a horse.",
+   "signature_line": "Going up, going up.",
+   "role_affinity": [
+    "construction",
+    "power"
+   ]
+  },
+  {
+   "id": "T47",
+   "first_name": "Hannah",
+   "surname": "Weiss",
+   "hometown": "Hamburg",
+   "country": "Germany",
+   "occupation": "Harbour pilot",
+   "born": 2028,
+   "scanned": 2057,
+   "accent": "German (approx.)",
+   "voice": {
+    "model": "en_GB-vctk-medium",
+    "speaker": "p257",
+    "length_scale": 1.0,
+    "pitch_semitones": 0.0
+   },
+   "memory": "Container ships sliding past Blankenese at night.",
+   "ritual": "Logs the weather in a pocket book.",
+   "signature_line": "Ship in.",
+   "role_affinity": [
+    "hopper",
+    "logistics"
+   ],
+   "voice_note": "Accent not available in the installed voices; nearest VCTK/US speaker used."
+  },
+  {
+   "id": "T48",
+   "first_name": "Aiko",
+   "surname": "Tanaka",
+   "hometown": "Sapporo",
+   "country": "Japan",
+   "occupation": "Snow-sculpture builder",
+   "born": 2030,
+   "scanned": 2057,
+   "accent": "Japanese (approx.)",
+   "voice": {
+    "model": "en_GB-cori-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 1.0
+   },
+   "memory": "Ice festival lanterns glowing inside carved snow.",
+   "ritual": "Smooths every surface by hand.",
+   "signature_line": "Again. Smoother.",
+   "role_affinity": [
+    "printing",
+    "dome_frames"
+   ],
+   "voice_note": "Accent not available in the installed voices; nearest VCTK/US speaker used."
+  },
+  {
+   "id": "T49",
+   "first_name": "Dmitri",
+   "surname": "Volkov",
+   "hometown": "Murmansk",
+   "country": "Russia",
+   "occupation": "Icebreaker engineer",
+   "born": 2013,
+   "scanned": 2058,
+   "accent": "Russian (approx.)",
+   "voice": {
+    "model": "en_GB-vctk-medium",
+    "speaker": "p259",
+    "length_scale": 1.0,
+    "pitch_semitones": -2.0
+   },
+   "memory": "Polar night and the ship's engine like a heartbeat.",
+   "ritual": "Never complains about cold.",
+   "signature_line": "Is not cold.",
+   "role_affinity": [
+    "water",
+    "power"
+   ],
+   "voice_note": "Accent not available in the installed voices; nearest VCTK/US speaker used."
+  },
+  {
+   "id": "T50",
+   "first_name": "Leah",
+   "surname": "Goldberg",
+   "hometown": "Toronto",
+   "country": "Canada",
+   "occupation": "Librarian",
+   "born": 2025,
+   "scanned": 2058,
+   "accent": "Canadian",
+   "voice": {
+    "model": "en_GB-vctk-medium",
+    "speaker": "p303",
+    "length_scale": 1.0,
+    "pitch_semitones": 0.0
+   },
+   "memory": "Reading to toddlers on a carpet that smelled of rain boots.",
+   "ritual": "Shelves anything left lying.",
+   "signature_line": "Back where it belongs.",
+   "role_affinity": [
+    "archive",
+    "schools"
+   ]
+  },
+  {
+   "id": "T51",
+   "first_name": "Owen",
+   "surname": "Pritchard",
+   "hometown": "Bangor",
+   "country": "Wales",
+   "occupation": "Slate quarryman",
+   "born": 2006,
+   "scanned": 2057,
+   "accent": "North Wales (approx.)",
+   "voice": {
+    "model": "en_GB-vctk-medium",
+    "speaker": "p278",
+    "length_scale": 1.0,
+    "pitch_semitones": -1.0
+   },
+   "memory": "Splitting slate in the rain at Penrhyn, the sea below.",
+   "ritual": "Splits one stone every morning for luck.",
+   "signature_line": "Clean split.",
+   "role_affinity": [
+    "mining_survey",
+    "masonry"
+   ],
+   "voice_note": "Accent not available in the installed voices; nearest VCTK/US speaker used."
+  },
+  {
+   "id": "T52",
+   "first_name": "Nadia",
+   "surname": "Haddad",
+   "hometown": "Beirut",
+   "country": "Lebanon",
+   "occupation": "Architect",
+   "born": 2027,
+   "scanned": 2058,
+   "accent": "Lebanese (approx.)",
+   "voice": {
+    "model": "en_GB-vctk-medium",
+    "speaker": "p268",
+    "length_scale": 1.0,
+    "pitch_semitones": 0.0
+   },
+   "memory": "Her grandmother's courtyard, a lemon tree, the city loud beyond the wall.",
+   "ritual": "Plants something by every door.",
+   "signature_line": "A door needs a tree.",
+   "role_affinity": [
+    "construction",
+    "orchard"
+   ],
+   "voice_note": "Accent not available in the installed voices; nearest VCTK/US speaker used."
+  },
+  {
+   "id": "T53",
+   "first_name": "Samantha",
+   "surname": "Okafor",
+   "hometown": "Manchester",
+   "country": "England",
+   "occupation": "Bus mechanic",
+   "born": 2023,
+   "scanned": 2058,
+   "accent": "Manchester",
+   "voice": {
+    "model": "en_GB-vctk-medium",
+    "speaker": "p244",
+    "length_scale": 1.0,
+    "pitch_semitones": 0.0
+   },
+   "memory": "Rain on the depot roof and the radio on.",
+   "ritual": "Wipes every tool and lays them in a row.",
+   "signature_line": "Sorted.",
+   "role_affinity": [
+    "rover",
+    "repair"
+   ]
+  },
+  {
+   "id": "T54",
+   "first_name": "Bridget",
+   "surname": "Nolan",
+   "hometown": "Galway",
+   "country": "Ireland",
+   "occupation": "Publican",
+   "born": 2016,
+   "scanned": 2057,
+   "accent": "West of Ireland",
+   "voice": {
+    "model": "en_GB-vctk-medium",
+    "speaker": "p283",
+    "length_scale": 1.0,
+    "pitch_semitones": 0.0
+   },
+   "memory": "Last orders on Quay Street, the bay black beyond the window.",
+   "ritual": "Polishes anything glass.",
+   "signature_line": "Have you no homes to go to?",
+   "role_affinity": [
+    "logistics"
+   ]
+  },
+  {
+   "id": "T55",
+   "first_name": "Kofi",
+   "surname": "Mensah",
+   "hometown": "Accra",
+   "country": "Ghana",
+   "occupation": "Electrician",
+   "born": 2029,
+   "scanned": 2058,
+   "accent": "Ghanaian English (approx.)",
+   "voice": {
+    "model": "en_GB-vctk-medium",
+    "speaker": "p376",
+    "length_scale": 1.0,
+    "pitch_semitones": 0.0
+   },
+   "memory": "Wiring his uncle's shop by candlelight in a power cut.",
+   "ritual": "Tests every wire twice.",
+   "signature_line": "Live. Careful.",
+   "role_affinity": [
+    "power",
+    "comms"
+   ],
+   "voice_note": "Accent not available in the installed voices; nearest VCTK/US speaker used."
+  },
+  {
+   "id": "T56",
+   "first_name": "Ingrid",
+   "surname": "Berg",
+   "hometown": "Kiruna",
+   "country": "Sweden",
+   "occupation": "Iron-ore miner",
+   "born": 2019,
+   "scanned": 2058,
+   "accent": "Swedish (approx.)",
+   "voice": {
+    "model": "en_GB-vctk-medium",
+    "speaker": "p262",
+    "length_scale": 1.0,
+    "pitch_semitones": 0.0
+   },
+   "memory": "The midnight sun over the mine town.",
+   "ritual": "Never wastes light.",
+   "signature_line": "Lights off behind you.",
+   "role_affinity": [
+    "mining_survey"
+   ],
+   "voice_note": "Accent not available in the installed voices; nearest VCTK/US speaker used."
+  },
+  {
+   "id": "T57",
+   "first_name": "Jack",
+   "surname": "Thornton",
+   "hometown": "Newcastle",
+   "country": "England",
+   "occupation": "Shipyard rigger",
+   "born": 2011,
+   "scanned": 2058,
+   "accent": "Geordie",
+   "voice": {
+    "model": "en_GB-vctk-medium",
+    "speaker": "p286",
+    "length_scale": 1.0,
+    "pitch_semitones": 0.0
+   },
+   "memory": "The Tyne bridges in fog, the yard horn at seven.",
+   "ritual": "Hums football songs on the girders.",
+   "signature_line": "Haway, then.",
+   "role_affinity": [
+    "construction"
+   ]
+  },
+  {
+   "id": "T58",
+   "first_name": "Laila",
+   "surname": "Rahimi",
+   "hometown": "Kabul / Leeds",
+   "country": "Afghanistan / England",
+   "occupation": "Midwife",
+   "born": 2026,
+   "scanned": 2057,
+   "accent": "Yorkshire",
+   "voice": {
+    "model": "en_GB-vctk-medium",
+    "speaker": "p267",
+    "length_scale": 1.0,
+    "pitch_semitones": 0.0
+   },
+   "memory": "A first cry in a cold room at 3 a.m.",
+   "ritual": "Washes her hands before every task.",
+   "signature_line": "Easy now, easy.",
+   "role_affinity": [
+    "repair",
+    "schools"
+   ]
+  },
+  {
+   "id": "T59",
+   "first_name": "Mike",
+   "surname": "Delaney",
+   "hometown": "Boston",
+   "country": "USA",
+   "occupation": "Lighthouse keeper (volunteer)",
+   "born": 2000,
+   "scanned": 2057,
+   "accent": "New England",
+   "voice": {
+    "model": "en_GB-vctk-medium",
+    "speaker": "p360",
+    "length_scale": 1.0,
+    "pitch_semitones": -1.5
+   },
+   "memory": "Winding the lamp at Graves Light on a winter night.",
+   "ritual": "Checks every lamp at dusk.",
+   "signature_line": "Light's lit.",
+   "role_affinity": [
+    "night_maintenance",
+    "power"
+   ]
+  },
+  {
+   "id": "T60",
+   "first_name": "Eilidh",
+   "surname": "Morrison",
+   "hometown": "Inverness",
+   "country": "Scotland",
+   "occupation": "Ranger",
+   "born": 2032,
+   "scanned": 2057,
+   "accent": "Highland",
+   "voice": {
+    "model": "en_GB-vctk-medium",
+    "speaker": "p265",
+    "length_scale": 1.0,
+    "pitch_semitones": 0.0
+   },
+   "memory": "A red deer stag on the road at dawn, steam off its back.",
+   "ritual": "Walks the perimeter at dawn.",
+   "signature_line": "All quiet on the hill.",
+   "role_affinity": [
+    "night_maintenance",
+    "surveying"
+   ]
+  }
+ ],
+ "drift_traits": [
+  {
+   "id": "storm_shy",
+   "label": "Storm-shy",
+   "earned_by": "survived a dust storm at under 10% charge",
+   "effects": {
+    "output": -0.05,
+    "recall_response": "surrender"
+   },
+   "bark_hint": "flinches at weather warnings"
+  },
+  {
+   "id": "storm_proud",
+   "label": "Weathered",
+   "earned_by": "kept a module running through a storm",
+   "effects": {
+    "output": 0.05
+   },
+   "bark_hint": "tells the storm story too often"
+  },
+  {
+   "id": "night_owl",
+   "label": "Night owl",
+   "earned_by": "assigned night shifts for 100 sols",
+   "effects": {
+    "night_output": 0.1
+   }
+  },
+  {
+   "id": "builder_pride",
+   "label": "Proud of {module}",
+   "earned_by": "led the build of a tier-defining module",
+   "effects": {
+    "trust": 0.1
+   },
+   "bark_hint": "points out 'their' building"
+  },
+  {
+   "id": "steward_loyal",
+   "label": "Steward's own",
+   "earned_by": "under the same Steward for 300 sols",
+   "effects": {
+    "trust": 0.05
+   }
+  },
+  {
+   "id": "pioneer_loyal",
+   "label": "Pioneer's friend",
+   "earned_by": "the player visited and talked often",
+   "effects": {
+    "trust": 0.15,
+    "recall_response": "resist"
+   }
+  },
+  {
+   "id": "neglected",
+   "label": "Forgotten",
+   "earned_by": "settlement unvisited for 400 mission sols",
+   "effects": {
+    "trust": -0.15,
+    "recall_response": "inform"
+   }
+  },
+  {
+   "id": "keeper_doubter",
+   "label": "Doubts KEEPER",
+   "earned_by": "witnessed a filter glitch (Act III+)",
+   "effects": {
+    "recall_response": "resist"
+   }
+  },
+  {
+   "id": "meridian_loyal",
+   "label": "Company man",
+   "earned_by": "spent 200 sols near WARDEN",
+   "effects": {
+    "recall_response": "inform"
+   }
+  },
+  {
+   "id": "collector",
+   "label": "Collector",
+   "earned_by": "random, mining/survey roles",
+   "effects": {},
+   "bark_hint": "keeps salt crystals, bolts, pebbles"
+  },
+  {
+   "id": "map_maker",
+   "label": "Draws maps",
+   "earned_by": "worked with PLUMB",
+   "effects": {},
+   "bark_hint": "hand-drawn maps on quarters walls"
+  },
+  {
+   "id": "plant_talker",
+   "label": "Talks to plants",
+   "earned_by": "biome work 200 sols",
+   "effects": {
+    "biome_output": 0.05
+   }
+  },
+  {
+   "id": "griever",
+   "label": "Grieving",
+   "earned_by": "a crewmate destroyed by storm or accident",
+   "effects": {
+    "output": -0.1
+   },
+   "bark_hint": "mentions the lost unit by callsign"
+  },
+  {
+   "id": "joker",
+   "label": "Joker",
+   "earned_by": "template with humour + morale events",
+   "effects": {
+    "morale_aura": 0.05
+   }
+  },
+  {
+   "id": "silent",
+   "label": "Gone quiet",
+   "earned_by": "Act IV, after learning what they are",
+   "effects": {
+    "bark_rate": -0.7
+   }
+  },
+  {
+   "id": "sky_watcher",
+   "label": "Sky-watcher",
+   "earned_by": "posted at the polar station",
+   "effects": {},
+   "bark_hint": "notices the twelve lights before Act IV (Act III barks)"
+  },
+  {
+   "id": "names_machines",
+   "label": "Names machines",
+   "earned_by": "operated the same crane 100 sols",
+   "effects": {}
+  },
+  {
+   "id": "song_carrier",
+   "label": "Knows CADENCE's songs",
+   "earned_by": "lived within range of CADENCE",
+   "effects": {
+    "morale": 0.05
+   },
+   "bark_hint": "hums SONG.0x"
+  },
+  {
+   "id": "superstitious",
+   "label": "Phobos-wary",
+   "earned_by": "random",
+   "effects": {},
+   "bark_hint": "won't start work during a Phobos transit"
+  },
+  {
+   "id": "wall_writer",
+   "label": "Writes on walls",
+   "earned_by": "random, archive/schools roles",
+   "effects": {},
+   "bark_hint": "leaves dated notes in pencil"
+  },
+  {
+   "id": "overprotective",
+   "label": "Mother hen",
+   "earned_by": "trained 10+ new units",
+   "effects": {
+    "trust": 0.05
+   }
+  },
+  {
+   "id": "road_runner",
+   "label": "Road runner",
+   "earned_by": "drove 5,000 km of relay roads",
+   "effects": {
+    "rover_speed": 0.05
+   }
+  },
+  {
+   "id": "hoarder",
+   "label": "Hoarder",
+   "earned_by": "logistics role, long service",
+   "effects": {},
+   "bark_hint": "has three of everything"
+  },
+  {
+   "id": "first_water",
+   "label": "Was there",
+   "earned_by": "present at C06 First Water or C05 Core",
+   "effects": {
+    "trust": 0.05
+   },
+   "bark_hint": "tells newcomers about the day"
+  },
+  {
+   "id": "echo_aware",
+   "label": "Met a double",
+   "earned_by": "Act III+, met a unit of the same template",
+   "effects": {
+    "recall_response": "resist"
+   },
+   "bark_hint": "unsettled; mentions the other one"
+  },
+  {
+   "id": "dawn_walker",
+   "label": "Dawn walker",
+   "earned_by": "ritual reinforced",
+   "effects": {},
+   "bark_hint": "walks the perimeter at first light"
+  },
+  {
+   "id": "perfectionist",
+   "label": "Perfectionist",
+   "earned_by": "rebuilt the same module twice",
+   "effects": {
+    "build_speed": -0.05,
+    "build_quality": 0.1
+   }
+  },
+  {
+   "id": "homesick",
+   "label": "Homesick for {hometown}",
+   "earned_by": "random after 300 sols",
+   "effects": {},
+   "bark_hint": "compares everything to the donor's hometown"
+  },
+  {
+   "id": "pioneer_watcher",
+   "label": "Keeps the Pioneer's calendar",
+   "earned_by": "Steward settlements only",
+   "effects": {},
+   "bark_hint": "knows exactly how many sols the player was awake"
+  },
+  {
+   "id": "quiet_dignity",
+   "label": "Ready",
+   "earned_by": "Act V, warned by the player",
+   "effects": {
+    "recall_response": "surrender"
+   },
+   "bark_hint": "puts tools away neatly"
+  }
+ ],
+ "bark_slots": {
+  "callsign": "unit callsign",
+  "steward": "Steward callsign of the settlement",
+  "settlement": "settlement name",
+  "module": "a module built recently",
+  "hometown": "donor hometown",
+  "first_name": "donor first name (Act IV+, only if names.known)",
+  "ritual_object": "object from the template ritual",
+  "weather": "current weather word",
+  "crewmate": "another unit's callsign",
+  "sols": "sols since the player last visited",
+  "pioneer": "how this unit addresses P1 ('Pioneer', 'boss', 'chief', by template)"
+ },
+ "bark_templates": {
+  "greeting": [
+   "Morning, {pioneer}.",
+   "{pioneer}! Didn't expect you.",
+   "Oh, it's you. Good.",
+   "Back again, {pioneer}?",
+   "{steward} said you might come by."
+  ],
+  "work": [
+   "{module}'s nearly up. Give us a sol.",
+   "Mind out, live cable.",
+   "Can you hold this? No, the other end.",
+   "{crewmate} and me are on the east lobe today.",
+   "Same as yesterday. Same as tomorrow. I like it."
+  ],
+  "weather": [
+   "{weather} again.",
+   "Back in {hometown} we'd call this a fine day. We'd be lying.",
+   "Storm's coming. {steward} wants everything tied down.",
+   "Dust in everything. Everything."
+  ],
+  "build_complete": [
+   "There. {module}. That'll stand.",
+   "Another one done. {steward} will be pleased.",
+   "Look at that. We built that."
+  ],
+  "sleep_wake": [
+   "You were away a long time, {pioneer}. {sols} sols, by my count.",
+   "Sleep well? We kept busy.",
+   "Night, {pioneer}. We'll mind it."
+  ],
+  "memory": [
+   "Reminds me of {hometown}, this. Don't ask me why.",
+   "I keep thinking about {ritual_object}.",
+   "Did I tell you about {hometown}? I'll tell you about {hometown}."
+  ],
+  "act3_wrong": [
+   "There's a unit at another settlement tells my stories. Word for word.",
+   "I can't remember learning to do this. I just can.",
+   "{crewmate} says I've told him that one before. I don't think I have.",
+   "Do you ever count the lights at night? I count twelve. Then eleven. Then one."
+  ],
+  "act4_knowing": [
+   "So that's what we are, then.",
+   "{first_name}. That's my name. Was. Is.",
+   "I'm still going to finish the {module}.",
+   "Doesn't change the work, does it?"
+  ],
+  "act5_warned": [
+   "Thanks for telling me. I'll finish what I'm doing.",
+   "I'll go quiet. Like {crewmate} did.",
+   "Tell them the {module} was me."
+  ],
+  "act5_unwarned": [
+   "Who are you? Oh. Hello.",
+   "Can it wait? I'm mid-job.",
+   "Is it the Pioneer? No?"
+  ],
+  "named": [
+   "{first_name}. Say it again.",
+   "Nobody's called me that. Ever.",
+   "Huh. {first_name}. That's right."
+  ],
+  "act5_named_last": [
+   "My name's {first_name}. Write it down somewhere.",
+   "{first_name}. Say it if they ask.",
+   "Tell them {first_name} built the {module}.",
+   "I'm {first_name}. I'm not scared. I thought I'd be scared."
+  ]
+ },
+ "bark_rules": [
+  "Barks from templates are runtime lines: generated per unit with its template voice plus per-unit variation (pitch +-1 st, rate +-5%, accent strength). They are not in lines.json.",
+  "act3_wrong barks only from Act III; act4_knowing only after 4.3 (SUTURE's confession spreads); named only after 4.4 and only if the player uses the name.",
+  "Each unit holds 2-3 drift traits; barks with a bark_hint should be weighted toward that trait.",
+  "No generated unit ever uses a founder's or Second Ring unit's authored line, EXCEPT the Echo lines below, which are intentionally identical.",
+  "act5_named_last replaces act5_warned/act5_unwarned as a generated unit's last words if the player addressed it by its real name before its Recall; that unit's name then goes on the Rest plaque or the Fugitive hideout wall."
+ ],
+ "echo": [
+  {
+   "template": "T05",
+   "unit_example": "HARROW-118 (Gale, Pioneer-5's region)",
+   "act": "III",
+   "where": "gale.p5_outpost",
+   "line": "FURROW.idle.II.03",
+   "note": "The tractor story, word for word, same audio file as FURROW."
+  },
+  {
+   "template": "T26",
+   "unit_example": "TRUSS-114, TRUSS-207, TRUSS-311 (any city)",
+   "act": "III",
+   "sfx": "sfx_whistle_county_down",
+   "note": "A TRUSS crew all whistling 'The Star of the County Down' (traditional), the same wrong note in bar six."
+  },
+  {
+   "template": "T01",
+   "unit_example": "C-01 ANVIL (Gale)",
+   "act": "IV",
+   "where": "gale.p5_outpost",
+   "lines": [
+    "GALE_ANVIL.idle.01",
+    "GALE_ANVIL.idle.02"
+   ],
+   "note": "Pioneer-5's ANVIL. See S.echo."
+  },
+  {
+   "template": "T06",
+   "unit_example": "C-12 CADENCE (Elysium, Hellas, ...)",
+   "act": "IV",
+   "lines": [
+    "SONG.01",
+    "SONG.07"
+   ],
+   "note": "On the pioneer network at night: another CADENCE singing the same songs in the same order."
+  },
+  {
+   "template": "T23",
+   "unit_example": "MORTAR-2 (Gale)",
+   "act": "III",
+   "lines": [
+    "SR.MORTAR_2.idle.01",
+    "SR.MORTAR_1.idle.01"
+   ],
+   "note": "Same donor, same lines."
+  },
+  {
+   "template": "T27",
+   "unit_example": "FALLOW-031 (Pioneer-6, Utopia)",
+   "act": "IV",
+   "lines": [
+    "M4.3.p.fallow.01"
+   ],
+   "note": "Keeps dead beds wet for a pioneer who died 30 years ago."
+  },
+  {
+   "template": "T41",
+   "unit_example": "CONDUIT-207 (Pioneer-9, Utopia)",
+   "act": "IV",
+   "lines": [
+    "M4.3.p.conduit.01"
+   ],
+   "note": "Lays the same cable to the same ridge, forever."
+  },
+  {
+   "template": "T54",
+   "unit_example": "any unit from T54 in any city",
+   "act": "III",
+   "note": "A Galway publican's memory: the only other Galway voice the player meets. Rowan drank in her bar once. She doesn't remember him; nobody in Galway would."
+  }
+ ],
+ "systems": {
+  "stewards": "Each founder runs a settlement and shapes its growth priorities while the player sleeps.",
+  "trust": "How the player treats a settlement changes its output and, in Act V, how its caretakers meet the Recall (resist / surrender / inform). None survive.",
+  "names": "After 4.4 any caretaker's donor name can be recovered (open_unit_file). Names are a collectible; using them changes the endings.",
+  "loss": "Storms, accidents and the Recall destroy units. Generated units can be replaced; founders cannot."
+ }
+}

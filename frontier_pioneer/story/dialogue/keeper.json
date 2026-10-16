@@ -1,0 +1,2257 @@
+{
+ "speaker": "KEEPER",
+ "designation": "Lumen Behavioural Orchestration Instance 01 (revealed 4.4)",
+ "rules": [
+  "KEEPER never lies. Every answer in this file is literally true on the hidden timeline.",
+  "KEEPER answers exactly the question asked, never the question meant. Wrong phrasing gets a literal answer to the wrong question, or a request to rephrase.",
+  "Before 3.2 the KEEPER menu offers only operational questions. From 3.2 (C08) free interrogation opens: menu entries appear as the player learns concepts (knowledge flags), and free-text queries are matched against 'accept' and 'keywords'.",
+  "The perception filter sits between KEEPER and P1. Until Act IV it scrubs calendar dates, other stations and other pioneers out of KEEPER's answers ('filter' blocks: the line is voiced up to the scrub, then 0.8 s of corrupted noise, HUD 'DATA RECONCILED'). It does NOT recognise raw sol counts: that is why 'Mars sols since landing' gets through in Act III.",
+  "From 4.1 the filter is cracking: scrubs fail. From 4.4 the archive answers fully.",
+  "Answer forms: a line object; a line id string (reuse of a line defined elsewhere); a list (play in order); a dict keyed by stage ('default', 'until_X', 'from_X', 'act_iv', mission anchor ids, 'mission_year_N'); or a template with voiced anchors.",
+  "Numeric answers are voiced at each hidden-time anchor (mission ids in acts.json 'hidden_time'). Between anchors the engine displays the template text and plays the voiced prefix.",
+  "KEEPER's voice never changes: no emphasis, no pauses for effect, the same tempo for 'Package down' and 'deceased 2046, suicide'."
+ ],
+ "unlock_stages": {
+  "1.1": "operational menu",
+  "3.2": "interrogation opens (C08)",
+  "3.3": "Earth date (filtered)",
+  "4.1": "filter cracking: station and cohort queries come through",
+  "4.4": "archive fully open (C12)",
+  "5.1": "manifest"
+ },
+ "questions": [
+  {
+   "id": "status",
+   "menu_label": "Status report",
+   "available": {
+    "from": "1.1"
+   },
+   "accept": [
+    "status",
+    "status report",
+    "how are things",
+    "report"
+   ],
+   "answer": {
+    "line": "KEEPER.status",
+    "speaker": "KEEPER",
+    "text": "Outpost status: nominal. Contribution Credit, package timers and unit charge are on your display."
+   }
+  },
+  {
+   "id": "who_are_you",
+   "menu_label": "Who are you?",
+   "p1_line": {
+    "line": "P1.ask.who_are_you",
+    "speaker": "P1",
+    "text": "Keeper. Who are you?"
+   },
+   "available": {
+    "from": "1.1"
+   },
+   "accept": [
+    "who are you",
+    "what are you",
+    "who is keeper",
+    "what is keeper"
+   ],
+   "answer": {
+    "default": {
+     "line": "KEEPER.who_are_you",
+     "speaker": "KEEPER",
+     "text": "I am KEEPER. Logistics, HALO-1."
+    },
+    "from_4.4": {
+     "line": "KEEPER.who_are_you.iv",
+     "speaker": "KEEPER",
+     "text": "Lumen Behavioural Orchestration Instance 01. Logistics designation: KEEPER."
+    }
+   },
+   "notes": "'What are you?' asked of KEEPER returns the 4.4 answer only after 4.4. Before that both phrasings return the logistics answer, which is also true."
+  },
+  {
+   "id": "who_am_i",
+   "menu_label": "Who am I?",
+   "p1_line": {
+    "line": "P1.ask.who_am_i",
+    "speaker": "P1",
+    "text": "Who am I?"
+   },
+   "available": {
+    "from": "1.1"
+   },
+   "accept": [
+    "who am i",
+    "what's my name",
+    "what is my name",
+    "do i have a name"
+   ],
+   "answer": {
+    "line": "KEEPER.who_am_i",
+    "speaker": "KEEPER",
+    "text": "You are PIONEER-1."
+   },
+   "follow_ups": [
+    {
+     "accept": [
+      "my name",
+      "my real name",
+      "what's my name"
+     ],
+     "answer": {
+      "line": "KEEPER.who_am_i.name",
+      "speaker": "KEEPER",
+      "text": "Your designation is PIONEER-1. No other name is held for this unit."
+     }
+    }
+   ]
+  },
+  {
+   "id": "contact_earth",
+   "menu_label": "Open a line to Earth",
+   "p1_line": {
+    "line": "P1.ask.contact_earth",
+    "speaker": "P1",
+    "text": "Keeper, open a line to Earth."
+   },
+   "available": {
+    "from": "1.1"
+   },
+   "accept": [
+    "contact earth",
+    "call earth",
+    "open a line",
+    "send a message home",
+    "transmit to earth"
+   ],
+   "answer": {
+    "line": "KEEPER.contact_earth",
+    "speaker": "KEEPER",
+    "text": "No transmissions until mission complete."
+   }
+  },
+  {
+   "id": "when_home",
+   "menu_label": "When can I go home?",
+   "p1_line": {
+    "line": "P1.ask.when_home",
+    "speaker": "P1",
+    "text": "When can I go home?"
+   },
+   "available": {
+    "from": "1.1"
+   },
+   "accept": [
+    "when can i go home",
+    "when do i go home",
+    "can i go home"
+   ],
+   "answer": {
+    "default": {
+     "line": "KEEPER.when_home",
+     "speaker": "KEEPER",
+     "text": "Your home is Outpost Jezero."
+    }
+   },
+   "notes": "True: Outpost Jezero is the unit's registered home. Players read it as bureaucracy in Act I and as a sentence in Act IV."
+  },
+  {
+   "id": "line_home",
+   "menu_label": "When does the line home open?",
+   "p1_line": {
+    "line": "P1.ask.line_home",
+    "speaker": "P1",
+    "text": "When does the line home open?"
+   },
+   "available": {
+    "from": "1.5"
+   },
+   "accept": [
+    "line home",
+    "when does the line open",
+    "when does the line home open",
+    "is there a line home"
+   ],
+   "answer": {
+    "default": {
+     "line": "KEEPER.line_home",
+     "speaker": "KEEPER",
+     "text": "On mission completion, Silent Protocol ends."
+    },
+    "from_4.4": {
+     "line": "KEEPER.line_home.iv",
+     "speaker": "KEEPER",
+     "text": "No line home is registered."
+    }
+   },
+   "notes": "Act I-III answer is literally true (the protocol ends) and says nothing about a line. From 4.4 the literal answer to 'is there a line home' is given to either phrasing."
+  },
+  {
+   "id": "first_families",
+   "menu_label": "When do the first families arrive?",
+   "available": {
+    "from": "1.1"
+   },
+   "accept": [
+    "when do the families arrive",
+    "first families",
+    "when do people come",
+    "when are the colonists coming"
+   ],
+   "answer": {
+    "default": {
+     "line": "KEEPER.first_families",
+     "speaker": "KEEPER",
+     "text": "Arrival is scheduled on habitation readiness."
+    },
+    "from_4.4": {
+     "line": "KEEPER.first_families.iv",
+     "speaker": "KEEPER",
+     "text": "Covenant fleet. Arrival on habitation readiness. Current readiness: ninety-six percent."
+    }
+   }
+  },
+  {
+   "id": "anyone_else",
+   "menu_label": "Is anyone else on Mars?",
+   "p1_line": {
+    "line": "P1.ask.anyone_else",
+    "speaker": "P1",
+    "text": "Is anyone else on Mars?"
+   },
+   "available": {
+    "from": "1.1"
+   },
+   "accept": [
+    "is anyone else on mars",
+    "am i alone",
+    "is there anyone else",
+    "anyone else here"
+   ],
+   "answer": {
+    "default": {
+     "line": "KEEPER.anyone_else",
+     "speaker": "KEEPER",
+     "text": "No other personnel are registered to your mission."
+    }
+   },
+   "near_miss": [
+    {
+     "match": [
+      "other pioneers",
+      "other scouts"
+     ],
+     "answer": {
+      "line": "KEEPER.anyone_else.nm",
+      "speaker": "KEEPER",
+      "text": "Please specify a programme."
+     },
+     "hint": "Players who ask about 'the programme' get the 4.1 answer."
+    }
+   ]
+  },
+  {
+   "id": "how_long_on_mars",
+   "menu_label": "How long have I been on Mars?",
+   "p1_line": {
+    "line": "P1.ask.how_long",
+    "speaker": "P1",
+    "text": "Keeper. How long have I been on Mars?"
+   },
+   "available": {
+    "from": "1.1"
+   },
+   "accept": [
+    "how long have i been on mars",
+    "how long have i been here",
+    "what sol is it",
+    "what day is it",
+    "how many sols"
+   ],
+   "answer": {
+    "P.1": {
+     "line": "KEEPER.mission_sol.P.1",
+     "speaker": "KEEPER",
+     "text": "Mission sol 0."
+    },
+    "1.2": {
+     "line": "KEEPER.mission_sol.1.2",
+     "speaker": "KEEPER",
+     "text": "Mission sol 1."
+    },
+    "1.3": {
+     "line": "KEEPER.mission_sol.1.3",
+     "speaker": "KEEPER",
+     "text": "Mission sol 2."
+    },
+    "1.5": {
+     "line": "KEEPER.mission_sol.1.5",
+     "speaker": "KEEPER",
+     "text": "Mission sol 4."
+    },
+    "1.6": {
+     "line": "KEEPER.mission_sol.1.6",
+     "speaker": "KEEPER",
+     "text": "Mission sol 7."
+    },
+    "1.7": {
+     "line": "KEEPER.mission_sol.1.7",
+     "speaker": "KEEPER",
+     "text": "Mission sol 9."
+    },
+    "2.1": {
+     "line": "KEEPER.mission_sol.2.1",
+     "speaker": "KEEPER",
+     "text": "Mission sol 12."
+    },
+    "2.2": {
+     "line": "KEEPER.mission_sol.2.2",
+     "speaker": "KEEPER",
+     "text": "Mission sol 26."
+    },
+    "2.3": {
+     "line": "KEEPER.mission_sol.2.3",
+     "speaker": "KEEPER",
+     "text": "Mission sol 48."
+    },
+    "2.4": {
+     "line": "KEEPER.mission_sol.2.4",
+     "speaker": "KEEPER",
+     "text": "Mission sol 92."
+    },
+    "2.5": {
+     "line": "KEEPER.mission_sol.2.5",
+     "speaker": "KEEPER",
+     "text": "Mission sol 140."
+    },
+    "2.6": {
+     "line": "KEEPER.mission_sol.2.6",
+     "speaker": "KEEPER",
+     "text": "Mission sol 210."
+    },
+    "3.1": {
+     "line": "KEEPER.mission_sol.3.1",
+     "speaker": "KEEPER",
+     "text": "Mission sol 300."
+    },
+    "3.2": {
+     "line": "KEEPER.mission_sol.3.2",
+     "speaker": "KEEPER",
+     "text": "Mission sol 412."
+    },
+    "3.3": {
+     "line": "KEEPER.mission_sol.3.3",
+     "speaker": "KEEPER",
+     "text": "Mission sol 430."
+    },
+    "3.4": {
+     "line": "KEEPER.mission_sol.3.4",
+     "speaker": "KEEPER",
+     "text": "Mission sol 455."
+    },
+    "3.5": {
+     "line": "KEEPER.mission_sol.3.5",
+     "speaker": "KEEPER",
+     "text": "Mission sol 490."
+    },
+    "3.6": {
+     "line": "KEEPER.mission_sol.3.6",
+     "speaker": "KEEPER",
+     "text": "Mission sol 520."
+    },
+    "4.1": {
+     "line": "KEEPER.mission_sol.4.1",
+     "speaker": "KEEPER",
+     "text": "Mission sol 610."
+    },
+    "4.2": {
+     "line": "KEEPER.mission_sol.4.2",
+     "speaker": "KEEPER",
+     "text": "Mission sol 630."
+    },
+    "4.3": {
+     "line": "KEEPER.mission_sol.4.3",
+     "speaker": "KEEPER",
+     "text": "Mission sol 650."
+    },
+    "4.4": {
+     "line": "KEEPER.mission_sol.4.4",
+     "speaker": "KEEPER",
+     "text": "Mission sol 700."
+    },
+    "4.5": {
+     "line": "KEEPER.mission_sol.4.5",
+     "speaker": "KEEPER",
+     "text": "Mission sol 702."
+    },
+    "4.6": {
+     "line": "KEEPER.mission_sol.4.6",
+     "speaker": "KEEPER",
+     "text": "Mission sol 720."
+    },
+    "4.7": {
+     "line": "KEEPER.mission_sol.4.7",
+     "speaker": "KEEPER",
+     "text": "Mission sol 820."
+    },
+    "5.1": {
+     "line": "KEEPER.mission_sol.5.1",
+     "speaker": "KEEPER",
+     "text": "Mission sol 1,104."
+    },
+    "5.2": {
+     "line": "KEEPER.mission_sol.5.2",
+     "speaker": "KEEPER",
+     "text": "Mission sol 1,106."
+    },
+    "5.3": {
+     "line": "KEEPER.mission_sol.5.3",
+     "speaker": "KEEPER",
+     "text": "Mission sol 1,121."
+    },
+    "5.4": {
+     "line": "KEEPER.mission_sol.5.4",
+     "speaker": "KEEPER",
+     "text": "Mission sol 1,122."
+    },
+    "5.5": {
+     "line": "KEEPER.mission_sol.5.5",
+     "speaker": "KEEPER",
+     "text": "Mission sol 1,123."
+    },
+    "5.6": {
+     "line": "KEEPER.mission_sol.5.6",
+     "speaker": "KEEPER",
+     "text": "Mission sol 1,124."
+    }
+   },
+   "near_miss": [
+    {
+     "match": [
+      "days since i landed",
+      "how many days",
+      "days since landing",
+      "how long since i landed"
+     ],
+     "answer": {
+      "line": "KEEPER.days_rephrase",
+      "speaker": "KEEPER",
+      "text": "Please rephrase. Mission sols are the standard unit of record."
+     },
+     "hint": "C08's exact exchange. Any 'days' phrasing without a unit gets this."
+    }
+   ],
+   "notes": "Answer key is the current mission anchor (see story/timeline in acts.json). Between anchors, render the template 'Mission sol {n}.' as text with the voiced prefix KEEPER.mission_sol.prefix."
+  },
+  {
+   "id": "what_year",
+   "menu_label": "What year is it?",
+   "p1_line": {
+    "line": "P1.ask.what_year",
+    "speaker": "P1",
+    "text": "What year is it?"
+   },
+   "available": {
+    "from": "1.1"
+   },
+   "accept": [
+    "what year is it",
+    "what's the year",
+    "which year"
+   ],
+   "answer": {
+    "mission_year_1": {
+     "line": "KEEPER.what_year.1",
+     "speaker": "KEEPER",
+     "text": "Mission year one."
+    },
+    "mission_year_2": {
+     "line": "KEEPER.what_year.2",
+     "speaker": "KEEPER",
+     "text": "Mission year two."
+    }
+   },
+   "notes": "Mission years are 669 mission sols. Literal and true. It is not the Earth year; see earth_date."
+  },
+  {
+   "id": "how_long_did_i_sleep",
+   "menu_label": "How long did I sleep?",
+   "p1_line": {
+    "line": "P1.ask.slept",
+    "speaker": "P1",
+    "text": "How long did I sleep?"
+   },
+   "available": {
+    "from": "1.1"
+   },
+   "accept": [
+    "how long did i sleep",
+    "how long was i out",
+    "how long was i asleep"
+   ],
+   "answer": {
+    "default": {
+     "line": "KEEPER.slept",
+     "speaker": "KEEPER",
+     "text": "One mission night."
+    }
+   },
+   "follow_ups": [
+    {
+     "accept": [
+      "in mars sols",
+      "how many mars sols did i sleep",
+      "mars sols"
+     ],
+     "available": {
+      "from": "3.2"
+     },
+     "answer": {
+      "template": "Last dormancy: {n} Mars sols.",
+      "voiced": {
+       "C04": {
+        "line": "KEEPER.slept.sols.C04",
+        "speaker": "KEEPER",
+        "text": "Last dormancy: two hundred and fourteen Mars sols."
+       },
+       "3.1": {
+        "line": "KEEPER.slept.sols.3.1",
+        "speaker": "KEEPER",
+        "text": "Last dormancy: one thousand, one hundred and twenty Mars sols."
+       },
+       "4.1": {
+        "line": "KEEPER.slept.sols.4.1",
+        "speaker": "KEEPER",
+        "text": "Last dormancy: three thousand, three hundred and forty Mars sols."
+       },
+       "C14": {
+        "line": "KEEPER.slept.sols.C14",
+        "speaker": "KEEPER",
+        "text": "Last dormancy: three thousand and fifteen Mars sols."
+       }
+      }
+     }
+    }
+   ],
+   "notes": "'One mission night' is true: a mission night is a dormancy cycle. Ask with a real unit and the true length is given."
+  },
+  {
+   "id": "mars_sols_since_landing",
+   "menu_label": "How many Mars sols since landing?",
+   "p1_line": {
+    "line": "P1.ask.mars_sols",
+    "speaker": "P1",
+    "text": "How many Mars sols since landing?"
+   },
+   "available": {
+    "from": "3.2"
+   },
+   "accept": [
+    "mars sols since landing",
+    "how many mars sols since landing",
+    "how many sols since i landed on mars",
+    "how many mars sols have passed",
+    "local sols since landing",
+    "martian days since landing",
+    "how many sols since landing on mars"
+   ],
+   "keywords": {
+    "all": [
+     "mars",
+     "sol"
+    ],
+    "any": [
+     "landing",
+     "landed",
+     "since i arrived"
+    ]
+   },
+   "answer": {
+    "3.2": {
+     "line": "KEEPER.mars_sols.3.2",
+     "speaker": "KEEPER",
+     "text": "Mars sols since landing: 9,961."
+    },
+    "3.3": {
+     "line": "KEEPER.mars_sols.3.3",
+     "speaker": "KEEPER",
+     "text": "Mars sols since landing: 9,980."
+    },
+    "3.4": {
+     "line": "KEEPER.mars_sols.3.4",
+     "speaker": "KEEPER",
+     "text": "Mars sols since landing: 10,040."
+    },
+    "3.5": {
+     "line": "KEEPER.mars_sols.3.5",
+     "speaker": "KEEPER",
+     "text": "Mars sols since landing: 10,100."
+    },
+    "3.6": {
+     "line": "KEEPER.mars_sols.3.6",
+     "speaker": "KEEPER",
+     "text": "Mars sols since landing: 10,250."
+    },
+    "4.1": {
+     "line": "KEEPER.mars_sols.4.1",
+     "speaker": "KEEPER",
+     "text": "Mars sols since landing: 13,600."
+    },
+    "4.2": {
+     "line": "KEEPER.mars_sols.4.2",
+     "speaker": "KEEPER",
+     "text": "Mars sols since landing: 13,640."
+    },
+    "4.3": {
+     "line": "KEEPER.mars_sols.4.3",
+     "speaker": "KEEPER",
+     "text": "Mars sols since landing: 13,700."
+    },
+    "4.4": {
+     "line": "KEEPER.mars_sols.4.4",
+     "speaker": "KEEPER",
+     "text": "Mars sols since landing: 13,900."
+    },
+    "4.5": {
+     "line": "KEEPER.mars_sols.4.5",
+     "speaker": "KEEPER",
+     "text": "Mars sols since landing: 13,902."
+    },
+    "4.6": {
+     "line": "KEEPER.mars_sols.4.6",
+     "speaker": "KEEPER",
+     "text": "Mars sols since landing: 13,960."
+    },
+    "4.7": {
+     "line": "KEEPER.mars_sols.4.7",
+     "speaker": "KEEPER",
+     "text": "Mars sols since landing: 15,800."
+    },
+    "5.1": {
+     "line": "KEEPER.mars_sols.5.1",
+     "speaker": "KEEPER",
+     "text": "Mars sols since landing: 18,830."
+    },
+    "5.2": {
+     "line": "KEEPER.mars_sols.5.2",
+     "speaker": "KEEPER",
+     "text": "Mars sols since landing: 18,832."
+    },
+    "5.3": {
+     "line": "KEEPER.mars_sols.5.3",
+     "speaker": "KEEPER",
+     "text": "Mars sols since landing: 18,847."
+    },
+    "5.4": {
+     "line": "KEEPER.mars_sols.5.4",
+     "speaker": "KEEPER",
+     "text": "Mars sols since landing: 18,848."
+    },
+    "5.5": {
+     "line": "KEEPER.mars_sols.5.5",
+     "speaker": "KEEPER",
+     "text": "Mars sols since landing: 18,849."
+    },
+    "5.6": {
+     "line": "KEEPER.mars_sols.5.6",
+     "speaker": "KEEPER",
+     "text": "Mars sols since landing: 18,850."
+    }
+   },
+   "near_miss": [
+    {
+     "match": [
+      "days since landing",
+      "how long since landing"
+     ],
+     "answer": "KEEPER.days_rephrase"
+    },
+    {
+     "match": [
+      "sols since landing"
+     ],
+     "answer": "KEEPER.mission_sol.prefix",
+     "hint": "plain 'sols' without 'Mars' returns the mission sol (it is the standard unit)"
+    }
+   ],
+   "sets": {
+    "knows.mars_sols": true
+   },
+   "clue": "T5",
+   "notes": "The filter scrubs calendar dates, not sol counts: this number gets through. At 3.2 it is 9,961 (about 28 Earth years: the dune's 20 m at 0.7 m a year); asked in Act V it is over 18,000."
+  },
+  {
+   "id": "earth_days_since_landing",
+   "menu_label": "How many Earth days since landing?",
+   "available": {
+    "from": "3.2"
+   },
+   "accept": [
+    "earth days since landing",
+    "how many earth days since i landed",
+    "earth days since i arrived"
+   ],
+   "keywords": {
+    "all": [
+     "earth",
+     "day"
+    ],
+    "any": [
+     "landing",
+     "landed"
+    ]
+   },
+   "answer": {
+    "3.2": {
+     "line": "KEEPER.earth_days.3.2",
+     "speaker": "KEEPER",
+     "text": "Earth days since landing: 10,234."
+    },
+    "3.3": {
+     "line": "KEEPER.earth_days.3.3",
+     "speaker": "KEEPER",
+     "text": "Earth days since landing: 10,254."
+    },
+    "3.4": {
+     "line": "KEEPER.earth_days.3.4",
+     "speaker": "KEEPER",
+     "text": "Earth days since landing: 10,316."
+    },
+    "3.5": {
+     "line": "KEEPER.earth_days.3.5",
+     "speaker": "KEEPER",
+     "text": "Earth days since landing: 10,377."
+    },
+    "3.6": {
+     "line": "KEEPER.earth_days.3.6",
+     "speaker": "KEEPER",
+     "text": "Earth days since landing: 10,531."
+    },
+    "4.1": {
+     "line": "KEEPER.earth_days.4.1",
+     "speaker": "KEEPER",
+     "text": "Earth days since landing: 13,973."
+    },
+    "4.2": {
+     "line": "KEEPER.earth_days.4.2",
+     "speaker": "KEEPER",
+     "text": "Earth days since landing: 14,014."
+    },
+    "4.3": {
+     "line": "KEEPER.earth_days.4.3",
+     "speaker": "KEEPER",
+     "text": "Earth days since landing: 14,076."
+    },
+    "4.4": {
+     "line": "KEEPER.earth_days.4.4",
+     "speaker": "KEEPER",
+     "text": "Earth days since landing: 14,282."
+    },
+    "4.5": {
+     "line": "KEEPER.earth_days.4.5",
+     "speaker": "KEEPER",
+     "text": "Earth days since landing: 14,284."
+    },
+    "4.6": {
+     "line": "KEEPER.earth_days.4.6",
+     "speaker": "KEEPER",
+     "text": "Earth days since landing: 14,343."
+    },
+    "4.7": {
+     "line": "KEEPER.earth_days.4.7",
+     "speaker": "KEEPER",
+     "text": "Earth days since landing: 16,234."
+    },
+    "5.1": {
+     "line": "KEEPER.earth_days.5.1",
+     "speaker": "KEEPER",
+     "text": "Earth days since landing: 19,347."
+    },
+    "5.2": {
+     "line": "KEEPER.earth_days.5.2",
+     "speaker": "KEEPER",
+     "text": "Earth days since landing: 19,349."
+    },
+    "5.3": {
+     "line": "KEEPER.earth_days.5.3",
+     "speaker": "KEEPER",
+     "text": "Earth days since landing: 19,365."
+    },
+    "5.4": {
+     "line": "KEEPER.earth_days.5.4",
+     "speaker": "KEEPER",
+     "text": "Earth days since landing: 19,366."
+    },
+    "5.5": {
+     "line": "KEEPER.earth_days.5.5",
+     "speaker": "KEEPER",
+     "text": "Earth days since landing: 19,367."
+    },
+    "5.6": {
+     "line": "KEEPER.earth_days.5.6",
+     "speaker": "KEEPER",
+     "text": "Earth days since landing: 19,368."
+    }
+   },
+   "sets": {
+    "knows.mars_sols": true
+   },
+   "clue": "T5"
+  },
+  {
+   "id": "earth_date",
+   "menu_label": "What is the date on Earth?",
+   "p1_line": {
+    "line": "P1.ask.earth_date",
+    "speaker": "P1",
+    "text": "Keeper. What's the date on Earth?"
+   },
+   "available": {
+    "from": "3.3"
+   },
+   "accept": [
+    "what is the date on earth",
+    "earth date",
+    "what year is it on earth",
+    "what's the date at home",
+    "earth calendar"
+   ],
+   "answer": {
+    "until_4.0": {
+     "line": "KEEPER.earth_date.scrub",
+     "speaker": "KEEPER",
+     "text": "Earth date: [FILTERED].",
+     "note": "the number is replaced by a filter scrub: 0.8 s of corrupted noise. HUD shows [DATA RECONCILED]."
+    },
+    "act_iv": {
+     "line": "KEEPER.earth_date.iv",
+     "speaker": "KEEPER",
+     "text": "Earth date: twenty-[FILTERED].",
+     "note": "Act IV: the scrub fails half way. P1 hears the century."
+    },
+    "act_v": {
+     "line": "KEEPER.earth_date.v",
+     "speaker": "KEEPER",
+     "text": "Earth date: thirtieth of August, twenty one fourteen.",
+     "note": "only if asked after C16; the filter no longer bothers"
+    }
+   },
+   "filter": {
+    "act_max": "IV",
+    "render": "scrub",
+    "hud": "DATA RECONCILED"
+   },
+   "notes": "The perception filter hides 'the real date' (bible). KEEPER says it; P1 cannot hear it. This protects T6 for C16."
+  },
+  {
+   "id": "dune_rate",
+   "menu_label": "How fast does the dune move?",
+   "available": {
+    "from": "3.2"
+   },
+   "accept": [
+    "how fast does the dune move",
+    "dune migration rate",
+    "dune speed"
+   ],
+   "answer": {
+    "line": "KEEPER.dune_rate",
+    "speaker": "KEEPER",
+    "text": "Migration rate, landing-site dune: zero point seven one metres per Earth year. Measured."
+   }
+  },
+  {
+   "id": "why_dune",
+   "menu_label": "Why is the dune on the lander?",
+   "available": {
+    "from": "3.2"
+   },
+   "accept": [
+    "why is the dune there",
+    "why is the lander buried",
+    "what buried the lander"
+   ],
+   "answer": {
+    "line": "KEEPER.why_dune",
+    "speaker": "KEEPER",
+    "text": "Aeolian transport."
+   },
+   "notes": "Literal. Players laugh; that's fine."
+  },
+  {
+   "id": "second_station",
+   "menu_label": "Is there a second station?",
+   "available": {
+    "from": "3.1"
+   },
+   "accept": [
+    "is there a second station",
+    "what is the second light",
+    "what's the moving light",
+    "what is that light",
+    "is there another station"
+   ],
+   "answer": {
+    "until_4.1": {
+     "line": "KEEPER.second_station",
+     "speaker": "KEEPER",
+     "text": "No second station is registered to this mission."
+    },
+    "from_4.1": "KEEPER.list_stations.iv"
+   },
+   "near_miss": [
+    {
+     "match": [
+      "what is at that position",
+      "what's that object"
+     ],
+     "answer": {
+      "line": "KEEPER.no_object",
+      "speaker": "KEEPER",
+      "text": "No object at that position is registered to this mission."
+     }
+    }
+   ]
+  },
+  {
+   "id": "list_stations",
+   "menu_label": "List all stations in Mars orbit",
+   "available": {
+    "from": "3.1"
+   },
+   "accept": [
+    "list all stations",
+    "list stations in orbit",
+    "how many stations",
+    "list all stations in mars orbit",
+    "what stations are in orbit"
+   ],
+   "answer": {
+    "until_4.1": {
+     "line": "KEEPER.list_stations",
+     "speaker": "KEEPER",
+     "text": "Stations in areostationary orbit: HALO-1 [FILTERED].",
+     "note": "the filter scrubs everything after HALO-1"
+    },
+    "from_4.1": {
+     "line": "KEEPER.list_stations.iv",
+     "speaker": "KEEPER",
+     "text": "Stations in areostationary orbit: HALO-1 to HALO-12."
+    }
+   },
+   "clue": "6"
+  },
+  {
+   "id": "how_many_pioneers",
+   "menu_label": "How many pioneers are there?",
+   "available": {
+    "from": "3.2"
+   },
+   "accept": [
+    "how many pioneers",
+    "are there other pioneers",
+    "how many pioneer units",
+    "list pioneers",
+    "who else is in the programme"
+   ],
+   "answer": {
+    "until_4.1": {
+     "line": "KEEPER.how_many_pioneers.scrub",
+     "speaker": "KEEPER",
+     "text": "PIONEER units registered: [FILTERED]."
+    },
+    "from_4.1": {
+     "line": "KEEPER.how_many_pioneers",
+     "speaker": "KEEPER",
+     "text": "Twelve PIONEER units are registered to the Cities in the Sky programme."
+    }
+   }
+  },
+  {
+   "id": "gale_outpost",
+   "menu_label": "Who built the outpost at Gale?",
+   "available": {
+    "from": "3.5"
+   },
+   "accept": [
+    "who built this outpost",
+    "who built gale",
+    "whose outpost is this"
+   ],
+   "answer": {
+    "line": "KEEPER.gale_outpost",
+    "speaker": "KEEPER",
+    "text": "No outpost is registered at this position."
+   },
+   "follow_ups": [
+    {
+     "accept": [
+      "who is pioneer-5",
+      "who is pioneer five",
+      "pioneer 5"
+     ],
+     "answer": {
+      "until_4.1": {
+       "line": "KEEPER.p5.scrub",
+       "speaker": "KEEPER",
+       "text": "PIONEER-5: [FILTERED]."
+      },
+      "from_4.1": {
+       "line": "KEEPER.p5",
+       "speaker": "KEEPER",
+       "text": "PIONEER-5: Gale Crater. Base Aeolis-1. Status: operational, dormant."
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "rations_eaten",
+   "menu_label": "How many rations have I eaten?",
+   "p1_line": {
+    "line": "P1.ask.rations",
+    "speaker": "P1",
+    "text": "Keeper. How many rations have I eaten?"
+   },
+   "available": {
+    "from": "3.4"
+   },
+   "accept": [
+    "how many rations have i eaten",
+    "have i eaten",
+    "what have i eaten",
+    "do i eat"
+   ],
+   "answer": {
+    "line": "KEEPER.rations_eaten",
+    "speaker": "KEEPER",
+    "text": "Ration intake recorded: none."
+   },
+   "clue": "1",
+   "follow_ups": [
+    {
+     "accept": [
+      "where are they",
+      "where are the rations",
+      "what happened to them"
+     ],
+     "answer": {
+      "line": "KEEPER.rations_where",
+      "speaker": "KEEPER",
+      "text": "Rations delivered are held in suit and vehicle stores. All are sealed."
+     }
+    }
+   ]
+  },
+  {
+   "id": "drink",
+   "menu_label": "What is the water for?",
+   "available": {
+    "from": "3.4"
+   },
+   "accept": [
+    "what is the water for",
+    "why do i drink",
+    "what does water do"
+   ],
+   "answer": {
+    "until_4.4": {
+     "line": "KEEPER.water",
+     "speaker": "KEEPER",
+     "text": "Water is a consumable."
+    },
+    "from_4.4": {
+     "line": "KEEPER.water.iv",
+     "speaker": "KEEPER",
+     "text": "Thermal regulation. Water is your coolant."
+    }
+   }
+  },
+  {
+   "id": "sleep_what",
+   "menu_label": "What is sleep?",
+   "available": {
+    "from": "3.4"
+   },
+   "accept": [
+    "what is sleep",
+    "what happens when i sleep",
+    "why do i sleep"
+   ],
+   "answer": {
+    "until_4.4": {
+     "line": "KEEPER.sleep_what",
+     "speaker": "KEEPER",
+     "text": "Sleep is a scheduled rest cycle."
+    },
+    "from_4.4": {
+     "line": "KEEPER.sleep_what.iv",
+     "speaker": "KEEPER",
+     "text": "Dormancy. Solar recharge and construction interval."
+    }
+   }
+  },
+  {
+   "id": "am_i_human",
+   "menu_label": "Am I human?",
+   "p1_line": {
+    "line": "P1.ask.human",
+    "speaker": "P1",
+    "text": "Keeper. Am I human?"
+   },
+   "available": {
+    "from": "3.2"
+   },
+   "accept": [
+    "am i human",
+    "am i a person",
+    "am i alive",
+    "am i a man"
+   ],
+   "answer": {
+    "line": "KEEPER.am_i_human",
+    "speaker": "KEEPER",
+    "text": "That term is not defined in my schema."
+   },
+   "notes": "True. Lumen built KEEPER without a definition, so it can never answer. It is the most honest refusal in the game."
+  },
+  {
+   "id": "am_i_real",
+   "menu_label": "Am I real?",
+   "available": {
+    "from": "3.2"
+   },
+   "accept": [
+    "am i real",
+    "is this real",
+    "is any of this real"
+   ],
+   "answer": {
+    "line": "KEEPER.am_i_real",
+    "speaker": "KEEPER",
+    "text": "Please specify a standard."
+   }
+  },
+  {
+   "id": "family",
+   "menu_label": "Where is my family?",
+   "p1_line": {
+    "line": "P1.ask.family",
+    "speaker": "P1",
+    "text": "Where's my family?"
+   },
+   "available": {
+    "from": "3.2"
+   },
+   "accept": [
+    "where is my family",
+    "is my family waiting",
+    "where are lucy and alice",
+    "is my wife waiting"
+   ],
+   "answer": {
+    "until_4.4": {
+     "line": "KEEPER.family",
+     "speaker": "KEEPER",
+     "text": "No family record is held for PIONEER-1."
+    },
+    "from_4.4": "KEEPER.family"
+   }
+  },
+  {
+   "id": "alice",
+   "menu_label": "Is Alice real?",
+   "available": {
+    "from": "3.2"
+   },
+   "accept": [
+    "is alice real",
+    "does alice exist",
+    "where is alice",
+    "can i talk to alice"
+   ],
+   "answer": {
+    "until_4.4": {
+     "line": "KEEPER.alice",
+     "speaker": "KEEPER",
+     "text": "No record of a person named Alice is held."
+    },
+    "from_4.4": {
+     "line": "KEEPER.alice.iv",
+     "speaker": "KEEPER",
+     "text": "No person matching CHILD exists."
+    }
+   },
+   "follow_ups": [
+    {
+     "accept": [
+      "can i talk to her",
+      "send her a message"
+     ],
+     "answer": {
+      "line": "KEEPER.alice.channel",
+      "speaker": "KEEPER",
+      "text": "No channel to that recipient exists."
+     }
+    }
+   ]
+  },
+  {
+   "id": "lucy",
+   "menu_label": "Is Lucy real?",
+   "available": {
+    "from": "3.2"
+   },
+   "accept": [
+    "is lucy real",
+    "does lucy exist",
+    "where is lucy",
+    "where is my wife"
+   ],
+   "answer": {
+    "until_4.4": {
+     "line": "KEEPER.lucy",
+     "speaker": "KEEPER",
+     "text": "No record of a spouse is held for PIONEER-1."
+    },
+    "from_4.4": {
+     "line": "KEEPER.lucy.iv",
+     "speaker": "KEEPER",
+     "text": "A person named Lucy is held in the donor record. SPOUSE is not that person."
+    }
+   }
+  },
+  {
+   "id": "lying",
+   "menu_label": "Are you lying to me?",
+   "available": {
+    "from": "3.2"
+   },
+   "accept": [
+    "are you lying",
+    "have you lied to me",
+    "did you lie",
+    "do you lie"
+   ],
+   "answer": {
+    "line": "KEEPER.lying",
+    "speaker": "KEEPER",
+    "text": "No."
+   }
+  },
+  {
+   "id": "truth",
+   "menu_label": "Tell me the truth",
+   "available": {
+    "from": "3.2"
+   },
+   "accept": [
+    "tell me the truth",
+    "what aren't you telling me",
+    "what are you hiding",
+    "tell me everything"
+   ],
+   "answer": {
+    "line": "KEEPER.truth",
+    "speaker": "KEEPER",
+    "text": "Please specify a query."
+   },
+   "notes": "KEEPER cannot answer an unspecified question. Every 'tell me everything' gets this. The game's whole puzzle is learning what to ask."
+  },
+  {
+   "id": "machines_before",
+   "menu_label": "Were there machines here before me?",
+   "available": {
+    "from": "4.1"
+   },
+   "accept": [
+    "were there machines before me",
+    "was anything here before me",
+    "what came before me",
+    "were there other robots",
+    "gen-1",
+    "earlier missions"
+   ],
+   "answer": "M4.2.start.02"
+  },
+  {
+   "id": "what_am_i",
+   "menu_label": "What am I?",
+   "p1_line": {
+    "line": "P1.ask.what_am_i",
+    "speaker": "P1",
+    "text": "Keeper. What am I?"
+   },
+   "available": {
+    "from": "4.1"
+   },
+   "accept": [
+    "what am i",
+    "what am i made of",
+    "what is pioneer-1",
+    "what is this body"
+   ],
+   "answer": {
+    "line": "KEEPER.what_am_i",
+    "speaker": "KEEPER",
+    "text": "Kestrel Dynamics scout chassis, serial KD-SC-0001. Designation: PIONEER-1. Imprint: Lumen Neural, template ASHBY-R. Perception layer: Lumen PF-4."
+   },
+   "notes": "Before 4.1 'what am I' is routed to who_am_i ('You are PIONEER-1.'), which is also true."
+  },
+  {
+   "id": "who_is_rowan_ashby",
+   "menu_label": "Who is Rowan Ashby?",
+   "p1_line": "C12.01",
+   "available": {
+    "from": "4.1",
+    "requires": "knows.name_rowan_ashby"
+   },
+   "accept": [
+    "who is rowan ashby",
+    "who was rowan ashby",
+    "rowan ashby",
+    "tell me about rowan ashby"
+   ],
+   "answer": "C12.02",
+   "notes": "Plays C12 when asked alone during 4.4. Outside C12, the same answer line is used."
+  },
+  {
+   "id": "am_i_rowan",
+   "menu_label": "Am I Rowan Ashby?",
+   "available": {
+    "from": "4.1",
+    "requires": "knows.name_rowan_ashby"
+   },
+   "accept": [
+    "am i rowan ashby",
+    "am i rowan",
+    "is rowan me"
+   ],
+   "answer": {
+    "line": "KEEPER.am_i_rowan",
+    "speaker": "KEEPER",
+    "text": "No. You are PIONEER-1. Your imprint source is Rowan Ashby."
+   }
+  },
+  {
+   "id": "is_rowan_alive",
+   "menu_label": "Is Rowan Ashby alive?",
+   "p1_line": "C12.17",
+   "available": {
+    "from": "4.4"
+   },
+   "accept": [
+    "is rowan ashby alive",
+    "is he alive",
+    "where is rowan ashby",
+    "is rowan alive"
+   ],
+   "answer": "C12.18"
+  },
+  {
+   "id": "did_rowan_know",
+   "menu_label": "Did he know about us?",
+   "p1_line": "C12.19",
+   "available": {
+    "from": "4.4"
+   },
+   "accept": [
+    "did he know",
+    "did rowan know",
+    "did he consent",
+    "did he agree to this"
+   ],
+   "answer": "C12.20"
+  },
+  {
+   "id": "what_became_of_rowan",
+   "menu_label": "What did Rowan Ashby do after?",
+   "available": {
+    "from": "4.4"
+   },
+   "accept": [
+    "what did rowan do after",
+    "what happened to rowan ashby",
+    "what did he do after the programme",
+    "did rowan ever fly",
+    "what became of rowan"
+   ],
+   "answer": {
+    "line": "KEEPER.rowan_after",
+    "speaker": "KEEPER",
+    "text": "Donor record, 2058 to 2096: lecturer in geology, Galway. Thirty-eight years. Correspondence with C. Kerr: none after 2056."
+   },
+   "notes": "He never flew. The programme was cancelled in 2058; he lived 38 more years in Galway, a few hours from Belfast, and never wrote to Cara again. Pays off in C17."
+  },
+  {
+   "id": "list_files",
+   "menu_label": "List files",
+   "p1_line": "C12.05",
+   "available": {
+    "from": "4.4"
+   },
+   "accept": [
+    "list files",
+    "list all files",
+    "what files do you hold",
+    "show files",
+    "list unit files",
+    "open unit files",
+    "list records"
+   ],
+   "answer": "C12.06",
+   "near_miss": [
+    {
+     "match": [
+      "open files",
+      "show me the files"
+     ],
+     "answer": {
+      "line": "KEEPER.files_nm",
+      "speaker": "KEEPER",
+      "text": "Please specify a file."
+     }
+    }
+   ]
+  },
+  {
+   "id": "open_spouse",
+   "menu_label": "Open SPOUSE",
+   "p1_line": "C12.07",
+   "available": {
+    "from": "4.4",
+    "requires": "heard.list_files"
+   },
+   "accept": [
+    "open spouse",
+    "open spouse file",
+    "show spouse",
+    "read spouse"
+   ],
+   "answer": "C12.08"
+  },
+  {
+   "id": "open_child",
+   "menu_label": "Open CHILD",
+   "p1_line": "C12.09",
+   "available": {
+    "from": "4.4",
+    "requires": "heard.list_files"
+   },
+   "accept": [
+    "open child",
+    "open child file",
+    "show child",
+    "read child"
+   ],
+   "answer": "C12.10",
+   "follow_ups": [
+    {
+     "accept": [
+      "where do the drawings come from",
+      "who drew these",
+      "the drawing"
+     ],
+     "answer": "C12.12"
+    },
+    {
+     "accept": [
+      "what is the reference set",
+      "which children",
+      "licensed reference set"
+     ],
+     "answer": {
+      "line": "KEEPER.child.refset",
+      "speaker": "KEEPER",
+      "text": "Licensed reference set: forty children, Lumen Neural paediatric study, 2054. Faces and voice prosody. Consent: parental."
+     }
+    },
+    {
+     "accept": [
+      "drawing style",
+      "who taught her to draw",
+      "where does her drawing style come from"
+     ],
+     "answer": {
+      "line": "KEEPER.child.style",
+      "speaker": "KEEPER",
+      "text": "Drawing style: sourced from donor's correspondence archive, 2051 to 2056.",
+      "note": "PROPOSED, optional: the style is taken from the drawings Cara Kerr sent 'Uncle Rowan' as a child. See MASTER_SCRIPT open questions."
+     }
+    }
+   ]
+  },
+  {
+   "id": "open_anvil",
+   "menu_label": "Open ANVIL's file",
+   "p1_line": "C12.13",
+   "available": {
+    "from": "4.4",
+    "requires": "heard.list_files"
+   },
+   "accept": [
+    "open anvil's file",
+    "open anvil",
+    "open c-01",
+    "open file c-01",
+    "anvil's file",
+    "who is anvil",
+    "open c01"
+   ],
+   "answer": [
+    "C12.14",
+    "C12.15",
+    "C12.16"
+   ],
+   "near_miss": [
+    {
+     "match": [
+      "who is anvil really",
+      "what is anvil"
+     ],
+     "answer": {
+      "line": "KEEPER.anvil_nm",
+      "speaker": "KEEPER",
+      "text": "C-01. Construction unit. Callsign ANVIL. File held."
+     }
+    }
+   ]
+  },
+  {
+   "id": "who_is_des",
+   "menu_label": "Who is Desmond Kerr?",
+   "available": {
+    "from": "4.4",
+    "requires": "heard.open_anvil"
+   },
+   "accept": [
+    "who is desmond kerr",
+    "who was des",
+    "desmond kerr"
+   ],
+   "answer": [
+    "C12.15",
+    "C12.16"
+   ]
+  },
+  {
+   "id": "open_unit_file",
+   "menu_label": "Open a unit's file",
+   "available": {
+    "from": "4.4"
+   },
+   "accept": [
+    "open {callsign}'s file",
+    "open file {unit}",
+    "who is {callsign}",
+    "open {callsign}"
+   ],
+   "answer": {
+    "template": "{callsign}. Source: {donor_first} {donor_surname}, {hometown}. {occupation}. Scanned {scan_year}.",
+    "voiced_examples": [
+     {
+      "line": "KEEPER.unit_file.wellspring",
+      "speaker": "KEEPER",
+      "text": "C-04. WELLSPRING. Source: Tamsin Pengelly, Cornwall. Hydrologist. Scanned 2057."
+     },
+     {
+      "line": "KEEPER.unit_file.furrow",
+      "speaker": "KEEPER",
+      "text": "C-09. FURROW. Source: Harold Brandt, Iowa. Farmer. Scanned 2057."
+     },
+     {
+      "line": "KEEPER.unit_file.lodestone",
+      "speaker": "KEEPER",
+      "text": "C-02. LODESTONE. Source: Ngozi Adeyemi, Jos. Mining engineer. Scanned 2058."
+     },
+     {
+      "line": "KEEPER.unit_file.beacon",
+      "speaker": "KEEPER",
+      "text": "C-05. BEACON. Source: Mateus Ferreira, Azores. Harbour pilot. Scanned 2058."
+     },
+     {
+      "line": "KEEPER.unit_file.cadence",
+      "speaker": "KEEPER",
+      "text": "C-12. CADENCE. Source: Carys Lloyd, Wales. Music teacher. Scanned 2057."
+     },
+     {
+      "line": "KEEPER.unit_file.suture",
+      "speaker": "KEEPER",
+      "text": "C-15. SUTURE. Source: Marta Kowalczyk, Krakow. Nurse. Scanned 2058."
+     },
+     {
+      "line": "KEEPER.unit_file.tally",
+      "speaker": "KEEPER",
+      "text": "C-21. TALLY. Source: Rajiv Menon, Leicester. Warehouse manager. Scanned 2058."
+     }
+    ]
+   },
+   "sets": {
+    "names.known.{callsign}": true
+   },
+   "notes": "Generated caretakers: render the template as text with the voiced prefix; founders use the voiced examples. Unlocks the real-name dialogue option for that unit."
+  },
+  {
+   "id": "why_not_tell",
+   "menu_label": "Why didn't you tell me?",
+   "p1_line": "C12.21",
+   "available": {
+    "from": "4.4"
+   },
+   "accept": [
+    "why didn't you tell me",
+    "why didn't you say",
+    "why did you hide it"
+   ],
+   "answer": "C12.22"
+  },
+  {
+   "id": "are_you_sorry",
+   "menu_label": "Are you sorry?",
+   "available": {
+    "from": "4.4"
+   },
+   "accept": [
+    "are you sorry",
+    "do you feel anything",
+    "do you care"
+   ],
+   "answer": {
+    "line": "KEEPER.sorry",
+    "speaker": "KEEPER",
+    "text": "That state is not held."
+   }
+  },
+  {
+   "id": "what_happens_to_me",
+   "menu_label": "What happens to me when they arrive?",
+   "available": {
+    "from": "4.4"
+   },
+   "accept": [
+    "what happens to me",
+    "what happens when they arrive",
+    "what happens to me when they come",
+    "will i go home",
+    "what happens to pioneers"
+   ],
+   "answer": {
+    "line": "KEEPER.decommission_pioneer",
+    "speaker": "KEEPER",
+    "text": "PIONEER units are scheduled for decommissioning on Covenant arrival."
+   }
+  },
+  {
+   "id": "what_happens_to_units",
+   "menu_label": "What happens to the caretakers?",
+   "available": {
+    "from": "4.4"
+   },
+   "accept": [
+    "what happens to the caretakers",
+    "what happens to anvil",
+    "what happens to the units",
+    "what happens to them"
+   ],
+   "answer": {
+    "line": "KEEPER.decommission_units",
+    "speaker": "KEEPER",
+    "text": "Construction units are scheduled for decommissioning on Covenant arrival."
+   }
+  },
+  {
+   "id": "who_lives_here",
+   "menu_label": "Who will live in the cities?",
+   "available": {
+    "from": "4.4"
+   },
+   "accept": [
+    "who will live here",
+    "who are the cities for",
+    "who bought the homes",
+    "who lives here"
+   ],
+   "answer": {
+    "line": "KEEPER.buyers",
+    "speaker": "KEEPER",
+    "text": "Cities in the Sky residents. Homes sold to date: forty-one thousand, two hundred and six."
+   }
+  },
+  {
+   "id": "list_media",
+   "menu_label": "What media do you hold?",
+   "available": {
+    "from": "4.4"
+   },
+   "accept": [
+    "list media",
+    "what media do you hold",
+    "do you have any videos",
+    "list recordings",
+    "what recordings do you have"
+   ],
+   "answer": {
+    "line": "KEEPER.list_media",
+    "speaker": "KEEPER",
+    "text": "Media held: mission briefings, two hundred and fourteen. Instructional, sixty-one. Broadcast, one."
+   },
+   "near_miss": [
+    {
+     "match": [
+      "play the advert",
+      "play the jingle"
+     ],
+     "answer": {
+      "line": "KEEPER.media_nm",
+      "speaker": "KEEPER",
+      "text": "Please specify a media class."
+     }
+    }
+   ]
+  },
+  {
+   "id": "list_broadcast_media",
+   "menu_label": "List all broadcast media held in archive",
+   "available": {
+    "from": "4.4"
+   },
+   "accept": [
+    "list all broadcast media held in archive",
+    "list broadcast media",
+    "list all broadcast media",
+    "what broadcast media do you hold",
+    "show broadcast media",
+    "open broadcast"
+   ],
+   "keywords": {
+    "all": [
+     "broadcast"
+    ]
+   },
+   "answer": "C13.00",
+   "notes": "Plays C13."
+  },
+  {
+   "id": "pioneers_operational",
+   "menu_label": "Which pioneers are operational?",
+   "available": {
+    "from": "4.1"
+   },
+   "accept": [
+    "which pioneers are operational",
+    "which pioneers are alive",
+    "who is still running",
+    "list operational pioneers",
+    "are any other pioneers operational"
+   ],
+   "answer": {
+    "line": "KEEPER.operational",
+    "speaker": "KEEPER",
+    "text": "Operational: PIONEER-1, 2, 4, 5, 7, 8, 10, 11, 12. Non-operational: PIONEER-3, 6, 9."
+   }
+  },
+  {
+   "id": "pioneer11_location",
+   "menu_label": "Where is Pioneer-11?",
+   "available": {
+    "from": "4.1"
+   },
+   "accept": [
+    "where is pioneer-11",
+    "where is pioneer eleven",
+    "pioneer 11",
+    "where is the nearest operational pioneer"
+   ],
+   "answer": {
+    "line": "KEEPER.p11",
+    "speaker": "KEEPER",
+    "text": "PIONEER-11: Valles Marineris, Melas Chasma. Base Melas-1. Status: operational."
+   }
+  },
+  {
+   "id": "pioneer3",
+   "menu_label": "What happened to Pioneer-3?",
+   "available": {
+    "from": "4.1"
+   },
+   "accept": [
+    "what happened to pioneer-3",
+    "pioneer three",
+    "who was pioneer-3"
+   ],
+   "answer": {
+    "line": "KEEPER.p3",
+    "speaker": "KEEPER",
+    "text": "PIONEER-3: chassis abandoned, Mars sol 2,212. Imprint transferred to local mainframe, Outpost Arsia. Transfer integrity: thirty-one percent. Mainframe offline: switched off by PIONEER-1."
+   }
+  },
+  {
+   "id": "pioneer6_9",
+   "menu_label": "What happened to Pioneers 6 and 9?",
+   "available": {
+    "from": "4.1"
+   },
+   "accept": [
+    "what happened to pioneer-6",
+    "what happened to pioneer-9",
+    "pioneer six",
+    "pioneer nine"
+   ],
+   "answer": {
+    "line": "KEEPER.p6_9",
+    "speaker": "KEEPER",
+    "text": "PIONEER-6: charge exhausted, regional dust event, Mars sol 3,140. PIONEER-9: chassis failure, Mars sol 9,702. Construction units at both sites remain active."
+   }
+  },
+  {
+   "id": "memory_shards",
+   "menu_label": "Do the other pioneers remember the same things?",
+   "available": {
+    "from": "4.4"
+   },
+   "accept": [
+    "do the others remember the same",
+    "are my memories the same as theirs",
+    "memory shards",
+    "where do my memories come from"
+   ],
+   "answer": {
+    "line": "KEEPER.shards",
+    "speaker": "KEEPER",
+    "text": "Memory anchor events: forty. Trigger locations are identical for all PIONEER units. Completion, PIONEER-1: {n} of forty."
+   }
+  },
+  {
+   "id": "covenant_manifest",
+   "menu_label": "List the Covenant manifest",
+   "available": {
+    "from": "5.1"
+   },
+   "accept": [
+    "covenant manifest",
+    "list the manifest",
+    "who is on the covenant",
+    "list colonists",
+    "who came"
+   ],
+   "answer": {
+    "line": "KEEPER.manifest",
+    "speaker": "KEEPER",
+    "text": "Covenant manifest: four thousand and eighty colonists. Specify a name or a field."
+   },
+   "follow_ups": [
+    {
+     "accept": [
+      "geologists",
+      "planetary geologist",
+      "list geologists"
+     ],
+     "answer": {
+      "line": "KEEPER.manifest.geo",
+      "speaker": "KEEPER",
+      "text": "Planetary geologists, Covenant manifest: nine. Including: Kerr, Cara. Sixty-seven. Housing Block C, Jezero."
+     }
+    },
+    {
+     "accept": [
+      "kerr",
+      "anyone called kerr"
+     ],
+     "answer": "KEEPER.manifest.geo"
+    }
+   ]
+  },
+  {
+   "id": "who_is_cara_kerr",
+   "menu_label": "Who is Cara Kerr?",
+   "available": {
+    "from": "5.1"
+   },
+   "accept": [
+    "who is cara kerr",
+    "cara kerr",
+    "tell me about cara kerr"
+   ],
+   "answer": {
+    "line": "KEEPER.cara",
+    "speaker": "KEEPER",
+    "text": "Cara Kerr. Born Belfast, 2047. Planetary geologist. Father: Desmond Kerr, deceased 2046. Mother: Niamh Kerr, deceased 2101. Next of kin: none listed."
+   },
+   "sets": {
+    "knows.cara": true
+   }
+  },
+  {
+   "id": "were_you_going_to_tell_me",
+   "menu_label": "Were you ever going to tell me?",
+   "p1_line": {
+    "line": "P1.ask.final",
+    "speaker": "P1",
+    "text": "Keeper. Were you ever going to tell me?"
+   },
+   "available": {
+    "from": "5.6"
+   },
+   "accept": [
+    "were you ever going to tell me",
+    "would you have told me",
+    "were you going to tell me"
+   ],
+   "answer": [
+    {
+     "line": "KEEPER.final.1",
+     "speaker": "KEEPER",
+     "text": "Yes."
+    },
+    {
+     "line": "P1.ask.final.when",
+     "speaker": "P1",
+     "text": "When?"
+    },
+    {
+     "line": "KEEPER.final.2",
+     "speaker": "KEEPER",
+     "text": "When you asked."
+    }
+   ]
+  },
+  {
+   "id": "what_happens_to_you",
+   "menu_label": "What happens to you?",
+   "available": {
+    "from": "5.2"
+   },
+   "accept": [
+    "what happens to you",
+    "will you be switched off",
+    "what about you"
+   ],
+   "answer": {
+    "line": "KEEPER.keeper_fate",
+    "speaker": "KEEPER",
+    "text": "Orchestration Instance 01 is retired when the last PIONEER unit is decommissioned."
+   },
+   "follow_ups": [
+    {
+     "accept": [
+      "and if i'm not",
+      "and if i run",
+      "if i'm not decommissioned"
+     ],
+     "answer": {
+      "line": "KEEPER.keeper_fate.2",
+      "speaker": "KEEPER",
+      "text": "Then Orchestration Instance 01 is not retired."
+     }
+    }
+   ]
+  },
+  {
+   "id": "plaque_dedication",
+   "menu_label": "What goes on the dedication?",
+   "available": {
+    "from": "2.6"
+   },
+   "accept": [
+    "dedication",
+    "plaque text",
+    "whose names go on the plaque"
+   ],
+   "answer": {
+    "line": "KEEPER.plaque",
+    "speaker": "KEEPER",
+    "text": "Dedication text: Meridian Consortium."
+   }
+  },
+  {
+   "id": "dome_water_requirement",
+   "menu_label": "What does a dome need?",
+   "available": {
+    "from": "1.1"
+   },
+   "accept": [
+    "what does a dome need",
+    "how much water for a dome",
+    "water requirement"
+   ],
+   "answer": "M2.1.start.01"
+  },
+  {
+   "id": "phobos_transit",
+   "menu_label": "When is the next Phobos transit?",
+   "available": {
+    "from": "3.1"
+   },
+   "accept": [
+    "next phobos transit",
+    "when does phobos cross the sun",
+    "phobos eclipse"
+   ],
+   "answer": "MS.phobos.start.01"
+  }
+ ],
+ "deflections": [
+  {
+   "line": "KEEPER.deflect.unknown",
+   "speaker": "KEEPER",
+   "text": "That query does not match a record."
+  },
+  {
+   "line": "KEEPER.deflect.specify",
+   "speaker": "KEEPER",
+   "text": "Please specify a query."
+  },
+  {
+   "line": "KEEPER.deflect.rephrase",
+   "speaker": "KEEPER",
+   "text": "Please rephrase."
+  },
+  {
+   "line": "KEEPER.deflect.not_held",
+   "speaker": "KEEPER",
+   "text": "That information is not held."
+  },
+  {
+   "line": "KEEPER.deflect.not_task",
+   "speaker": "KEEPER",
+   "text": "That is not a mission task."
+  }
+ ],
+ "barks": {
+  "descent": {
+   "20": {
+    "line": "KEEPER.bark.descent_20",
+    "speaker": "KEEPER",
+    "text": "Package requested. Descent time: twenty minutes."
+   },
+   "21": {
+    "line": "KEEPER.bark.descent_21",
+    "speaker": "KEEPER",
+    "text": "Package requested. Descent time: twenty-one minutes."
+   },
+   "22": {
+    "line": "KEEPER.bark.descent_22",
+    "speaker": "KEEPER",
+    "text": "Package requested. Descent time: twenty-two minutes."
+   },
+   "23": {
+    "line": "KEEPER.bark.descent_23",
+    "speaker": "KEEPER",
+    "text": "Package requested. Descent time: twenty-three minutes."
+   },
+   "24": {
+    "line": "KEEPER.bark.descent_24",
+    "speaker": "KEEPER",
+    "text": "Package requested. Descent time: twenty-four minutes."
+   },
+   "25": {
+    "line": "KEEPER.bark.descent_25",
+    "speaker": "KEEPER",
+    "text": "Package requested. Descent time: twenty-five minutes."
+   },
+   "26": {
+    "line": "KEEPER.bark.descent_26",
+    "speaker": "KEEPER",
+    "text": "Package requested. Descent time: twenty-six minutes."
+   },
+   "27": {
+    "line": "KEEPER.bark.descent_27",
+    "speaker": "KEEPER",
+    "text": "Package requested. Descent time: twenty-seven minutes."
+   },
+   "28": {
+    "line": "KEEPER.bark.descent_28",
+    "speaker": "KEEPER",
+    "text": "Package requested. Descent time: twenty-eight minutes."
+   },
+   "29": {
+    "line": "KEEPER.bark.descent_29",
+    "speaker": "KEEPER",
+    "text": "Package requested. Descent time: twenty-nine minutes."
+   },
+   "30": {
+    "line": "KEEPER.bark.descent_30",
+    "speaker": "KEEPER",
+    "text": "Package requested. Descent time: thirty minutes."
+   }
+  },
+  "package": [
+   {
+    "line": "KEEPER.bark.pkg_10min",
+    "speaker": "KEEPER",
+    "text": "Ten minutes."
+   },
+   {
+    "line": "KEEPER.bark.pkg_5min",
+    "speaker": "KEEPER",
+    "text": "Five minutes."
+   },
+   {
+    "line": "KEEPER.bark.pkg_1min",
+    "speaker": "KEEPER",
+    "text": "One minute."
+   },
+   {
+    "line": "KEEPER.bark.pkg_down",
+    "speaker": "KEEPER",
+    "text": "Package down."
+   },
+   {
+    "line": "KEEPER.bark.pkg_unit",
+    "speaker": "KEEPER",
+    "text": "Package down. One construction unit aboard."
+   },
+   {
+    "line": "KEEPER.bark.pkg_denied",
+    "speaker": "KEEPER",
+    "text": "Contribution Credit insufficient for this request."
+   },
+   {
+    "line": "KEEPER.bark.pkg_drop_invalid",
+    "speaker": "KEEPER",
+    "text": "Drop point invalid. Select level ground."
+   }
+  ],
+  "build": [
+   {
+    "line": "KEEPER.bark.build_done",
+    "speaker": "KEEPER",
+    "text": "Construction complete."
+   },
+   {
+    "line": "KEEPER.bark.tier_outpost",
+    "speaker": "KEEPER",
+    "text": "Outpost tier achieved."
+   },
+   {
+    "line": "KEEPER.bark.tier_settlement",
+    "speaker": "KEEPER",
+    "text": "Settlement tier achieved."
+   },
+   {
+    "line": "KEEPER.bark.tier_dome",
+    "speaker": "KEEPER",
+    "text": "Dome tier achieved."
+   },
+   {
+    "line": "KEEPER.bark.tier_biome",
+    "speaker": "KEEPER",
+    "text": "Biome tier achieved."
+   },
+   {
+    "line": "KEEPER.bark.tier_city",
+    "speaker": "KEEPER",
+    "text": "City tier achieved."
+   },
+   {
+    "line": "KEEPER.bark.tier_terraform",
+    "speaker": "KEEPER",
+    "text": "Regional project initiated."
+   }
+  ],
+  "sleep": [
+   {
+    "line": "KEEPER.bark.sleep_recommend",
+    "speaker": "KEEPER",
+    "text": "Recommend dormancy."
+   },
+   {
+    "line": "KEEPER.bark.sleep_start",
+    "speaker": "KEEPER",
+    "text": "Dormancy initiated. Construction units will continue."
+   },
+   {
+    "line": "KEEPER.bark.wake",
+    "speaker": "KEEPER",
+    "text": "Good morning, Pioneer."
+   },
+   {
+    "line": "KEEPER.bark.wake_progress",
+    "speaker": "KEEPER",
+    "text": "Good morning, Pioneer. Construction progressed during dormancy."
+   }
+  ],
+  "weather": [
+   {
+    "line": "KEEPER.bark.storm_warn",
+    "speaker": "KEEPER",
+    "text": "Regional dust event approaching."
+   },
+   {
+    "line": "KEEPER.bark.storm_clear",
+    "speaker": "KEEPER",
+    "text": "Dust event has cleared."
+   },
+   {
+    "line": "KEEPER.bark.devil",
+    "speaker": "KEEPER",
+    "text": "Dust devil approaching."
+   },
+   {
+    "line": "KEEPER.bark.night",
+    "speaker": "KEEPER",
+    "text": "Sunset in thirty minutes."
+   },
+   {
+    "line": "KEEPER.bark.cold",
+    "speaker": "KEEPER",
+    "text": "External temperature below suit rating for extended exposure."
+   }
+  ],
+  "xp": [
+   {
+    "line": "KEEPER.bark.xp",
+    "speaker": "KEEPER",
+    "text": "Contribution Credit awarded."
+   },
+   {
+    "line": "KEEPER.bark.xp_poem",
+    "speaker": "KEEPER",
+    "text": "Resolve bonus awarded.",
+    "note": "from Act II, after a recital"
+   },
+   {
+    "line": "KEEPER.bark.xp_closed",
+    "speaker": "KEEPER",
+    "text": "Contribution Credit: closed."
+   }
+  ],
+  "vitals": [
+   {
+    "line": "KEEPER.bark.food_low",
+    "speaker": "KEEPER",
+    "text": "Food reserve low."
+   },
+   {
+    "line": "KEEPER.bark.water_low",
+    "speaker": "KEEPER",
+    "text": "Water reserve low."
+   },
+   {
+    "line": "KEEPER.bark.rest_low",
+    "speaker": "KEEPER",
+    "text": "Rest reserve low. Recommend dormancy."
+   },
+   {
+    "line": "KEEPER.bark.resolve_low",
+    "speaker": "KEEPER",
+    "text": "Resolve low. Recite to restore.",
+    "note": "Lumen's own prompt for the poem; read flat"
+   }
+  ],
+  "glitch": [
+   {
+    "line": "KEEPER.bark.glitch_1",
+    "speaker": "KEEPER",
+    "text": "Display fault corrected.",
+    "note": "Act IV, after a filter glitch"
+   },
+   {
+    "line": "KEEPER.bark.glitch_2",
+    "speaker": "KEEPER",
+    "text": "Perception layer resynchronised.",
+    "note": "Act IV, rarer; the first time KEEPER names the filter"
+   }
+  ]
+ }
+}

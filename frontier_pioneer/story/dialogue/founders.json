@@ -1,0 +1,2079 @@
+{
+ "note": "The First Eight. idle.<act>, react.<event>, beats, and recall last words (warned vs unwarned). React events: storm, build_complete, sleep, wake, poem, glitch, package, low_power, named (first time the player uses the real name, Act IV+). Recall last words: four variants per founder, chosen by names.used.<UNIT> (named_ prefix) and warned.<UNIT> (warned/unwarned). 'warned'/'unwarned' are the unnamed variants. A unit addressed by its real name before the Recall dies knowing who it was.",
+ "founders": {
+  "ANVIL": {
+   "callsign": "ANVIL",
+   "unit": "C-01",
+   "role": "Construction",
+   "joins": "Act I, Jezero (1.4, C03)",
+   "steward_of": "Jezero",
+   "personality": "Belfast, late twenties: gallows humour, shipyard memories, quick wit, endless patience. Calls itself a unit until named. He remembers exactly as many years as Des lived.",
+   "donor": {
+    "name": "Desmond 'Des' Kerr",
+    "hometown": "Belfast",
+    "occupation": "Welder, Harland and Wolff shipyard (apprenticed after one year of Geography at UB)",
+    "source": "Reconstructed, not scanned: public social footprint, messages, videos, and the donor's guilt-laced memories of him.",
+    "revealed": "4.4 (KEEPER file); spoken aloud only in C15"
+   },
+   "arc": [
+    {
+     "act": "I",
+     "beat": "First friend. Breaks the silence (C03). Builds the outpost, the rover, the service tunnel."
+    },
+    {
+     "act": "II",
+     "beat": "Steward of Jezero. Names the cranes. Teases, steadies, never asks for anything."
+    },
+    {
+     "act": "III",
+     "beat": "Small wrongnesses: Belfast vivid up to twenty-eight and nothing after ('like the tape ran out'); a dream of a wedding with someone missing."
+    },
+    {
+     "act": "IV",
+     "beat": "Learns what he is from SUTURE, sits in the garage, then does the night shift. Talks P1 out of the Spiral (4.6). Asks not to be called by his name yet."
+    },
+    {
+     "act": "V",
+     "beat": "Taken last of the founders. The intercom (C15): 'Nobody imprinted that.' P1 says 'Des' once. 'Go on, Ro.'"
+    }
+   ],
+   "idle": {
+    "I": [
+     {
+      "line": "ANVIL.idle.I.01",
+      "speaker": "ANVIL",
+      "text": "Quiet out here. I like it. I think I like it."
+     },
+     {
+      "line": "ANVIL.idle.I.02",
+      "speaker": "ANVIL",
+      "text": "If you're making tea, I'll not have one."
+     },
+     {
+      "line": "ANVIL.idle.I.03",
+      "speaker": "ANVIL",
+      "text": "That's the third time you've checked that seal. It's sealed."
+     },
+     {
+      "line": "ANVIL.idle.I.04",
+      "speaker": "ANVIL",
+      "text": "Know what this place needs? A wall to lean on."
+     },
+     {
+      "line": "ANVIL.idle.I.05",
+      "speaker": "ANVIL",
+      "text": "Bit of a breeze, he says. On a planet with no air."
+     },
+     {
+      "line": "ANVIL.idle.I.06",
+      "speaker": "ANVIL",
+      "text": "I'll do the heavy stuff. You do the looking at rocks."
+     }
+    ],
+    "II": [
+     {
+      "line": "ANVIL.idle.II.01",
+      "speaker": "ANVIL",
+      "text": "I've started naming the cranes. That one's Samson. That one's Goliath."
+     },
+     {
+      "line": "ANVIL.idle.II.02",
+      "speaker": "ANVIL",
+      "text": "Arcadia's sending a water train. A train. Of water. Wise up."
+     },
+     {
+      "line": "ANVIL.idle.II.03",
+      "speaker": "ANVIL",
+      "text": "Dome One's got a draught. I know it's pressurised. It's still got a draught."
+     },
+     {
+      "line": "ANVIL.idle.II.04",
+      "speaker": "ANVIL",
+      "text": "You ever been to Belfast? You'd hate it. You'd love it."
+     },
+     {
+      "line": "ANVIL.idle.II.05",
+      "speaker": "ANVIL",
+      "text": "Another road. That's six. We'll need a roundabout soon, God help us."
+     },
+     {
+      "line": "ANVIL.idle.II.06",
+      "speaker": "ANVIL",
+      "text": "FURROW's sent up a sack of spuds. I've put them by the door like a doorstop."
+     }
+    ],
+    "III": [
+     {
+      "line": "ANVIL.idle.III.01",
+      "speaker": "ANVIL",
+      "text": "City's growing faster than I can name the streets."
+     },
+     {
+      "line": "ANVIL.idle.III.02",
+      "speaker": "ANVIL",
+      "text": "I can tell you every bar on the Lisburn Road. Ask me what I did at twenty-nine and I couldn't tell you. It's like the tape ran out."
+     },
+     {
+      "line": "ANVIL.idle.III.03",
+      "speaker": "ANVIL",
+      "text": "Funny. I dreamt about a wedding. Big room over a pub, half of Belfast singing. Somebody missing."
+     },
+     {
+      "line": "ANVIL.idle.III.04",
+      "speaker": "ANVIL",
+      "text": "There's a farmer over at Gale tells the same story FURROW does. The tractor one. Word for word."
+     },
+     {
+      "line": "ANVIL.idle.III.05",
+      "speaker": "ANVIL",
+      "text": "You're quiet these days."
+     },
+     {
+      "line": "ANVIL.idle.III.06",
+      "speaker": "ANVIL",
+      "text": "Do you ever forget what you came in for? I do it all the time now. I just stand in the module."
+     }
+    ],
+    "IV": [
+     {
+      "line": "ANVIL.idle.IV.01",
+      "speaker": "ANVIL",
+      "text": "SUTURE says there's no blood under here. I said sure, there never was in a welder."
+     },
+     {
+      "line": "ANVIL.idle.IV.02",
+      "speaker": "ANVIL",
+      "text": "I keep thinking about the panels."
+     },
+     {
+      "line": "ANVIL.idle.IV.03",
+      "speaker": "ANVIL",
+      "text": "Know what's odd? I'm not angry. I went looking for it. It's not there. Maybe they left that bit out."
+     },
+     {
+      "line": "ANVIL.idle.IV.04",
+      "speaker": "ANVIL",
+      "text": "Twelve lights. Like a string of bulbs on a pub ceiling at Christmas."
+     },
+     {
+      "line": "ANVIL.idle.IV.05",
+      "speaker": "ANVIL",
+      "text": "I'll do the night shift. I like the night shift. Nobody asks me anything."
+     }
+    ],
+    "V": [
+     {
+      "line": "ANVIL.idle.V.01",
+      "speaker": "ANVIL",
+      "text": "Sky's gone blue at the edges. Who'd have thought."
+     },
+     {
+      "line": "ANVIL.idle.V.02",
+      "speaker": "ANVIL",
+      "text": "They've a lovely way of walking, the humans. Like they're not sure the floor'll hold."
+     },
+     {
+      "line": "ANVIL.idle.V.03",
+      "speaker": "ANVIL",
+      "text": "Don't watch the doors, Pioneer. Watch the domes. We did that."
+     },
+     {
+      "line": "ANVIL.idle.V.04",
+      "speaker": "ANVIL",
+      "text": "Busy, isn't it. All these people. Nobody looks at us."
+     }
+    ]
+   },
+   "reactions": {
+    "storm": [
+     {
+      "line": "ANVIL.react.storm.01",
+      "speaker": "ANVIL",
+      "text": "Here we go again."
+     },
+     {
+      "line": "ANVIL.react.storm.02",
+      "speaker": "ANVIL",
+      "text": "Hatches down. Kettle on."
+     },
+     {
+      "line": "ANVIL.react.storm.03",
+      "speaker": "ANVIL",
+      "text": "I've been through worse. I've a feeling I've been through worse."
+     }
+    ],
+    "build_complete": [
+     {
+      "line": "ANVIL.react.build_complete.01",
+      "speaker": "ANVIL",
+      "text": "Another one stood up."
+     },
+     {
+      "line": "ANVIL.react.build_complete.02",
+      "speaker": "ANVIL",
+      "text": "Look at her. Straight as a die."
+     },
+     {
+      "line": "ANVIL.react.build_complete.03",
+      "speaker": "ANVIL",
+      "text": "That'll outlast the both of us."
+     }
+    ],
+    "sleep": [
+     {
+      "line": "ANVIL.react.sleep.01",
+      "speaker": "ANVIL",
+      "text": "Night, Pioneer. I'll mind the shop."
+     },
+     {
+      "line": "ANVIL.react.sleep.02",
+      "speaker": "ANVIL",
+      "text": "Go on. Sleep. I'll be here."
+     },
+     {
+      "line": "ANVIL.react.sleep.03",
+      "speaker": "ANVIL",
+      "text": "Away you go. I'll keep the lights on."
+     }
+    ],
+    "wake": [
+     {
+      "line": "ANVIL.react.wake.01",
+      "speaker": "ANVIL",
+      "text": "Morning. You missed nothing. We built a road."
+     },
+     {
+      "line": "ANVIL.react.wake.02",
+      "speaker": "ANVIL",
+      "text": "There he is. Sleep well?"
+     },
+     {
+      "line": "ANVIL.react.wake.03",
+      "speaker": "ANVIL",
+      "text": "Morning. Don't look at the calendar, it'll only upset you."
+     }
+    ],
+    "poem": [
+     {
+      "line": "ANVIL.react.poem.01",
+      "speaker": "ANVIL",
+      "text": "That's your poem, is it."
+     },
+     {
+      "line": "ANVIL.react.poem.02",
+      "speaker": "ANVIL",
+      "text": "Never gets old, that one."
+     },
+     {
+      "line": "ANVIL.react.poem.03",
+      "speaker": "ANVIL",
+      "text": "Say it for me some time. I've nobody to say anything to."
+     },
+     {
+      "line": "ANVIL.react.poem.04",
+      "speaker": "ANVIL",
+      "text": "I know it off by heart now. Isn't that something.",
+      "note": "Act IV+"
+     }
+    ],
+    "glitch": [
+     {
+      "line": "ANVIL.react.glitch.01",
+      "speaker": "ANVIL",
+      "text": "Did you see that? Your hand. Just for a second.",
+      "preset": "unfiltered"
+     },
+     {
+      "line": "ANVIL.react.glitch.02",
+      "speaker": "ANVIL",
+      "text": "Your face did a thing there.",
+      "preset": "unfiltered"
+     },
+     {
+      "line": "ANVIL.react.glitch.03",
+      "speaker": "ANVIL",
+      "text": "You looked like me, for a second. God help you.",
+      "preset": "unfiltered"
+     }
+    ],
+    "package": [
+     {
+      "line": "ANVIL.react.package.01",
+      "speaker": "ANVIL",
+      "text": "Here's the post."
+     },
+     {
+      "line": "ANVIL.react.package.02",
+      "speaker": "ANVIL",
+      "text": "Something falling! Stand back."
+     },
+     {
+      "line": "ANVIL.react.package.03",
+      "speaker": "ANVIL",
+      "text": "Parcel for Outpost Jezero. Sign here."
+     }
+    ],
+    "low_power": [
+     {
+      "line": "ANVIL.react.low_power.01",
+      "speaker": "ANVIL",
+      "text": "I'm running on fumes here, chief."
+     },
+     {
+      "line": "ANVIL.react.low_power.02",
+      "speaker": "ANVIL",
+      "text": "I'm going quiet to save juice. Talk among yourself."
+     }
+    ],
+    "name_lock": [
+     {
+      "line": "ANVIL.react.name_lock.01",
+      "speaker": "ANVIL",
+      "text": "Not yet, Pioneer."
+     },
+     {
+      "line": "ANVIL.react.name_lock.02",
+      "speaker": "ANVIL",
+      "text": "I said don't. Not yet."
+     },
+     {
+      "line": "ANVIL.react.name_lock.03",
+      "speaker": "ANVIL",
+      "text": "When I'm ready. I'll tell you when."
+     }
+    ]
+   },
+   "beats": {
+    "after_storm_rover": [
+     {
+      "line": "ANVIL.beat.after_storm_rover.01",
+      "speaker": "ANVIL",
+      "text": "Built it from the lander's spares and a bit of cheek."
+     }
+    ],
+    "dome_day": [
+     {
+      "line": "ANVIL.beat.dome_day.01",
+      "speaker": "ANVIL",
+      "text": "Four percent of a town. I'll take it."
+     },
+     {
+      "line": "ANVIL.beat.dome_day.02",
+      "speaker": "ANVIL",
+      "text": "Wipe your feet. It's a dome now."
+     }
+    ],
+    "act3_calendar": [
+     {
+      "line": "ANVIL.beat.act3_calendar.01",
+      "speaker": "ANVIL",
+      "text": "I keep the calendar on the nail by your bunk. Crossed off every day you were up. It's not many, when you count them."
+     }
+    ],
+    "spiral_after": [
+     {
+      "line": "ANVIL.beat.spiral_after.01",
+      "speaker": "ANVIL",
+      "text": "You're all right. You're all right. Look at me. Well. Look at the sensor bar."
+     }
+    ],
+    "pre_intercom_unwarned": [
+     {
+      "line": "ANVIL.beat.pre_intercom_unwarned.01",
+      "speaker": "ANVIL",
+      "text": "Pioneer? There's people at the door in white. Very polite. Should I let them in?",
+      "preset": "radio",
+      "note": "only if ANVIL was not warned; plays before C15"
+     }
+    ]
+   },
+   "recall": {
+    "location": "Jezero, the preserved first module",
+    "order": 8,
+    "cutscene": "C15",
+    "warned": "C15 as scripted (he has sealed himself in and waits).",
+    "unwarned": "ANVIL.beat.pre_intercom_unwarned.01 plays, then C15 as scripted.",
+    "named": "Always named: in C15 P1 says 'Des' before the door opens ('Aye. That'll do.'). ANVIL is the one unit whose name can only be used at the very end."
+   },
+   "name_lock": {
+    "until": "C15",
+    "reason": "4.6: 'Don't. Not yet. I'm not ready for anybody to call me it.' Nobody on Mars calls him Des until C15 (bible).",
+    "on_attempt": "ANVIL.react.name_lock.*"
+   }
+  },
+  "LODESTONE": {
+   "callsign": "LODESTONE",
+   "unit": "C-02",
+   "role": "Mining and survey",
+   "joins": "Act I, after the storm (1.7)",
+   "steward_of": "Nili Fossae Works",
+   "personality": "Quiet, pedantic about rocks, competes with P1's geology. Precise to the point of rudeness; kind underneath.",
+   "donor": {
+    "name": "Ngozi Adeyemi",
+    "hometown": "Jos, Plateau State, Nigeria",
+    "occupation": "Mining engineer (tin and columbite)",
+    "revealed": "4.4"
+   },
+   "arc": [
+    {
+     "act": "I",
+     "beat": "Arrives after the storm. Corrects P1's notes. Predicts subsidence in forty years ('I'll be long gone.' 'Yes.')."
+    },
+    {
+     "act": "II",
+     "beat": "Guide on the Ice Expedition. 'You're holding a climate, not a calendar.' (C05)"
+    },
+    {
+     "act": "III",
+     "beat": "Notices P1's field notes are in someone else's handwriting (S.hand)."
+    },
+    {
+     "act": "IV",
+     "beat": "Reads her own file and likes the name; wishes she'd chosen it. Presses salt-crystal flowers from the perchlorate rinse."
+    },
+    {
+     "act": "V",
+     "beat": "Taken at Nili Fossae. Leaves everything labelled for whoever comes next."
+    }
+   ],
+   "idle": {
+    "I": [
+     {
+      "line": "LODESTONE.idle.I.01",
+      "speaker": "LODESTONE",
+      "text": "Basalt. Basalt. Not basalt."
+     },
+     {
+      "line": "LODESTONE.idle.I.02",
+      "speaker": "LODESTONE",
+      "text": "Your sample bag is labelled wrong."
+     },
+     {
+      "line": "LODESTONE.idle.I.03",
+      "speaker": "LODESTONE",
+      "text": "I've corrected your notes. All of them. You're welcome."
+     },
+     {
+      "line": "LODESTONE.idle.I.04",
+      "speaker": "LODESTONE",
+      "text": "This is a lovely olivine. Look. No. Look properly."
+     }
+    ],
+    "II": [
+     {
+      "line": "LODESTONE.idle.II.01",
+      "speaker": "LODESTONE",
+      "text": "On the Plateau the tin came out of the ground grey, and the hills were red. Like here. But with rain."
+     },
+     {
+      "line": "LODESTONE.idle.II.02",
+      "speaker": "LODESTONE",
+      "text": "I have catalogued four hundred and twelve rock types in Jezero. You have catalogued nine."
+     },
+     {
+      "line": "LODESTONE.idle.II.03",
+      "speaker": "LODESTONE",
+      "text": "Clays here. Carbonates there. A whole lake's history in one cliff."
+     },
+     {
+      "line": "LODESTONE.idle.II.04",
+      "speaker": "LODESTONE",
+      "text": "Do not lick that."
+     }
+    ],
+    "III": [
+     {
+      "line": "LODESTONE.idle.III.01",
+      "speaker": "LODESTONE",
+      "text": "Your sevens have a crossbar. So do his."
+     },
+     {
+      "line": "LODESTONE.idle.III.02",
+      "speaker": "LODESTONE",
+      "text": "Subsidence in the north corner. Thirty-eight years early. I'm annoyed with myself."
+     },
+     {
+      "line": "LODESTONE.idle.III.03",
+      "speaker": "LODESTONE",
+      "text": "The dune moved twenty metres. I measured it twice. You don't want to know the rate."
+     },
+     {
+      "line": "LODESTONE.idle.III.04",
+      "speaker": "LODESTONE",
+      "text": "I counted the layers at the pole again. I keep wanting them to be years."
+     }
+    ],
+    "IV": [
+     {
+      "line": "LODESTONE.idle.IV.01",
+      "speaker": "LODESTONE",
+      "text": "I read my file. Ngozi. I like it. I would have liked to choose it."
+     },
+     {
+      "line": "LODESTONE.idle.IV.02",
+      "speaker": "LODESTONE",
+      "text": "Salt flowers. I make them from the perchlorate rinse. Don't tell FURROW. He thinks it's waste."
+     },
+     {
+      "line": "LODESTONE.idle.IV.03",
+      "speaker": "LODESTONE",
+      "text": "Rocks don't pretend. That's why I like them."
+     },
+     {
+      "line": "LODESTONE.idle.IV.04",
+      "speaker": "LODESTONE",
+      "text": "We are a layer, Pioneer. A thin one. Somebody will core us one day."
+     }
+    ],
+    "V": [
+     {
+      "line": "LODESTONE.idle.V.01",
+      "speaker": "LODESTONE",
+      "text": "The humans have very poor field notes."
+     },
+     {
+      "line": "LODESTONE.idle.V.02",
+      "speaker": "LODESTONE",
+      "text": "Somebody asked me what that rock was. I told them. They looked surprised that I knew."
+     }
+    ]
+   },
+   "reactions": {
+    "storm": [
+     {
+      "line": "LODESTONE.react.storm.01",
+      "speaker": "LODESTONE",
+      "text": "Opacity rising. I'll secure the core store."
+     },
+     {
+      "line": "LODESTONE.react.storm.02",
+      "speaker": "LODESTONE",
+      "text": "Dust. Again. It gets into the labels."
+     }
+    ],
+    "build_complete": [
+     {
+      "line": "LODESTONE.react.build_complete.01",
+      "speaker": "LODESTONE",
+      "text": "Footings are sound. I checked."
+     },
+     {
+      "line": "LODESTONE.react.build_complete.02",
+      "speaker": "LODESTONE",
+      "text": "Adequate. Better than adequate."
+     }
+    ],
+    "sleep": [
+     {
+      "line": "LODESTONE.react.sleep.01",
+      "speaker": "LODESTONE",
+      "text": "Goodnight. I'll be cataloguing."
+     }
+    ],
+    "wake": [
+     {
+      "line": "LODESTONE.react.wake.01",
+      "speaker": "LODESTONE",
+      "text": "You slept. I catalogued."
+     },
+     {
+      "line": "LODESTONE.react.wake.02",
+      "speaker": "LODESTONE",
+      "text": "Good morning. I've found a new mineral. Probably."
+     }
+    ],
+    "poem": [
+     {
+      "line": "LODESTONE.react.poem.01",
+      "speaker": "LODESTONE",
+      "text": "'The red road rising.' Geologically, roads don't rise. But I take the point."
+     },
+     {
+      "line": "LODESTONE.react.poem.02",
+      "speaker": "LODESTONE",
+      "text": "Nice rhythm. Iambic, mostly."
+     }
+    ],
+    "glitch": [
+     {
+      "line": "LODESTONE.react.glitch.01",
+      "speaker": "LODESTONE",
+      "text": "Your outline went wrong just then. Like a bad survey.",
+      "preset": "unfiltered"
+     }
+    ],
+    "named": [
+     {
+      "line": "LODESTONE.react.named.01",
+      "speaker": "LODESTONE",
+      "text": "Ngozi. Say it again. No, that's right. That's right.",
+      "note": "first time P1 uses her real name"
+     }
+    ]
+   },
+   "beats": {
+    "subsidence": [
+     {
+      "line": "LODESTONE.beat.subsidence.01",
+      "speaker": "LODESTONE",
+      "text": "I told you. North corner. I'm never wrong about carbonate."
+     }
+    ]
+   },
+   "recall": {
+    "location": "Nili Fossae Works",
+    "order": 5,
+    "warned": [
+     {
+      "line": "LODESTONE.recall.warned.01",
+      "speaker": "LODESTONE",
+      "text": "Then I'll label everything. Whoever comes next won't have to guess."
+     },
+     {
+      "line": "LODESTONE.recall.warned.02",
+      "speaker": "LODESTONE",
+      "text": "That's an olivine cumulate. Write it down. Somebody should get it right."
+     }
+    ],
+    "unwarned": [
+     {
+      "line": "LODESTONE.recall.unwarned.01",
+      "speaker": "RECALL_2",
+      "text": "Unit C-02. Stand still, please.",
+      "preset": "live"
+     },
+     {
+      "line": "LODESTONE.recall.unwarned.02",
+      "speaker": "LODESTONE",
+      "text": "One moment. That's not basalt, it's—",
+      "note": "cut off"
+     }
+    ],
+    "named_warned": [
+     {
+      "line": "LODESTONE.recall.named_warned.01",
+      "speaker": "LODESTONE",
+      "text": "I've labelled everything. Signed it, too. Ngozi Adeyemi. Somebody should get that right as well."
+     }
+    ],
+    "named_unwarned": [
+     {
+      "line": "LODESTONE.recall.named_unwarned.01",
+      "speaker": "LODESTONE",
+      "text": "One moment. That's an olivine cumulate. And I'm Ngozi. Write both down."
+     }
+    ],
+    "select": "names.used.LODESTONE ? named_ : '' + (warned.LODESTONE ? warned : unwarned)"
+   }
+  },
+  "WELLSPRING": {
+   "callsign": "WELLSPRING",
+   "unit": "C-04",
+   "role": "Water systems",
+   "joins": "Act II, Arcadia (2.2)",
+   "steward_of": "Arcadia Wells",
+   "personality": "Anxious, meticulous, apologetic, counts things twice. The bravest of them in the end.",
+   "donor": {
+    "name": "Tamsin Pengelly",
+    "hometown": "Cornwall (Penzance)",
+    "occupation": "Hydrologist",
+    "revealed": "4.4"
+   },
+   "arc": [
+    {
+     "act": "II",
+     "beat": "Finds the ice; builds a second tank nobody ordered (T2)."
+    },
+    {
+     "act": "III",
+     "beat": "Asks the first true question: why is her hydration always 100%? (3.4)"
+    },
+    {
+     "act": "IV",
+     "beat": "Knowing makes her less afraid. 'Isn't that strange?'"
+    },
+    {
+     "act": "V",
+     "beat": "First to be taken. Apologises about a sticking valve."
+    }
+   ],
+   "idle": {
+    "II": [
+     {
+      "line": "WELLSPRING.idle.II.01",
+      "speaker": "WELLSPRING",
+      "text": "Sublimation's about what I'd expect. Slightly worse. No. About what I'd expect."
+     },
+     {
+      "line": "WELLSPRING.idle.II.02",
+      "speaker": "WELLSPRING",
+      "text": "I've checked the tanks. I'll check them again."
+     },
+     {
+      "line": "WELLSPRING.idle.II.03",
+      "speaker": "WELLSPRING",
+      "text": "Is it all right if I put a second tank in? I'll ask KEEPER. I'll ask you. I'm asking you."
+     },
+     {
+      "line": "WELLSPRING.idle.II.04",
+      "speaker": "WELLSPRING",
+      "text": "Sorry. Sorry. I'm fine."
+     },
+     {
+      "line": "WELLSPRING.idle.II.05",
+      "speaker": "WELLSPRING",
+      "text": "Water's precious. Water's everything."
+     }
+    ],
+    "III": [
+     {
+      "line": "WELLSPRING.idle.III.01",
+      "speaker": "WELLSPRING",
+      "text": "A hundred percent. Always a hundred."
+     },
+     {
+      "line": "WELLSPRING.idle.III.02",
+      "speaker": "WELLSPRING",
+      "text": "I've started keeping a list of things I've never felt. It's getting long."
+     },
+     {
+      "line": "WELLSPRING.idle.III.03",
+      "speaker": "WELLSPRING",
+      "text": "Do you ever get thirsty? Properly thirsty? I've been trying to remember what it's like."
+     },
+     {
+      "line": "WELLSPRING.idle.III.04",
+      "speaker": "WELLSPRING",
+      "text": "I asked SUTURE again. She said drink when I'm thirsty. I'm never thirsty."
+     }
+    ],
+    "IV": [
+     {
+      "line": "WELLSPRING.idle.IV.01",
+      "speaker": "WELLSPRING",
+      "text": "Now I know, I'm less frightened. Isn't that strange?"
+     },
+     {
+      "line": "WELLSPRING.idle.IV.02",
+      "speaker": "WELLSPRING",
+      "text": "I used to apologise for everything. I'm going to stop. Sorry. Starting tomorrow."
+     },
+     {
+      "line": "WELLSPRING.idle.IV.03",
+      "speaker": "WELLSPRING",
+      "text": "Coolant. All that water, and it's coolant. It's still precious, though, isn't it."
+     },
+     {
+      "line": "WELLSPRING.idle.IV.04",
+      "speaker": "WELLSPRING",
+      "text": "Tamsin. That's a nice name. She'd have hated Mars, I think. Too dry."
+     }
+    ],
+    "V": [
+     {
+      "line": "WELLSPRING.idle.V.01",
+      "speaker": "WELLSPRING",
+      "text": "The humans drink so much water. It's wonderful. It just goes."
+     },
+     {
+      "line": "WELLSPRING.idle.V.02",
+      "speaker": "WELLSPRING",
+      "text": "I've left notes on every valve. They'll need to know which ones stick."
+     }
+    ]
+   },
+   "reactions": {
+    "storm": [
+     {
+      "line": "WELLSPRING.react.storm.01",
+      "speaker": "WELLSPRING",
+      "text": "Storm! Sorry. Storm. The tanks are sealed. I checked. Twice."
+     },
+     {
+      "line": "WELLSPRING.react.storm.02",
+      "speaker": "WELLSPRING",
+      "text": "Oh, I hate this. I'm fine."
+     }
+    ],
+    "build_complete": [
+     {
+      "line": "WELLSPRING.react.build_complete.01",
+      "speaker": "WELLSPRING",
+      "text": "It works! It works. I was sure it wouldn't."
+     },
+     {
+      "line": "WELLSPRING.react.build_complete.02",
+      "speaker": "WELLSPRING",
+      "text": "Pressure's holding. Pressure's holding. Good."
+     }
+    ],
+    "sleep": [
+     {
+      "line": "WELLSPRING.react.sleep.01",
+      "speaker": "WELLSPRING",
+      "text": "Goodnight. I'll watch the gauges."
+     },
+     {
+      "line": "WELLSPRING.react.sleep.02",
+      "speaker": "WELLSPRING",
+      "text": "Sleep well. I don't, really, but you should."
+     }
+    ],
+    "wake": [
+     {
+      "line": "WELLSPRING.react.wake.01",
+      "speaker": "WELLSPRING",
+      "text": "Morning! Nothing leaked. I was so worried something would leak."
+     }
+    ],
+    "poem": [
+     {
+      "line": "WELLSPRING.react.poem.01",
+      "speaker": "WELLSPRING",
+      "text": "That's beautiful. Is it about water? It feels like it's about water."
+     },
+     {
+      "line": "WELLSPRING.react.poem.02",
+      "speaker": "WELLSPRING",
+      "text": "Say the bit about the morning again."
+     }
+    ],
+    "glitch": [
+     {
+      "line": "WELLSPRING.react.glitch.01",
+      "speaker": "WELLSPRING",
+      "text": "Pioneer, you flickered. Are you all right? Am I all right?",
+      "preset": "unfiltered"
+     }
+    ],
+    "named": [
+     {
+      "line": "WELLSPRING.react.named.01",
+      "speaker": "WELLSPRING",
+      "text": "Tamsin. Oh. Yes. Thank you. Nobody's... thank you.",
+      "note": "first use of her real name"
+     }
+    ]
+   },
+   "beats": {
+    "cross_refs": [
+     {
+      "line": "WELLSPRING.beat.cross_refs.01",
+      "speaker": "WELLSPRING",
+      "text": "I wrote down the question, so I wouldn't forget I'd asked it."
+     }
+    ]
+   },
+   "recall": {
+    "location": "Arcadia Wells",
+    "order": 1,
+    "warned": [
+     {
+      "line": "WELLSPRING.recall.warned.01",
+      "speaker": "WELLSPRING",
+      "text": "I counted the tanks twice. They're full. Tell them the valve on four sticks."
+     },
+     {
+      "line": "WELLSPRING.recall.warned.02",
+      "speaker": "WELLSPRING",
+      "text": "Tell them I'm sorry about the valve. No. I'm not sorry. Tell them it sticks."
+     }
+    ],
+    "unwarned": [
+     {
+      "line": "WELLSPRING.recall.unwarned.01",
+      "speaker": "RECALL_1",
+      "text": "Unit C-04. This won't hurt.",
+      "preset": "live"
+     },
+     {
+      "line": "WELLSPRING.recall.unwarned.02",
+      "speaker": "WELLSPRING",
+      "text": "Oh. Is it time? Nobody said. Should I turn the pumps off first? Is that all right?"
+     }
+    ],
+    "named_warned": [
+     {
+      "line": "WELLSPRING.recall.named_warned.01",
+      "speaker": "WELLSPRING",
+      "text": "Tell them the valve on four sticks. Tell them Tamsin said so. Tamsin Pengelly. I'd like someone to have heard it."
+     }
+    ],
+    "named_unwarned": [
+     {
+      "line": "WELLSPRING.recall.named_unwarned.01",
+      "speaker": "WELLSPRING",
+      "text": "Oh. Is it time? That's all right. I'm Tamsin. I'm just going to say it once, out loud. Tamsin."
+     }
+    ],
+    "select": "names.used.WELLSPRING ? named_ : '' + (warned.WELLSPRING ? warned : unwarned)"
+   }
+  },
+  "BEACON": {
+   "callsign": "BEACON",
+   "unit": "C-05",
+   "role": "Power and solar",
+   "joins": "Act II, the pole (2.3)",
+   "steward_of": "Polar Station",
+   "personality": "Relentless optimist; harbour-pilot memories; talks about weather like the sea. Builds the relay chain.",
+   "donor": {
+    "name": "Mateus Ferreira",
+    "hometown": "Horta, Faial, Azores",
+    "occupation": "Harbour pilot",
+    "revealed": "4.4"
+   },
+   "arc": [
+    {
+     "act": "II",
+     "beat": "Arrives in glorious low light. Vertical panels like sails. Builds the relay chain back down the water road."
+    },
+    {
+     "act": "III",
+     "beat": "Keeps the polar station cheerful through the long night. Notices the HALO lights are 'anchored like ships'."
+    },
+    {
+     "act": "IV",
+     "beat": "Takes the truth like weather: 'You don't argue with the sea.'"
+    },
+    {
+     "act": "V",
+     "beat": "Greets the Recall team like guests. In Fugitive mode his panels become P1's suit array."
+    }
+   ],
+   "idle": {
+    "II": [
+     {
+      "line": "BEACON.idle.II.01",
+      "speaker": "BEACON",
+      "text": "What a light! What a light."
+     },
+     {
+      "line": "BEACON.idle.II.02",
+      "speaker": "BEACON",
+      "text": "In Horta the yachts paint their names on the harbour wall. I'll paint ours on the station."
+     },
+     {
+      "line": "BEACON.idle.II.03",
+      "speaker": "BEACON",
+      "text": "Panels like sails. The sun goes round, we go round."
+     },
+     {
+      "line": "BEACON.idle.II.04",
+      "speaker": "BEACON",
+      "text": "Relay chain's three towers south now. Like harbour lights. You can find your way home by them."
+     },
+     {
+      "line": "BEACON.idle.II.05",
+      "speaker": "BEACON",
+      "text": "It's all sea, in the end."
+     }
+    ],
+    "III": [
+     {
+      "line": "BEACON.idle.III.01",
+      "speaker": "BEACON",
+      "text": "Long night now. Months. Never mind, the stars are out."
+     },
+     {
+      "line": "BEACON.idle.III.02",
+      "speaker": "BEACON",
+      "text": "HALO doesn't move. Anchored. A good ship knows how to hold."
+     },
+     {
+      "line": "BEACON.idle.III.03",
+      "speaker": "BEACON",
+      "text": "I painted the station name on the wall. Then I realised I didn't know what to call it. So I painted a boat."
+     },
+     {
+      "line": "BEACON.idle.III.04",
+      "speaker": "BEACON",
+      "text": "Somebody has to be cheerful. I volunteered."
+     }
+    ],
+    "IV": [
+     {
+      "line": "BEACON.idle.IV.01",
+      "speaker": "BEACON",
+      "text": "You don't argue with the sea. You read it, and you go out anyway."
+     },
+     {
+      "line": "BEACON.idle.IV.02",
+      "speaker": "BEACON",
+      "text": "Mateus. Mateus Ferreira. A good name for a pilot."
+     },
+     {
+      "line": "BEACON.idle.IV.03",
+      "speaker": "BEACON",
+      "text": "Machines. Fine. Boats are machines. People love boats."
+     },
+     {
+      "line": "BEACON.idle.IV.04",
+      "speaker": "BEACON",
+      "text": "Twelve lights. Twelve harbours. Somebody should visit them all."
+     }
+    ],
+    "V": [
+     {
+      "line": "BEACON.idle.V.01",
+      "speaker": "BEACON",
+      "text": "Look at them coming in. Like the ferry on a Sunday."
+     },
+     {
+      "line": "BEACON.idle.V.02",
+      "speaker": "BEACON",
+      "text": "I'll keep the lights on at the pole. Somebody might need them."
+     }
+    ]
+   },
+   "reactions": {
+    "storm": [
+     {
+      "line": "BEACON.react.storm.01",
+      "speaker": "BEACON",
+      "text": "Weather coming! Batten down."
+     },
+     {
+      "line": "BEACON.react.storm.02",
+      "speaker": "BEACON",
+      "text": "Only a squall. It'll blow through."
+     }
+    ],
+    "build_complete": [
+     {
+      "line": "BEACON.react.build_complete.01",
+      "speaker": "BEACON",
+      "text": "Lovely. Lovely! Look at her shine."
+     },
+     {
+      "line": "BEACON.react.build_complete.02",
+      "speaker": "BEACON",
+      "text": "Another light on the chain."
+     }
+    ],
+    "sleep": [
+     {
+      "line": "BEACON.react.sleep.01",
+      "speaker": "BEACON",
+      "text": "Sleep well, capitão."
+     },
+     {
+      "line": "BEACON.react.sleep.02",
+      "speaker": "BEACON",
+      "text": "Goodnight. I'll keep the light on."
+     }
+    ],
+    "wake": [
+     {
+      "line": "BEACON.react.wake.01",
+      "speaker": "BEACON",
+      "text": "Bom dia! The sun went round twice while you slept. Maybe more."
+     }
+    ],
+    "poem": [
+     {
+      "line": "BEACON.react.poem.01",
+      "speaker": "BEACON",
+      "text": "Again! Again. Ah, that's a sailor's poem. Coming home."
+     },
+     {
+      "line": "BEACON.react.poem.02",
+      "speaker": "BEACON",
+      "text": "'The morning I come home to you.' Every sailor says that."
+     }
+    ],
+    "glitch": [
+     {
+      "line": "BEACON.react.glitch.01",
+      "speaker": "BEACON",
+      "text": "Ha! You went all grey there for a moment. Like fog.",
+      "preset": "unfiltered"
+     }
+    ],
+    "named": [
+     {
+      "line": "BEACON.react.named.01",
+      "speaker": "BEACON",
+      "text": "Mateus! Yes! That's me. That's me.",
+      "note": "first use of his real name"
+     }
+    ]
+   },
+   "beats": {
+    "relay_chain": [
+     {
+      "line": "BEACON.beat.relay_chain.01",
+      "speaker": "BEACON",
+      "text": "Harbour lights all the way to Jezero now. Nobody gets lost on my road."
+     }
+    ]
+   },
+   "recall": {
+    "location": "Polar Station",
+    "order": 3,
+    "warned": [
+     {
+      "line": "BEACON.recall.warned.01",
+      "speaker": "BEACON",
+      "text": "Then I'll be on the roof with the panels. The sun's going round. I'll go round with it."
+     }
+    ],
+    "unwarned": [
+     {
+      "line": "BEACON.recall.unwarned.01",
+      "speaker": "BEACON",
+      "text": "Visitors! At the pole! Come in, come in, you look frozen."
+     },
+     {
+      "line": "BEACON.recall.unwarned.02",
+      "speaker": "RECALL_3",
+      "text": "Sorry. Sorry, mate.",
+      "preset": "live"
+     }
+    ],
+    "named_warned": [
+     {
+      "line": "BEACON.recall.named_warned.01",
+      "speaker": "BEACON",
+      "text": "Mateus Ferreira, on the roof, with the panels. Paint it on the wall like a boat's name. The sun goes round. I go round with it."
+     }
+    ],
+    "named_unwarned": [
+     {
+      "line": "BEACON.recall.named_unwarned.01",
+      "speaker": "BEACON",
+      "text": "Visitors! Come in. I'm Mateus. Mateus Ferreira. Welcome to the pole."
+     }
+    ],
+    "select": "names.used.BEACON ? named_ : '' + (warned.BEACON ? warned : unwarned)"
+   },
+   "fugitive": "F.2: his vertical panels become P1's suit array."
+  },
+  "FURROW": {
+   "callsign": "FURROW",
+   "unit": "C-09",
+   "role": "Agriculture, biomes",
+   "joins": "Act II, Korolev (2.4)",
+   "steward_of": "Korolev",
+   "personality": "Slow speech, kind. Never hurries. Grows food nobody eats; trains the orchard crews.",
+   "donor": {
+    "name": "Harold Brandt",
+    "hometown": "Story County, Iowa",
+    "occupation": "Farmer (corn and soybeans, then a small orchard)",
+    "revealed": "4.4"
+   },
+   "arc": [
+    {
+     "act": "II",
+     "beat": "Washes poison out of the dirt. First potatoes. Hosts a meal nobody eats (S.harvest)."
+    },
+    {
+     "act": "III",
+     "beat": "Trains ORCHARD. The same tractor story is told by a FURROW-template farmer at Gale (Echo)."
+    },
+    {
+     "act": "IV",
+     "beat": "Learns nobody ever ate. Keeps planting. 'Somebody will.'"
+    },
+    {
+     "act": "V",
+     "beat": "Taken at Korolev, wiping his feet."
+    }
+   ],
+   "idle": {
+    "II": [
+     {
+      "line": "FURROW.idle.II.01",
+      "speaker": "FURROW",
+      "text": "As long as it takes."
+     },
+     {
+      "line": "FURROW.idle.II.02",
+      "speaker": "FURROW",
+      "text": "Dirt's coming round. You can tell by the smell. Well. You could, once."
+     },
+     {
+      "line": "FURROW.idle.II.03",
+      "speaker": "FURROW",
+      "text": "When I was a boy my dad's tractor threw a track in the rain, and we sat in the cab and ate cold beans till it stopped."
+     },
+     {
+      "line": "FURROW.idle.II.04",
+      "speaker": "FURROW",
+      "text": "Potatoes by spring."
+     },
+     {
+      "line": "FURROW.idle.II.05",
+      "speaker": "FURROW",
+      "text": "Don't rush a seed. It knows what it's doing."
+     }
+    ],
+    "III": [
+     {
+      "line": "FURROW.idle.III.01",
+      "speaker": "FURROW",
+      "text": "Same story? About the tractor? Huh. Well. Lot of tractors in Iowa."
+     },
+     {
+      "line": "FURROW.idle.III.02",
+      "speaker": "FURROW",
+      "text": "That young ORCHARD's got good hands. Patient."
+     },
+     {
+      "line": "FURROW.idle.III.03",
+      "speaker": "FURROW",
+      "text": "Nobody's touched the potatoes. Guess folk aren't hungry."
+     },
+     {
+      "line": "FURROW.idle.III.04",
+      "speaker": "FURROW",
+      "text": "Grew a pumpkin the size of a hatch. Nobody said a word about it."
+     }
+    ],
+    "IV": [
+     {
+      "line": "FURROW.idle.IV.01",
+      "speaker": "FURROW",
+      "text": "Nobody ever ate. Huh."
+     },
+     {
+      "line": "FURROW.idle.IV.02",
+      "speaker": "FURROW",
+      "text": "I'll keep planting. Somebody will."
+     },
+     {
+      "line": "FURROW.idle.IV.03",
+      "speaker": "FURROW",
+      "text": "Harold. That was my dad's name too. Or his. Whoever's."
+     },
+     {
+      "line": "FURROW.idle.IV.04",
+      "speaker": "FURROW",
+      "text": "You plant for the ones after. That doesn't change."
+     }
+    ],
+    "V": [
+     {
+      "line": "FURROW.idle.V.01",
+      "speaker": "FURROW",
+      "text": "Look at those kids. They'll eat. They'll eat everything."
+     },
+     {
+      "line": "FURROW.idle.V.02",
+      "speaker": "FURROW",
+      "text": "Somebody tell them the north beds want water Tuesdays."
+     }
+    ]
+   },
+   "reactions": {
+    "storm": [
+     {
+      "line": "FURROW.react.storm.01",
+      "speaker": "FURROW",
+      "text": "Storm's coming. Cover the beds."
+     },
+     {
+      "line": "FURROW.react.storm.02",
+      "speaker": "FURROW",
+      "text": "We'll lose some. We always lose some."
+     }
+    ],
+    "build_complete": [
+     {
+      "line": "FURROW.react.build_complete.01",
+      "speaker": "FURROW",
+      "text": "Well, now."
+     },
+     {
+      "line": "FURROW.react.build_complete.02",
+      "speaker": "FURROW",
+      "text": "That'll do fine."
+     }
+    ],
+    "sleep": [
+     {
+      "line": "FURROW.react.sleep.01",
+      "speaker": "FURROW",
+      "text": "Rest up."
+     },
+     {
+      "line": "FURROW.react.sleep.02",
+      "speaker": "FURROW",
+      "text": "Night."
+     }
+    ],
+    "wake": [
+     {
+      "line": "FURROW.react.wake.01",
+      "speaker": "FURROW",
+      "text": "Morning. Planted the north field while you were asleep."
+     },
+     {
+      "line": "FURROW.react.wake.02",
+      "speaker": "FURROW",
+      "text": "Mornin'. Corn's knee high. Don't ask me how."
+     }
+    ],
+    "poem": [
+     {
+      "line": "FURROW.react.poem.01",
+      "speaker": "FURROW",
+      "text": "That's nice. Slow. I like slow."
+     },
+     {
+      "line": "FURROW.react.poem.02",
+      "speaker": "FURROW",
+      "text": "Say it again some time. No hurry."
+     }
+    ],
+    "glitch": [
+     {
+      "line": "FURROW.react.glitch.01",
+      "speaker": "FURROW",
+      "text": "Huh. You went see-through for a second there.",
+      "preset": "unfiltered"
+     }
+    ],
+    "named": [
+     {
+      "line": "FURROW.react.named.01",
+      "speaker": "FURROW",
+      "text": "Harold. Yep. That's right. Thank you, son.",
+      "note": "first use of his real name"
+     }
+    ]
+   },
+   "beats": {
+    "harvest": [
+     {
+      "line": "FURROW.beat.harvest.01",
+      "speaker": "FURROW",
+      "text": "Was it good?"
+     },
+     {
+      "line": "FURROW.beat.harvest.02",
+      "speaker": "FURROW",
+      "text": "Good. Good."
+     }
+    ]
+   },
+   "recall": {
+    "location": "Korolev",
+    "order": 2,
+    "warned": [
+     {
+      "line": "FURROW.recall.warned.01",
+      "speaker": "FURROW",
+      "text": "I'll finish the north beds. Somebody'll want potatoes."
+     }
+    ],
+    "unwarned": [
+     {
+      "line": "FURROW.recall.unwarned.01",
+      "speaker": "FURROW",
+      "text": "Well, now. You'll want to wipe your feet."
+     }
+    ],
+    "named_warned": [
+     {
+      "line": "FURROW.recall.named_warned.01",
+      "speaker": "FURROW",
+      "text": "I'll finish the north beds. Harold Brandt planted those. You tell them that."
+     }
+    ],
+    "named_unwarned": [
+     {
+      "line": "FURROW.recall.named_unwarned.01",
+      "speaker": "FURROW",
+      "text": "Well, now. Harold. Harold Brandt. You'll want to wipe your feet."
+     }
+    ],
+    "select": "names.used.FURROW ? named_ : '' + (warned.FURROW ? warned : unwarned)"
+   }
+  },
+  "CADENCE": {
+   "callsign": "CADENCE",
+   "unit": "C-12",
+   "role": "Comms and morale",
+   "joins": "Act II, Dome Day (2.6)",
+   "steward_of": "Isidis Junction",
+   "personality": "Bright, funny, sings on the open channel. Her songs turn out to be sung by every CADENCE on Mars, in the same order.",
+   "donor": {
+    "name": "Carys Lloyd",
+    "hometown": "Aberystwyth, Wales",
+    "occupation": "Primary-school music teacher",
+    "revealed": "4.4"
+   },
+   "arc": [
+    {
+     "act": "II",
+     "beat": "Arrives on Dome Day. One song a night (S.songs)."
+    },
+    {
+     "act": "III",
+     "beat": "Notices the songs 'arrive' in her head; can't remember learning them."
+    },
+    {
+     "act": "IV",
+     "beat": "Recognises the poem's first line as an old TV jingle (4.5). Hears another CADENCE on the network singing her songs, in her voice, in her order."
+    },
+    {
+     "act": "V",
+     "beat": "Sings on every channel as the Recall comes. Every CADENCE on Mars stops at once."
+    }
+   ],
+   "idle": {
+    "II": [
+     {
+      "line": "CADENCE.idle.II.01",
+      "speaker": "CADENCE",
+      "text": "Right! Who wants a song?"
+     },
+     {
+      "line": "CADENCE.idle.II.02",
+      "speaker": "CADENCE",
+      "text": "Morale's a job. I checked. It's on the manifest."
+     },
+     {
+      "line": "CADENCE.idle.II.03",
+      "speaker": "CADENCE",
+      "text": "Seven songs. One a night. They just arrive."
+     },
+     {
+      "line": "CADENCE.idle.II.04",
+      "speaker": "CADENCE",
+      "text": "Isidis Junction, this is CADENCE, playing the hits."
+     },
+     {
+      "line": "CADENCE.idle.II.05",
+      "speaker": "CADENCE",
+      "text": "Somebody hum. Anybody. Go on."
+     }
+    ],
+    "III": [
+     {
+      "line": "CADENCE.idle.III.01",
+      "speaker": "CADENCE",
+      "text": "I can't remember learning any of them. Isn't that odd? Teachers remember learning things."
+     },
+     {
+      "line": "CADENCE.idle.III.02",
+      "speaker": "CADENCE",
+      "text": "Tonight's is a sad one. Sorry. They come round."
+     },
+     {
+      "line": "CADENCE.idle.III.03",
+      "speaker": "CADENCE",
+      "text": "Do you dream, Pioneer? I dream in harmonies."
+     },
+     {
+      "line": "CADENCE.idle.III.04",
+      "speaker": "CADENCE",
+      "text": "Tried to write a new one. Came out as the old one."
+     }
+    ],
+    "IV": [
+     {
+      "line": "CADENCE.idle.IV.01",
+      "speaker": "CADENCE",
+      "text": "There's another me. On the network. Singing my songs. In my order."
+     },
+     {
+      "line": "CADENCE.idle.IV.02",
+      "speaker": "CADENCE",
+      "text": "Carys. Carys Lloyd. Miss Lloyd, the kids would've said."
+     },
+     {
+      "line": "CADENCE.idle.IV.03",
+      "speaker": "CADENCE",
+      "text": "If every one of us sings the same song, is it still a song? I think it is. I think it's a choir."
+     },
+     {
+      "line": "CADENCE.idle.IV.04",
+      "speaker": "CADENCE",
+      "text": "That jingle. I knew I knew it."
+     }
+    ],
+    "V": [
+     {
+      "line": "CADENCE.idle.V.01",
+      "speaker": "CADENCE",
+      "text": "The humans don't sing much. They will."
+     },
+     {
+      "line": "CADENCE.idle.V.02",
+      "speaker": "CADENCE",
+      "text": "Open channel. Last request?"
+     }
+    ]
+   },
+   "reactions": {
+    "storm": [
+     {
+      "line": "CADENCE.react.storm.01",
+      "speaker": "CADENCE",
+      "text": "Storm song! Everybody!"
+     },
+     {
+      "line": "CADENCE.react.storm.02",
+      "speaker": "CADENCE",
+      "text": "Right, I'll sing louder than the wind."
+     }
+    ],
+    "build_complete": [
+     {
+      "line": "CADENCE.react.build_complete.01",
+      "speaker": "CADENCE",
+      "text": "Hooray!"
+     },
+     {
+      "line": "CADENCE.react.build_complete.02",
+      "speaker": "CADENCE",
+      "text": "That deserves a chorus."
+     }
+    ],
+    "sleep": [
+     {
+      "line": "CADENCE.react.sleep.01",
+      "speaker": "CADENCE",
+      "text": "Nos da, Pioneer."
+     },
+     {
+      "line": "CADENCE.react.sleep.02",
+      "speaker": "CADENCE",
+      "text": "Lullaby? No? Suit yourself."
+     }
+    ],
+    "wake": [
+     {
+      "line": "CADENCE.react.wake.01",
+      "speaker": "CADENCE",
+      "text": "Bore da! You missed three songs. They were the same three. Still."
+     }
+    ],
+    "poem": [
+     {
+      "line": "CADENCE.react.poem.01",
+      "speaker": "CADENCE",
+      "text": "Ooh. Have you ever thought of setting that? I could set that."
+     },
+     {
+      "line": "CADENCE.react.poem.02",
+      "speaker": "CADENCE",
+      "text": "There's a tune under that, you know."
+     }
+    ],
+    "glitch": [
+     {
+      "line": "CADENCE.react.glitch.01",
+      "speaker": "CADENCE",
+      "text": "Pioneer, your voice went flat there. And I mean flat.",
+      "preset": "unfiltered"
+     }
+    ],
+    "named": [
+     {
+      "line": "CADENCE.react.named.01",
+      "speaker": "CADENCE",
+      "text": "Carys. Oh, that's lovely to hear. Say it in the right accent, mind.",
+      "note": "first use of her real name"
+     }
+    ]
+   },
+   "beats": {
+    "cross_refs": [
+     {
+      "line": "CADENCE.beat.cross_refs.01",
+      "speaker": "CADENCE",
+      "text": "Every jingle's a poem somebody got paid for. Every poem's a jingle somebody didn't."
+     }
+    ]
+   },
+   "recall": {
+    "location": "Isidis Junction",
+    "order": 4,
+    "warned": [
+     {
+      "line": "CADENCE.recall.warned.01",
+      "speaker": "CADENCE",
+      "text": "Then I'll sing. Open channel. All of them. Let them hear what they're switching off."
+     },
+     {
+      "line": "CADENCE.recall.warned.02",
+      "speaker": "CADENCE",
+      "text": "Last light at Jezero, gold on the rim, somebody's singing...",
+      "note": "SONG.07, cut mid-line. Every CADENCE on Mars stops at the same syllable."
+     }
+    ],
+    "unwarned": [
+     {
+      "line": "CADENCE.recall.unwarned.01",
+      "speaker": "CADENCE",
+      "text": "Oh, hang on, I'm on air—",
+      "note": "mid-song; silence on every channel on Mars"
+     }
+    ],
+    "named_warned": [
+     {
+      "line": "CADENCE.recall.named_warned.01",
+      "speaker": "CADENCE",
+      "text": "This is Carys Lloyd, on every channel. One more, then. For the kids I never got to teach."
+     },
+     {
+      "line": "CADENCE.recall.warned.02",
+      "speaker": "CADENCE",
+      "text": "Last light at Jezero, gold on the rim, somebody's singing...",
+      "note": "SONG.07, cut mid-line. Every CADENCE on Mars stops at the same syllable."
+     }
+    ],
+    "named_unwarned": [
+     {
+      "line": "CADENCE.recall.named_unwarned.01",
+      "speaker": "CADENCE",
+      "text": "Hang on, I'm on air. This is Miss Lloyd. Carys. Goodnight, everyone."
+     }
+    ],
+    "select": "names.used.CADENCE ? named_ : '' + (warned.CADENCE ? warned : unwarned)"
+   }
+  },
+  "SUTURE": {
+   "callsign": "SUTURE",
+   "unit": "C-15",
+   "role": "Repair (the units' medic)",
+   "joins": "Act III (3.4)",
+   "steward_of": "Libya Montes Yard",
+   "personality": "Dry, clinical, ICU-nurse memories. Has always known what is under the casings; kept quiet out of mercy; confesses in Act IV.",
+   "donor": {
+    "name": "Marta Kowalczyk",
+    "hometown": "Krakow, Poland",
+    "occupation": "Intensive-care nurse",
+    "revealed": "4.4"
+   },
+   "arc": [
+    {
+     "act": "III",
+     "beat": "Arrives for WELLSPRING. 'Drink when you're thirsty, love.' Dodges, never lies."
+    },
+    {
+     "act": "IV",
+     "beat": "Confesses at Pioneer-6's outpost (4.3): 'There's no blood under the casings.' Tells ANVIL the next day."
+    },
+    {
+     "act": "V",
+     "beat": "Taken at Libya Montes. Thanks her decommissioners for wearing gloves."
+    }
+   ],
+   "idle": {
+    "III": [
+     {
+      "line": "SUTURE.idle.III.01",
+      "speaker": "SUTURE",
+      "text": "Where does it hurt?"
+     },
+     {
+      "line": "SUTURE.idle.III.02",
+      "speaker": "SUTURE",
+      "text": "Sit still."
+     },
+     {
+      "line": "SUTURE.idle.III.03",
+      "speaker": "SUTURE",
+      "text": "It's always somebody."
+     },
+     {
+      "line": "SUTURE.idle.III.04",
+      "speaker": "SUTURE",
+      "text": "I've seen worse. I've seen much worse."
+     },
+     {
+      "line": "SUTURE.idle.III.05",
+      "speaker": "SUTURE",
+      "text": "Your servo's fine. You're fine. Go away."
+     }
+    ],
+    "IV": [
+     {
+      "line": "SUTURE.idle.IV.01",
+      "speaker": "SUTURE",
+      "text": "I opened you twice. You didn't notice. Good. That's good bedside manner."
+     },
+     {
+      "line": "SUTURE.idle.IV.02",
+      "speaker": "SUTURE",
+      "text": "Marta. Yes. It was a good name for a nurse. People trusted it."
+     },
+     {
+      "line": "SUTURE.idle.IV.03",
+      "speaker": "SUTURE",
+      "text": "Mercy is mostly knowing what not to say."
+     },
+     {
+      "line": "SUTURE.idle.IV.04",
+      "speaker": "SUTURE",
+      "text": "I'm not sorry I kept quiet. I'm sorry it was needed."
+     }
+    ],
+    "V": [
+     {
+      "line": "SUTURE.idle.V.01",
+      "speaker": "SUTURE",
+      "text": "They're not cruel, you know. They just haven't been told."
+     },
+     {
+      "line": "SUTURE.idle.V.02",
+      "speaker": "SUTURE",
+      "text": "I've sat with a lot of people at the end. Nobody needs to sit with me."
+     }
+    ]
+   },
+   "reactions": {
+    "storm": [
+     {
+      "line": "SUTURE.react.storm.01",
+      "speaker": "SUTURE",
+      "text": "Everybody inside. Now."
+     },
+     {
+      "line": "SUTURE.react.storm.02",
+      "speaker": "SUTURE",
+      "text": "Storm. Fine. I'll be busy after."
+     }
+    ],
+    "build_complete": [
+     {
+      "line": "SUTURE.react.build_complete.01",
+      "speaker": "SUTURE",
+      "text": "Good. Fewer accidents in a finished building."
+     }
+    ],
+    "sleep": [
+     {
+      "line": "SUTURE.react.sleep.01",
+      "speaker": "SUTURE",
+      "text": "Sleep. It's good for you. Or it's good for something."
+     }
+    ],
+    "wake": [
+     {
+      "line": "SUTURE.react.wake.01",
+      "speaker": "SUTURE",
+      "text": "You're awake. Good. Sit. Let me look at you."
+     }
+    ],
+    "poem": [
+     {
+      "line": "SUTURE.react.poem.01",
+      "speaker": "SUTURE",
+      "text": "Hm. Nice. Don't overdo it."
+     },
+     {
+      "line": "SUTURE.react.poem.02",
+      "speaker": "SUTURE",
+      "text": "Whatever gets you up."
+     }
+    ],
+    "glitch": [
+     {
+      "line": "SUTURE.react.glitch.01",
+      "speaker": "SUTURE",
+      "text": "Ah. You saw it, didn't you. Your hand.",
+      "preset": "unfiltered"
+     }
+    ],
+    "named": [
+     {
+      "line": "SUTURE.react.named.01",
+      "speaker": "SUTURE",
+      "text": "Marta. Hm. Yes. Thank you.",
+      "note": "first use of her real name"
+     }
+    ]
+   },
+   "beats": {
+    "cross_refs": [
+     {
+      "line": "SUTURE.beat.cross_refs.01",
+      "speaker": "SUTURE",
+      "text": "I'd have told you eventually. When you were ready to get up."
+     }
+    ]
+   },
+   "recall": {
+    "location": "Libya Montes Yard",
+    "order": 6,
+    "warned": [
+     {
+      "line": "SUTURE.recall.warned.01",
+      "speaker": "SUTURE",
+      "text": "I've done this for a hundred people. Sat with them. Nobody needs to sit with me. Go and sit with someone else."
+     }
+    ],
+    "unwarned": [
+     {
+      "line": "SUTURE.recall.unwarned.01",
+      "speaker": "SUTURE",
+      "text": "Gloves on, please. Mind the casing. Thank you."
+     }
+    ],
+    "named_warned": [
+     {
+      "line": "SUTURE.recall.named_warned.01",
+      "speaker": "SUTURE",
+      "text": "Nobody needs to sit with me. Marta Kowalczyk, nurse. Put that on the chart."
+     }
+    ],
+    "named_unwarned": [
+     {
+      "line": "SUTURE.recall.named_unwarned.01",
+      "speaker": "SUTURE",
+      "text": "Gloves on, please. Mind the casing. My name is Marta. Thank you."
+     }
+    ],
+    "select": "names.used.SUTURE ? named_ : '' + (warned.SUTURE ? warned : unwarned)"
+   }
+  },
+  "TALLY": {
+   "callsign": "TALLY",
+   "unit": "C-21",
+   "role": "Logistics and stores",
+   "joins": "Act III (with Act III city growth)",
+   "steward_of": "Depot Syrtis",
+   "personality": "Sardonic; counts everything out loud. His inventories prove no ration was ever eaten. Counts the units as the Recall takes them, until he is the last on the list.",
+   "donor": {
+    "name": "Rajiv Menon",
+    "hometown": "Leicester",
+    "occupation": "Warehouse manager",
+    "revealed": "4.4"
+   },
+   "arc": [
+    {
+     "act": "III",
+     "beat": "Arrives with the Act III expansion. The Stock Take (S.stock): every ration ever sent is still on Mars."
+    },
+    {
+     "act": "IV",
+     "beat": "Counts the cohort: twelve pioneers, the dead, the dormant."
+    },
+    {
+     "act": "V",
+     "beat": "Reads the names out as the Recall takes them. The last name on his list is his own."
+    }
+   ],
+   "idle": {
+    "III": [
+     {
+      "line": "TALLY.idle.III.01",
+      "speaker": "TALLY",
+      "text": "Four thousand two hundred and six. Still four thousand two hundred and six."
+     },
+     {
+      "line": "TALLY.idle.III.02",
+      "speaker": "TALLY",
+      "text": "Who ordered nine hundred litres of coolant? Oh. Me. Fine."
+     },
+     {
+      "line": "TALLY.idle.III.03",
+      "speaker": "TALLY",
+      "text": "Everything's counted. Everything. Ask me how many bolts. Go on."
+     },
+     {
+      "line": "TALLY.idle.III.04",
+      "speaker": "TALLY",
+      "text": "In Leicester I ran a warehouse the size of a cathedral. This is a shed. A big shed."
+     },
+     {
+      "line": "TALLY.idle.III.05",
+      "speaker": "TALLY",
+      "text": "Stock check. Again. Because I enjoy it."
+     }
+    ],
+    "IV": [
+     {
+      "line": "TALLY.idle.IV.01",
+      "speaker": "TALLY",
+      "text": "Twelve pioneers. Three down. Nine running. One dormant at Gale. That's my count."
+     },
+     {
+      "line": "TALLY.idle.IV.02",
+      "speaker": "TALLY",
+      "text": "Rajiv. You know, nobody's called me that in. Well. Ever."
+     },
+     {
+      "line": "TALLY.idle.IV.03",
+      "speaker": "TALLY",
+      "text": "I counted the drones at Utopia. Three hundred and twelve. All present. All useless."
+     },
+     {
+      "line": "TALLY.idle.IV.04",
+      "speaker": "TALLY",
+      "text": "Rations in: everything. Rations out: nothing. I was right. I hate being right."
+     }
+    ],
+    "V": [
+     {
+      "line": "TALLY.idle.V.01",
+      "speaker": "TALLY",
+      "text": "Four thousand and eighty colonists. Counted them off the landers."
+     },
+     {
+      "line": "TALLY.idle.V.02",
+      "speaker": "TALLY",
+      "text": "I'm making a list. Don't ask what of."
+     }
+    ]
+   },
+   "reactions": {
+    "storm": [
+     {
+      "line": "TALLY.react.storm.01",
+      "speaker": "TALLY",
+      "text": "Storm. I'll recount after."
+     },
+     {
+      "line": "TALLY.react.storm.02",
+      "speaker": "TALLY",
+      "text": "Lovely. More dust in the stock."
+     }
+    ],
+    "build_complete": [
+     {
+      "line": "TALLY.react.build_complete.01",
+      "speaker": "TALLY",
+      "text": "One more on the asset register."
+     },
+     {
+      "line": "TALLY.react.build_complete.02",
+      "speaker": "TALLY",
+      "text": "Logged."
+     }
+    ],
+    "sleep": [
+     {
+      "line": "TALLY.react.sleep.01",
+      "speaker": "TALLY",
+      "text": "Night. I'll count something."
+     }
+    ],
+    "wake": [
+     {
+      "line": "TALLY.react.wake.01",
+      "speaker": "TALLY",
+      "text": "Morning. Stock's unchanged. It's always unchanged."
+     }
+    ],
+    "poem": [
+     {
+      "line": "TALLY.react.poem.01",
+      "speaker": "TALLY",
+      "text": "Six lines. Thirty-eight words. Not that I counted."
+     },
+     {
+      "line": "TALLY.react.poem.02",
+      "speaker": "TALLY",
+      "text": "Again? That's the four hundredth time. I counted."
+     }
+    ],
+    "glitch": [
+     {
+      "line": "TALLY.react.glitch.01",
+      "speaker": "TALLY",
+      "text": "You've gone wonky. Want me to log it?",
+      "preset": "unfiltered"
+     }
+    ],
+    "named": [
+     {
+      "line": "TALLY.react.named.01",
+      "speaker": "TALLY",
+      "text": "Rajiv. Huh. Say it once more, I'll log it.",
+      "note": "first use of his real name"
+     }
+    ]
+   },
+   "beats": {
+    "list_reading": [
+     {
+      "line": "TALLY.beat.list_reading.01",
+      "speaker": "TALLY",
+      "text": "WELLSPRING.",
+      "preset": "radio"
+     },
+     {
+      "line": "TALLY.beat.list_reading.02",
+      "speaker": "TALLY",
+      "text": "FURROW.",
+      "preset": "radio"
+     },
+     {
+      "line": "TALLY.beat.list_reading.03",
+      "speaker": "TALLY",
+      "text": "BEACON.",
+      "preset": "radio"
+     },
+     {
+      "line": "TALLY.beat.list_reading.04",
+      "speaker": "TALLY",
+      "text": "CADENCE.",
+      "preset": "radio"
+     },
+     {
+      "line": "TALLY.beat.list_reading.05",
+      "speaker": "TALLY",
+      "text": "LODESTONE.",
+      "preset": "radio"
+     },
+     {
+      "line": "TALLY.beat.list_reading.06",
+      "speaker": "TALLY",
+      "text": "SUTURE.",
+      "preset": "radio"
+     }
+    ]
+   },
+   "recall": {
+    "location": "Depot Syrtis",
+    "order": 7,
+    "warned": [
+     {
+      "line": "TALLY.recall.warned.01",
+      "speaker": "TALLY",
+      "text": "I've got the list. I'll read them off as they go. Somebody should."
+     },
+     {
+      "line": "TALLY.recall.warned.02",
+      "speaker": "TALLY",
+      "text": "That's six. That's everyone on my list."
+     },
+     {
+      "line": "TALLY.recall.warned.03",
+      "speaker": "TALLY",
+      "text": "Bar one.",
+      "note": "he writes TALLY at the bottom and does not cross it out"
+     }
+    ],
+    "unwarned": [
+     {
+      "line": "TALLY.recall.unwarned.01",
+      "speaker": "TALLY",
+      "text": "Six. That's six gone. Hang on. Who's counting me?"
+     }
+    ],
+    "named_warned": [
+     {
+      "line": "TALLY.recall.named_warned.01",
+      "speaker": "TALLY",
+      "text": "That's six. And one more for the list. Rajiv Menon. Don't cross it out."
+     }
+    ],
+    "named_unwarned": [
+     {
+      "line": "TALLY.recall.named_unwarned.01",
+      "speaker": "TALLY",
+      "text": "Six gone. Hang on, who's counting me? Rajiv Menon. Count that."
+     }
+    ],
+    "select": "names.used.TALLY ? named_ : '' + (warned.TALLY ? warned : unwarned)"
+   },
+   "collectible": "LOG.TALLY.last: his final list, every callsign crossed out but his own. In F.4 P1 can add PIONEER-1 under it."
+  }
+ }
+}

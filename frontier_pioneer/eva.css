@@ -1,0 +1,145 @@
+/* ═══════════════════════════════════════════════════════════════════════
+   SURFACE: the astronaut, EVA, missions and the site launcher.
+
+   Loaded by game/launcher.js and game/avatar.js (a <link> with the modules'
+   own ?v= stamp). Everything here uses mars.css's tokens and its building
+   blocks (.panel, .eyebrow, .mini, .btn, .card, .site, .batt-bar, .prov), so
+   these screens are the same instrument as the driving HUD.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* ── on foot: the suit's vitals take the rover's place in the vitals cluster (bottom right) ── */
+#hud[data-mode="onfoot"] #v-rover { display: none; }
+.v-suit { display: flex; flex-direction: column; align-items: flex-end; gap: 0.35rem; }
+.v-suit-aux { display: flex; align-items: center; gap: 0.7rem; }
+.v-co2 { font-size: 0.6rem; letter-spacing: 0.1em; color: rgba(var(--skin-muted), 0.85); }
+.v-co2 b { color: var(--skin-data); font-weight: 500; letter-spacing: 0; font-variant-numeric: tabular-nums; }
+.v-co2 b.warn { color: var(--warn); } .v-co2 b.bad { color: var(--bad); }
+.v-co2 sub, .ring-read small sub { font-size: 0.8em; }
+.mini b.hot { color: var(--warn); }
+.helmet { position: absolute; inset: 0; pointer-events: none;
+  background: radial-gradient(ellipse 60% 74% at 50% 46%, transparent 60%, rgba(var(--skin-vignette), 0.5) 74%, rgba(var(--skin-vignette), 0.94) 92%, rgba(var(--skin-vignette), 1) 100%); }
+.helmet i { position: absolute; inset: 3% 6% 1%; border-radius: 48% / 54%; border: 2px solid rgba(var(--skin-data-rgb), 0.12);
+  box-shadow: inset 0 0 70px rgba(var(--skin-chrome-rgb), 0.07), 0 0 0 1px rgba(var(--skin-vignette), 0.5); }
+.helmet b { position: absolute; left: 50%; top: 5%; width: 26%; height: 7px; transform: translateX(-50%); border-radius: 50%;
+  background: linear-gradient(90deg, transparent, rgba(var(--skin-data-rgb), 0.18), transparent); }
+.suit-vignette { position: absolute; inset: 0; pointer-events: none; background: radial-gradient(ellipse at center, transparent 42%, color-mix(in srgb, var(--bad) 55%, transparent) 100%); animation: suit-pulse 1.4s ease-in-out infinite; }
+@keyframes suit-pulse { 50% { filter: brightness(0.55); } }
+
+/* ── the use prompt with its hold ring (in the HUD's prompt stack) ── */
+.eva-prompt { position: relative; display: flex; align-items: center; gap: 0.5rem; padding: 0.22rem 1.4rem 0.22rem 1rem; font-size: 0.8rem; white-space: nowrap; color: var(--skin-ink);
+  background: linear-gradient(90deg, transparent, rgba(var(--skin-panel), 0.62) 14%, rgba(var(--skin-panel), 0.62) 86%, transparent); }
+.eva-prompt svg { width: 1.7rem; height: 1.7rem; flex: none; transform: rotate(-90deg); }
+.eva-prompt circle { fill: none; stroke-width: 4; }
+.eva-prompt .bg { stroke: rgba(var(--skin-chrome-rgb), 0.25); }
+.eva-prompt .fg { stroke: var(--skin-chrome); stroke-linecap: butt; }
+.eva-prompt:not(.active) svg { opacity: 0.55; }
+.eva-prompt.none { padding-left: 1.4rem; color: rgba(var(--skin-muted), 0.95); }
+.eva-prompt.none svg, .eva-prompt.none .eva-key { display: none; }
+.eva-key { display: inline-flex; align-items: center; gap: 0.3rem; font-size: 0.64rem; letter-spacing: 0.1em; text-transform: uppercase; color: rgba(var(--skin-muted), 0.9); }
+.eva-key:empty { display: none; }
+.eva-key kbd, .m-body kbd, .toast kbd { font: 600 0.68rem/1 var(--skin-body); border: 1px solid rgba(var(--skin-muted), 0.6); border-radius: 0; padding: 0.2em 0.45em; color: var(--skin-ink); background: rgba(var(--skin-panel), 0.6); letter-spacing: 0; text-shadow: none; }
+.eva-bag { font-size: 0.64rem; letter-spacing: 0.1em; text-transform: uppercase; color: rgba(var(--skin-muted), 0.85); padding-left: 0.6rem; border-left: 1px solid rgba(var(--skin-chrome-rgb), 0.45); }
+.eva-bag b { color: var(--skin-data); letter-spacing: 0; margin-left: 0.2em; }
+
+/* ── scan card and map (the HUD's right column) ── */
+.hud-card { padding: 0.5rem 0.7rem; background: linear-gradient(270deg, rgba(var(--skin-panel), 0.72), rgba(var(--skin-panel), 0.4)); border-right: 2px solid rgba(var(--skin-chrome-rgb), 0.6); }
+.eva-scan { width: 20rem; text-align: left; }
+.eva-scan .prov { flex-direction: row; }
+.eva-scan .coords { margin-bottom: 0.3rem; }
+.eva-row { display: grid; grid-template-columns: 6.6rem 1fr auto; gap: 0.5rem; align-items: baseline; font-size: 0.78rem; line-height: 1.45; }
+.eva-row:first-of-type { margin-top: 0.35rem; padding-top: 0.3rem; border-top: 1px solid rgba(var(--skin-chrome-rgb), 0.2); }
+.eva-row span { color: rgba(var(--skin-muted), 0.9); }
+.eva-row b { color: var(--skin-data); font-variant-numeric: tabular-nums; }
+.eva-row em { font-style: normal; font-size: 0.6rem; letter-spacing: 0.12em; text-transform: uppercase; }
+.t-meas { color: var(--c-hirise); } .t-gen { color: var(--c-proc); } .t-int { color: var(--c-interp); } .t-bad { color: var(--bad); }
+.eva-map { text-align: left; padding: 0.45rem 0.55rem; background: rgba(var(--skin-panel), 0.55); border: 1px solid rgba(var(--skin-chrome-rgb), 0.3); }
+.eva-map canvas { display: block; width: 280px; height: 280px; border-radius: 0; }
+.eva-map .eyebrow span { text-transform: none; letter-spacing: 0.02em; margin-left: 0.5em; }
+.eva-map-legend { margin-top: 0.4rem; gap: 0.6rem; font-size: 0.62rem; }
+.eva-map-legend i { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 0.3em; }
+.k-you { background: var(--skin-ink); } .k-rover { background: var(--c-ctx); } .k-poi { background: var(--skin-data); } .k-flag { background: var(--skin-chrome); }
+.k-safe { background: none; border: 1px dashed var(--good); }
+
+.eva-fade { position: fixed; inset: 0; background: rgba(var(--skin-vignette), 1); opacity: 0; pointer-events: none; z-index: 4; }
+.eva-fade.go { animation: eva-fade 0.5s ease-out; }
+@keyframes eva-fade { 0% { opacity: 1; } 35% { opacity: 1; } 100% { opacity: 0; } }
+
+/* ── touch, on foot ── */
+#eva-touch { position: fixed; inset: auto 0 0 0; display: flex; justify-content: space-between; align-items: flex-end; padding: 0 0.9rem 6.6rem; pointer-events: none; }
+#eva-touch > div { pointer-events: auto; }
+.eva-stick { width: 7.4rem; height: 7.4rem; border-radius: 50%; border: 1px solid rgba(var(--skin-chrome-rgb), 0.6); background: rgba(var(--skin-panel), 0.45); display: grid; place-items: center; touch-action: none; }
+.eva-stick i { width: 3rem; height: 3rem; border-radius: 50%; background: rgba(var(--skin-chrome-rgb), 0.5); border: 1px solid var(--skin-chrome); }
+.eva-tmid { position: fixed; top: 6.5rem; right: 0.8rem; display: flex; flex-direction: column; gap: 0.5rem; }
+.eva-tright { display: flex; gap: 0.5rem; }
+.eva-tright .tbtn { font-size: 0.7rem; letter-spacing: 0.08em; }
+.keys .keys-h { grid-column: 1 / -1; margin-top: 0.6rem; font: 600 0.66rem/1.2 var(--skin-body); letter-spacing: 0.16em; text-transform: uppercase; color: rgba(var(--skin-muted), 0.8); }
+.keys .keys-h + dd { display: none; }
+
+/* ── the launcher ── */
+.site-list.launcher { display: block; }
+.launch-chips { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-bottom: 0.6rem; }
+.launch-chip { display: inline-flex; align-items: center; gap: 0.45rem; font: 600 0.72rem/1 var(--skin-body); letter-spacing: 0.08em; text-transform: uppercase; color: var(--skin-ink); cursor: pointer;
+  background: rgba(var(--skin-panel), 0.8); border: 1px solid rgba(var(--skin-chrome-rgb), 0.35); border-radius: 0; padding: 0.45rem 0.65rem; }
+.launch-chip:hover, .launch-chip:focus-visible { border-color: var(--skin-chrome); outline: none; }
+.launch-chip[aria-pressed="true"] { border-color: var(--skin-chrome); box-shadow: 0 0 14px rgba(var(--skin-chrome-rgb), 0.3); }
+.launch-chip i, .launch-pin i { display: block; width: 8px; height: 8px; transform: rotate(45deg); background: var(--skin-chrome); flex: none; }
+.launch-chip.locked { color: rgba(var(--skin-muted), 0.8); border-color: rgba(var(--skin-muted), 0.25); }
+.launch-chip.locked i { background: none; border: 1px solid rgba(var(--skin-muted), 0.8); }
+.launch-chip.unprepared i, .launch-chip.missing i { background: none; border: 1px dashed var(--skin-chrome); }
+.site.launch-card { cursor: default; min-height: 12.6rem; align-content: start; background: rgba(var(--skin-panel), 0.45); border-color: rgba(var(--skin-chrome-rgb), 0.22); box-shadow: none; backdrop-filter: blur(3px); }
+.site.launch-card[aria-pressed="true"] { border-color: rgba(var(--skin-chrome-rgb), 0.45); box-shadow: none; }
+.site.launch-card.off { border-style: dashed; }
+.launch-card .q { line-height: 1.4; }
+.launch-card .q i { font-style: normal; color: var(--skin-data); }
+.launch-card em { font-style: normal; color: var(--good); }
+.launch-globe { flex: none; width: min(34vw, 60vh, 440px); margin-left: auto; margin-right: clamp(1rem, 6vw, 6rem); }
+.launch-disc { position: relative; aspect-ratio: 1; container-type: inline-size; border-radius: 50%;
+  box-shadow: 0 0 70px rgba(var(--skin-chrome-rgb), 0.26), 0 0 0 1px rgba(var(--skin-chrome-rgb), 0.4), inset 0 0 40px rgba(0, 0, 0, 0.5); }
+.launch-disc canvas { display: block; width: 100%; height: 100%; border-radius: 50%; cursor: grab; touch-action: none; }
+.launch-disc canvas:active { cursor: grabbing; }
+.launch-pins { position: absolute; inset: 0; pointer-events: none; }
+.launch-pin { position: absolute; left: 0; top: 0; width: 24px; height: 24px; margin: -12px 0 0 -12px; padding: 0; display: grid; place-items: center; background: none; border: 0; cursor: pointer; pointer-events: auto; color: inherit; font: inherit; }
+.launch-pin i { width: 12px; height: 12px; background: rgba(var(--skin-panel), 0.6); border: 2px solid var(--skin-chrome); box-shadow: 0 0 10px rgba(var(--skin-chrome-rgb), 0.9); }
+.launch-pin.on i { background: var(--skin-chrome); }
+.launch-pin.locked i { width: 8px; height: 8px; border: 1px solid rgba(var(--skin-ink-rgb, 255, 244, 232), 0.75); box-shadow: none; background: rgba(var(--skin-panel), 0.5); }
+.launch-pin.unprepared i, .launch-pin.missing i { border-style: dashed; }
+.launch-pin span { position: absolute; left: 22px; top: 50%; transform: translateY(-50%); display: none; white-space: nowrap; font-size: 0.7rem; background: rgba(var(--skin-panel), 0.84); padding: 0.08em 0.45em; border-radius: 0; color: var(--skin-data); }
+.launch-pin.on span, .launch-pin.ready span, .launch-pin:hover span, .launch-pin.hover span, .launch-pin:focus-visible span { display: block; }
+.launch-pin.on { z-index: 2; } .launch-pin:focus-visible { outline: none; }
+.launch-reticle { position: absolute; left: 50%; top: 50%; width: 46px; height: 46px; margin: -23px 0 0 -23px; border: 1px solid rgba(255, 244, 232, 0.5); border-radius: 50%; pointer-events: none; }
+.launch-reticle::before, .launch-reticle::after { content: ""; position: absolute; background: rgba(255, 244, 232, 0.5); }
+.launch-reticle::before { left: 50%; top: -9px; bottom: -9px; width: 1px; }
+.launch-reticle::after { top: 50%; left: -9px; right: -9px; height: 1px; }
+.launch-read { text-align: center; margin-top: 0.8rem; }
+.launch-read .eyebrow { display: block; margin: 0; }
+.launch-read b { color: var(--skin-data); font-variant-numeric: tabular-nums; font-size: 0.9rem; }
+@media (max-width: 1000px) { .launch-globe { display: none; } }
+
+/* ── missions: briefing, debrief, log ── */
+.mission .card.wide { width: min(47rem, 96vw); }
+.m-body p { margin: 0 0 0.6rem; font-size: 0.92rem; line-height: 1.45; color: rgba(var(--skin-muted), 0.98); }
+.m-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 0.4rem 1.6rem; margin: 0.5rem 0 1rem; padding-top: 0.7rem; border-top: 1px solid rgba(var(--skin-chrome-rgb), 0.22); }
+.m-cols .eyebrow:nth-of-type(n+2) { margin-top: 0.7rem; }
+.m-cols .fine { margin: 0 0 0.35rem; max-width: none; }
+.m-obj { margin: 0; padding-left: 1.3rem; display: grid; gap: 0.28rem; font-size: 0.86rem; color: var(--skin-ink); }
+.m-obj li.done { color: var(--good); } .m-obj li.done::marker { content: "\2713  "; }
+.m-obj li.now { color: var(--skin-data); font-weight: 600; }
+.m-obj li.opt { list-style: none; color: rgba(var(--skin-muted), 0.9); margin-left: -1.3rem; }
+.m-reward { margin: 0; font-size: 0.86rem; color: var(--skin-data); }
+.m-src { color: rgba(var(--skin-muted), 0.55); }
+.m-stats { margin-bottom: 0.9rem; }
+.mission .row { margin-bottom: 0; }
+.m-list { list-style: none; margin: 0 0 0.8rem; padding: 0; display: grid; gap: 0.4rem; }
+.m-row { display: grid; grid-template-columns: 1.5rem 1fr; gap: 0.6rem; padding: 0.42rem 0.65rem; border: 1px solid rgba(var(--skin-chrome-rgb), 0.2); border-radius: 0; }
+.m-row > b { font: 500 1rem/1.3 "Orbitron", var(--skin-body); color: var(--skin-chrome); }
+.m-row h3 { margin: 0; font: 500 0.95rem/1.3 "Orbitron", var(--skin-body); }
+.m-row h3 em { font: 600 0.6rem/1 var(--skin-body); font-style: normal; letter-spacing: 0.12em; text-transform: uppercase; margin-left: 0.5em; color: rgba(var(--skin-muted), 0.8); }
+.m-row p { margin: 0.1rem 0 0; font-size: 0.8rem; color: rgba(var(--skin-muted), 0.92); }
+.m-row .m-obj { margin-top: 0.35rem; font-size: 0.8rem; }
+.m-row.done h3 em { color: var(--good); } .m-row.current { border-color: var(--skin-chrome); } .m-row.current h3 em { color: var(--skin-chrome); }
+.m-row.unavailable, .m-row.locked { opacity: 0.6; }
+@media (max-width: 720px) { .m-cols { grid-template-columns: 1fr; } }
+
+/* the helmet and the emergency vignette sit under the HUD's instruments, over the picture */
+#hud { isolation: isolate; }
+.helmet, .suit-vignette { z-index: -1; }

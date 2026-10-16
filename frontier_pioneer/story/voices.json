@@ -1,0 +1,749 @@
+{
+ "engine": "rhasspy piper (local). Models installed in ~/.local/share/atlas/piper/: en_GB-vctk-medium (109 speakers; use the 'speaker' key, resolved via the model's speaker_id_map), en_GB-northern_english_male-medium, en_GB-southern_english_female-low, en_GB-cori-medium, en_US-ryan-medium, en_US-joe-medium, en_US-lessac-medium, it_IT-riccardo-x_low. en_GB-alba-medium and en_US-hfc_female-medium are NOT installed and are not used.",
+ "piper_params": "length_scale (>1 slower), noise_scale (expressiveness; KEEPER 0.30), noise_w (duration variation). pitch_semitones is applied in post (e.g. sox/rubberband), not by Piper.",
+ "presets": {
+  "dry": {
+   "desc": "No processing. KEEPER's voice: flat, close, no room.",
+   "chain": [
+    "highpass 80Hz",
+    "gentle limiter"
+   ]
+  },
+  "helmet": {
+   "desc": "PIONEER-1 inside the suit: clean close-mic with a light helmet reverb and the faint breath bed.",
+   "chain": [
+    "highpass 90Hz",
+    "early reflections 18-30 ms, 12% wet",
+    "low-mid +1.5 dB at 400Hz",
+    "breath bed -32 dB (removed after the filter burns out)"
+   ]
+  },
+  "grille": {
+   "desc": "Caretaker speaker grille: filtered, slightly metallic. The filter's idea of a robot.",
+   "chain": [
+    "bandpass 260-5200Hz",
+    "comb 2.1 ms, feedback 0.25",
+    "bitcrush 12-bit, 22 kHz",
+    "soft clip"
+   ]
+  },
+  "unfiltered": {
+   "desc": "A caretaker heard WITHOUT the filter (glitch frames in Act IV, everything after the burn): the same take, dry and human.",
+   "chain": [
+    "highpass 80Hz",
+    "small room 0.25 s, 8% wet"
+   ]
+  },
+  "memory": {
+   "desc": "Flashback audio (DAD, ALICE, LUCY, shards): warm, slightly soft, remembered.",
+   "chain": [
+    "lowpass 7 kHz",
+    "plate reverb 1.8 s, 22% wet",
+    "tape saturation light",
+    "wow 0.15%"
+   ]
+  },
+  "broadcast": {
+   "desc": "ARCHITECT and the 2059 advert: compressed, polished, aged by the archive.",
+   "chain": [
+    "compressor 4:1",
+    "presence +2 dB 3 kHz",
+    "hall 0.8 s 10% wet",
+    "tape hiss -40 dB",
+    "for the 2059 advert add wow 0.4% and 10 kHz lowpass"
+   ]
+  },
+  "live": {
+   "desc": "Real humans in air (Act V dome): no filter, room tone. The first live voices in the game.",
+   "chain": [
+    "highpass 70Hz",
+    "room 0.35 s 10% wet"
+   ]
+  },
+  "corrupted": {
+   "desc": "PIONEER-3's mainframe: skips, loops, stutters, rare lucid moments.",
+   "chain": [
+    "granular stutter on marked words",
+    "pitch drift +-30 cents",
+    "bitcrush 8-bit bursts",
+    "dropouts 40-200 ms",
+    "lucid lines: clean except 12-bit"
+   ]
+  },
+  "intercom": {
+   "desc": "The old outpost intercom (C15): small speaker, telephone band.",
+   "chain": [
+    "bandpass 300-3400Hz",
+    "speaker distortion light",
+    "far-side room 0.4 s"
+   ]
+  },
+  "phone": {
+   "desc": "A 2040s mobile voicemail: codec band, slight artefacts.",
+   "chain": [
+    "bandpass 300-3400Hz",
+    "codec artefacts (AMR-like)",
+    "level -3 dB"
+   ]
+  },
+  "archive": {
+   "desc": "2056 ESI interview footage: camera mic in a plain room.",
+   "chain": [
+    "lowpass 10 kHz",
+    "room 0.5 s 18% wet",
+    "hiss -42 dB"
+   ]
+  },
+  "radio": {
+   "desc": "Radio links: RELAY, RECALL teams in the field, the pioneer network.",
+   "chain": [
+    "bandpass 400-3000Hz",
+    "squelch tail on line end",
+    "click in",
+    "light saturation"
+   ]
+  },
+  "signed": {
+   "desc": "HUSH signs: never rendered; shown as subtitles in square brackets.",
+   "chain": []
+  }
+ },
+ "player_voice": {
+  "rule": "P1, DAD, P1_MEM, PIONEER_3, PIONEER_11 and PIONEER_N are 'player' voices: render once per selectable preset. PIONEER_3 must always match the player's pick exactly. ROWAN is always the default preset.",
+  "default": {
+   "model": "en_GB-vctk-medium",
+   "speaker": "p298",
+   "accent": "Irish (Tipperary speaker standing in for Galway)"
+  },
+  "selectable": [
+   {
+    "id": "irish_m_1",
+    "model": "en_GB-vctk-medium",
+    "speaker": "p298",
+    "label": "Irish male (default)"
+   },
+   {
+    "id": "irish_m_2",
+    "model": "en_GB-vctk-medium",
+    "speaker": "p364",
+    "label": "Irish male, Donegal"
+   },
+   {
+    "id": "irish_m_3",
+    "model": "en_GB-vctk-medium",
+    "speaker": "p245",
+    "label": "Irish male, Dublin"
+   },
+   {
+    "id": "n_eng_m",
+    "model": "en_GB-northern_english_male-medium",
+    "label": "Northern English male"
+   },
+   {
+    "id": "us_m",
+    "model": "en_US-ryan-medium",
+    "label": "American male"
+   },
+   {
+    "id": "scot_f",
+    "model": "en_GB-vctk-medium",
+    "speaker": "p234",
+    "label": "Scottish female"
+   },
+   {
+    "id": "belfast_m",
+    "model": "en_GB-vctk-medium",
+    "speaker": "p304",
+    "label": "Belfast male"
+   },
+   {
+    "id": "eng_f",
+    "model": "en_GB-cori-medium",
+    "label": "English female"
+   },
+   {
+    "id": "eng_f_2",
+    "model": "en_GB-southern_english_female-low",
+    "label": "Southern English female"
+   }
+  ]
+ },
+ "speakers": {
+  "P1": {
+   "model": "en_GB-vctk-medium",
+   "speaker": "p298",
+   "length_scale": 1.0,
+   "pitch_semitones": 0,
+   "noise_scale": 0.667,
+   "noise_w": 0.8,
+   "preset": "helmet",
+   "accent": "player-selected; default Irish male",
+   "brief": "Player-selected preset. Close, tired, dry humour, a geologist's precision. Whispers the poem.",
+   "story_rule": "Same voice reused for every pioneer. Rendered once per selectable preset.",
+   "player_voice": true
+  },
+  "P1_MEM": {
+   "model": "en_GB-vctk-medium",
+   "speaker": "p298",
+   "length_scale": 1.0,
+   "pitch_semitones": 0,
+   "noise_scale": 0.667,
+   "noise_w": 0.8,
+   "preset": "memory",
+   "brief": "PIONEER-1's voice inside a remembered scene that is Rowan's real life (UB, Galway, phone calls). Younger, unguarded.",
+   "story_rule": "Always the player's chosen P1 voice.",
+   "player_voice": true
+  },
+  "DAD": {
+   "model": "en_GB-vctk-medium",
+   "speaker": "p298",
+   "length_scale": 1.02,
+   "pitch_semitones": 0,
+   "noise_scale": 0.667,
+   "noise_w": 0.8,
+   "preset": "memory",
+   "brief": "PIONEER-1's own voice as remembered: softer, bedtime register.",
+   "story_rule": "Always the player's chosen P1 voice, never a separate actor.",
+   "player_voice": true
+  },
+  "PIONEER_3": {
+   "model": "en_GB-vctk-medium",
+   "speaker": "p298",
+   "length_scale": 1.0,
+   "pitch_semitones": 0,
+   "noise_scale": 0.667,
+   "noise_w": 0.8,
+   "preset": "corrupted",
+   "brief": "Identical to P1's chosen preset. Warped and skipping.",
+   "story_rule": "Must always match the player's choice; heard only in C10.",
+   "player_voice": true
+  },
+  "PIONEER_11": {
+   "model": "en_GB-vctk-medium",
+   "speaker": "p298",
+   "length_scale": 0.97,
+   "pitch_semitones": 0.2,
+   "noise_scale": 0.667,
+   "noise_w": 0.8,
+   "preset": "helmet",
+   "brief": "P1's voice, certain and cheerful. The loyal one.",
+   "story_rule": "Same voice as P1. Over the network use radio.",
+   "player_voice": true
+  },
+  "PIONEER_N": {
+   "model": "en_GB-vctk-medium",
+   "variation": "per pioneer: P2 +0.3 st, P4 -0.3, P5 +0.0 rate 0.97, P7 +0.5, P8 -0.5, P10 rate 1.04, P12 +0.2 rate 0.98",
+   "speaker": "p298",
+   "length_scale": 1.0,
+   "pitch_semitones": 0,
+   "noise_scale": 0.667,
+   "noise_w": 0.8,
+   "preset": "radio",
+   "brief": "Pioneers 2, 4, 5, 7, 8, 10, 12 on the network: P1's voice, different lives.",
+   "story_rule": "Same voice as P1.",
+   "player_voice": true
+  },
+  "ROWAN": {
+   "model": "en_GB-vctk-medium",
+   "speaker": "p298",
+   "length_scale": 1.02,
+   "pitch_semitones": -0.5,
+   "noise_scale": 0.667,
+   "noise_w": 0.8,
+   "preset": "archive",
+   "accent": "Galway man, late 30s",
+   "brief": "Galway man in his late thirties, nervous. 2056 archive footage.",
+   "story_rule": "Always the DEFAULT P1 voice, whatever the player picked: this is where the default came from."
+  },
+  "KEEPER": {
+   "model": "en_US-lessac-medium",
+   "length_scale": 1.06,
+   "pitch_semitones": -0.5,
+   "noise_scale": 0.3,
+   "noise_w": 0.3,
+   "preset": "dry",
+   "brief": "Neutral, precise, polite, no emotion. Never stresses a word.",
+   "story_rule": "Never lies; answers only the literal question."
+  },
+  "ANVIL": {
+   "model": "en_GB-vctk-medium",
+   "speaker": "p292",
+   "length_scale": 1.0,
+   "pitch_semitones": -0.5,
+   "noise_scale": 0.667,
+   "noise_w": 0.8,
+   "preset": "grille",
+   "accent": "Northern Irish, Belfast",
+   "brief": "Belfast, late 20s, gravel, quick wit. Warm under the jokes. (VCTK p292 is a Belfast male in his twenties; -0.5 st adds the grit without ageing him. Same speaker as DES, on purpose.)",
+   "story_rule": "Calls itself a unit until named. Human (unfiltered) in glitch frames and after the burn."
+  },
+  "LODESTONE": {
+   "model": "en_GB-vctk-medium",
+   "speaker": "p314",
+   "length_scale": 1.1,
+   "pitch_semitones": -1.0,
+   "noise_scale": 0.667,
+   "noise_w": 0.8,
+   "preset": "grille",
+   "accent": "Nigerian English (Jos) wanted",
+   "brief": "Quiet, exact, pedantic about rocks; competitive with P1's geology.",
+   "accent_note": "No Nigerian English Piper voice installed; VCTK p314 (South African female), slowed, is the nearest non-British stand-in. Replace when a voice exists."
+  },
+  "WELLSPRING": {
+   "model": "en_GB-vctk-medium",
+   "speaker": "p239",
+   "length_scale": 0.95,
+   "pitch_semitones": 0,
+   "noise_scale": 0.667,
+   "noise_w": 0.8,
+   "preset": "grille",
+   "accent": "South-west England standing in for Cornish",
+   "brief": "Cornish, 30s, careful, anxious, counts things twice.",
+   "accent_note": "No Cornish speaker in VCTK; p239 (SW England) is closest."
+  },
+  "BEACON": {
+   "model": "en_US-joe-medium",
+   "length_scale": 0.94,
+   "pitch_semitones": 1.0,
+   "noise_scale": 0.667,
+   "noise_w": 0.8,
+   "preset": "grille",
+   "accent": "Azorean Portuguese wanted",
+   "brief": "Relentless optimist; harbour-pilot memories; talks about weather like the sea.",
+   "accent_note": "No Portuguese-English voice; joe-medium brightened is a stand-in."
+  },
+  "FURROW": {
+   "model": "en_GB-vctk-medium",
+   "speaker": "p311",
+   "length_scale": 1.25,
+   "pitch_semitones": -3.0,
+   "noise_scale": 0.667,
+   "noise_w": 0.8,
+   "preset": "grille",
+   "accent": "Rural Midwestern US (Iowa)",
+   "brief": "70s, slow, kind. Never hurries."
+  },
+  "CADENCE": {
+   "model": "en_GB-vctk-medium",
+   "speaker": "p253",
+   "length_scale": 0.97,
+   "pitch_semitones": 0.5,
+   "noise_scale": 0.667,
+   "noise_w": 0.8,
+   "preset": "grille",
+   "accent": "Welsh (Cardiff)",
+   "brief": "Welsh, 20s, bright; sings on the open channel.",
+   "story_rule": "Songs repeat exactly across all CADENCE units. Sung lines need a singer or music asset; TTS speaks only the spoken lines."
+  },
+  "SUTURE": {
+   "model": "en_GB-vctk-medium",
+   "speaker": "p276",
+   "length_scale": 1.05,
+   "pitch_semitones": -1.0,
+   "noise_scale": 0.667,
+   "noise_w": 0.8,
+   "preset": "grille",
+   "accent": "Polish (Krakow) wanted",
+   "brief": "Dry, clinical, ICU-nurse calm; mercy in what she leaves unsaid.",
+   "accent_note": "No Polish-English voice; p276 read flat is a stand-in."
+  },
+  "TALLY": {
+   "model": "en_GB-vctk-medium",
+   "speaker": "p279",
+   "length_scale": 0.98,
+   "pitch_semitones": -0.5,
+   "noise_scale": 0.667,
+   "noise_w": 0.8,
+   "preset": "grille",
+   "accent": "English, Leicester",
+   "brief": "Sardonic; counts everything out loud."
+  },
+  "GIRDER": {
+   "model": "en_GB-vctk-medium",
+   "speaker": "p237",
+   "length_scale": 1.0,
+   "pitch_semitones": -1.0,
+   "noise_scale": 0.667,
+   "noise_w": 0.8,
+   "preset": "grille",
+   "accent": "Scottish (Fife)",
+   "brief": "Cheerful about heights he is terrified of."
+  },
+  "KILN": {
+   "model": "en_GB-vctk-medium",
+   "speaker": "p256",
+   "length_scale": 1.0,
+   "pitch_semitones": 0,
+   "noise_scale": 0.667,
+   "noise_w": 0.8,
+   "preset": "grille",
+   "accent": "English (Birmingham)",
+   "brief": "Big plans, soft voice; wants to print a cathedral."
+  },
+  "SPINDLE": {
+   "model": "en_GB-vctk-medium",
+   "speaker": "p230",
+   "length_scale": 1.0,
+   "pitch_semitones": 0,
+   "noise_scale": 0.667,
+   "noise_w": 0.8,
+   "preset": "grille",
+   "accent": "English (Teesside)",
+   "brief": "Brisk, practical, fond."
+  },
+  "HARBOR": {
+   "model": "en_GB-vctk-medium",
+   "speaker": "p326",
+   "length_scale": 0.96,
+   "pitch_semitones": 0,
+   "noise_scale": 0.667,
+   "noise_w": 0.8,
+   "preset": "grille",
+   "accent": "Australian",
+   "brief": "Laconic petrolhead."
+  },
+  "PLUMB": {
+   "model": "en_GB-northern_english_male-medium",
+   "length_scale": 1.05,
+   "pitch_semitones": -1.0,
+   "noise_scale": 0.667,
+   "noise_w": 0.8,
+   "preset": "grille",
+   "accent": "Northern English",
+   "brief": "Stubborn surveyor; distrusts the HUD."
+  },
+  "ORCHARD": {
+   "model": "en_GB-vctk-medium",
+   "speaker": "p308",
+   "length_scale": 1.08,
+   "pitch_semitones": 0,
+   "noise_scale": 0.667,
+   "noise_w": 0.8,
+   "preset": "grille",
+   "accent": "American (Alabama)",
+   "brief": "Patient, devout about grafting."
+  },
+  "TIDE": {
+   "model": "en_GB-vctk-medium",
+   "speaker": "p335",
+   "length_scale": 1.0,
+   "pitch_semitones": 0,
+   "noise_scale": 0.667,
+   "noise_w": 0.8,
+   "preset": "grille",
+   "accent": "New Zealand",
+   "brief": "Quiet humour; talks to fish."
+  },
+  "LANTERN": {
+   "model": "en_GB-vctk-medium",
+   "speaker": "p234",
+   "length_scale": 1.0,
+   "pitch_semitones": 0,
+   "noise_scale": 0.667,
+   "noise_w": 0.8,
+   "preset": "grille",
+   "accent": "Scottish",
+   "brief": "Night-shift astronomer; precise, curious, a little reckless."
+  },
+  "SCRIBE": {
+   "model": "en_GB-cori-medium",
+   "length_scale": 1.02,
+   "pitch_semitones": 0,
+   "noise_scale": 0.667,
+   "noise_w": 0.8,
+   "preset": "grille",
+   "accent": "English",
+   "brief": "Archivist; careful with words, proud of the plaque."
+  },
+  "RELAY": {
+   "model": "en_US-ryan-medium",
+   "length_scale": 0.92,
+   "pitch_semitones": -1.0,
+   "noise_scale": 0.667,
+   "noise_w": 0.8,
+   "preset": "radio",
+   "accent": "American",
+   "brief": "Clipped radio procedure only."
+  },
+  "BELLOWS": {
+   "model": "en_GB-vctk-medium",
+   "speaker": "p227",
+   "length_scale": 1.05,
+   "pitch_semitones": -1.5,
+   "noise_scale": 0.667,
+   "noise_w": 0.8,
+   "preset": "grille",
+   "accent": "English (Cumbria)",
+   "brief": "Older, rueful; misses rain."
+  },
+  "FERRY": {
+   "model": "en_GB-vctk-medium",
+   "speaker": "p302",
+   "length_scale": 0.98,
+   "pitch_semitones": 0,
+   "noise_scale": 0.667,
+   "noise_w": 0.8,
+   "preset": "grille",
+   "accent": "Canadian",
+   "brief": "Easy-going pilot; chatter on approach."
+  },
+  "CHALK": {
+   "model": "en_GB-vctk-medium",
+   "speaker": "p266",
+   "length_scale": 1.0,
+   "pitch_semitones": 0,
+   "noise_scale": 0.667,
+   "noise_w": 0.8,
+   "preset": "grille",
+   "accent": "Irish (Athlone)",
+   "brief": "Teacher's voice: clear, encouraging, firm."
+  },
+  "WARDEN": {
+   "model": "en_GB-vctk-medium",
+   "speaker": "p232",
+   "length_scale": 1.0,
+   "pitch_semitones": -1.0,
+   "noise_scale": 0.667,
+   "noise_w": 0.8,
+   "preset": "grille",
+   "accent": "Southern English",
+   "brief": "Correct, loyal to Meridian, cold when it counts."
+  },
+  "MORTAR_1": {
+   "model": "en_GB-vctk-medium",
+   "speaker": "p270",
+   "length_scale": 1.0,
+   "pitch_semitones": -1.0,
+   "noise_scale": 0.667,
+   "noise_w": 0.8,
+   "preset": "grille",
+   "accent": "English (Yorkshire)",
+   "brief": "Stonemason's patience; stories with no endings.",
+   "story_rule": "Same donor as MORTAR_2."
+  },
+  "MORTAR_2": {
+   "model": "en_GB-vctk-medium",
+   "speaker": "p270",
+   "length_scale": 1.0,
+   "pitch_semitones": -0.6,
+   "noise_scale": 0.667,
+   "noise_w": 0.8,
+   "preset": "grille",
+   "accent": "English (Yorkshire)",
+   "brief": "The same donor, slightly different life.",
+   "story_rule": "Same donor as MORTAR_1: per-unit pitch variation only."
+  },
+  "CARD": {
+   "model": "none",
+   "length_scale": 1.0,
+   "pitch_semitones": 0.0,
+   "noise_scale": 0.667,
+   "noise_w": 0.8,
+   "preset": "signed",
+   "brief": "Epilogue cards and on-screen text. Never rendered.",
+   "render": false
+  },
+  "HUSH": {
+   "model": "none",
+   "length_scale": 1.0,
+   "pitch_semitones": 0.0,
+   "noise_scale": 0.667,
+   "noise_w": 0.8,
+   "preset": "signed",
+   "brief": "Never speaks; signs.",
+   "render": false
+  },
+  "ALICE": {
+   "model": "en_GB-vctk-medium",
+   "speaker": "p340",
+   "length_scale": 1.05,
+   "pitch_semitones": 4.0,
+   "noise_scale": 0.667,
+   "noise_w": 0.8,
+   "preset": "memory",
+   "accent": "Irish child",
+   "brief": "Eight, curious, asks impossible questions about Mars.",
+   "story_rule": "Same takes heard by all pioneers. Child voice is a pitch-shifted adult take: audition, or replace with a recorded performance."
+  },
+  "LUCY": {
+   "model": "en_GB-vctk-medium",
+   "speaker": "p288",
+   "length_scale": 1.0,
+   "pitch_semitones": 0,
+   "noise_scale": 0.667,
+   "noise_w": 0.8,
+   "preset": "memory",
+   "accent": "Irish (Dublin standing in for Galway)",
+   "brief": "30s, warm, steadier than him."
+  },
+  "DES": {
+   "model": "en_GB-vctk-medium",
+   "speaker": "p292",
+   "length_scale": 1.0,
+   "pitch_semitones": 0,
+   "noise_scale": 0.667,
+   "noise_w": 0.8,
+   "preset": "phone",
+   "accent": "Northern Irish, Belfast",
+   "brief": "Des at 28 on a voicemail: ANVIL's voice without the years or the grille.",
+   "story_rule": "Same speaker as ANVIL, no pitch drop."
+  },
+  "NIAMH": {
+   "model": "en_GB-vctk-medium",
+   "speaker": "p238",
+   "length_scale": 1.0,
+   "pitch_semitones": 0,
+   "noise_scale": 0.667,
+   "noise_w": 0.8,
+   "preset": "phone",
+   "accent": "Northern Irish, Belfast",
+   "brief": "Tired, plain, kind. One voicemail."
+  },
+  "MAM": {
+   "model": "en_GB-vctk-medium",
+   "speaker": "p295",
+   "length_scale": 1.05,
+   "pitch_semitones": -2.0,
+   "noise_scale": 0.667,
+   "noise_w": 0.8,
+   "preset": "memory",
+   "accent": "Irish",
+   "brief": "Rowan's mother, Galway; brisk affection."
+  },
+  "ARCHITECT": {
+   "model": "en_US-ryan-medium",
+   "length_scale": 1.08,
+   "pitch_semitones": -1.0,
+   "noise_scale": 0.667,
+   "noise_w": 0.8,
+   "preset": "broadcast",
+   "accent": "Transatlantic corporate",
+   "brief": "Polished, corporate, sincere. Believes every word.",
+   "story_rule": "Archived recordings only."
+  },
+  "VOICE_OVER": {
+   "model": "en_GB-southern_english_female-low",
+   "length_scale": 1.1,
+   "pitch_semitones": 0,
+   "noise_scale": 0.667,
+   "noise_w": 0.8,
+   "preset": "broadcast",
+   "accent": "Southern English",
+   "brief": "Warm 2059 advert voice-over."
+  },
+  "CITS_PA": {
+   "model": "en_GB-southern_english_female-low",
+   "length_scale": 1.0,
+   "pitch_semitones": 0,
+   "noise_scale": 0.667,
+   "noise_w": 0.8,
+   "preset": "broadcast",
+   "brief": "Meridian public address in the Act V cities."
+  },
+  "COVENANT_LEAD": {
+   "model": "en_GB-vctk-medium",
+   "speaker": "p280",
+   "length_scale": 0.95,
+   "pitch_semitones": -1.5,
+   "noise_scale": 0.667,
+   "noise_w": 0.8,
+   "preset": "live",
+   "accent": "French (VCTK p280, a French speaker reading English)",
+   "brief": "French-Italian, 50s, clipped. Professional, not cruel.",
+   "story_rule": "First live human voice in the game.",
+   "accent_note": "Kept on VCTK p280 (a French speaker reading English) with the live preset, as the bible asks (live, no filter). it_IT-riccardo-x_low is male and low quality; not used for her. If p280 auditions badly, fall back to en_GB-southern_english_female-low with pitch -1."
+  },
+  "RECALL_1": {
+   "model": "en_US-joe-medium",
+   "length_scale": 1.0,
+   "pitch_semitones": -1.0,
+   "noise_scale": 0.667,
+   "noise_w": 0.8,
+   "preset": "radio",
+   "brief": "Team lead. Calm procedure."
+  },
+  "RECALL_2": {
+   "model": "en_GB-northern_english_male-medium",
+   "length_scale": 1.0,
+   "pitch_semitones": 0,
+   "noise_scale": 0.667,
+   "noise_w": 0.8,
+   "preset": "radio",
+   "brief": "By the book."
+  },
+  "RECALL_3": {
+   "model": "en_GB-vctk-medium",
+   "speaker": "p258",
+   "length_scale": 1.0,
+   "pitch_semitones": 0,
+   "noise_scale": 0.667,
+   "noise_w": 0.8,
+   "preset": "radio",
+   "brief": "Young, nervous, talks too much."
+  },
+  "RECALL_4": {
+   "model": "en_GB-vctk-medium",
+   "speaker": "p345",
+   "length_scale": 1.0,
+   "pitch_semitones": -1.0,
+   "noise_scale": 0.667,
+   "noise_w": 0.8,
+   "preset": "radio",
+   "brief": "Tired veteran."
+  },
+  "CARA": {
+   "model": "en_GB-vctk-medium",
+   "speaker": "p261",
+   "length_scale": 1.05,
+   "pitch_semitones": -2.0,
+   "noise_scale": 0.667,
+   "noise_w": 0.8,
+   "preset": "live",
+   "accent": "Northern Irish, Belfast",
+   "brief": "67, precise, guarded; goes cold at Rowan's name.",
+   "story_rule": "Optional C17 only."
+  },
+  "INTERVIEWER": {
+   "model": "en_GB-vctk-medium",
+   "speaker": "p250",
+   "length_scale": 1.0,
+   "pitch_semitones": 0,
+   "noise_scale": 0.667,
+   "noise_w": 0.8,
+   "preset": "archive",
+   "brief": "ESI selection panel, 2056: friendly, procedural."
+  },
+  "GEN1": {
+   "model": "en_US-lessac-medium",
+   "length_scale": 0.9,
+   "pitch_semitones": -3.0,
+   "noise_scale": 0.2,
+   "noise_w": 0.2,
+   "preset": "radio",
+   "brief": "Gen-1 drone log playback: flatter than KEEPER, slower, degraded."
+  },
+  "GALE_ANVIL": {
+   "model": "en_GB-vctk-medium",
+   "speaker": "p292",
+   "length_scale": 1.0,
+   "pitch_semitones": -0.5,
+   "noise_scale": 0.667,
+   "noise_w": 0.8,
+   "preset": "grille",
+   "accent": "Northern Irish, Belfast",
+   "brief": "Pioneer-5's ANVIL: the same voice (Belfast, late 20s), the same jokes, no memory of P1.",
+   "story_rule": "MUST be the exact ANVIL voice: that is the point."
+  },
+  "UNIT": {
+   "model": "en_GB-vctk-medium",
+   "length_scale": 1.0,
+   "pitch_semitones": 0,
+   "noise_scale": 0.667,
+   "noise_w": 0.8,
+   "preset": "grille",
+   "brief": "Generated caretaker: voice comes from its donor template in population.json.",
+   "story_rule": "speaker field reads UNIT:<template id>, e.g. UNIT:T14"
+  }
+ },
+ "population_voices": "Generated caretakers use their donor template's voice (population.json templates[].voice) with the grille preset and per-unit variation."
+}

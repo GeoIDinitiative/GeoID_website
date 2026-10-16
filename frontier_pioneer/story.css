@@ -1,0 +1,110 @@
+/* ═══════════════════════════════════════════════════════════════════════
+   THE STORY: the KEEPER terminal, the HALO-1 uplink, the Story log, the
+   reading panel, cutscene directions and title cards, the end screen and
+   the dev skip. Loaded by game/storydata.js (ensureStoryStyles) with the
+   module's own ?v= stamp. GeoHUB tokens only (--skin-*), so every GeoHUB
+   theme (and the light Workstation one) restates it. Square corners, no
+   pills around plain text, text on panels in ink or data colour, never
+   muted-on-muted.
+   ═══════════════════════════════════════════════════════════════════════ */
+.screen.keeper, .screen.halo, .screen.story-log { z-index: 20; }
+
+/* ── the KEEPER terminal ── */
+.kt-card { display: grid; gap: 0.7rem; width: min(46rem, 96vw); }
+.kt-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 1rem; border-bottom: 1px solid rgba(var(--skin-chrome-rgb), 0.35); padding-bottom: 0.5rem; }
+.kt-head h2 { margin: 0; letter-spacing: 0.3em; }
+.kt-head .eyebrow { color: var(--skin-data); }
+.kt-stat, .h-cc { margin: 0; font-size: 0.74rem; letter-spacing: 0.08em; color: var(--skin-data); font-variant-numeric: tabular-nums; text-align: right; }
+.kt-log { height: min(15rem, 32vh); overflow-y: auto; padding: 0.6rem 0.75rem; display: grid; align-content: start; gap: 0.35rem;
+  background: rgba(var(--skin-vignette), 0.72); border: 1px solid rgba(var(--skin-data-rgb), 0.3);
+  font: 400 0.86rem/1.4 var(--skin-body); }
+.kt-line { margin: 0; display: grid; grid-template-columns: 5.6rem 1fr; gap: 0.6rem; color: var(--skin-ink); }
+.kt-line b { font: 600 0.62rem/1.6 var(--skin-body); letter-spacing: 0.22em; text-transform: uppercase; color: var(--skin-data); }
+.kt-keeper span { color: var(--skin-data); letter-spacing: 0.03em; }
+.kt-you { grid-template-columns: 1fr; } .kt-you span { color: var(--skin-ink); }
+.kt-you b { color: var(--skin-chrome); }
+.kt-sys { grid-template-columns: 1fr; } .kt-sys span { color: var(--skin-chrome); font-weight: 600; letter-spacing: 0.3em; font-size: 0.7rem; }
+.kt-ask { display: flex; align-items: stretch; gap: 0; border: 1px solid rgba(var(--skin-chrome-rgb), 0.55); background: rgba(var(--skin-vignette), 0.6); }
+.kt-prompt { display: flex; align-items: center; padding: 0 0.6rem; font: 600 1rem/1 var(--skin-body); color: var(--skin-chrome); }
+.kt-ask input { flex: 1; min-width: 0; font: 500 0.95rem/1.2 var(--skin-body); color: var(--skin-ink); background: transparent; border: 0; padding: 0.7rem 0.3rem; outline: none; caret-color: var(--skin-chrome); }
+.kt-ask input::placeholder { color: rgba(var(--skin-muted), 0.75); }
+.kt-ask:focus-within { border-color: var(--skin-chrome); box-shadow: 0 0 14px rgba(var(--skin-chrome-rgb), 0.3); }
+.kt-ask .btn { border: 0; border-left: 1px solid rgba(var(--skin-chrome-rgb), 0.55); }
+.kt-menu-h { margin: 0.2rem 0 0; }
+.kt-menu { display: grid; grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr)); gap: 0.35rem; max-height: 9.5rem; overflow-y: auto; }
+.kt-q { text-align: left; font: 500 0.8rem/1.3 var(--skin-body); color: var(--skin-ink); cursor: pointer; padding: 0.45rem 0.6rem;
+  background: rgba(var(--skin-vignette), 0.4); border: 1px solid rgba(var(--skin-chrome-rgb), 0.25); border-radius: 0; }
+.kt-q:hover, .kt-q:focus-visible { border-color: var(--skin-chrome); outline: none; box-shadow: 0 0 10px rgba(var(--skin-chrome-rgb), 0.3); }
+
+/* ── the HALO-1 uplink ── */
+.h-card { display: grid; gap: 0.7rem; }
+.h-cols { display: grid; grid-template-columns: minmax(0, 22rem) 1fr; gap: 1.1rem; align-items: start; }
+.h-mapbox { display: grid; gap: 0.35rem; }
+.h-map { width: 100%; aspect-ratio: 1; border: 1px solid rgba(var(--skin-chrome-rgb), 0.5); cursor: crosshair; display: block; background: rgba(var(--skin-vignette), 1); }
+.h-map:focus-visible { outline: none; border-color: var(--skin-chrome); box-shadow: 0 0 14px rgba(var(--skin-chrome-rgb), 0.35); }
+.h-drop { margin: 0; color: var(--skin-ink); }
+.h-kinds { display: grid; gap: 0.35rem; }
+.h-kind { display: grid; grid-template-columns: auto 1fr auto; grid-template-rows: auto auto; column-gap: 0.6rem; align-items: center; cursor: pointer; padding: 0.5rem 0.65rem;
+  background: rgba(var(--skin-vignette), 0.4); border: 1px solid rgba(var(--skin-chrome-rgb), 0.25); }
+.h-kind input { grid-row: 1 / 3; accent-color: var(--skin-chrome); margin: 0; }
+.h-kind b { font: 600 0.84rem/1.2 var(--skin-body); color: var(--skin-ink); }
+.h-kind span { grid-column: 2; font-size: 0.76rem; color: rgba(var(--skin-muted), 0.95); }
+.h-kind em { grid-row: 1 / 3; grid-column: 3; font: 600 0.74rem/1 var(--skin-body); font-style: normal; color: var(--skin-data); font-variant-numeric: tabular-nums; }
+.h-kind.on { border-color: var(--skin-chrome); background: rgba(var(--skin-chrome-rgb), 0.12); }
+@media (max-width: 640px) { .h-cols { grid-template-columns: 1fr; } .kt-line { grid-template-columns: 1fr; gap: 0; } }
+
+/* ── the Story log ── */
+.sl-card { width: min(46rem, 96vw); }
+.sl-body h2 { margin: 0.1rem 0 0.4rem; }
+.sl-body > .eyebrow:first-child { color: var(--skin-chrome); }
+.sl-sum { margin: 0 0 0.7rem; font-size: 0.9rem; color: var(--skin-ink); max-width: 40rem; }
+.sl-acts { display: flex; flex-wrap: wrap; gap: 0.45rem; margin: 0.9rem 0 0.6rem; }
+.sl-acts .btn { padding: 0.55rem 0.8rem; font-size: 0.74rem; }
+.sl-list { list-style: none; margin: 0 0 0.8rem; padding: 0; display: grid; gap: 0.4rem; }
+.sl-list li { display: grid; grid-template-columns: 1fr auto; gap: 0.1rem 0.8rem; align-items: center; padding: 0.45rem 0.6rem; border-left: 2px solid rgba(var(--skin-chrome-rgb), 0.5); background: rgba(var(--skin-vignette), 0.35); }
+.sl-list b { font-weight: 600; color: var(--skin-ink); }
+.sl-list span { grid-column: 1; font-size: 0.78rem; color: rgba(var(--skin-muted), 0.95); }
+.sl-list .btn { grid-row: 1 / 3; grid-column: 2; padding: 0.45rem 0.7rem; font-size: 0.7rem; color: var(--skin-ink); border-color: rgba(var(--skin-chrome-rgb), 0.55); }
+.sl-notes { margin: 0 0 0.6rem; padding-left: 1.2rem; display: grid; gap: 0.25rem; font-size: 0.8rem; color: var(--skin-ink); }
+.sl-notes li::marker { color: var(--skin-chrome); }
+
+/* ── the reading panel (a record, a drawing, a log) ── */
+.story-doc { position: fixed; right: var(--pad); top: 18vh; width: min(24rem, 90vw); z-index: 13; padding: 0.9rem 1rem; pointer-events: none;
+  background: rgba(var(--skin-panel), 0.92); border-left: 2px solid var(--skin-data); box-shadow: 0 0 26px rgba(var(--skin-data-rgb), 0.18); }
+.story-doc .eyebrow { color: var(--skin-data); }
+.story-doc h3 { margin: 0 0 0.4rem; font: 500 1rem/1.25 var(--skin-display); letter-spacing: 0.06em; color: var(--skin-ink); }
+.sd-text { margin: 0; font-size: 0.85rem; line-height: 1.45; color: var(--skin-ink); white-space: pre-line; }
+
+/* ── cutscenes: the stage direction (top) and the title cards ── */
+.cs-dir { position: absolute; left: 50%; top: calc(11vh + 0.7rem); transform: translateX(-50%); width: min(44rem, 90vw); margin: 0; text-align: center;
+  font: italic 400 0.84rem/1.45 var(--skin-body); color: var(--skin-ink); text-shadow: var(--hud-glow); opacity: 0.92; }
+body:not(.ui-letterbox) .cs-dir { top: var(--pad); }
+.cs-title { position: absolute; left: 50%; top: 42%; transform: translate(-50%, -50%); display: grid; gap: 0.3rem; justify-items: center; text-align: center; pointer-events: none; }
+.cs-title span { display: block; }
+.cs-hud span, .cs-telemetry span { font: 600 0.9rem/1.2 var(--skin-body); letter-spacing: 0.32em; color: var(--skin-data); text-shadow: 0 0 12px rgba(var(--skin-data-rgb), 0.6); }
+.cs-telemetry span { font-family: ui-monospace, "SFMono-Regular", Menlo, monospace; letter-spacing: 0.18em; }
+.cs-stencil span { font: 600 clamp(1.1rem, 3vw, 1.9rem)/1.1 var(--skin-display); letter-spacing: 0.24em; color: var(--skin-ink); padding: 0.4rem 0.9rem; border: 2px solid var(--skin-ink); }
+.cs-plaque span, .cs-epilogue_card span { font: 500 clamp(1rem, 2.4vw, 1.5rem)/1.3 var(--skin-display); letter-spacing: 0.18em; color: var(--skin-ink); }
+.cs-plaque, .cs-epilogue_card { padding: 1rem 1.6rem; background: rgba(var(--skin-panel), 0.85); border: 1px solid var(--c-interp); box-shadow: 0 0 30px color-mix(in srgb, var(--c-interp) 30%, transparent); }
+.cs-archive span { font: 500 0.8rem/1.2 ui-monospace, Menlo, monospace; letter-spacing: 0.2em; color: var(--skin-ink); background: rgba(var(--skin-vignette), 0.7); padding: 0.25rem 0.6rem; }
+#story .st-fade.cs-white { background: var(--skin-ink); }
+
+/* ── a photograph ── */
+.story-flash { position: fixed; inset: 0; z-index: 30; pointer-events: none; background: var(--skin-ink); animation: story-flash 0.45s ease-out forwards; }
+@keyframes story-flash { from { opacity: 0.85; } to { opacity: 0; } }
+
+/* ── the end ── */
+.story-end { z-index: 40; background: radial-gradient(ellipse at center, rgba(var(--skin-panel), 0.96), rgba(var(--skin-vignette), 1) 72%); text-align: center; }
+.se-inner { display: grid; gap: 0.6rem; justify-items: center; max-width: 40rem; }
+.se-inner .eyebrow { font-size: 0.8rem; letter-spacing: 0.4em; color: var(--skin-chrome); margin: 0; }
+.se-inner h2 { font: 500 clamp(1.6rem, 4.5vw, 3rem)/1.1 var(--skin-display); letter-spacing: 0.14em; margin: 0; color: var(--skin-ink); }
+.se-sub { margin: 0 0 0.8rem; font-size: 0.95rem; letter-spacing: 0.08em; color: var(--skin-ink); white-space: pre-line; }
+
+/* ── the dev skip (?story=dev) ── */
+.story-dev { position: fixed; left: var(--pad); top: 30vh; z-index: 25; width: 21rem; padding: 0.6rem 0.7rem; display: grid; gap: 0.4rem;
+  background: rgba(var(--skin-panel), 0.94); border: 1px solid rgba(var(--skin-chrome-rgb), 0.5); }
+.story-dev .eyebrow { color: var(--skin-chrome); margin: 0; }
+.sd-state { margin: 0; font-size: 0.72rem; color: var(--skin-data); font-variant-numeric: tabular-nums; }
+.sd-row { display: flex; gap: 0.35rem; flex-wrap: wrap; }
+.sd-row select { flex: 1; min-width: 0; font: 500 0.76rem/1.2 var(--skin-body); color: var(--skin-ink); background: rgba(var(--skin-vignette), 0.6); border: 1px solid rgba(var(--skin-chrome-rgb), 0.4); border-radius: 0; padding: 0.3rem; }
+.sd-row .btn { padding: 0.4rem 0.55rem; font-size: 0.66rem; color: var(--skin-ink); }

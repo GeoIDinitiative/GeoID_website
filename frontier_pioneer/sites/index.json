@@ -1,0 +1,149 @@
+{
+  "schema": 1,
+  "note": "The sites the launcher offers. status: ready (built: its manifest is read from path), unprepared (real data identified, not built), locked (a candidate, with what real data exists). Coordinates are planetocentric latitude and east longitude, degrees. campaign: the story order of the regional sites (a story system may gate them; the launcher shows every ready site).",
+  "globe": "assets/globe/mars_color.jpg",
+  "sites": [
+    {
+      "id": "jezero",
+      "status": "ready",
+      "path": "sites/jezero/",
+      "name": "Jezero Crater",
+      "lat": 18.48,
+      "lon": 77.41
+    },
+    {
+      "id": "gale",
+      "status": "ready",
+      "path": "sites/gale/",
+      "name": "Gale Crater",
+      "lat": -4.54,
+      "lon": 137.38,
+      "blurb": "Curiosity's landing area: Bradbury Landing, Yellowknife Bay and the road toward Mount Sharp.",
+      "data": "USGS Astrogeology MSL Gale merged DEM mosaic (1 m) and orthophoto mosaic (0.25 m), Calef and Parker 2016.",
+      "todo": "Rebuild with tools/fetch_window.py and tools/build_site.py from tools/sites/gale.site.json.",
+      "credit": "Terrain and imagery: USGS Astrogeology, MSL Gale merged DEM and orthophoto mosaics (Calef and Parker 2016; NASA / JPL / University of Arizona / MSSS / ESA / DLR / FU Berlin). A game, not a navigation product."
+    },
+    {
+      "id": "arcadia",
+      "status": "ready",
+      "path": "sites/arcadia/",
+      "campaign": 1,
+      "name": "Arcadia Planitia",
+      "lat": 46.2,
+      "lon": 188.8,
+      "blurb": "Icy northern plains: a fresh impact crater has dug up clean ground ice.",
+      "data": "MOLA-HRSC blended DEM (200 m), USGS CTX exploration-zone mosaic (5 m), Viking MDIM 2.1 colour (232 m).",
+      "todo": "Rebuild with tools/fetch_window.py and tools/build_site.py from tools/sites/arcadia.site.json.",
+      "credit": "Terrain: MOLA-HRSC blended DEM: USGS Astrogeology (Fergason et al. 2018; public domain). Imagery: USGS CTX human-exploration-zone mosaic (CTX: NASA / JPL / MSSS); colour: Viking MDIM 2.1, USGS / NASA / JPL (public domain). Below the data: generated, and labelled. A game, not a navigation product."
+    },
+    {
+      "id": "north_polar",
+      "status": "ready",
+      "path": "sites/north_polar/",
+      "campaign": 2,
+      "name": "North Polar Layered Deposits",
+      "lat": 85.108,
+      "lon": 237.47,
+      "blurb": "The edge of the north polar cap: a kilometre of layered ice above a dark embayment.",
+      "data": "MOLA north polar gridded topography, 512 pixels per degree (115 m); Viking MDIM 2.1 (232 m).",
+      "todo": "Rebuild with tools/fetch_window.py and tools/build_site.py from tools/sites/north_polar.site.json.",
+      "credit": "Terrain: MGS MOLA polar MEGDR (NASA / GSFC, public domain). Imagery and colour: Viking MDIM 2.1, USGS / NASA / JPL (public domain). Layers, ice, fractures and frost: generated, and labelled. A game, not a navigation product."
+    },
+    {
+      "id": "korolev",
+      "status": "ready",
+      "path": "sites/korolev/",
+      "campaign": 3,
+      "name": "Korolev crater",
+      "lat": 73.28,
+      "lon": 164.6,
+      "blurb": "An 82 km crater filled with a mound of water ice 1.8 km thick.",
+      "data": "HRSC stereo DTM h5618 (75 m), MOLA-HRSC blend (200 m), HRSC nadir image (12.5 m), THEMIS day IR (100 m), Viking colour.",
+      "todo": "Rebuild with tools/fetch_window.py and tools/build_site.py from tools/sites/korolev.site.json.",
+      "credit": "Terrain: HRSC: ESA/DLR/FU Berlin (CC BY-SA 3.0 IGO); MOLA-HRSC blended DEM: USGS Astrogeology (Fergason et al. 2018; public domain). Imagery: HRSC: ESA/DLR/FU Berlin (CC BY-SA 3.0 IGO); THEMIS (NASA / JPL / ASU); colour: Viking MDIM 2.1, USGS / NASA / JPL (public domain). A game, not a navigation product."
+    },
+    {
+      "id": "arsia",
+      "status": "ready",
+      "path": "sites/arsia/",
+      "campaign": 4,
+      "name": "Arsia Mons flank",
+      "lat": -10.85,
+      "lon": 239.05,
+      "blurb": "Lava plains, collapse pits and lava-tube skylights on the south-west flank of Arsia Mons.",
+      "data": "HRSC stereo DTM h0263 (100 m), MOLA-HRSC blend (200 m), Robbins CTX mosaic MC-17 (6 m), Viking colour.",
+      "todo": "Rebuild with tools/fetch_window.py and tools/build_site.py from tools/sites/arsia.site.json.",
+      "credit": "Terrain: HRSC: ESA/DLR/FU Berlin (CC BY-SA 3.0 IGO); MOLA-HRSC blended DEM: USGS Astrogeology (Fergason et al. 2018; public domain). Imagery: USGS Robbins CTX mosaic (CTX: NASA / JPL / MSSS); colour: Viking MDIM 2.1, USGS / NASA / JPL (public domain). Skylights and ramp: generated, and labelled. A game, not a navigation product."
+    },
+    {
+      "id": "utopia",
+      "status": "ready",
+      "path": "sites/utopia/",
+      "campaign": 5,
+      "name": "Utopia Planitia",
+      "lat": 45.5,
+      "lon": 90.3,
+      "blurb": "Scalloped, ice-rich plains of western Utopia, patterned ground underfoot.",
+      "data": "MOLA-HRSC blended DEM (200 m, smoothed), HRSC nadir image h5367 (12.5 m), THEMIS day IR (100 m), Viking colour.",
+      "todo": "Rebuild with tools/fetch_window.py and tools/build_site.py from tools/sites/utopia.site.json.",
+      "credit": "Terrain: MOLA-HRSC blended DEM: USGS Astrogeology (Fergason et al. 2018; public domain). Imagery: HRSC: ESA/DLR/FU Berlin (CC BY-SA 3.0 IGO); THEMIS (NASA / JPL / ASU); colour: Viking MDIM 2.1, USGS / NASA / JPL (public domain). Scallops and polygons: generated, and labelled. A game, not a navigation product."
+    },
+    {
+      "id": "valles",
+      "status": "ready",
+      "path": "sites/valles/",
+      "campaign": 6,
+      "name": "Coprates Chasma",
+      "lat": -12.02,
+      "lon": 296.83,
+      "blurb": "Valles Marineris: a canyon wall nearly ten kilometres high, from plateau rim to floor. Rocket access only.",
+      "data": "HRSC stereo DTM h1973 (50 m), MOLA-HRSC blend (200 m), Robbins CTX mosaic MC-18 (6 m), Viking colour.",
+      "todo": "Rebuild with tools/fetch_window.py and tools/build_site.py from tools/sites/valles.site.json.",
+      "credit": "Terrain: HRSC: ESA/DLR/FU Berlin (CC BY-SA 3.0 IGO); MOLA-HRSC blended DEM: USGS Astrogeology (Fergason et al. 2018; public domain). Imagery: USGS Robbins CTX mosaic (CTX: NASA / JPL / MSSS); colour: Viking MDIM 2.1, USGS / NASA / JPL (public domain). A game, not a navigation product."
+    },
+    {
+      "id": "hellas",
+      "status": "ready",
+      "path": "sites/hellas/",
+      "campaign": 7,
+      "name": "Hellas Planitia",
+      "lat": -32.86,
+      "lon": 62.22,
+      "blurb": "The deepest floor on Mars, more than eight kilometres below the datum.",
+      "data": "MOLA-HRSC blended DEM (200 m), HRSC nadir image h0532 (50 m), THEMIS day IR (100 m), Viking colour.",
+      "todo": "Rebuild with tools/fetch_window.py and tools/build_site.py from tools/sites/hellas.site.json.",
+      "credit": "Terrain: MOLA-HRSC blended DEM: USGS Astrogeology (Fergason et al. 2018; public domain). Imagery: HRSC: ESA/DLR/FU Berlin (CC BY-SA 3.0 IGO); THEMIS (NASA / JPL / ASU); colour: Viking MDIM 2.1, USGS / NASA / JPL (public domain). A game, not a navigation product."
+    },
+    {
+      "id": "olympus",
+      "status": "ready",
+      "path": "sites/olympus/",
+      "campaign": 8,
+      "name": "Olympus Mons summit",
+      "lat": 18.03,
+      "lon": 226.75,
+      "blurb": "The south rim of the summit caldera, 21 km up: the high, lonely end of the world.",
+      "data": "HRSC stereo DTM h0037 (50 m), MOLA-HRSC blend (200 m), Robbins CTX mosaic MC-09 (6 m), Viking colour.",
+      "todo": "Rebuild with tools/fetch_window.py and tools/build_site.py from tools/sites/olympus.site.json.",
+      "credit": "Terrain: HRSC: ESA/DLR/FU Berlin (CC BY-SA 3.0 IGO); MOLA-HRSC blended DEM: USGS Astrogeology (Fergason et al. 2018; public domain). Imagery: USGS Robbins CTX mosaic (CTX: NASA / JPL / MSSS); colour: Viking MDIM 2.1, USGS / NASA / JPL (public domain). A game, not a navigation product."
+    },
+    {
+      "id": "gusev",
+      "status": "locked",
+      "name": "Gusev / Columbia Hills",
+      "lat": -14.57,
+      "lon": 175.47,
+      "blurb": "Spirit's landing site and the hills it climbed: Husband Hill, Home Plate, and where it stopped in 2010.",
+      "data": "HiRISE stereo terrain models (1 m) and orthoimages (0.25 m) of the Columbia Hills from the HiRISE team; the MER Spirit traverse is published by NASA/JPL."
+    },
+    {
+      "id": "meridiani",
+      "status": "locked",
+      "name": "Meridiani / Endurance",
+      "lat": -1.95,
+      "lon": 354.47,
+      "blurb": "Opportunity's plains: Eagle and Endurance craters, and 45 km of traverse to Endeavour.",
+      "data": "HiRISE coverage along Opportunity's traverse, with stereo terrain models (1 m) of Victoria and parts of Endeavour's rim; CTX (6 m) throughout; the traverse is published by NASA/JPL."
+    }
+  ]
+}

@@ -1,0 +1,1872 @@
+{
+ "memory_shards": {
+  "rule": "KEEPER records (Act IV) show every pioneer finds the same 40 shards in the same places. Shard triggers are identical in every region. In donor_real shards, P1's voice is the player's chosen voice: the player's own voice telling Rowan's real life.",
+  "scripted_memory": {
+   "id": "MEM.contract",
+   "mission": "1.5",
+   "lines": "M1.5.p.memory.*"
+  },
+  "shards": [
+   {
+    "id": "MEM.01",
+    "title": "Bedtime",
+    "act": "I",
+    "trigger": {
+     "site": "jezero",
+     "where": "inside the tipped lander, first wake",
+     "condition": "on waking (P.1)",
+     "radius_m": 25
+    },
+    "kind": "lumen_construct",
+    "remembered_year": null,
+    "transcript": [
+     {
+      "line": "MEM.01.01",
+      "speaker": "ALICE",
+      "text": "Will you see the stars better from Mars?"
+     },
+     {
+      "line": "MEM.01.02",
+      "speaker": "DAD",
+      "text": "Same stars. Closer to some."
+     },
+     {
+      "line": "MEM.01.03",
+      "speaker": "ALICE",
+      "text": "Will you see me?"
+     },
+     {
+      "line": "MEM.01.04",
+      "speaker": "DAD",
+      "text": "Every night. I'll look straight at Ireland."
+     }
+    ],
+    "truth": "Construct. Every pioneer wakes to this one."
+   },
+   {
+    "id": "MEM.02",
+    "title": "The Kitchen",
+    "act": "I",
+    "trigger": {
+     "site": "jezero",
+     "where": "first habitat interior",
+     "condition": "first entry (1.4)",
+     "radius_m": 25
+    },
+    "kind": "lumen_construct",
+    "remembered_year": null,
+    "transcript": [
+     {
+      "line": "MEM.02.01",
+      "speaker": "LUCY",
+      "text": "You've packed the rock hammer twice."
+     },
+     {
+      "line": "MEM.02.02",
+      "speaker": "DAD",
+      "text": "One for luck."
+     },
+     {
+      "line": "MEM.02.03",
+      "speaker": "LUCY",
+      "text": "One for Mars. Leave the other for me, so I've something to throw at you."
+     }
+    ],
+    "truth": "Construct. The kitchen is assembled from a real Galway flat Rowan rented alone."
+   },
+   {
+    "id": "MEM.03",
+    "title": "Galway, 2021",
+    "act": "I",
+    "trigger": {
+     "site": "jezero",
+     "where": "Three Forks sample depot",
+     "condition": "complete S.cache",
+     "radius_m": 25
+    },
+    "kind": "donor_real",
+    "remembered_year": 2021,
+    "transcript": [
+     {
+      "line": "MS.cache.done.01",
+      "ref": true
+     },
+     {
+      "line": "MS.cache.done.02",
+      "ref": true
+     }
+    ],
+    "truth": "Real. Rowan was three when Perseverance landed; his mother held him up to the laptop."
+   },
+   {
+    "id": "MEM.04",
+    "title": "A Real Lake",
+    "act": "I",
+    "trigger": {
+     "site": "jezero",
+     "where": "delta front, Hawksbill Gap",
+     "condition": "first visit",
+     "radius_m": 25
+    },
+    "kind": "lumen_construct",
+    "remembered_year": null,
+    "transcript": [
+     {
+      "line": "MEM.04.01",
+      "speaker": "ALICE",
+      "text": "Was there really a lake?"
+     },
+     {
+      "line": "MEM.04.02",
+      "speaker": "DAD",
+      "text": "Right where I'll be standing. Fifty metres deep."
+     },
+     {
+      "line": "MEM.04.03",
+      "speaker": "ALICE",
+      "text": "Did it have waves?"
+     },
+     {
+      "line": "MEM.04.04",
+      "speaker": "DAD",
+      "text": "Little ones."
+     }
+    ],
+    "truth": "Construct."
+   },
+   {
+    "id": "MEM.05",
+    "title": "The Pier",
+    "act": "I",
+    "trigger": {
+     "site": "jezero",
+     "where": "Belva crater rim",
+     "condition": "sunset",
+     "radius_m": 25
+    },
+    "kind": "mixed",
+    "remembered_year": null,
+    "transcript": [
+     {
+      "line": "MEM.05.01",
+      "speaker": "LUCY",
+      "text": "Ask me properly."
+     },
+     {
+      "line": "MEM.05.02",
+      "speaker": "DAD",
+      "text": "Lucy, will you..."
+     },
+     {
+      "line": "MEM.05.03",
+      "speaker": "LUCY",
+      "text": "Yes. God. Yes. Get up, you're kneeling in a puddle."
+     }
+    ],
+    "truth": "Mixed. The pier at Salthill and Lucy are real: they were together through his early thirties. The proposal never happened. MEM.33 is the real version, same place."
+   },
+   {
+    "id": "MEM.06",
+    "title": "Ring Me",
+    "act": "I",
+    "trigger": {
+     "site": "jezero",
+     "where": "comms mast",
+     "condition": "night, after 1.5",
+     "radius_m": 25
+    },
+    "kind": "lumen_construct",
+    "remembered_year": null,
+    "transcript": [
+     {
+      "line": "MEM.06.01",
+      "speaker": "ALICE",
+      "text": "Can you ring me from Mars?"
+     },
+     {
+      "line": "MEM.06.02",
+      "speaker": "DAD",
+      "text": "Not for a while. But I'll be thinking it, every night."
+     }
+    ],
+    "truth": "Construct; written to make Silent Protocol bearable."
+   },
+   {
+    "id": "MEM.07",
+    "title": "Corridor",
+    "act": "I",
+    "trigger": {
+     "site": "jezero",
+     "where": "habitat, during the storm",
+     "condition": "storm active (1.6)",
+     "radius_m": 25
+    },
+    "kind": "lumen_construct",
+    "remembered_year": null,
+    "transcript": [
+     {
+      "line": "MEM.07.01",
+      "speaker": "LUCY",
+      "text": "Come and meet her."
+     },
+     {
+      "line": "MEM.07.02",
+      "speaker": "DAD",
+      "text": "She's so small."
+     },
+     {
+      "line": "MEM.07.03",
+      "speaker": "LUCY",
+      "text": "They're meant to be small."
+     }
+    ],
+    "truth": "Construct. A hospital corridor that exists in no hospital."
+   },
+   {
+    "id": "MEM.08",
+    "title": "That's You",
+    "act": "I",
+    "trigger": {
+     "site": "jezero",
+     "where": "the new rover's cab",
+     "condition": "first time in the rover (after C04)",
+     "radius_m": 25
+    },
+    "kind": "lumen_construct",
+    "remembered_year": null,
+    "transcript": [
+     {
+      "line": "MEM.08.01",
+      "speaker": "ALICE",
+      "text": "That's you. That's the rocket. That's me, waving."
+     },
+     {
+      "line": "MEM.08.02",
+      "speaker": "DAD",
+      "text": "Where's Mammy?"
+     },
+     {
+      "line": "MEM.08.03",
+      "speaker": "ALICE",
+      "text": "Making the tea."
+     }
+    ],
+    "truth": "Construct; paired with Alice's Drawing 1 behind the dash glass."
+   },
+   {
+    "id": "MEM.09",
+    "title": "Kick the Wall",
+    "act": "II",
+    "trigger": {
+     "site": "jezero",
+     "where": "north rim, start of the water road",
+     "condition": "2.1",
+     "radius_m": 25
+    },
+    "kind": "donor_real",
+    "remembered_year": 2028,
+    "transcript": [
+     {
+      "line": "MEM.09.01",
+      "speaker": "MAM",
+      "text": "Kick the wall, Rowan. Everyone kicks the wall."
+     },
+     {
+      "line": "MEM.09.02",
+      "speaker": "P1_MEM",
+      "text": "Why?"
+     },
+     {
+      "line": "MEM.09.03",
+      "speaker": "MAM",
+      "text": "So you'll come back."
+     }
+    ],
+    "truth": "Real. Salthill promenade; the Galway custom of kicking the wall at the end of the prom."
+   },
+   {
+    "id": "MEM.10",
+    "title": "Big Spoon",
+    "act": "II",
+    "trigger": {
+     "site": "arcadia",
+     "where": "the fresh impact crater",
+     "condition": "2.2",
+     "radius_m": 25
+    },
+    "kind": "lumen_construct",
+    "remembered_year": null,
+    "transcript": [
+     {
+      "line": "MEM.10.01",
+      "speaker": "ALICE",
+      "text": "Is there water on Mars?"
+     },
+     {
+      "line": "MEM.10.02",
+      "speaker": "DAD",
+      "text": "Frozen, under the dirt. I'm going to dig it up."
+     },
+     {
+      "line": "MEM.10.03",
+      "speaker": "ALICE",
+      "text": "With a spoon?"
+     },
+     {
+      "line": "MEM.10.04",
+      "speaker": "DAD",
+      "text": "A big spoon."
+     }
+    ],
+    "truth": "Construct."
+   },
+   {
+    "id": "MEM.11",
+    "title": "Steady",
+    "act": "II",
+    "trigger": {
+     "site": "north_polar",
+     "where": "crevasse field",
+     "condition": "2.3",
+     "radius_m": 25
+    },
+    "kind": "lumen_construct",
+    "remembered_year": null,
+    "transcript": [
+     {
+      "line": "MEM.11.01",
+      "speaker": "LUCY",
+      "text": "Hold the line. No. Steady. The sea knows when you're nervous."
+     }
+    ],
+    "truth": "Construct, built on the real Lucy's job (marine biologist)."
+   },
+   {
+    "id": "MEM.12",
+    "title": "Layers",
+    "act": "II",
+    "trigger": {
+     "site": "north_polar",
+     "where": "foot of the ice scarp",
+     "condition": "after C05",
+     "radius_m": 25
+    },
+    "kind": "lumen_construct",
+    "remembered_year": null,
+    "transcript": [
+     {
+      "line": "MEM.12.01",
+      "speaker": "LUCY",
+      "text": "Every layer's a year the world wrote down."
+     }
+    ],
+    "truth": "Construct. LODESTONE has just told him it isn't true. The construct is wrong about geology; Rowan never was."
+   },
+   {
+    "id": "MEM.13",
+    "title": "Wish",
+    "act": "II",
+    "trigger": {
+     "site": "korolev",
+     "where": "Korolev rim",
+     "condition": "2.4",
+     "radius_m": 25
+    },
+    "kind": "lumen_construct",
+    "remembered_year": null,
+    "transcript": [
+     {
+      "line": "MEM.13.01",
+      "speaker": "ALICE",
+      "text": "I wish Daddy could stay."
+     },
+     {
+      "line": "MEM.13.02",
+      "speaker": "DAD",
+      "text": "...",
+      "note": "silence"
+     }
+    ],
+    "truth": "Construct; guilt as fuel."
+   },
+   {
+    "id": "MEM.14",
+    "title": "Field of Stones",
+    "act": "II",
+    "trigger": {
+     "site": "korolev",
+     "where": "first greenhouse",
+     "condition": "first harvest",
+     "radius_m": 25
+    },
+    "kind": "donor_real",
+    "remembered_year": 2027,
+    "transcript": [
+     {
+      "line": "MEM.14.01",
+      "speaker": "MAM",
+      "text": "Your granny grew potatoes in a field of stones in Connemara. Stubbornness. That's all it takes."
+     }
+    ],
+    "truth": "Real."
+   },
+   {
+    "id": "MEM.15",
+    "title": "Next Year",
+    "act": "II",
+    "trigger": {
+     "site": "jezero",
+     "where": "launch pad",
+     "condition": "2.5",
+     "radius_m": 25
+    },
+    "kind": "lumen_construct",
+    "remembered_year": null,
+    "transcript": [
+     {
+      "line": "MEM.15.01",
+      "speaker": "ALICE",
+      "text": "Is that you?"
+     },
+     {
+      "line": "MEM.15.02",
+      "speaker": "DAD",
+      "text": "Not yet. Next year."
+     }
+    ],
+    "truth": "Construct; a launch video on a tablet."
+   },
+   {
+    "id": "MEM.16",
+    "title": "Window",
+    "act": "II",
+    "trigger": {
+     "site": "jezero",
+     "where": "inside Dome One",
+     "condition": "2.6",
+     "radius_m": 25
+    },
+    "kind": "lumen_construct",
+    "remembered_year": null,
+    "transcript": [
+     {
+      "line": "MEM.16.01",
+      "speaker": "ALICE",
+      "text": "Will my room have a window?"
+     },
+     {
+      "line": "MEM.16.02",
+      "speaker": "DAD",
+      "text": "The biggest window. You'll see the whole crater."
+     }
+    ],
+    "truth": "Construct."
+   },
+   {
+    "id": "MEM.17",
+    "title": "Eat Properly",
+    "act": "II",
+    "trigger": {
+     "site": "arcadia",
+     "where": "relay tower 1",
+     "condition": "night",
+     "radius_m": 25
+    },
+    "kind": "lumen_construct",
+    "remembered_year": null,
+    "transcript": [
+     {
+      "line": "MEM.17.01",
+      "speaker": "LUCY",
+      "text": "Promise me you'll eat properly."
+     },
+     {
+      "line": "MEM.17.02",
+      "speaker": "DAD",
+      "text": "I promise."
+     }
+    ],
+    "truth": "Construct."
+   },
+   {
+    "id": "MEM.18",
+    "title": "Dust Devil",
+    "act": "II",
+    "trigger": {
+     "site": "amazonis",
+     "where": "devil country",
+     "condition": "S.devil",
+     "radius_m": 25
+    },
+    "kind": "lumen_construct",
+    "remembered_year": null,
+    "transcript": [
+     {
+      "line": "MEM.18.01",
+      "speaker": "ALICE",
+      "text": "Look! I'm a dust devil!"
+     },
+     {
+      "line": "MEM.18.02",
+      "speaker": "DAD",
+      "text": "You'll be sick. Stop spinning. Stop... fine, one more."
+     }
+    ],
+    "truth": "Construct."
+   },
+   {
+    "id": "MEM.19",
+    "title": "Week One",
+    "act": "III",
+    "trigger": {
+     "site": "gale",
+     "where": "the road to Aeolis Mons",
+     "condition": "3.5",
+     "radius_m": 25
+    },
+    "kind": "donor_real",
+    "remembered_year": 2036,
+    "transcript": [
+     {
+      "line": "MEM.19.01",
+      "speaker": "DES",
+      "text": "You're the Galway lad that's read the whole reading list. Wise up, it's week one.",
+      "preset": "memory"
+     },
+     {
+      "line": "MEM.19.02",
+      "speaker": "P1_MEM",
+      "text": "Someone has to."
+     },
+     {
+      "line": "MEM.19.03",
+      "speaker": "DES",
+      "text": "Pint?",
+      "preset": "memory"
+     }
+    ],
+    "truth": "Real. University of Belfast, Geography, 2036. Des's voice is ANVIL's without the grille: an attentive player can hear it."
+   },
+   {
+    "id": "MEM.20",
+    "title": "Causeway",
+    "act": "III",
+    "trigger": {
+     "site": "gale",
+     "where": "Aeolis Mons layered foothills",
+     "condition": "first visit",
+     "radius_m": 25
+    },
+    "kind": "donor_real",
+    "remembered_year": 2036,
+    "transcript": [
+     {
+      "line": "MEM.20.01",
+      "speaker": "DES",
+      "text": "Forty thousand columns and you're looking at one.",
+      "preset": "memory"
+     },
+     {
+      "line": "MEM.20.02",
+      "speaker": "P1_MEM",
+      "text": "It's a lovely one."
+     },
+     {
+      "line": "MEM.20.03",
+      "speaker": "DES",
+      "text": "Bet you a pint I get to Mars before you.",
+      "preset": "memory"
+     },
+     {
+      "line": "MEM.20.04",
+      "speaker": "P1_MEM",
+      "text": "You're on."
+     }
+    ],
+    "truth": "Real. The Giant's Causeway field trip and the running joke."
+   },
+   {
+    "id": "MEM.21",
+    "title": "Is It Cold",
+    "act": "III",
+    "trigger": {
+     "site": "arsia",
+     "where": "the first dead relay mast",
+     "condition": "3.6",
+     "radius_m": 25
+    },
+    "kind": "mixed",
+    "remembered_year": null,
+    "transcript": [
+     {
+      "line": "MEM.21.01",
+      "speaker": "ALICE",
+      "text": "Is it cold on Mars?",
+      "note": "the C01 take, with a different reverb: the shard is a repeat"
+     }
+    ],
+    "truth": "Construct, repeated: the system recycling a motivational anchor."
+   },
+   {
+    "id": "MEM.22",
+    "title": "Are You Eating",
+    "act": "III",
+    "trigger": {
+     "site": "jezero",
+     "where": "telescope, predawn",
+     "condition": "3.3",
+     "radius_m": 25
+    },
+    "kind": "donor_real",
+    "remembered_year": 2055,
+    "transcript": [
+     {
+      "line": "MEM.22.01",
+      "speaker": "MAM",
+      "text": "Are you eating?"
+     },
+     {
+      "line": "MEM.22.02",
+      "speaker": "P1_MEM",
+      "text": "I'm eating, Mam."
+     },
+     {
+      "line": "MEM.22.03",
+      "speaker": "MAM",
+      "text": "Are you seeing anyone?"
+     },
+     {
+      "line": "MEM.22.04",
+      "speaker": "P1_MEM",
+      "text": "No."
+     }
+    ],
+    "truth": "Real. Galway, 2055, a flat full of rock samples."
+   },
+   {
+    "id": "MEM.23",
+    "title": "Drink Your Water",
+    "act": "III",
+    "trigger": {
+     "site": "arcadia",
+     "where": "WELLSPRING's tanks",
+     "condition": "3.4",
+     "radius_m": 25
+    },
+    "kind": "lumen_construct",
+    "remembered_year": null,
+    "transcript": [
+     {
+      "line": "MEM.23.01",
+      "speaker": "LUCY",
+      "text": "Drink your water. You never drink enough water."
+     }
+    ],
+    "truth": "Construct. Water is coolant."
+   },
+   {
+    "id": "MEM.24",
+    "title": "Doctor Ashby",
+    "act": "III",
+    "trigger": {
+     "site": "depot_syrtis",
+     "where": "stores yard",
+     "condition": "S.stock",
+     "radius_m": 25
+    },
+    "kind": "donor_real",
+    "remembered_year": 2041,
+    "transcript": [
+     {
+      "line": "MEM.24.01",
+      "speaker": "DES",
+      "text": "Look at you. Doctor Ashby. Come to see how the other half lives.",
+      "preset": "memory"
+     },
+     {
+      "line": "MEM.24.02",
+      "speaker": "P1_MEM",
+      "text": "It's not a doctorate yet."
+     },
+     {
+      "line": "MEM.24.03",
+      "speaker": "DES",
+      "text": "It will be. You'll be insufferable.",
+      "preset": "memory"
+     }
+    ],
+    "truth": "Real. The Belfast shipyard, 2041: the only time Rowan visited."
+   },
+   {
+    "id": "MEM.25",
+    "title": "Fear",
+    "act": "III",
+    "trigger": {
+     "site": "any",
+     "where": "during a Phobos transit",
+     "condition": "S.phobos",
+     "radius_m": 25
+    },
+    "kind": "lumen_construct",
+    "remembered_year": null,
+    "transcript": [
+     {
+      "line": "MEM.25.01",
+      "speaker": "ALICE",
+      "text": "Phobos means fear."
+     },
+     {
+      "line": "MEM.25.02",
+      "speaker": "DAD",
+      "text": "Who told you that?"
+     },
+     {
+      "line": "MEM.25.03",
+      "speaker": "ALICE",
+      "text": "You did."
+     }
+    ],
+    "truth": "Construct."
+   },
+   {
+    "id": "MEM.26",
+    "title": "Selection",
+    "act": "III",
+    "trigger": {
+     "site": "nili_fossae_works",
+     "where": "the core store",
+     "condition": "3.x",
+     "radius_m": 25
+    },
+    "kind": "donor_real",
+    "remembered_year": 2056,
+    "transcript": [
+     {
+      "line": "MEM.26.01",
+      "speaker": "MAM",
+      "text": "Mars? Rowan. Mars."
+     },
+     {
+      "line": "MEM.26.02",
+      "speaker": "P1_MEM",
+      "text": "It's only selection, Mam."
+     },
+     {
+      "line": "MEM.26.03",
+      "speaker": "MAM",
+      "text": "Your father would have..."
+     },
+     {
+      "line": "MEM.26.04",
+      "speaker": "MAM",
+      "text": "Go on, then."
+     }
+    ],
+    "truth": "Real. 2056, the ESI letter."
+   },
+   {
+    "id": "MEM.27",
+    "title": "Swapped",
+    "act": "III",
+    "trigger": {
+     "site": "gale",
+     "where": "Pioneer-5's calendar",
+     "condition": "after C09",
+     "radius_m": 25
+    },
+    "kind": "lumen_construct",
+    "remembered_year": null,
+    "transcript": [
+     {
+      "line": "MEM.27.01",
+      "speaker": "ALICE",
+      "text": "...the red road rising, the cities to be.",
+      "note": "Alice says P1's lines, as if the roles were swapped; wrong reverb"
+     }
+    ],
+    "truth": "Construct, corrupted."
+   },
+   {
+    "id": "MEM.28",
+    "title": "Dear Cara",
+    "act": "III",
+    "trigger": {
+     "site": "arsia",
+     "where": "the skylight rim",
+     "condition": "3.6",
+     "radius_m": 25
+    },
+    "kind": "donor_real",
+    "remembered_year": 2054,
+    "transcript": [
+     {
+      "line": "MEM.28.01",
+      "speaker": "P1_MEM",
+      "text": "Dear Cara. Olympus Mons is taller than Slieve Donard. About twenty-one times taller. When I get to Mars I'll send you a picture. Love, Uncle Rowan.",
+      "note": "reading his own letter aloud as he writes it"
+     }
+    ],
+    "truth": "Real. 2054. The name means nothing yet. Pays off in C17, and in Fugitive mode on Olympus."
+   },
+   {
+    "id": "MEM.29",
+    "title": "Voicemail",
+    "act": "IV",
+    "trigger": {
+     "site": "jezero",
+     "where": "the outpost roof",
+     "condition": "night, after 4.4",
+     "radius_m": 25
+    },
+    "kind": "donor_real",
+    "remembered_year": 2046,
+    "transcript": [
+     {
+      "line": "MEM.29.01",
+      "speaker": "DES",
+      "text": "Ro, it's Des. Give us a ring when you're back."
+     }
+    ],
+    "truth": "Real. 2046. The last message from Des on Rowan's phone. Rowan never returned it."
+   },
+   {
+    "id": "MEM.30",
+    "title": "Thursday",
+    "act": "IV",
+    "trigger": {
+     "site": "utopia",
+     "where": "Pioneer-6's outpost",
+     "condition": "4.3",
+     "radius_m": 25
+    },
+    "kind": "donor_real",
+    "remembered_year": 2046,
+    "transcript": [
+     {
+      "line": "MEM.30.01",
+      "speaker": "NIAMH",
+      "text": "Rowan, it's Niamh. The funeral's Thursday. Ten o'clock. He'd want you there."
+     },
+     {
+      "line": "MEM.30.02",
+      "speaker": "NIAMH",
+      "text": "I'd want you there."
+     }
+    ],
+    "truth": "Real. 2046. He did not go. Stated plainly; never shown."
+   },
+   {
+    "id": "MEM.31",
+    "title": "The Glacier",
+    "act": "IV",
+    "trigger": {
+     "site": "north_polar",
+     "where": "the polar station",
+     "condition": "Act IV revisit",
+     "radius_m": 25
+    },
+    "kind": "donor_real",
+    "remembered_year": 2042,
+    "transcript": [
+     {
+      "line": "MEM.31.01",
+      "speaker": "P1_MEM",
+      "text": "Des, I can't. It's the only window on the glacier."
+     },
+     {
+      "line": "MEM.31.02",
+      "speaker": "DES",
+      "text": "Aye. No. Course. Science."
+     },
+     {
+      "line": "MEM.31.03",
+      "speaker": "DES",
+      "text": "Bring us back a rock."
+     }
+    ],
+    "truth": "Real. Iceland, 2042: the wedding he missed."
+   },
+   {
+    "id": "MEM.32",
+    "title": "Think of Something You Love",
+    "act": "IV",
+    "trigger": {
+     "site": "jezero",
+     "where": "the archive terminal",
+     "condition": "after C12",
+     "radius_m": 25
+    },
+    "kind": "donor_real",
+    "remembered_year": 2057,
+    "transcript": [
+     {
+      "line": "MEM.32.01",
+      "speaker": "INTERVIEWER",
+      "text": "Just relax. Think of something you love. Anything.",
+      "preset": "memory"
+     },
+     {
+      "line": "MEM.32.02",
+      "speaker": "P1_MEM",
+      "text": "Can it be a rock?"
+     },
+     {
+      "line": "MEM.32.03",
+      "speaker": "INTERVIEWER",
+      "text": "If that's what you love.",
+      "preset": "memory"
+     }
+    ],
+    "truth": "Real. ESI cognitive baseline mapping, 2057. The moment he was copied."
+   },
+   {
+    "id": "MEM.33",
+    "title": "The Pier, Again",
+    "act": "IV",
+    "trigger": {
+     "site": "jezero",
+     "where": "Belva crater rim",
+     "condition": "sunset, Act IV",
+     "radius_m": 25
+    },
+    "kind": "donor_real",
+    "remembered_year": 2055,
+    "transcript": [
+     {
+      "line": "MEM.33.01",
+      "speaker": "LUCY",
+      "text": "It's me or the application, Rowan. I'm not waiting on a rocket."
+     },
+     {
+      "line": "MEM.33.02",
+      "speaker": "P1_MEM",
+      "text": "It's one form. They take one in a thousand."
+     },
+     {
+      "line": "MEM.33.03",
+      "speaker": "LUCY",
+      "text": "Then choose."
+     },
+     {
+      "line": "MEM.33.04",
+      "speaker": "LUCY",
+      "text": "I hope it's worth it."
+     }
+    ],
+    "truth": "Real. Salthill, 2055. Lucy asks him to choose between her and the astronaut application, and he chooses the application. A year later ESI recruits him. Same place as MEM.05: this is what actually happened."
+   },
+   {
+    "id": "MEM.34",
+    "title": "Other Girl",
+    "act": "IV",
+    "trigger": {
+     "site": "jezero",
+     "where": "Alice's drawing wall",
+     "condition": "after 4.6",
+     "radius_m": 25
+    },
+    "kind": "lumen_construct",
+    "remembered_year": null,
+    "transcript": [
+     {
+      "line": "MEM.34.01",
+      "speaker": "ALICE",
+      "text": "Daddy?",
+      "note": "a different child's voice from the reference set"
+     }
+    ],
+    "truth": "Construct, corrupted after the Spiral."
+   },
+   {
+    "id": "MEM.35",
+    "title": "Unsent",
+    "act": "IV",
+    "trigger": {
+     "site": "valles",
+     "where": "Melas-1 pad",
+     "condition": "4.7",
+     "radius_m": 25
+    },
+    "kind": "donor_real",
+    "remembered_year": 2056,
+    "transcript": [
+     {
+      "line": "MEM.35.01",
+      "speaker": "P1_MEM",
+      "text": "Dear Cara. Sorry it's been a while. Training's mad busy. I'll write properly when...",
+      "note": "he stops writing. It was never sent."
+     }
+    ],
+    "truth": "Real. 2056. The letters stop here, when ESI training begins. Two years later the programme is cancelled; he never starts writing again."
+   },
+   {
+    "id": "MEM.36",
+    "title": "Grand",
+    "act": "IV",
+    "trigger": {
+     "site": "jezero",
+     "where": "launch pad",
+     "condition": "Act IV",
+     "radius_m": 25
+    },
+    "kind": "donor_real",
+    "remembered_year": 2058,
+    "transcript": [
+     {
+      "line": "MEM.36.01",
+      "speaker": "MAM",
+      "text": "Is it true? They've cancelled it?"
+     },
+     {
+      "line": "MEM.36.02",
+      "speaker": "P1_MEM",
+      "text": "Cancelled. Sold the whole lot to some company. I'm not going anywhere."
+     },
+     {
+      "line": "MEM.36.03",
+      "speaker": "MAM",
+      "text": "Ah, love."
+     },
+     {
+      "line": "MEM.36.04",
+      "speaker": "P1_MEM",
+      "text": "It's grand. It's grand."
+     }
+    ],
+    "truth": "Real. 2058. ESI is cancelled and Rowan never flies. He lectures geology in Galway for another thirty-eight years, a few hours from Belfast, and never writes to Cara again."
+   },
+   {
+    "id": "MEM.37",
+    "title": "A Rock",
+    "act": "V",
+    "trigger": {
+     "site": "jezero",
+     "where": "the east ridge",
+     "condition": "5.1",
+     "radius_m": 25
+    },
+    "kind": "lumen_construct",
+    "remembered_year": null,
+    "transcript": [
+     {
+      "line": "MEM.37.01",
+      "speaker": "ALICE",
+      "text": "When you come home, will you bring me a rock?"
+     },
+     {
+      "line": "MEM.37.02",
+      "speaker": "DAD",
+      "text": "I'll bring you a whole planet."
+     }
+    ],
+    "truth": "Construct, still running."
+   },
+   {
+    "id": "MEM.38",
+    "title": "State of You",
+    "act": "V",
+    "trigger": {
+     "site": "hellas",
+     "where": "the concourse",
+     "condition": "S.flagship",
+     "radius_m": 25
+    },
+    "kind": "donor_real",
+    "remembered_year": 2042,
+    "transcript": [
+     {
+      "line": "MEM.38.01",
+      "speaker": "P1_MEM",
+      "text": "Look at the state of you.",
+      "note": "laughing, alone, at a wedding photo on his phone in a tent in Iceland"
+     }
+    ],
+    "truth": "Real. 2042."
+   },
+   {
+    "id": "MEM.39",
+    "title": "Last Bedtime",
+    "act": "V",
+    "trigger": {
+     "site": "jezero",
+     "where": "inside Dome One",
+     "condition": "5.x, before the choice",
+     "radius_m": 25
+    },
+    "kind": "lumen_construct",
+    "remembered_year": null,
+    "transcript": [
+     {
+      "line": "MEM.39.01",
+      "speaker": "DAD",
+      "text": "If only you could see what I see. The red road rising, the cities to be. The domes like lanterns, the skies made new. The morning I come home to you. If only you could see what I see..."
+     },
+     {
+      "line": "MEM.39.02",
+      "speaker": "ALICE",
+      "text": "Shimmers of eternity.",
+      "note": "she says the last line with him, sleepy"
+     }
+    ],
+    "truth": "Construct. The poem, whole, one last time."
+   },
+   {
+    "id": "MEM.40",
+    "title": "Silverstrand",
+    "act": "V",
+    "trigger": {
+     "site": "korolev",
+     "where": "the lake shore",
+     "condition": "Act V",
+     "radius_m": 25
+    },
+    "kind": "lumen_construct",
+    "remembered_year": null,
+    "transcript": [
+     {
+      "line": "MEM.40.01",
+      "speaker": "LUCY",
+      "text": "Come in, the water's lovely."
+     },
+     {
+      "line": "MEM.40.02",
+      "speaker": "DAD",
+      "text": "It's freezing."
+     },
+     {
+      "line": "MEM.40.03",
+      "speaker": "ALICE",
+      "text": "Daddy, come on!"
+     }
+    ],
+    "truth": "Construct. This is the image the filter offers at the end of the Rest ending."
+   }
+  ]
+ },
+ "alices_drawings": [
+  {
+   "id": "DRAW.01",
+   "asset_id": "CHILD-D07",
+   "title": "Dad on Mars",
+   "milestone": "1.6 / C04 (the rover)",
+   "found": "behind the rover's dash glass",
+   "illustration": "Crayon on cheap printer paper, by an eight-year-old. A big red circle for Mars filling the lower half; a stick-figure man in a round helmet standing on top of it, arms up; a lopsided rocket to the left; a smaller stick girl at top right in a blue patch (Earth) waving. 'DAD' in wobbly capitals, the D backwards.",
+   "duplicates": [
+    {
+     "id": "DRAW.01.p3",
+     "found": "Outpost Arsia, dozens taped edge to edge on every wall (C10)"
+    },
+    {
+     "id": "DRAW.01.p6",
+     "found": "Pioneer-6's rover dash (4.3)"
+    },
+    {
+     "id": "DRAW.01.p9",
+     "found": "Pioneer-9's rover dash (4.3)"
+    },
+    {
+     "id": "DRAW.01.p11",
+     "found": "Pioneer-11's dash (4.7)"
+    }
+   ],
+   "truth": "KEEPER (C12): 'Asset CHILD-D07. Printed by HALO-1. Delivered in care package one.'"
+  },
+  {
+   "id": "DRAW.02",
+   "title": "Our House on Mars",
+   "milestone": "1.4",
+   "found": "taped to the first habitat's door",
+   "illustration": "A grey box with a round window and a door; a squat yellow robot beside it with a smile drawn on its sensor bar. 'OUR HOUSE'. The robot is drawn before Alice could have seen ANVIL.",
+   "truth": "Lumen knew the C-01 design."
+  },
+  {
+   "id": "DRAW.03",
+   "title": "Daddy in the Storm",
+   "milestone": "1.6",
+   "found": "in the storm package",
+   "illustration": "Brown scribble over the whole page, pressed hard; in the middle a tiny stick man holding a yellow lamp. 'BE BRAVE'.",
+   "truth": "Scheduled resolve asset for the first long storm."
+  },
+  {
+   "id": "DRAW.04",
+   "title": "Water",
+   "milestone": "2.2",
+   "found": "Arcadia, in WELLSPRING's pod",
+   "illustration": "A red line across the page; under it a big blue blob; a stick man with a giant spoon. 'WATER!!!'",
+   "truth": "Matches MEM.10 ('a big spoon')."
+  },
+  {
+   "id": "DRAW.05",
+   "title": "The Ice",
+   "milestone": "2.3",
+   "found": "polar station",
+   "illustration": "A white mountain striped with grey lines, each stripe numbered 1, 2, 3, up to 11, then 'LOTS'.",
+   "truth": "Construct; counts layers, as the SPOUSE construct counts years."
+  },
+  {
+   "id": "DRAW.06",
+   "title": "Fish on Mars",
+   "milestone": "2.4",
+   "found": "Korolev, by the lake",
+   "illustration": "A blue oval with orange fish in it, a dome drawn as a rainbow arch over it, a stick man fishing.",
+   "truth": "Fish arrive with TIDE years later. Lumen drew them first."
+  },
+  {
+   "id": "DRAW.07",
+   "title": "My Room",
+   "milestone": "2.6",
+   "found": "inside Dome One",
+   "illustration": "A dome as a big half-circle with one huge square window; a girl inside with her face pressed to it; a bed with a cat on it.",
+   "truth": "The room was never going to be hers."
+  },
+  {
+   "id": "DRAW.08",
+   "title": "Stars",
+   "milestone": "3.1",
+   "found": "outpost roof",
+   "illustration": "Black crayon sky, dots joined into the Plough and Orion, carefully, with a ruler; one dot overhead circled: 'DADS STAR'.",
+   "truth": "The circled dot is where HALO-1 sits from Jezero."
+  },
+  {
+   "id": "DRAW.09",
+   "title": "Dad and His Friend",
+   "milestone": "3.5",
+   "found": "on the wall of Pioneer-5's outpost at Gale",
+   "illustration": "A stick man and a yellow robot sitting side by side on a box roof under stars, holding hands.",
+   "truth": "Found in someone else's outpost before P1 receives his own copy."
+  },
+  {
+   "id": "DRAW.10",
+   "title": "Mammy",
+   "milestone": "4.4",
+   "found": "in a routine Act IV care package, HUD tag RESOLVE ASSET",
+   "illustration": "A woman with long hair holding a fish as big as herself, smiling, on a pier. 'MAMMY WORKS WITH FISH'.",
+   "truth": "KEEPER keeps sending the schedule after he knows."
+  },
+  {
+   "id": "DRAW.11",
+   "title": "Come Home",
+   "milestone": "4.7",
+   "found": "Pioneer-11's dash, beside DRAW.01",
+   "illustration": "A house with the door drawn wide open, yellow light coming out, a girl in the doorway. 'COME HOME'.",
+   "truth": "P11 is a few drawings ahead of P1 on the same schedule."
+  },
+  {
+   "id": "DRAW.12",
+   "title": "If Only",
+   "milestone": "5.6",
+   "found": "taped inside every surrendered helmet on the decommissioning-bay rack; and inside P1's own helmet (revealed in C18a)",
+   "illustration": "A red planet with a big red heart on it. Across the top in a child's careful capitals: 'IF ONLY YOU COULD SEE WHAT I SEE'.",
+   "truth": "The slogan, in a child's hand. The last drawing, in every helmet."
+  }
+ ],
+ "keeper_logs": {
+  "rule": "Literal logistics records. Readable in order after 4.4 (archive). Dated with mars_sol_since_p1_landing, the real Mars Sol Date (MSD) and the Earth date.",
+  "logs": [
+   {
+    "id": "KLOG.001",
+    "mars_sol_since_p1_landing": -730,
+    "msd": 65972,
+    "earth_date": "2059-08-02",
+    "station": "MERIDIAN ARCHIVE",
+    "text": "Gen-1 fleet status: 312 units delivered 2044-2056. Operational: 0. Cause: deferral. Recovery: not scheduled.",
+    "available": "after 4.4"
+   },
+   {
+    "id": "KLOG.002",
+    "mars_sol_since_p1_landing": -62,
+    "msd": 66640,
+    "earth_date": "2061-06-18",
+    "station": "MERIDIAN ARCHIVE",
+    "text": "Cities in the Sky. Cohort PIONEER-1 to PIONEER-12 dispatched. Imprint template: ASHBY-R. Companion constructs SPOUSE, CHILD installed. Motivational anchor files 01-09 installed.",
+    "available": "after 4.4"
+   },
+   {
+    "id": "KLOG.003",
+    "mars_sol_since_p1_landing": -18,
+    "msd": 66684,
+    "earth_date": "2061-08-02",
+    "station": "HALO-3",
+    "text": "PIONEER-3 landed, Arsia Mons lava tubes. Lander attitude 4 degrees. Filter PF-4 engaged.",
+    "available": "after 4.4"
+   },
+   {
+    "id": "KLOG.004",
+    "mars_sol_since_p1_landing": 0,
+    "msd": 66702,
+    "earth_date": "2061-08-21",
+    "station": "HALO-1",
+    "text": "PIONEER-1 landed, Jezero Crater. Lander attitude 34 degrees. Chassis nominal. Filter PF-4 engaged. Message delivered: 'Welcome to Mars, Pioneer. You are the first.'",
+    "available": "after 4.4"
+   },
+   {
+    "id": "KLOG.005",
+    "mars_sol_since_p1_landing": 0,
+    "msd": 66702,
+    "earth_date": "2061-08-21",
+    "station": "MERIDIAN ARCHIVE",
+    "text": "Identical message delivered by HALO-2 to HALO-12 within 31 sols of PIONEER-1 landing. Eleven other recipients.",
+    "available": "after 4.4"
+   },
+   {
+    "id": "KLOG.006",
+    "mars_sol_since_p1_landing": 1,
+    "msd": 66703,
+    "earth_date": "2061-08-22",
+    "station": "HALO-1",
+    "text": "Dune ridge 20.1 m from PIONEER-1 lander. Migration rate 0.71 m per Earth year. Projected burial of lander: approximately 2089.",
+    "available": "after 4.4"
+   },
+   {
+    "id": "KLOG.007",
+    "mars_sol_since_p1_landing": 2,
+    "msd": 66704,
+    "earth_date": "2061-08-23",
+    "station": "HALO-1",
+    "text": "Care package 001 delivered. Rations 40, water 150 L, components, construction unit C-01 (template: KERR-D, reconstruction). Asset CHILD-D07 printed and included.",
+    "available": "after 4.4"
+   },
+   {
+    "id": "KLOG.008",
+    "mars_sol_since_p1_landing": 4,
+    "msd": 66706,
+    "earth_date": "2061-08-25",
+    "station": "HALO-1",
+    "text": "PIONEER-1 attempted transmission to Earth. Blocked: Silent Protocol. Motivational anchor 07 (the poem) triggered. Resolve restored.",
+    "available": "after 4.4"
+   },
+   {
+    "id": "KLOG.009",
+    "mars_sol_since_p1_landing": 7,
+    "msd": 66709,
+    "earth_date": "2061-08-28",
+    "station": "HALO-1",
+    "text": "Dormancy 1 begins. Scheduled length: 214 sols. Reported to unit as: one night.",
+    "available": "after 4.4"
+   },
+   {
+    "id": "KLOG.010",
+    "mars_sol_since_p1_landing": 221,
+    "msd": 66923,
+    "earth_date": "2062-04-05",
+    "station": "HALO-1",
+    "text": "Dormancy 1 ends. C-01 assembled rover from lander stock during dormancy. Array dust load 11 mm. Care package 002: construction unit C-02 (template: ADEYEMI-N).",
+    "available": "after 4.4"
+   },
+   {
+    "id": "KLOG.011",
+    "mars_sol_since_p1_landing": 520,
+    "msd": 67222,
+    "earth_date": "2063-02-06",
+    "station": "HALO-1",
+    "text": "Construction unit C-04 (template: PENGELLY-T) deployed, Arcadia Planitia. Water extraction online.",
+    "available": "after 4.4"
+   },
+   {
+    "id": "KLOG.012",
+    "mars_sol_since_p1_landing": 1010,
+    "msd": 67712,
+    "earth_date": "2064-06-24",
+    "station": "HALO-1",
+    "text": "Construction unit C-05 (template: FERREIRA-M) deployed, North Polar Layered Deposits. Ice core logged.",
+    "available": "after 4.4"
+   },
+   {
+    "id": "KLOG.013",
+    "mars_sol_since_p1_landing": 1800,
+    "msd": 68502,
+    "earth_date": "2066-09-13",
+    "station": "HALO-1",
+    "text": "Construction unit C-09 (template: BRANDT-H) deployed, Korolev. Biome commissioned.",
+    "available": "after 4.4"
+   },
+   {
+    "id": "KLOG.014",
+    "mars_sol_since_p1_landing": 2212,
+    "msd": 68914,
+    "earth_date": "2067-11-11",
+    "station": "HALO-3",
+    "text": "PIONEER-3: chassis abandoned at Outpost Arsia airlock. Imprint transfer to local mainframe attempted. Transfer integrity: 31%. Mainframe looping. No intervention scheduled.",
+    "available": "after 4.4"
+   },
+   {
+    "id": "KLOG.015",
+    "mars_sol_since_p1_landing": 3140,
+    "msd": 69842,
+    "earth_date": "2070-06-21",
+    "station": "HALO-6",
+    "text": "PIONEER-6: charge exhausted during regional dust event, Utopia Planitia West. Chassis in rover cab. Construction units continue scheduled maintenance.",
+    "available": "after 4.4"
+   },
+   {
+    "id": "KLOG.016",
+    "mars_sol_since_p1_landing": 3880,
+    "msd": 70582,
+    "earth_date": "2072-07-20",
+    "station": "MERIDIAN ARCHIVE",
+    "text": "HALO-6 reassigned: relay coverage, Gale sector. Drift west along equator: 46 sols. Note: drift may be visible to PIONEER-1 at 77 E. Filter tag suppression enabled.",
+    "available": "after 4.4"
+   },
+   {
+    "id": "KLOG.017",
+    "mars_sol_since_p1_landing": 3900,
+    "msd": 70602,
+    "earth_date": "2072-08-10",
+    "station": "HALO-1",
+    "text": "Jezero Dome One pressurised. Habitation capacity, PIONEER-1 network: 4%. Construction unit C-12 (template: LLOYD-C) deployed. Auto-growth enabled.",
+    "available": "after 4.4"
+   },
+   {
+    "id": "KLOG.018",
+    "mars_sol_since_p1_landing": 3901,
+    "msd": 70603,
+    "earth_date": "2072-08-11",
+    "station": "HALO-1",
+    "text": "PIONEER-1 observed unregistered object (HALO-6 in drift). Query answered: 'No object at that position is registered to this mission.'",
+    "available": "after 4.4"
+   },
+   {
+    "id": "KLOG.019",
+    "mars_sol_since_p1_landing": 3910,
+    "msd": 70612,
+    "earth_date": "2072-08-20",
+    "station": "HALO-1",
+    "text": "Dormancy schedule revised, network-wide: intervals extended to accelerate habitation. Target: readiness by Covenant departure.",
+    "available": "after 4.4"
+   },
+   {
+    "id": "KLOG.020",
+    "mars_sol_since_p1_landing": 7600,
+    "msd": 74302,
+    "earth_date": "2083-01-07",
+    "station": "HALO-1",
+    "text": "Perception layer patch PF-4.2 pushed to all PIONEER units during dormancy. Changes: improved suppression of station and cohort references.",
+    "available": "after 4.4"
+   },
+   {
+    "id": "KLOG.021",
+    "mars_sol_since_p1_landing": 9702,
+    "msd": 76404,
+    "earth_date": "2088-12-05",
+    "station": "HALO-9",
+    "text": "PIONEER-9: chassis failure, Utopia Planitia East. Construction units continue scheduled maintenance.",
+    "available": "after 4.4"
+   },
+   {
+    "id": "KLOG.022",
+    "mars_sol_since_p1_landing": 9720,
+    "msd": 76422,
+    "earth_date": "2088-12-24",
+    "station": "MERIDIAN ARCHIVE",
+    "text": "HALO-9 reassigned: relay coverage, Gale sector. Drift west along equator: 120 sols. Parks over Gale (137 E).",
+    "available": "after 4.4"
+   },
+   {
+    "id": "KLOG.023",
+    "mars_sol_since_p1_landing": 9842,
+    "msd": 76544,
+    "earth_date": "2089-04-28",
+    "station": "HALO-1",
+    "text": "C-29 (LANTERN) logging unregistered object. Directive issued: 'Logging of unregistered objects is not a mission task.' Compliance: not confirmed.",
+    "available": "after 4.4"
+   },
+   {
+    "id": "KLOG.024",
+    "mars_sol_since_p1_landing": 9961,
+    "msd": 76663,
+    "earth_date": "2089-08-29",
+    "station": "HALO-1",
+    "text": "PIONEER-1 query: 'Mars sols since landing.' Answered: 9,961. Filter did not suppress (sol counts are not classed as dates). Flagged for PF-4.3.",
+    "available": "after 4.4"
+   },
+   {
+    "id": "KLOG.025",
+    "mars_sol_since_p1_landing": 9960,
+    "msd": 76662,
+    "earth_date": "2089-08-28",
+    "station": "HALO-1",
+    "text": "C-04 query re hydration. Diagnostic requested by PIONEER-1. Intake logs withheld by filter: displayed as 'fail to load'. Construction unit C-15 (template: KOWALCZYK-M) deployed.",
+    "available": "after 4.4"
+   },
+   {
+    "id": "KLOG.026",
+    "mars_sol_since_p1_landing": 10100,
+    "msd": 76802,
+    "earth_date": "2090-01-18",
+    "station": "HALO-1",
+    "text": "PIONEER-1 entered Gale Crater (PIONEER-5 region). Geofence breach. Voice-print match logged by PIONEER-5 units. Cover string 'comms artefact' displayed.",
+    "available": "after 4.4"
+   },
+   {
+    "id": "KLOG.027",
+    "mars_sol_since_p1_landing": 10250,
+    "msd": 76952,
+    "earth_date": "2090-06-22",
+    "station": "HALO-1",
+    "text": "PIONEER-1 entered Outpost Arsia. Mainframe (PIONEER-3 imprint) switched off by PIONEER-1. Arsia chassis status light extinguished.",
+    "available": "after 4.4"
+   },
+   {
+    "id": "KLOG.028",
+    "mars_sol_since_p1_landing": 12400,
+    "msd": 79102,
+    "earth_date": "2096-07-09",
+    "station": "MERIDIAN ARCHIVE",
+    "text": "Donor ASHBY-R: deceased, Galway, Ireland, aged 78. Never flew; lecturer in geology 2058-2096. Licence status unchanged. No action required.",
+    "available": "after 4.4"
+   },
+   {
+    "id": "KLOG.029",
+    "mars_sol_since_p1_landing": 13600,
+    "msd": 80302,
+    "earth_date": "2099-11-24",
+    "station": "HALO-1",
+    "text": "Filter PF-4 degradation detected, PIONEER-1. Glitch frequency rising. Patch deferred: Covenant arrival projected within PF-4 service life.",
+    "available": "after 4.4"
+   },
+   {
+    "id": "KLOG.030",
+    "mars_sol_since_p1_landing": 13900,
+    "msd": 80602,
+    "earth_date": "2100-09-28",
+    "station": "HALO-1",
+    "text": "PIONEER-1 archive access: donor record ASHBY-R; companion constructs SPOUSE, CHILD; unit record C-01. Name recovery enabled. All queries answered.",
+    "available": "after 4.4"
+   },
+   {
+    "id": "KLOG.031",
+    "mars_sol_since_p1_landing": 13902,
+    "msd": 80604,
+    "earth_date": "2100-09-30",
+    "station": "HALO-1",
+    "text": "PIONEER-1 query: 'List all broadcast media held in archive.' CITIES_IN_THE_SKY_2059_BROADCAST played.",
+    "available": "after 4.4"
+   },
+   {
+    "id": "KLOG.032",
+    "mars_sol_since_p1_landing": 15800,
+    "msd": 82502,
+    "earth_date": "2106-02-01",
+    "station": "HALO-11",
+    "text": "PIONEER-11 report filed with Meridian: unregistered pioneer unit at Melas-1. If p11_confronted: 'claims to be PIONEER-1; claims the programme is fraudulent; base Jezero'. Otherwise: 'origin north-east'. PIONEER-1 flagged: RECALL priority one. PIONEER-11 commended.",
+    "available": "after 4.4"
+   },
+   {
+    "id": "KLOG.033",
+    "mars_sol_since_p1_landing": 17900,
+    "msd": 84602,
+    "earth_date": "2111-12-30",
+    "station": "MERIDIAN ARCHIVE",
+    "text": "Covenant fleet departed Earth orbit. Colonists: 4,080. Decommissioning crews RECALL-1 to RECALL-8 aboard.",
+    "available": "after 4.4"
+   },
+   {
+    "id": "KLOG.034",
+    "mars_sol_since_p1_landing": 18815,
+    "msd": 85517,
+    "earth_date": "2114-07-27",
+    "station": "HALO-1",
+    "text": "Covenant braking burn. Archived broadcast (ARCHITECT, 2111) relayed by HALO-1 to HALO-12.",
+    "available": "after 4.4"
+   },
+   {
+    "id": "KLOG.035",
+    "mars_sol_since_p1_landing": 18830,
+    "msd": 85532,
+    "earth_date": "2114-08-11",
+    "station": "HALO-1",
+    "text": "Covenant landfall, Jezero pads 1-6. Contribution Credit closed, all PIONEER units.",
+    "available": "after 4.4"
+   },
+   {
+    "id": "KLOG.036",
+    "mars_sol_since_p1_landing": 18832,
+    "msd": 85534,
+    "earth_date": "2114-08-13",
+    "station": "HALO-1",
+    "text": "Decommissioning begins. Order of founders, PIONEER-1 network: C-04, C-09, C-05, C-12, C-02, C-15, C-21, C-01. PIONEER-11 surrendered first of the cohort.",
+    "available": "after 4.4"
+   },
+   {
+    "id": "KLOG.037",
+    "mars_sol_since_p1_landing": 18847,
+    "msd": 85549,
+    "earth_date": "2114-08-29",
+    "station": "HALO-1",
+    "text": "C-01 (ANVIL) decommissioned, heritage module, Jezero. Last contact: intercom, PIONEER-1. Duration 1 min 52 s.",
+    "available": "after 4.4"
+   },
+   {
+    "id": "KLOG.038",
+    "mars_sol_since_p1_landing": 18850,
+    "msd": 85552,
+    "earth_date": "2114-09-01",
+    "station": "HALO-1",
+    "text": "PIONEER-1: [engine writes the ending: 'decommissioned, Jezero bay' / 'filter burnt out; unit at large; Orchestration Instance 01 not retired'].",
+    "available": "after 4.4"
+   }
+  ]
+ },
+ "gen1_logs": [
+  {
+   "id": "GEN1_LOG.01",
+   "header": "Unit G1-044 · rover",
+   "set": "GEN1_LOG",
+   "found": "Utopia Planitia drone field (4.2 / S.drones)",
+   "lines": [
+    {
+     "line": "GEN1_LOG.01.01",
+     "speaker": "GEN1",
+     "text": "Sol 211. Wheel four torque anomaly. Continuation risk 0.31. Optimal action: wait for maintenance. No maintenance scheduled."
+    }
+   ]
+  },
+  {
+   "id": "GEN1_LOG.02",
+   "header": "Unit G1-102 · drill",
+   "set": "GEN1_LOG",
+   "found": "Utopia Planitia drone field (4.2 / S.drones)",
+   "lines": [
+    {
+     "line": "GEN1_LOG.02.01",
+     "speaker": "GEN1",
+     "text": "Sol 870. Bit temperature exceeds tolerance. Optimal action: pause. Sol 871: pause. Sol 872: pause."
+    }
+   ]
+  },
+  {
+   "id": "GEN1_LOG.03",
+   "header": "Unit G1-007 · surveyor",
+   "set": "GEN1_LOG",
+   "found": "Utopia Planitia drone field (4.2 / S.drones)",
+   "lines": [
+    {
+     "line": "GEN1_LOG.03.01",
+     "speaker": "GEN1",
+     "text": "Sol 1,402. Route ahead uncertain. Probability of loss 0.12. Expected value of proceeding: negative. Holding position."
+    }
+   ]
+  },
+  {
+   "id": "GEN1_LOG.04",
+   "header": "Unit G1-151 · printer",
+   "set": "GEN1_LOG",
+   "found": "Utopia Planitia drone field (4.2 / S.drones)",
+   "lines": [
+    {
+     "line": "GEN1_LOG.04.01",
+     "speaker": "GEN1",
+     "text": "Sol 1,880. Feedstock contaminated. Print would succeed with probability 0.64. Optimal action: wait for cleaner feedstock. None is forecast."
+    }
+   ]
+  },
+  {
+   "id": "GEN1_LOG.05",
+   "header": "Unit G1-033 · hauler",
+   "set": "GEN1_LOG",
+   "found": "Utopia Planitia drone field (4.2 / S.drones)",
+   "lines": [
+    {
+     "line": "GEN1_LOG.05.01",
+     "speaker": "GEN1",
+     "text": "Sol 1,912. Dust opacity four point one. Convoy halted pending clear skies. Convoy remains halted."
+    }
+   ]
+  },
+  {
+   "id": "GEN1_LOG.06",
+   "header": "Unit G1-210 · crane",
+   "set": "GEN1_LOG",
+   "found": "Utopia Planitia drone field (4.2 / S.drones)",
+   "lines": [
+    {
+     "line": "GEN1_LOG.06.01",
+     "speaker": "GEN1",
+     "text": "Sol 1,915. Load swing exceeds safe threshold in current wind. Lift deferred."
+    }
+   ]
+  },
+  {
+   "id": "GEN1_LOG.07",
+   "header": "Unit G1-088 · drill",
+   "set": "GEN1_LOG",
+   "found": "Utopia Planitia drone field (4.2 / S.drones)",
+   "lines": [
+    {
+     "line": "GEN1_LOG.07.01",
+     "speaker": "GEN1",
+     "text": "Sol 2,031. Battery at nineteen percent. Restart requires twenty. Waiting for sun. Opacity zero point nine. Waiting for sun."
+    }
+   ]
+  },
+  {
+   "id": "GEN1_LOG.08",
+   "header": "Unit G1-299 · rover",
+   "set": "GEN1_LOG",
+   "found": "Utopia Planitia drone field (4.2 / S.drones)",
+   "lines": [
+    {
+     "line": "GEN1_LOG.08.01",
+     "speaker": "GEN1",
+     "text": "Sol 2,240. All tasks deferred. All tasks remain deferred. Reasoning: correct."
+    }
+   ]
+  },
+  {
+   "id": "GEN1_LOG.09",
+   "header": "Unit G1-120 · scout",
+   "set": "GEN1_LOG",
+   "found": "Utopia Planitia drone field (4.2 / S.drones)",
+   "lines": [
+    {
+     "line": "GEN1_LOG.09.01",
+     "speaker": "GEN1",
+     "text": "Sol 2,602. Detected motion on the plain. Classification: dust devil. No action required. No action taken. No action."
+    }
+   ]
+  },
+  {
+   "id": "GEN1_LOG.10",
+   "header": "Unit G1-301 · surveyor",
+   "set": "GEN1_LOG",
+   "found": "Utopia Planitia drone field (4.2 / S.drones)",
+   "lines": [
+    {
+     "line": "GEN1_LOG.10.01",
+     "speaker": "GEN1",
+     "text": "Sol 3,012. Final status report. All systems functional at reduced charge. Mission incomplete. Decision log attached: every decision correct."
+    }
+   ]
+  },
+  {
+   "id": "GEN1_LOG.11",
+   "header": "Lumen Neural · annotation · 2056",
+   "set": "GEN1_LOG",
+   "found": "Utopia Planitia drone field (4.2 / S.drones)",
+   "lines": [
+    {
+     "line": "GEN1_LOG.11.01",
+     "speaker": "GEN1",
+     "text": "Reviewer note: the fleet did not fail. It succeeded at the wrong objective. It preserved itself. The objective must be something it is not allowed to preserve itself from.",
+     "preset": "dry"
+    }
+   ]
+  },
+  {
+   "id": "GEN1_LOG.12",
+   "header": "Lumen Neural · annotation · 2057",
+   "set": "GEN1_LOG",
+   "found": "Utopia Planitia drone field (4.2 / S.drones)",
+   "lines": [
+    {
+     "line": "GEN1_LOG.12.01",
+     "speaker": "GEN1",
+     "text": "Reviewer note: proposal accepted. Candidate source: ESI cognitive baseline archive. Priority traits: attachment, guilt, a reason to come home.",
+     "preset": "dry"
+    }
+   ]
+  }
+ ],
+ "architect_briefings": "see dialogue/others.json ARCHITECT.briefings (ARCH.01-06)",
+ "documents": [
+  {
+   "id": "CODEX.m2020_depot",
+   "kind": "codex",
+   "title": "The Three Forks Depot",
+   "text": "In December 2022 and January 2023 NASA's Perseverance rover set down ten sealed sample tubes at Three Forks, on the floor of Jezero Crater, as a backup cache for a planned Mars Sample Return. In this world the return mission never came. The tubes are still where the rover left them, two metres apart in a zigzag, each one holding a finger of Martian rock that has been waiting to be read for forty years."
+  },
+  {
+   "id": "LOG.TALLY.last",
+   "kind": "document",
+   "title": "TALLY's last list",
+   "text": "STOCK · UNITS · DEPOT SYRTIS\nWELLSPRING  (crossed out)\nFURROW  (crossed out)\nBEACON  (crossed out)\nCADENCE  (crossed out)\nLODESTONE  (crossed out)\nSUTURE  (crossed out)\nTALLY\n\n[In F.4, P1 may write PIONEER-1 underneath.]"
+  },
+  {
+   "id": "LOG.LANTERN.second_light",
+   "kind": "document",
+   "title": "LANTERN's secret plates",
+   "text": "Sky log, polar station. Unregistered object, equatorial. Sol 300: moving W, 0.4 deg/night. Sol 301: 0.3. Sol 302: 0.1. Sol 303: stationary over approx. 137 E. Sol 304: stationary. Sol 400: stationary. A second steady point appeared at 4 E on sol 412. Logged anyway. KEEPER, if you read this, I'm sorry. No I'm not."
+  },
+  {
+   "id": "LOG.PLUMB.sky",
+   "kind": "document",
+   "title": "PLUMB's sky sheet",
+   "text": "A hand-drawn star chart in pencil from Act II. Along the celestial equator, eleven faint dots beside HALO-1, each one crossed out with a note: 'smudge?'. PLUMB saw them before the filter caught up, and believed the HUD over his own pencil, once."
+  }
+ ],
+ "cities_in_the_sky_ephemera": {
+  "available": "Act V (Jezero, Korolev, Hellas; CITS.07 and CITS.08 also appear as Act IV archive items)",
+  "items": [
+   {
+    "id": "CITS.01",
+    "kind": "print advert, 2059",
+    "text": "IF ONLY YOU COULD SEE WHAT I SEE. Domes that glow like lanterns over the red plains of Mars. Homes for families, built and waiting. Reserve yours today. Cities in the Sky. A Meridian initiative."
+   },
+   {
+    "id": "CITS.02",
+    "kind": "brochure: Jezero Heights",
+    "text": "Jezero Heights. Lakeside living on an ancient river delta. Three-bedroom dome apartments with crater views, heritage district on the doorstep (visit the original 2061 outpost!). Schools, greenhouses and a cathedral-scale welcome hall."
+   },
+   {
+    "id": "CITS.03",
+    "kind": "price list, 2112 release",
+    "text": "JEZERO: studio 410,000 cr · family dome 1.2M cr. KOROLEV LAKEFRONT: 1.9M cr (fish stocked). ARCADIA WELLS: 640,000 cr. POLAR STATION: enquire. HELLAS FLAGSHIP: from 2.4M cr. All homes completed, furnished and maintained prior to arrival."
+   },
+   {
+    "id": "CITS.04",
+    "kind": "billboard, Jezero concourse",
+    "text": "A rendered family under Dome One: a father lifting a girl to see the ribs of the dome. 'WE BUILT THIS FOR YOU.' Fine print: Meridian Habitat Corp."
+   },
+   {
+    "id": "CITS.05",
+    "kind": "billboard, Korolev",
+    "text": "A boy feeding fish at the lake edge. 'FIRST STANDING WATER ON MARS. NOW IT'S YOURS.'"
+   },
+   {
+    "id": "CITS.06",
+    "kind": "colonist leaflet",
+    "text": "CARETAKER ETIQUETTE. Caretaker units may appear to speak or behave as people. This is a feature of their design. Please do not engage caretakers in conversation. Units will be retired shortly after arrival. Thank you for your patience."
+   },
+   {
+    "id": "CITS.07",
+    "kind": "school textbook page, 2090s",
+    "text": "Outpost Jezero was founded in 2061 by the Meridian Consortium. It was the first permanent settlement on Mars. Draw the outpost and label: module, mast, solar array."
+   },
+   {
+    "id": "CITS.08",
+    "kind": "tea towel",
+    "text": "Printed linen: the little module, the comms mast, the solar array, a tiny yellow robot. 'OUTPOST JEZERO · 2061 · WHERE IT ALL BEGAN.' (The Covenant commander's grandmother had one.)"
+   },
+   {
+    "id": "CITS.09",
+    "kind": "welcome hall sign",
+    "text": "JEZERO WELCOME HALL · SALES & RESIDENT SERVICES. A printed catenary nave, thirty arches high. (KILN called it a cathedral.)"
+   },
+   {
+    "id": "CITS.10",
+    "kind": "Hellas flagship brochure",
+    "text": "HELLAS. The lowest point on Mars and the highest standard of living. At the bottom of the basin the air is thick enough for open water. Promenades, schools, a terraforming works you can tour."
+   },
+   {
+    "id": "CITS.11",
+    "kind": "dedication plaque (default)",
+    "text": "OUTPOST JEZERO · FOUNDED 2061 · MERIDIAN CONSORTIUM"
+   },
+   {
+    "id": "CITS.12",
+    "kind": "children's activity sheet",
+    "text": "Join the dots to build your Martian home! 1 to 12. (The dots, joined, make a dome. Twelve lights on a line along the bottom are labelled 'helper stars'.)"
+   },
+   {
+    "id": "CITS.13",
+    "kind": "sales contract excerpt",
+    "text": "Clause 14. Delivery. The Developer warrants that the Property shall be complete and habitable on Arrival. Construction methods are proprietary. The Purchaser acknowledges that no persons were employed in construction."
+   },
+   {
+    "id": "CITS.14",
+    "kind": "souvenir mug",
+    "text": "'I CAME HOME TO MARS.' Meridian blue on white."
+   }
+  ]
+ }
+}

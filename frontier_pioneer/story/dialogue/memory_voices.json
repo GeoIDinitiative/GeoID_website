@@ -1,0 +1,725 @@
+{
+ "note": "Index of every memory-voice line (they live in cutscenes, missions and shards). ALICE, LUCY and DAD are Lumen constructs; MAM, DES, NIAMH and P1_MEM are Rowan's real life (scanned 2057, so no real memory is later than 2057).",
+ "speakers": {
+  "ALICE": [
+   {
+    "line": "C01.01",
+    "text": "Is it cold on Mars?",
+    "ctx": "cutscene C01"
+   },
+   {
+    "line": "C01.03",
+    "text": "Then why are you going?",
+    "ctx": "cutscene C01"
+   },
+   {
+    "line": "C02.03",
+    "text": "Make a wish.",
+    "ctx": "cutscene C02"
+   },
+   {
+    "line": "C02.05",
+    "text": "Make a wish anyway.",
+    "ctx": "cutscene C02"
+   },
+   {
+    "line": "C06.03",
+    "text": "Can you swim on Mars?",
+    "ctx": "cutscene C06"
+   },
+   {
+    "line": "C07.01",
+    "text": "That's the Plough.",
+    "ctx": "cutscene C07"
+   },
+   {
+    "line": "C18a.02",
+    "text": "Daddy?",
+    "ctx": "cutscene C18a"
+   },
+   {
+    "line": "M1.2.start.03",
+    "text": "Why that crater?",
+    "ctx": "M1.2.start"
+   },
+   {
+    "line": "M1.2.start.05",
+    "text": "Fish!",
+    "ctx": "M1.2.start"
+   },
+   {
+    "line": "M1.5.p.memory.05",
+    "text": "Not even on my birthday?",
+    "ctx": "M1.5.p.memory"
+   },
+   {
+    "line": "M1.5.p.memory.08",
+    "text": "Say the poem.",
+    "ctx": "M1.5.p.memory"
+   },
+   {
+    "line": "M1.5.p.memory.10",
+    "text": "Say it anyway.",
+    "ctx": "M1.5.p.memory"
+   },
+   {
+    "line": "M4.6.p.spiral.02",
+    "text": "Is it cold on Mars?",
+    "ctx": "M4.6.p.spiral"
+   },
+   {
+    "line": "M4.6.p.spiral.05",
+    "text": "Daddy, who's that girl? Who's that girl? Who's that—",
+    "ctx": "M4.6.p.spiral"
+   },
+   {
+    "line": "MEM.01.01",
+    "text": "Will you see the stars better from Mars?",
+    "ctx": "collectibles memory shard MEM.01"
+   },
+   {
+    "line": "MEM.01.03",
+    "text": "Will you see me?",
+    "ctx": "collectibles memory shard MEM.01"
+   },
+   {
+    "line": "MEM.04.01",
+    "text": "Was there really a lake?",
+    "ctx": "collectibles memory shard MEM.04"
+   },
+   {
+    "line": "MEM.04.03",
+    "text": "Did it have waves?",
+    "ctx": "collectibles memory shard MEM.04"
+   },
+   {
+    "line": "MEM.06.01",
+    "text": "Can you ring me from Mars?",
+    "ctx": "collectibles memory shard MEM.06"
+   },
+   {
+    "line": "MEM.08.01",
+    "text": "That's you. That's the rocket. That's me, waving.",
+    "ctx": "collectibles memory shard MEM.08"
+   },
+   {
+    "line": "MEM.08.03",
+    "text": "Making the tea.",
+    "ctx": "collectibles memory shard MEM.08"
+   },
+   {
+    "line": "MEM.10.01",
+    "text": "Is there water on Mars?",
+    "ctx": "collectibles memory shard MEM.10"
+   },
+   {
+    "line": "MEM.10.03",
+    "text": "With a spoon?",
+    "ctx": "collectibles memory shard MEM.10"
+   },
+   {
+    "line": "MEM.13.01",
+    "text": "I wish Daddy could stay.",
+    "ctx": "collectibles memory shard MEM.13"
+   },
+   {
+    "line": "MEM.15.01",
+    "text": "Is that you?",
+    "ctx": "collectibles memory shard MEM.15"
+   },
+   {
+    "line": "MEM.16.01",
+    "text": "Will my room have a window?",
+    "ctx": "collectibles memory shard MEM.16"
+   },
+   {
+    "line": "MEM.18.01",
+    "text": "Look! I'm a dust devil!",
+    "ctx": "collectibles memory shard MEM.18"
+   },
+   {
+    "line": "MEM.21.01",
+    "text": "Is it cold on Mars?",
+    "ctx": "collectibles memory shard MEM.21"
+   },
+   {
+    "line": "MEM.25.01",
+    "text": "Phobos means fear.",
+    "ctx": "collectibles memory shard MEM.25"
+   },
+   {
+    "line": "MEM.25.03",
+    "text": "You did.",
+    "ctx": "collectibles memory shard MEM.25"
+   },
+   {
+    "line": "MEM.27.01",
+    "text": "...the red road rising, the cities to be.",
+    "ctx": "collectibles memory shard MEM.27"
+   },
+   {
+    "line": "MEM.34.01",
+    "text": "Daddy?",
+    "ctx": "collectibles memory shard MEM.34"
+   },
+   {
+    "line": "MEM.37.01",
+    "text": "When you come home, will you bring me a rock?",
+    "ctx": "collectibles memory shard MEM.37"
+   },
+   {
+    "line": "MEM.39.02",
+    "text": "Shimmers of eternity.",
+    "ctx": "collectibles memory shard MEM.39"
+   },
+   {
+    "line": "MEM.40.03",
+    "text": "Daddy, come on!",
+    "ctx": "collectibles memory shard MEM.40"
+   }
+  ],
+  "DAD": [
+   {
+    "line": "C01.02",
+    "text": "Minus sixty, on a nice day.",
+    "ctx": "cutscene C01"
+   },
+   {
+    "line": "C01.04",
+    "text": "If only you could see what I see...",
+    "ctx": "cutscene C01"
+   },
+   {
+    "line": "C01.07",
+    "text": "Because somebody has to build the house before we move in.",
+    "ctx": "cutscene C01"
+   },
+   {
+    "line": "C02.04",
+    "text": "It's not a shooting star, love. It's a satellite.",
+    "ctx": "cutscene C02"
+   },
+   {
+    "line": "C06.04",
+    "text": "Not yet.",
+    "ctx": "cutscene C06"
+   },
+   {
+    "line": "C07.02",
+    "text": "And that's Orion. Same stars, love. Just from further away.",
+    "ctx": "cutscene C07"
+   },
+   {
+    "line": "M1.2.start.04",
+    "text": "Because there was a lake there once, love. A real one. And where there was water there might have been life.",
+    "ctx": "M1.2.start"
+   },
+   {
+    "line": "M1.2.start.06",
+    "text": "Smaller than fish.",
+    "ctx": "M1.2.start"
+   },
+   {
+    "line": "M1.5.p.memory.02",
+    "text": "Three years, and then the line opens and I'm home.",
+    "ctx": "M1.5.p.memory"
+   },
+   {
+    "line": "M1.5.p.memory.04",
+    "text": "Silent Protocol. They say the families do better not waiting by the radio.",
+    "ctx": "M1.5.p.memory"
+   },
+   {
+    "line": "M1.5.p.memory.06",
+    "text": "Especially not on your birthday. I'll be too busy building your room.",
+    "ctx": "M1.5.p.memory"
+   },
+   {
+    "line": "M1.5.p.memory.09",
+    "text": "You know it better than me.",
+    "ctx": "M1.5.p.memory"
+   },
+   {
+    "line": "M1.6.p.hold.06",
+    "text": "I'm good at waiting. I'm bad at sitting still.",
+    "ctx": "M1.6.p.hold"
+   },
+   {
+    "line": "M4.6.p.spiral.03",
+    "text": "Minus sixty, on a nice day. Minus sixty. Minus.",
+    "ctx": "M4.6.p.spiral"
+   },
+   {
+    "line": "MEM.01.02",
+    "text": "Same stars. Closer to some.",
+    "ctx": "collectibles memory shard MEM.01"
+   },
+   {
+    "line": "MEM.01.04",
+    "text": "Every night. I'll look straight at Ireland.",
+    "ctx": "collectibles memory shard MEM.01"
+   },
+   {
+    "line": "MEM.02.02",
+    "text": "One for luck.",
+    "ctx": "collectibles memory shard MEM.02"
+   },
+   {
+    "line": "MEM.04.02",
+    "text": "Right where I'll be standing. Fifty metres deep.",
+    "ctx": "collectibles memory shard MEM.04"
+   },
+   {
+    "line": "MEM.04.04",
+    "text": "Little ones.",
+    "ctx": "collectibles memory shard MEM.04"
+   },
+   {
+    "line": "MEM.05.02",
+    "text": "Lucy, will you...",
+    "ctx": "collectibles memory shard MEM.05"
+   },
+   {
+    "line": "MEM.06.02",
+    "text": "Not for a while. But I'll be thinking it, every night.",
+    "ctx": "collectibles memory shard MEM.06"
+   },
+   {
+    "line": "MEM.07.02",
+    "text": "She's so small.",
+    "ctx": "collectibles memory shard MEM.07"
+   },
+   {
+    "line": "MEM.08.02",
+    "text": "Where's Mammy?",
+    "ctx": "collectibles memory shard MEM.08"
+   },
+   {
+    "line": "MEM.10.02",
+    "text": "Frozen, under the dirt. I'm going to dig it up.",
+    "ctx": "collectibles memory shard MEM.10"
+   },
+   {
+    "line": "MEM.10.04",
+    "text": "A big spoon.",
+    "ctx": "collectibles memory shard MEM.10"
+   },
+   {
+    "line": "MEM.13.02",
+    "text": "...",
+    "ctx": "collectibles memory shard MEM.13"
+   },
+   {
+    "line": "MEM.15.02",
+    "text": "Not yet. Next year.",
+    "ctx": "collectibles memory shard MEM.15"
+   },
+   {
+    "line": "MEM.16.02",
+    "text": "The biggest window. You'll see the whole crater.",
+    "ctx": "collectibles memory shard MEM.16"
+   },
+   {
+    "line": "MEM.17.02",
+    "text": "I promise.",
+    "ctx": "collectibles memory shard MEM.17"
+   },
+   {
+    "line": "MEM.18.02",
+    "text": "You'll be sick. Stop spinning. Stop... fine, one more.",
+    "ctx": "collectibles memory shard MEM.18"
+   },
+   {
+    "line": "MEM.25.02",
+    "text": "Who told you that?",
+    "ctx": "collectibles memory shard MEM.25"
+   },
+   {
+    "line": "MEM.37.02",
+    "text": "I'll bring you a whole planet.",
+    "ctx": "collectibles memory shard MEM.37"
+   },
+   {
+    "line": "MEM.39.01",
+    "text": "If only you could see what I see. The red road rising, the cities to be. The domes like lanterns, the skies made new. The morning I come home to you. If only you could see what I see...",
+    "ctx": "collectibles memory shard MEM.39"
+   },
+   {
+    "line": "MEM.40.02",
+    "text": "It's freezing.",
+    "ctx": "collectibles memory shard MEM.40"
+   }
+  ],
+  "LUCY": [
+   {
+    "line": "C05.07",
+    "text": "You always count the layers. You never just look at them.",
+    "ctx": "cutscene C05"
+   },
+   {
+    "line": "M1.5.p.memory.01",
+    "text": "Three years.",
+    "ctx": "M1.5.p.memory"
+   },
+   {
+    "line": "M1.5.p.memory.03",
+    "text": "And not a word in between.",
+    "ctx": "M1.5.p.memory"
+   },
+   {
+    "line": "M1.5.p.memory.07",
+    "text": "Sign it, then. Before I change my mind for you.",
+    "ctx": "M1.5.p.memory"
+   },
+   {
+    "line": "M1.6.p.hold.05",
+    "text": "You're no good at waiting.",
+    "ctx": "M1.6.p.hold"
+   },
+   {
+    "line": "M4.6.p.spiral.01",
+    "text": "You always count the layers. You always count the... count the... count the layers.",
+    "ctx": "M4.6.p.spiral"
+   },
+   {
+    "line": "M4.6.p.spiral.04",
+    "text": "They said three years. They said three...",
+    "ctx": "M4.6.p.spiral"
+   },
+   {
+    "line": "MEM.02.01",
+    "text": "You've packed the rock hammer twice.",
+    "ctx": "collectibles memory shard MEM.02"
+   },
+   {
+    "line": "MEM.02.03",
+    "text": "One for Mars. Leave the other for me, so I've something to throw at you.",
+    "ctx": "collectibles memory shard MEM.02"
+   },
+   {
+    "line": "MEM.05.01",
+    "text": "Ask me properly.",
+    "ctx": "collectibles memory shard MEM.05"
+   },
+   {
+    "line": "MEM.05.03",
+    "text": "Yes. God. Yes. Get up, you're kneeling in a puddle.",
+    "ctx": "collectibles memory shard MEM.05"
+   },
+   {
+    "line": "MEM.07.01",
+    "text": "Come and meet her.",
+    "ctx": "collectibles memory shard MEM.07"
+   },
+   {
+    "line": "MEM.07.03",
+    "text": "They're meant to be small.",
+    "ctx": "collectibles memory shard MEM.07"
+   },
+   {
+    "line": "MEM.11.01",
+    "text": "Hold the line. No. Steady. The sea knows when you're nervous.",
+    "ctx": "collectibles memory shard MEM.11"
+   },
+   {
+    "line": "MEM.12.01",
+    "text": "Every layer's a year the world wrote down.",
+    "ctx": "collectibles memory shard MEM.12"
+   },
+   {
+    "line": "MEM.17.01",
+    "text": "Promise me you'll eat properly.",
+    "ctx": "collectibles memory shard MEM.17"
+   },
+   {
+    "line": "MEM.23.01",
+    "text": "Drink your water. You never drink enough water.",
+    "ctx": "collectibles memory shard MEM.23"
+   },
+   {
+    "line": "MEM.33.01",
+    "text": "It's me or the application, Rowan. I'm not waiting on a rocket.",
+    "ctx": "collectibles memory shard MEM.33"
+   },
+   {
+    "line": "MEM.33.03",
+    "text": "Then choose.",
+    "ctx": "collectibles memory shard MEM.33"
+   },
+   {
+    "line": "MEM.33.04",
+    "text": "I hope it's worth it.",
+    "ctx": "collectibles memory shard MEM.33"
+   },
+   {
+    "line": "MEM.40.01",
+    "text": "Come in, the water's lovely.",
+    "ctx": "collectibles memory shard MEM.40"
+   }
+  ],
+  "MAM": [
+   {
+    "line": "MS.cache.done.01",
+    "text": "Rowan! Come here, they're landing. Come here till you see.",
+    "ctx": "MS.cache.done"
+   },
+   {
+    "line": "MEM.09.01",
+    "text": "Kick the wall, Rowan. Everyone kicks the wall.",
+    "ctx": "collectibles memory shard MEM.09"
+   },
+   {
+    "line": "MEM.09.03",
+    "text": "So you'll come back.",
+    "ctx": "collectibles memory shard MEM.09"
+   },
+   {
+    "line": "MEM.14.01",
+    "text": "Your granny grew potatoes in a field of stones in Connemara. Stubbornness. That's all it takes.",
+    "ctx": "collectibles memory shard MEM.14"
+   },
+   {
+    "line": "MEM.22.01",
+    "text": "Are you eating?",
+    "ctx": "collectibles memory shard MEM.22"
+   },
+   {
+    "line": "MEM.22.03",
+    "text": "Are you seeing anyone?",
+    "ctx": "collectibles memory shard MEM.22"
+   },
+   {
+    "line": "MEM.26.01",
+    "text": "Mars? Rowan. Mars.",
+    "ctx": "collectibles memory shard MEM.26"
+   },
+   {
+    "line": "MEM.26.03",
+    "text": "Your father would have...",
+    "ctx": "collectibles memory shard MEM.26"
+   },
+   {
+    "line": "MEM.26.04",
+    "text": "Go on, then.",
+    "ctx": "collectibles memory shard MEM.26"
+   },
+   {
+    "line": "MEM.36.01",
+    "text": "Is it true? They've cancelled it?",
+    "ctx": "collectibles memory shard MEM.36"
+   },
+   {
+    "line": "MEM.36.03",
+    "text": "Ah, love.",
+    "ctx": "collectibles memory shard MEM.36"
+   }
+  ],
+  "P1_MEM": [
+   {
+    "line": "MEM.09.02",
+    "text": "Why?",
+    "ctx": "collectibles memory shard MEM.09"
+   },
+   {
+    "line": "MEM.19.02",
+    "text": "Someone has to.",
+    "ctx": "collectibles memory shard MEM.19"
+   },
+   {
+    "line": "MEM.20.02",
+    "text": "It's a lovely one.",
+    "ctx": "collectibles memory shard MEM.20"
+   },
+   {
+    "line": "MEM.20.04",
+    "text": "You're on.",
+    "ctx": "collectibles memory shard MEM.20"
+   },
+   {
+    "line": "MEM.22.02",
+    "text": "I'm eating, Mam.",
+    "ctx": "collectibles memory shard MEM.22"
+   },
+   {
+    "line": "MEM.22.04",
+    "text": "No.",
+    "ctx": "collectibles memory shard MEM.22"
+   },
+   {
+    "line": "MEM.24.02",
+    "text": "It's not a doctorate yet.",
+    "ctx": "collectibles memory shard MEM.24"
+   },
+   {
+    "line": "MEM.26.02",
+    "text": "It's only selection, Mam.",
+    "ctx": "collectibles memory shard MEM.26"
+   },
+   {
+    "line": "MEM.28.01",
+    "text": "Dear Cara. Olympus Mons is taller than Slieve Donard. About twenty-one times taller. When I get to Mars I'll send you a picture. Love, Uncle Rowan.",
+    "ctx": "collectibles memory shard MEM.28"
+   },
+   {
+    "line": "MEM.31.01",
+    "text": "Des, I can't. It's the only window on the glacier.",
+    "ctx": "collectibles memory shard MEM.31"
+   },
+   {
+    "line": "MEM.32.02",
+    "text": "Can it be a rock?",
+    "ctx": "collectibles memory shard MEM.32"
+   },
+   {
+    "line": "MEM.33.02",
+    "text": "It's one form. They take one in a thousand.",
+    "ctx": "collectibles memory shard MEM.33"
+   },
+   {
+    "line": "MEM.35.01",
+    "text": "Dear Cara. Sorry it's been a while. Training's mad busy. I'll write properly when...",
+    "ctx": "collectibles memory shard MEM.35"
+   },
+   {
+    "line": "MEM.36.02",
+    "text": "Cancelled. Sold the whole lot to some company. I'm not going anywhere.",
+    "ctx": "collectibles memory shard MEM.36"
+   },
+   {
+    "line": "MEM.36.04",
+    "text": "It's grand. It's grand.",
+    "ctx": "collectibles memory shard MEM.36"
+   },
+   {
+    "line": "MEM.38.01",
+    "text": "Look at the state of you.",
+    "ctx": "collectibles memory shard MEM.38"
+   }
+  ],
+  "DES": [
+   {
+    "line": "MEM.19.01",
+    "text": "You're the Galway lad that's read the whole reading list. Wise up, it's week one.",
+    "ctx": "collectibles memory shard MEM.19"
+   },
+   {
+    "line": "MEM.19.03",
+    "text": "Pint?",
+    "ctx": "collectibles memory shard MEM.19"
+   },
+   {
+    "line": "MEM.20.01",
+    "text": "Forty thousand columns and you're looking at one.",
+    "ctx": "collectibles memory shard MEM.20"
+   },
+   {
+    "line": "MEM.20.03",
+    "text": "Bet you a pint I get to Mars before you.",
+    "ctx": "collectibles memory shard MEM.20"
+   },
+   {
+    "line": "MEM.24.01",
+    "text": "Look at you. Doctor Ashby. Come to see how the other half lives.",
+    "ctx": "collectibles memory shard MEM.24"
+   },
+   {
+    "line": "MEM.24.03",
+    "text": "It will be. You'll be insufferable.",
+    "ctx": "collectibles memory shard MEM.24"
+   },
+   {
+    "line": "MEM.29.01",
+    "text": "Ro, it's Des. Give us a ring when you're back.",
+    "ctx": "collectibles memory shard MEM.29"
+   },
+   {
+    "line": "MEM.31.02",
+    "text": "Aye. No. Course. Science.",
+    "ctx": "collectibles memory shard MEM.31"
+   },
+   {
+    "line": "MEM.31.03",
+    "text": "Bring us back a rock.",
+    "ctx": "collectibles memory shard MEM.31"
+   }
+  ],
+  "NIAMH": [
+   {
+    "line": "MEM.30.01",
+    "text": "Rowan, it's Niamh. The funeral's Thursday. Ten o'clock. He'd want you there.",
+    "ctx": "collectibles memory shard MEM.30"
+   },
+   {
+    "line": "MEM.30.02",
+    "text": "I'd want you there.",
+    "ctx": "collectibles memory shard MEM.30"
+   }
+  ]
+ },
+ "poem": {
+  "text": [
+   "If only you could see what I see —",
+   "the red road rising, the cities to be,",
+   "the domes like lanterns, the skies made new,",
+   "the morning I come home to you.",
+   "If only you could see what I see:",
+   "shimmers of eternity."
+  ],
+  "source": "bible p.6 (verbatim)",
+  "truth": "Lines 1 and 6 are the 2059 Cities in the Sky slogan. Lines 2-5 were written by Lumen and exist word for word in all twelve pioneers (motivational anchor file 07).",
+  "mechanic": "Hold to recite. Restores resolve. From Act II every recital shows '+15 CC · RESOLVE BONUS' (clue 4). After C13 the recital still works, and the player knows exactly what it is.",
+  "lines": [
+   {
+    "line": "POEM.line1",
+    "speaker": "P1",
+    "text": "If only you could see what I see"
+   },
+   {
+    "line": "POEM.line2",
+    "speaker": "P1",
+    "text": "the red road rising, the cities to be"
+   },
+   {
+    "line": "POEM.line3",
+    "speaker": "P1",
+    "text": "the domes like lanterns, the skies made new"
+   },
+   {
+    "line": "POEM.line4",
+    "speaker": "P1",
+    "text": "the morning I come home to you"
+   },
+   {
+    "line": "POEM.line5",
+    "speaker": "P1",
+    "text": "If only you could see what I see"
+   },
+   {
+    "line": "POEM.line6",
+    "speaker": "P1",
+    "text": "shimmers of eternity"
+   }
+  ],
+  "full": {
+   "acts_i_iii": {
+    "line": "POEM.full",
+    "speaker": "P1",
+    "text": "If only you could see what I see — the red road rising, the cities to be, the domes like lanterns, the skies made new, the morning I come home to you. If only you could see what I see: shimmers of eternity.",
+    "note": "quiet, private, the bedtime rhythm"
+   },
+   "act_iv": {
+    "line": "POEM.full.iv",
+    "speaker": "P1",
+    "text": "If only you could see what I see — the red road rising, the cities to be, the domes like lanterns, the skies made new, the morning I come home to you. If only you could see what I see: shimmers of eternity.",
+    "note": "he knows it's an advert and says it anyway: slower, flatter, stopping briefly before 'the morning I come home to you'"
+   },
+   "act_v": {
+    "line": "POEM.full.v",
+    "speaker": "P1",
+    "text": "If only you could see what I see.",
+    "note": "first line only; he can't do the rest any more. The resolve bar still fills."
+   }
+  },
+  "fugitive": "Unavailable. The filter is gone; the hold-to-recite prompt never appears again."
+ }
+}

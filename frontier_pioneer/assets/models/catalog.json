@@ -1,0 +1,3435 @@
+{
+ "version": 1,
+ "units": "m",
+ "up": "Y",
+ "forward": "+Z",
+ "grid": 4.0,
+ "conventions": {
+  "origin": "on the ground (y = 0) under the model centre",
+  "bounds": "[length along Z, width along X, height along Y] of the axis-aligned box, metres",
+  "left": "+X is the model's left when it faces +Z (glTF convention); wheel_?l are at +X",
+  "ports": "empty nodes on the 4 m cell boundary at y = 1.5; the node's +Z points out of the module and +Y is up. port_n = +Z, port_e = +X, port_s = -Z, port_w = -X (a second port on the same side is port_n2 ...). To snap B onto A: B.port world frame = A.port world frame rotated 180 deg about the port's Y axis. type \"pressurized\" has a docking collar and a hatch node hatch_<dir> (hide both hatches when joined); \"utility\" is a grid snap only; \"exterior\" is a walk-out door; \"stack\" (port_up, +Z up) takes the upper module's origin; \"rover_dock\" is the crew rover hatch (2.0 m high: not level with base ports).",
+  "wheels": "each wheel is its own node, a direct child of the root, origin at the wheel centre, axle = local +X. Spin = rotation about X, steer = rotation about Y: in three.js node.rotation.set(spin, steer, 0, \"YXZ\"). Suspension travel = move node.position.y. All six wheels share one mesh per side (instanced).",
+  "materials": "parts are split by named material (hull, hull_alt, trim, dark, accent, metal, glass, glass_dark, solar, tyre, glow, glow_red, regolith, rock, plant, id_blue, id_green, fabric); same name = same look across the kit. \"glow*\" carry emissiveFactor; \"glass\" is alphaMode BLEND and double sided.",
+  "triangles": "rendered triangles (instanced meshes counted once per instance)",
+  "gameplay": "suggested stats; each block's \"notes\" says which numbers are real figures and which are game design values"
+ },
+ "items": [
+  {
+   "id": "rover_crew",
+   "kind": "vehicle",
+   "file": "rover_crew.glb",
+   "name": "Crew rover (pressurized)",
+   "description": "Pressurized six-wheel crew rover, the default vehicle: 5.4 m long, 3.3 m wide, 3.1 m to the roof (4.0 m to the antenna tip). Pressure hull with wrap-around cockpit glazing, roof solar deck, radiators, high-gain dish, light bar, rear docking hatch (nodes \"hatch\" and \"port_dock\"), rocker-bogie suspension as nodes, 1.0 m wheels.",
+   "bounds": [
+    5.63,
+    3.32,
+    4.097
+   ],
+   "aabb": {
+    "min": [
+     -1.66,
+     0.002,
+     -2.69
+    ],
+    "max": [
+     1.66,
+     4.098,
+     2.94
+    ]
+   },
+   "wheels": [
+    {
+     "node": "wheel_fl",
+     "radius": 0.5,
+     "position": [
+      1.45,
+      0.5,
+      1.9
+     ],
+     "steer": true,
+     "axle": [
+      1,
+      0,
+      0
+     ],
+     "width": 0.42
+    },
+    {
+     "node": "wheel_ml",
+     "radius": 0.5,
+     "position": [
+      1.45,
+      0.5,
+      0.0
+     ],
+     "steer": false,
+     "axle": [
+      1,
+      0,
+      0
+     ],
+     "width": 0.42
+    },
+    {
+     "node": "wheel_rl",
+     "radius": 0.5,
+     "position": [
+      1.45,
+      0.5,
+      -1.9
+     ],
+     "steer": true,
+     "axle": [
+      1,
+      0,
+      0
+     ],
+     "width": 0.42
+    },
+    {
+     "node": "wheel_fr",
+     "radius": 0.5,
+     "position": [
+      -1.45,
+      0.5,
+      1.9
+     ],
+     "steer": true,
+     "axle": [
+      1,
+      0,
+      0
+     ],
+     "width": 0.42
+    },
+    {
+     "node": "wheel_mr",
+     "radius": 0.5,
+     "position": [
+      -1.45,
+      0.5,
+      0.0
+     ],
+     "steer": false,
+     "axle": [
+      1,
+      0,
+      0
+     ],
+     "width": 0.42
+    },
+    {
+     "node": "wheel_rr",
+     "radius": 0.5,
+     "position": [
+      -1.45,
+      0.5,
+      -1.9
+     ],
+     "steer": true,
+     "axle": [
+      1,
+      0,
+      0
+     ],
+     "width": 0.42
+    }
+   ],
+   "ports": [
+    {
+     "node": "port_dock",
+     "position": [
+      0.0,
+      2.0,
+      -2.53
+     ],
+     "direction": [
+      0.0,
+      0.0,
+      -1.0
+     ],
+     "type": "rover_dock",
+     "note": "rover hatch is 0.9 x 1.4 m at 2.0 m height; it does not match the 1.5 m base ports without an adapter"
+    }
+   ],
+   "hatches": [
+    "hatch"
+   ],
+   "suspension": [
+    {
+     "node": "rocker_l",
+     "pivot": [
+      1.12,
+      1.05,
+      0.55
+     ],
+     "axis": [
+      1,
+      0,
+      0
+     ],
+     "carries": [
+      "wheel_fl",
+      "bogie_l"
+     ]
+    },
+    {
+     "node": "bogie_l",
+     "parent": "rocker_l",
+     "pivot": [
+      1.12,
+      0.8,
+      -0.95
+     ],
+     "axis": [
+      1,
+      0,
+      0
+     ],
+     "carries": [
+      "wheel_ml",
+      "wheel_rl"
+     ]
+    },
+    {
+     "node": "rocker_r",
+     "pivot": [
+      -1.12,
+      1.05,
+      0.55
+     ],
+     "axis": [
+      1,
+      0,
+      0
+     ],
+     "carries": [
+      "wheel_fr",
+      "bogie_r"
+     ]
+    },
+    {
+     "node": "bogie_r",
+     "parent": "rocker_r",
+     "pivot": [
+      -1.12,
+      0.8,
+      -0.95
+     ],
+     "axis": [
+      1,
+      0,
+      0
+     ],
+     "carries": [
+      "wheel_mr",
+      "wheel_rr"
+     ]
+    }
+   ],
+   "triangles": 8970,
+   "bytes": 183524,
+   "budget_bytes": 1572864,
+   "source": "procedural (tools/assets/build_procedural.py)",
+   "license": "Original work generated by tools/assets for this project; no third-party content",
+   "attribution": "Mars surface kit, generated for this project",
+   "gameplay": {
+    "mass_kg": 4500,
+    "battery_wh": 120000,
+    "solar_w": 900,
+    "top_speed_ms": 5.5,
+    "crew_capacity": 4,
+    "range_km": 150,
+    "o2_kg_per_sol": -3.4,
+    "water_l_per_sol": -12,
+    "storage": 30,
+    "notes": "Game design values, anchored on NASA's Space Exploration Vehicle concept (about 3000 kg dry, 4.5 m long, crew of 2 for 14 days, ~10 km/h): this rover is larger and faster. solar_w: 4.75 m2 roof deck at Mars noon."
+   }
+  },
+  {
+   "id": "rover_scout",
+   "kind": "vehicle",
+   "file": "rover_scout.glb",
+   "name": "Scout buggy (pressurised pod)",
+   "description": "Light four-wheel scout: a two-seat pressurised pod on an open tube frame, wrap-around canopy, roll hoop, 1.65 m2 roof deck, whip antenna, rear hatch (node \"hatch\"). 0.84 m wheels on double wishbones, all four steer. A progression design (game/progress.js): unlocked in the Workshop, switched to at a base garage.",
+   "bounds": [
+    3.615,
+    2.52,
+    2.9
+   ],
+   "aabb": {
+    "min": [
+     -1.26,
+     0.0,
+     -1.807
+    ],
+    "max": [
+     1.26,
+     2.9,
+     1.807
+    ]
+   },
+   "wheels": [
+    {
+     "node": "wheel_fl",
+     "radius": 0.42,
+     "position": [
+      1.05,
+      0.42,
+      1.3
+     ],
+     "steer": true,
+     "axle": [
+      1,
+      0,
+      0
+     ],
+     "width": 0.34
+    },
+    {
+     "node": "wheel_rl",
+     "radius": 0.42,
+     "position": [
+      1.05,
+      0.42,
+      -1.3
+     ],
+     "steer": true,
+     "axle": [
+      1,
+      0,
+      0
+     ],
+     "width": 0.34
+    },
+    {
+     "node": "wheel_fr",
+     "radius": 0.42,
+     "position": [
+      -1.05,
+      0.42,
+      1.3
+     ],
+     "steer": true,
+     "axle": [
+      1,
+      0,
+      0
+     ],
+     "width": 0.34
+    },
+    {
+     "node": "wheel_rr",
+     "radius": 0.42,
+     "position": [
+      -1.05,
+      0.42,
+      -1.3
+     ],
+     "steer": true,
+     "axle": [
+      1,
+      0,
+      0
+     ],
+     "width": 0.34
+    }
+   ],
+   "hatches": [
+    "hatch"
+   ],
+   "triangles": 5530,
+   "bytes": 116200,
+   "budget_bytes": 1572864,
+   "source": "procedural (tools/assets/build_procedural.py)",
+   "license": "Original work generated by tools/assets for this project; no third-party content",
+   "attribution": "Mars surface kit, generated for this project",
+   "gameplay": {
+    "mass_kg": 1400,
+    "battery_wh": 14000,
+    "solar_w": 450,
+    "top_speed_ms": 12,
+    "crew_capacity": 2,
+    "range_km": 60,
+    "notes": "Game design values: a fast scout that trades range, payload and stability for speed."
+   }
+  },
+  {
+   "id": "rover_hauler",
+   "kind": "vehicle",
+   "file": "rover_hauler.glb",
+   "name": "Heavy hauler (pressurised cab and cargo module)",
+   "description": "Long-range six-wheel hauler: a pressurised cab forward of a cargo module, 8.3 m2 deck on the module, cab light bar, dish, bull bar and winch, rear hatch (nodes \"hatch\" and \"port_dock\"), 1.3 m wheels. Fits the garage door (3.8 m over the wheels, 3.0 m to the deck). A progression design (game/progress.js).",
+   "bounds": [
+    6.79,
+    3.83,
+    3.923
+   ],
+   "aabb": {
+    "min": [
+     -1.915,
+     0.0,
+     -3.2
+    ],
+    "max": [
+     1.915,
+     3.923,
+     3.59
+    ]
+   },
+   "wheels": [
+    {
+     "node": "wheel_fl",
+     "radius": 0.65,
+     "position": [
+      1.6,
+      0.65,
+      2.3
+     ],
+     "steer": true,
+     "axle": [
+      1,
+      0,
+      0
+     ],
+     "width": 0.55
+    },
+    {
+     "node": "wheel_ml",
+     "radius": 0.65,
+     "position": [
+      1.6,
+      0.65,
+      0.0
+     ],
+     "steer": false,
+     "axle": [
+      1,
+      0,
+      0
+     ],
+     "width": 0.55
+    },
+    {
+     "node": "wheel_rl",
+     "radius": 0.65,
+     "position": [
+      1.6,
+      0.65,
+      -2.3
+     ],
+     "steer": true,
+     "axle": [
+      1,
+      0,
+      0
+     ],
+     "width": 0.55
+    },
+    {
+     "node": "wheel_fr",
+     "radius": 0.65,
+     "position": [
+      -1.6,
+      0.65,
+      2.3
+     ],
+     "steer": true,
+     "axle": [
+      1,
+      0,
+      0
+     ],
+     "width": 0.55
+    },
+    {
+     "node": "wheel_mr",
+     "radius": 0.65,
+     "position": [
+      -1.6,
+      0.65,
+      0.0
+     ],
+     "steer": false,
+     "axle": [
+      1,
+      0,
+      0
+     ],
+     "width": 0.55
+    },
+    {
+     "node": "wheel_rr",
+     "radius": 0.65,
+     "position": [
+      -1.6,
+      0.65,
+      -2.3
+     ],
+     "steer": true,
+     "axle": [
+      1,
+      0,
+      0
+     ],
+     "width": 0.55
+    }
+   ],
+   "ports": [
+    {
+     "node": "port_dock",
+     "position": [
+      0.0,
+      2.0,
+      -2.98
+     ],
+     "direction": [
+      0.0,
+      0.0,
+      -1.0
+     ],
+     "type": "rover_dock",
+     "note": "hauler hatch 0.9 x 1.3 m at 2.0 m height, like the crew rover"
+    }
+   ],
+   "hatches": [
+    "hatch"
+   ],
+   "triangles": 8350,
+   "bytes": 140880,
+   "budget_bytes": 1572864,
+   "source": "procedural (tools/assets/build_procedural.py)",
+   "license": "Original work generated by tools/assets for this project; no third-party content",
+   "attribution": "Mars surface kit, generated for this project",
+   "gameplay": {
+    "mass_kg": 6500,
+    "battery_wh": 60000,
+    "solar_w": 1500,
+    "top_speed_ms": 6,
+    "crew_capacity": 4,
+    "range_km": 220,
+    "notes": "Game design values: slow, sure-footed and with three times the crew rover's battery."
+   }
+  },
+  {
+   "id": "rover_perseverance",
+   "kind": "vehicle",
+   "file": "rover_perseverance.glb",
+   "name": "Perseverance (Mars 2020) rover",
+   "description": "NASA/JPL Mars 2020 rover at real scale (3.0 x 2.7 x 2.2 m class). Six wheels are separate nodes (one decimated source wheel, instanced and mirrored); body, arm, mast and suspension are one static node.",
+   "bounds": [
+    3.1,
+    2.705,
+    1.843
+   ],
+   "aabb": {
+    "min": [
+     -1.352,
+     0.002,
+     -1.731
+    ],
+    "max": [
+     1.352,
+     1.844,
+     1.369
+    ]
+   },
+   "wheels": [
+    {
+     "node": "wheel_fl",
+     "radius": 0.2627,
+     "position": [
+      1.0624,
+      0.2627,
+      1.095
+     ],
+     "steer": true,
+     "axle": [
+      1,
+      0,
+      0
+     ]
+    },
+    {
+     "node": "wheel_ml",
+     "radius": 0.2627,
+     "position": [
+      1.1845,
+      0.263,
+      -0.09
+     ],
+     "steer": false,
+     "axle": [
+      1,
+      0,
+      0
+     ]
+    },
+    {
+     "node": "wheel_rl",
+     "radius": 0.2627,
+     "position": [
+      1.0624,
+      0.2635,
+      -1.165
+     ],
+     "steer": true,
+     "axle": [
+      1,
+      0,
+      0
+     ]
+    },
+    {
+     "node": "wheel_fr",
+     "radius": 0.2627,
+     "position": [
+      -1.0624,
+      0.2627,
+      1.095
+     ],
+     "steer": true,
+     "axle": [
+      1,
+      0,
+      0
+     ]
+    },
+    {
+     "node": "wheel_mr",
+     "radius": 0.2627,
+     "position": [
+      -1.1845,
+      0.263,
+      -0.09
+     ],
+     "steer": false,
+     "axle": [
+      1,
+      0,
+      0
+     ]
+    },
+    {
+     "node": "wheel_rr",
+     "radius": 0.2627,
+     "position": [
+      -1.0624,
+      0.2627,
+      -1.165
+     ],
+     "steer": true,
+     "axle": [
+      1,
+      0,
+      0
+     ]
+    }
+   ],
+   "triangles": 40895,
+   "bytes": 1507304,
+   "budget_bytes": 1572864,
+   "source": "NASA 3D Resources: 3D Models/Mars 2020 Perseverance Rover/Mars 2020 Perseverance Rover.glb",
+   "license": "NASA media usage guidelines (https://www.nasa.gov/nasa-brand-center/images-and-media/): generally not copyrighted, free to use; no implied NASA endorsement; NASA insignia/logotype use is restricted",
+   "attribution": "Mars 2020 Perseverance Rover: model courtesy NASA/JPL-Caltech, from NASA 3D Resources (https://github.com/nasa/NASA-3D-Resources); adapted (decimated / re-materialed / re-rooted) for this game. Use does not imply NASA endorsement.",
+   "processing": "Draco-decoded; animations/skin dropped; wheels split out of the single Wheels_objs mesh by position, front-left wheel decimated to 27% and instanced x6 (mirrored for the right side); body parts quadric-decimated (about 131k -> 21k); large textured parts flattened to the mean colour of their texture before decimation, small textured parts (decals, plates) kept with UVs and 256 px JPEG textures; metalness capped.",
+   "gameplay": {
+    "mass_kg": 1025,
+    "battery_wh": 2408,
+    "solar_w": 0,
+    "rtg_w": 110,
+    "top_speed_ms": 0.042,
+    "notes": "Real figures: mass 1025 kg; MMRTG ~110 W electrical at start of mission; two 43 Ah Li-ion batteries (~2.4 kWh at 28 V); top speed 152 m/h = 0.042 m/s on flat hard ground. A game will want a far higher speed: suggested game design value top_speed_game_ms = 1.5."
+   }
+  },
+  {
+   "id": "rover_curiosity",
+   "kind": "vehicle",
+   "file": "rover_curiosity.glb",
+   "name": "Curiosity (MSL) rover",
+   "description": "Curiosity assembled from NASA's simplified 3D-print kit: hull, one-piece rocker-bogies, mast and arm, with real-size 0.50 m wheels from the detailed print set as six separate nodes. Proportions are those of the print toy (stubbier than the flight rover); see README limitations.",
+   "bounds": [
+    3.207,
+    2.959,
+    1.496
+   ],
+   "aabb": {
+    "min": [
+     -1.48,
+     -0.0,
+     -1.133
+    ],
+    "max": [
+     1.48,
+     1.496,
+     2.074
+    ]
+   },
+   "wheels": [
+    {
+     "node": "wheel_fl",
+     "radius": 0.25,
+     "position": [
+      1.2645,
+      0.25,
+      0.9167
+     ],
+     "steer": true,
+     "axle": [
+      1,
+      0,
+      0
+     ],
+     "width": 0.43
+    },
+    {
+     "node": "wheel_ml",
+     "radius": 0.25,
+     "position": [
+      1.2645,
+      0.25,
+      -0.0333
+     ],
+     "steer": false,
+     "axle": [
+      1,
+      0,
+      0
+     ],
+     "width": 0.43
+    },
+    {
+     "node": "wheel_rl",
+     "radius": 0.25,
+     "position": [
+      1.2645,
+      0.25,
+      -0.8833
+     ],
+     "steer": true,
+     "axle": [
+      1,
+      0,
+      0
+     ],
+     "width": 0.43
+    },
+    {
+     "node": "wheel_fr",
+     "radius": 0.25,
+     "position": [
+      -1.2645,
+      0.25,
+      0.9167
+     ],
+     "steer": true,
+     "axle": [
+      1,
+      0,
+      0
+     ],
+     "width": 0.43
+    },
+    {
+     "node": "wheel_mr",
+     "radius": 0.25,
+     "position": [
+      -1.2645,
+      0.25,
+      -0.0333
+     ],
+     "steer": false,
+     "axle": [
+      1,
+      0,
+      0
+     ],
+     "width": 0.43
+    },
+    {
+     "node": "wheel_rr",
+     "radius": 0.25,
+     "position": [
+      -1.2645,
+      0.25,
+      -0.8833
+     ],
+     "steer": true,
+     "axle": [
+      1,
+      0,
+      0
+     ],
+     "width": 0.43
+    }
+   ],
+   "triangles": 54436,
+   "bytes": 1177428,
+   "budget_bytes": 1572864,
+   "source": "NASA 3D Resources: 3D Printing/Curiosity Rover (Simplified)/Curiosity (200uM).stl (hull, suspension, mast, arm) + 3D Printing/Curiosity Rover (Detailed)/4-wheels.stl (wheel)",
+   "license": "NASA media usage guidelines (https://www.nasa.gov/nasa-brand-center/images-and-media/): generally not copyrighted, free to use; no implied NASA endorsement; NASA insignia/logotype use is restricted",
+   "attribution": "Curiosity Rover 3D-print models: model courtesy NASA/JPL-Caltech, from NASA 3D Resources (https://github.com/nasa/NASA-3D-Resources); adapted (decimated / re-materialed / re-rooted) for this game. Use does not imply NASA endorsement.",
+   "processing": "Print-plate shells separated by connected components and re-assembled by script: rocker-bogies turned over and hung on the hull pivot stubs, mast sunk into the deck, arm links posed in a vertical plane; print brims removed and a belly plate generated in their place; hub brackets between suspension posts and wheels are GENERATED geometry; wheel decimated 58k -> 3.6k triangles and instanced x6; materials assigned by rule (STL has none).",
+   "gameplay": {
+    "mass_kg": 899,
+    "battery_wh": 2352,
+    "solar_w": 0,
+    "rtg_w": 110,
+    "top_speed_ms": 0.04,
+    "notes": "Real figures: mass 899 kg; MMRTG ~110 W electrical at landing; two 42 Ah Li-ion batteries (~2.35 kWh at 28 V); top speed ~0.04 m/s (about 140 m/h). Suggested game design value top_speed_game_ms = 1.5."
+   }
+  },
+  {
+   "id": "ingenuity",
+   "kind": "vehicle",
+   "file": "ingenuity.glb",
+   "name": "Ingenuity Mars Helicopter",
+   "description": "NASA/JPL Ingenuity at real scale (1.2 m rotor span). Counter-rotating rotors are separate nodes rotor_upper / rotor_lower pivoted on the mast axis: spin them about local +Y in opposite directions.",
+   "bounds": [
+    1.106,
+    0.986,
+    0.562
+   ],
+   "aabb": {
+    "min": [
+     -0.495,
+     0.0,
+     -0.553
+    ],
+    "max": [
+     0.491,
+     0.562,
+     0.553
+    ]
+   },
+   "wheels": [],
+   "rotors": [
+    {
+     "node": "rotor_upper",
+     "axis": [
+      0,
+      1,
+      0
+     ],
+     "position": [
+      -0.0018,
+      0.4218,
+      0.0004
+     ],
+     "radius": 0.553
+    },
+    {
+     "node": "rotor_lower",
+     "axis": [
+      0,
+      1,
+      0
+     ],
+     "position": [
+      -0.0018,
+      0.3214,
+      0.0004
+     ],
+     "radius": 0.493
+    }
+   ],
+   "triangles": 9060,
+   "bytes": 328392,
+   "budget_bytes": 1572864,
+   "source": "NASA 3D Resources: 3D Models/Ingenuity Mars Helicopter/Ingenuity Mars Helicopter.glb",
+   "license": "NASA media usage guidelines (https://www.nasa.gov/nasa-brand-center/images-and-media/): generally not copyrighted, free to use; no implied NASA endorsement; NASA insignia/logotype use is restricted",
+   "attribution": "Ingenuity Mars Helicopter: model courtesy NASA/JPL-Caltech, from NASA 3D Resources (https://github.com/nasa/NASA-3D-Resources); adapted (decimated / re-materialed / re-rooted) for this game. Use does not imply NASA endorsement.",
+   "processing": "Draco-decoded passthrough: geometry untouched, nodes regrouped (body + 2 rotors), textures resized to 256 px JPEG.",
+   "gameplay": {
+    "mass_kg": 1.8,
+    "battery_wh": 36,
+    "solar_w": 10,
+    "top_speed_ms": 10.0,
+    "notes": "Real figures: mass 1.8 kg; six Li-ion cells ~35-40 Wh; rotors ~2400 rpm; record ground speed 10 m/s; flights up to ~170 s. solar_w is a game design value (panel recharges one flight per sol)."
+   }
+  },
+  {
+   "id": "hab_small",
+   "kind": "module",
+   "file": "hab_small.glb",
+   "name": "Small habitat",
+   "description": "Cylindrical crew habitat, one cell, 3.5 m diameter. Four docking ports and a flat load deck: a second hab_small can be stacked on port_up.",
+   "bounds": [
+    4.0,
+    4.0,
+    3.58
+   ],
+   "aabb": {
+    "min": [
+     -2.0,
+     0.0,
+     -2.0
+    ],
+    "max": [
+     2.0,
+     3.58,
+     2.0
+    ]
+   },
+   "footprint": [
+    1,
+    1
+   ],
+   "grid": 4.0,
+   "ports": [
+    {
+     "node": "port_n",
+     "position": [
+      0.0,
+      1.5,
+      2.0
+     ],
+     "direction": [
+      0.0,
+      0.0,
+      1.0
+     ],
+     "type": "pressurized"
+    },
+    {
+     "node": "port_e",
+     "position": [
+      2.0,
+      1.5,
+      0.0
+     ],
+     "direction": [
+      1.0,
+      0.0,
+      0.0
+     ],
+     "type": "pressurized"
+    },
+    {
+     "node": "port_s",
+     "position": [
+      0.0,
+      1.5,
+      -2.0
+     ],
+     "direction": [
+      0.0,
+      0.0,
+      -1.0
+     ],
+     "type": "pressurized"
+    },
+    {
+     "node": "port_w",
+     "position": [
+      -2.0,
+      1.5,
+      0.0
+     ],
+     "direction": [
+      -1.0,
+      0.0,
+      0.0
+     ],
+     "type": "pressurized"
+    },
+    {
+     "node": "port_up",
+     "position": [
+      0.0,
+      3.42,
+      0.0
+     ],
+     "direction": [
+      0.0,
+      1.0,
+      0.0
+     ],
+     "type": "stack",
+     "accepts": [
+      "hab_small"
+     ],
+     "note": "place the stacked module with its origin (ground point) at this port"
+    }
+   ],
+   "hatches": [
+    "hatch_n",
+    "hatch_e",
+    "hatch_s",
+    "hatch_w"
+   ],
+   "triangles": 4008,
+   "bytes": 128392,
+   "budget_bytes": 307200,
+   "source": "procedural (tools/assets/build_modules.py)",
+   "license": "Original work generated by tools/assets for this project; no third-party content",
+   "attribution": "Mars surface kit, generated for this project",
+   "gameplay": {
+    "power_w": -1200,
+    "o2_kg_per_sol": -1.68,
+    "water_l_per_sol": -30,
+    "crew_capacity": 2,
+    "storage": 10,
+    "notes": "Game design values. Consumption follows the crew: ~0.84 kg O2 per person per sol is the real planning figure."
+   }
+  },
+  {
+   "id": "hab_large",
+   "kind": "module",
+   "file": "hab_large.glb",
+   "name": "Large habitat",
+   "description": "Two-cell hard-shell habitat (7.3 x 3.6 m) with six docking ports: one on each end and two on each long side.",
+   "bounds": [
+    4.0,
+    8.0,
+    4.05
+   ],
+   "aabb": {
+    "min": [
+     -4.0,
+     0.0,
+     -2.0
+    ],
+    "max": [
+     4.0,
+     4.05,
+     2.0
+    ]
+   },
+   "footprint": [
+    2,
+    1
+   ],
+   "grid": 4.0,
+   "ports": [
+    {
+     "node": "port_w",
+     "position": [
+      -4.0,
+      1.5,
+      0.0
+     ],
+     "direction": [
+      -1.0,
+      0.0,
+      0.0
+     ],
+     "type": "pressurized"
+    },
+    {
+     "node": "port_e",
+     "position": [
+      4.0,
+      1.5,
+      0.0
+     ],
+     "direction": [
+      1.0,
+      0.0,
+      0.0
+     ],
+     "type": "pressurized"
+    },
+    {
+     "node": "port_n",
+     "position": [
+      -2.0,
+      1.5,
+      2.0
+     ],
+     "direction": [
+      0.0,
+      0.0,
+      1.0
+     ],
+     "type": "pressurized"
+    },
+    {
+     "node": "port_n2",
+     "position": [
+      2.0,
+      1.5,
+      2.0
+     ],
+     "direction": [
+      0.0,
+      0.0,
+      1.0
+     ],
+     "type": "pressurized"
+    },
+    {
+     "node": "port_s",
+     "position": [
+      -2.0,
+      1.5,
+      -2.0
+     ],
+     "direction": [
+      0.0,
+      0.0,
+      -1.0
+     ],
+     "type": "pressurized"
+    },
+    {
+     "node": "port_s2",
+     "position": [
+      2.0,
+      1.5,
+      -2.0
+     ],
+     "direction": [
+      0.0,
+      0.0,
+      -1.0
+     ],
+     "type": "pressurized"
+    }
+   ],
+   "hatches": [
+    "hatch_w",
+    "hatch_e",
+    "hatch_n",
+    "hatch_n2",
+    "hatch_s",
+    "hatch_s2"
+   ],
+   "triangles": 3860,
+   "bytes": 120476,
+   "budget_bytes": 307200,
+   "source": "procedural (tools/assets/build_modules.py)",
+   "license": "Original work generated by tools/assets for this project; no third-party content",
+   "attribution": "Mars surface kit, generated for this project",
+   "gameplay": {
+    "power_w": -3000,
+    "o2_kg_per_sol": -5.04,
+    "water_l_per_sol": -90,
+    "crew_capacity": 6,
+    "storage": 30,
+    "notes": "Game design values; crew of 6 at ~0.84 kg O2 per person per sol."
+   }
+  },
+  {
+   "id": "node_hub",
+   "kind": "module",
+   "file": "node_hub.glb",
+   "name": "Node hub",
+   "description": "Octagonal four-way connector with a cupola. Joins habitats, corridors and airlocks on all four sides.",
+   "bounds": [
+    4.0,
+    4.0,
+    3.712
+   ],
+   "aabb": {
+    "min": [
+     -2.0,
+     0.0,
+     -2.0
+    ],
+    "max": [
+     2.0,
+     3.712,
+     2.0
+    ]
+   },
+   "footprint": [
+    1,
+    1
+   ],
+   "grid": 4.0,
+   "ports": [
+    {
+     "node": "port_n",
+     "position": [
+      0.0,
+      1.5,
+      2.0
+     ],
+     "direction": [
+      0.0,
+      0.0,
+      1.0
+     ],
+     "type": "pressurized"
+    },
+    {
+     "node": "port_e",
+     "position": [
+      2.0,
+      1.5,
+      0.0
+     ],
+     "direction": [
+      1.0,
+      0.0,
+      0.0
+     ],
+     "type": "pressurized"
+    },
+    {
+     "node": "port_s",
+     "position": [
+      0.0,
+      1.5,
+      -2.0
+     ],
+     "direction": [
+      0.0,
+      0.0,
+      -1.0
+     ],
+     "type": "pressurized"
+    },
+    {
+     "node": "port_w",
+     "position": [
+      -2.0,
+      1.5,
+      0.0
+     ],
+     "direction": [
+      -1.0,
+      0.0,
+      0.0
+     ],
+     "type": "pressurized"
+    }
+   ],
+   "hatches": [
+    "hatch_n",
+    "hatch_e",
+    "hatch_s",
+    "hatch_w"
+   ],
+   "triangles": 2668,
+   "bytes": 87512,
+   "budget_bytes": 307200,
+   "source": "procedural (tools/assets/build_modules.py)",
+   "license": "Original work generated by tools/assets for this project; no third-party content",
+   "attribution": "Mars surface kit, generated for this project",
+   "gameplay": {
+    "power_w": -300,
+    "o2_kg_per_sol": 0,
+    "water_l_per_sol": 0,
+    "crew_capacity": 0,
+    "storage": 4,
+    "notes": "Game design values."
+   }
+  },
+  {
+   "id": "corridor_straight",
+   "kind": "module",
+   "file": "corridor_straight.glb",
+   "name": "Corridor, straight",
+   "description": "Pressurized walkway, one cell long, running north-south (rotate 90 deg for east-west).",
+   "bounds": [
+    4.0,
+    2.1,
+    3.028
+   ],
+   "aabb": {
+    "min": [
+     -1.05,
+     0.0,
+     -2.0
+    ],
+    "max": [
+     1.05,
+     3.028,
+     2.0
+    ]
+   },
+   "footprint": [
+    1,
+    1
+   ],
+   "grid": 4.0,
+   "ports": [
+    {
+     "node": "port_n",
+     "position": [
+      0.0,
+      1.5,
+      2.0
+     ],
+     "direction": [
+      0.0,
+      0.0,
+      1.0
+     ],
+     "type": "pressurized"
+    },
+    {
+     "node": "port_s",
+     "position": [
+      0.0,
+      1.5,
+      -2.0
+     ],
+     "direction": [
+      0.0,
+      0.0,
+      -1.0
+     ],
+     "type": "pressurized"
+    }
+   ],
+   "hatches": [
+    "hatch_n",
+    "hatch_s"
+   ],
+   "triangles": 1488,
+   "bytes": 57964,
+   "budget_bytes": 307200,
+   "source": "procedural (tools/assets/build_modules.py)",
+   "license": "Original work generated by tools/assets for this project; no third-party content",
+   "attribution": "Mars surface kit, generated for this project",
+   "gameplay": {
+    "power_w": -50,
+    "o2_kg_per_sol": 0,
+    "water_l_per_sol": 0,
+    "crew_capacity": 0,
+    "storage": 0,
+    "notes": "Game design values."
+   }
+  },
+  {
+   "id": "corridor_corner",
+   "kind": "module",
+   "file": "corridor_corner.glb",
+   "name": "Corridor, corner",
+   "description": "Pressurized 90-degree elbow joining the north and east sides.",
+   "bounds": [
+    3.05,
+    3.05,
+    3.0
+   ],
+   "aabb": {
+    "min": [
+     -1.05,
+     0.0,
+     -1.05
+    ],
+    "max": [
+     2.0,
+     3.0,
+     2.0
+    ]
+   },
+   "footprint": [
+    1,
+    1
+   ],
+   "grid": 4.0,
+   "ports": [
+    {
+     "node": "port_n",
+     "position": [
+      0.0,
+      1.5,
+      2.0
+     ],
+     "direction": [
+      0.0,
+      0.0,
+      1.0
+     ],
+     "type": "pressurized"
+    },
+    {
+     "node": "port_e",
+     "position": [
+      2.0,
+      1.5,
+      0.0
+     ],
+     "direction": [
+      1.0,
+      0.0,
+      0.0
+     ],
+     "type": "pressurized"
+    }
+   ],
+   "hatches": [
+    "hatch_n",
+    "hatch_e"
+   ],
+   "triangles": 1848,
+   "bytes": 69916,
+   "budget_bytes": 307200,
+   "source": "procedural (tools/assets/build_modules.py)",
+   "license": "Original work generated by tools/assets for this project; no third-party content",
+   "attribution": "Mars surface kit, generated for this project",
+   "gameplay": {
+    "power_w": -50,
+    "o2_kg_per_sol": 0,
+    "water_l_per_sol": 0,
+    "crew_capacity": 0,
+    "storage": 0,
+    "notes": "Game design values."
+   }
+  },
+  {
+   "id": "airlock",
+   "kind": "module",
+   "file": "airlock.glb",
+   "name": "Airlock",
+   "description": "EVA airlock: pressurized port on the south side, exterior door (node door_outer) with porch and steps on the north side.",
+   "bounds": [
+    4.0,
+    3.36,
+    3.541
+   ],
+   "aabb": {
+    "min": [
+     -1.68,
+     0.0,
+     -2.0
+    ],
+    "max": [
+     1.68,
+     3.541,
+     2.0
+    ]
+   },
+   "footprint": [
+    1,
+    1
+   ],
+   "grid": 4.0,
+   "ports": [
+    {
+     "node": "port_s",
+     "position": [
+      0.0,
+      1.5,
+      -2.0
+     ],
+     "direction": [
+      0.0,
+      0.0,
+      -1.0
+     ],
+     "type": "pressurized"
+    },
+    {
+     "node": "port_n",
+     "position": [
+      0.0,
+      1.5,
+      2.0
+     ],
+     "direction": [
+      0.0,
+      0.0,
+      1.0
+     ],
+     "type": "exterior"
+    }
+   ],
+   "hatches": [
+    "hatch_s"
+   ],
+   "doors": [
+    {
+     "node": "door_outer",
+     "type": "personnel",
+     "opening": [
+      1.4,
+      2.0
+     ],
+     "open": "slide the node +X by 1.45 m, or hide it"
+    }
+   ],
+   "triangles": 2248,
+   "bytes": 100364,
+   "budget_bytes": 307200,
+   "source": "procedural (tools/assets/build_modules.py)",
+   "license": "Original work generated by tools/assets for this project; no third-party content",
+   "attribution": "Mars surface kit, generated for this project",
+   "gameplay": {
+    "power_w": -400,
+    "o2_kg_per_sol": -0.1,
+    "water_l_per_sol": 0,
+    "crew_capacity": 0,
+    "storage": 2,
+    "notes": "Game design values; o2 is the gas lost per sol to cycling."
+   }
+  },
+  {
+   "id": "greenhouse",
+   "kind": "module",
+   "file": "greenhouse.glb",
+   "name": "Greenhouse",
+   "description": "Glazed barrel-vault greenhouse, 1 x 2 cells, with three crop beds. The vault uses the translucent \"glass\" material (alpha blend, double sided).",
+   "bounds": [
+    8.0,
+    3.62,
+    3.05
+   ],
+   "aabb": {
+    "min": [
+     -1.81,
+     0.0,
+     -4.0
+    ],
+    "max": [
+     1.81,
+     3.05,
+     4.0
+    ]
+   },
+   "footprint": [
+    1,
+    2
+   ],
+   "grid": 4.0,
+   "ports": [
+    {
+     "node": "port_n",
+     "position": [
+      0.0,
+      1.5,
+      4.0
+     ],
+     "direction": [
+      0.0,
+      0.0,
+      1.0
+     ],
+     "type": "pressurized"
+    },
+    {
+     "node": "port_s",
+     "position": [
+      0.0,
+      1.5,
+      -4.0
+     ],
+     "direction": [
+      0.0,
+      0.0,
+      -1.0
+     ],
+     "type": "pressurized"
+    }
+   ],
+   "hatches": [
+    "hatch_n",
+    "hatch_s"
+   ],
+   "triangles": 3076,
+   "bytes": 112472,
+   "budget_bytes": 307200,
+   "source": "procedural (tools/assets/build_modules.py)",
+   "license": "Original work generated by tools/assets for this project; no third-party content",
+   "attribution": "Mars surface kit, generated for this project",
+   "gameplay": {
+    "power_w": -2500,
+    "o2_kg_per_sol": 2.4,
+    "water_l_per_sol": -120,
+    "crew_capacity": 0,
+    "storage": 0,
+    "food_kg_per_sol": 3.0,
+    "notes": "Game design values: feeds/oxygenates about 3 crew. Plants need ~1 kW of grow light per crew fed."
+   }
+  },
+  {
+   "id": "solar_array",
+   "kind": "module",
+   "file": "solar_array.glb",
+   "name": "Solar array",
+   "description": "Tracking photovoltaic array, 3.7 x 3.3 m of cells on a mast. Node \"panel\" pivots about its local X axis at (0, 2.35, 0); it is delivered tilted 20 deg.",
+   "bounds": [
+    3.113,
+    3.7,
+    2.936
+   ],
+   "aabb": {
+    "min": [
+     -1.85,
+     0.0,
+     -1.556
+    ],
+    "max": [
+     1.85,
+     2.936,
+     1.556
+    ]
+   },
+   "footprint": [
+    1,
+    1
+   ],
+   "grid": 4.0,
+   "ports": [
+    {
+     "node": "port_n",
+     "position": [
+      0.0,
+      1.5,
+      2.0
+     ],
+     "direction": [
+      0.0,
+      0.0,
+      1.0
+     ],
+     "type": "utility"
+    },
+    {
+     "node": "port_e",
+     "position": [
+      2.0,
+      1.5,
+      0.0
+     ],
+     "direction": [
+      1.0,
+      0.0,
+      0.0
+     ],
+     "type": "utility"
+    },
+    {
+     "node": "port_s",
+     "position": [
+      0.0,
+      1.5,
+      -2.0
+     ],
+     "direction": [
+      0.0,
+      0.0,
+      -1.0
+     ],
+     "type": "utility"
+    },
+    {
+     "node": "port_w",
+     "position": [
+      -2.0,
+      1.5,
+      0.0
+     ],
+     "direction": [
+      -1.0,
+      0.0,
+      0.0
+     ],
+     "type": "utility"
+    }
+   ],
+   "tilt": {
+    "node": "panel",
+    "axis": [
+     1,
+     0,
+     0
+    ],
+    "pivot": [
+     0,
+     2.35,
+     0
+    ],
+    "default_deg": 20.0,
+    "range_deg": [
+     -45,
+     45
+    ]
+   },
+   "triangles": 696,
+   "bytes": 35156,
+   "budget_bytes": 307200,
+   "source": "procedural (tools/assets/build_modules.py)",
+   "license": "Original work generated by tools/assets for this project; no third-party content",
+   "attribution": "Mars surface kit, generated for this project",
+   "gameplay": {
+    "power_w": 1100,
+    "o2_kg_per_sol": 0.0,
+    "water_l_per_sol": 0.0,
+    "crew_capacity": 0,
+    "storage": 0,
+    "notes": "Derived, not invented: 11 m2 of cells x ~590 W/m2 Mars peak irradiance x ~29% cells x dust/angle losses gives roughly 1.1 kW at noon, ~350 W averaged over a sol.",
+    "power_w_sol_average": 350
+   }
+  },
+  {
+   "id": "battery_bank",
+   "kind": "module",
+   "file": "battery_bank.glb",
+   "name": "Battery bank",
+   "description": "Eight lithium battery cabinets on a skid with a radiator stack.",
+   "bounds": [
+    2.36,
+    3.671,
+    2.51
+   ],
+   "aabb": {
+    "min": [
+     -1.9,
+     0.0,
+     -1.18
+    ],
+    "max": [
+     1.771,
+     2.51,
+     1.18
+    ]
+   },
+   "footprint": [
+    1,
+    1
+   ],
+   "grid": 4.0,
+   "ports": [
+    {
+     "node": "port_n",
+     "position": [
+      0.0,
+      1.5,
+      2.0
+     ],
+     "direction": [
+      0.0,
+      0.0,
+      1.0
+     ],
+     "type": "utility"
+    },
+    {
+     "node": "port_e",
+     "position": [
+      2.0,
+      1.5,
+      0.0
+     ],
+     "direction": [
+      1.0,
+      0.0,
+      0.0
+     ],
+     "type": "utility"
+    },
+    {
+     "node": "port_s",
+     "position": [
+      0.0,
+      1.5,
+      -2.0
+     ],
+     "direction": [
+      0.0,
+      0.0,
+      -1.0
+     ],
+     "type": "utility"
+    },
+    {
+     "node": "port_w",
+     "position": [
+      -2.0,
+      1.5,
+      0.0
+     ],
+     "direction": [
+      -1.0,
+      0.0,
+      0.0
+     ],
+     "type": "utility"
+    }
+   ],
+   "triangles": 1744,
+   "bytes": 82868,
+   "budget_bytes": 307200,
+   "source": "procedural (tools/assets/build_modules.py)",
+   "license": "Original work generated by tools/assets for this project; no third-party content",
+   "attribution": "Mars surface kit, generated for this project",
+   "gameplay": {
+    "power_w": 0,
+    "o2_kg_per_sol": 0.0,
+    "water_l_per_sol": 0.0,
+    "crew_capacity": 0,
+    "storage": 0,
+    "battery_wh": 200000,
+    "max_power_w": 20000,
+    "notes": "Game design values: 200 kWh usable, about 1.3 t of cells at 150 Wh/kg."
+   }
+  },
+  {
+   "id": "isru_plant",
+   "kind": "module",
+   "file": "isru_plant.glb",
+   "name": "ISRU plant",
+   "description": "In-situ resource unit, 2 x 1 cells: regolith hopper, reactor column, cryocooler skid and two product tanks (oxygen, methane).",
+   "bounds": [
+    3.6,
+    7.52,
+    4.46
+   ],
+   "aabb": {
+    "min": [
+     -3.76,
+     0.0,
+     -1.8
+    ],
+    "max": [
+     3.76,
+     4.46,
+     1.8
+    ]
+   },
+   "footprint": [
+    2,
+    1
+   ],
+   "grid": 4.0,
+   "ports": [
+    {
+     "node": "port_w",
+     "position": [
+      -4.0,
+      1.5,
+      0.0
+     ],
+     "direction": [
+      -1.0,
+      0.0,
+      0.0
+     ],
+     "type": "utility"
+    },
+    {
+     "node": "port_e",
+     "position": [
+      4.0,
+      1.5,
+      0.0
+     ],
+     "direction": [
+      1.0,
+      0.0,
+      0.0
+     ],
+     "type": "utility"
+    },
+    {
+     "node": "port_n",
+     "position": [
+      -2.0,
+      1.5,
+      2.0
+     ],
+     "direction": [
+      0.0,
+      0.0,
+      1.0
+     ],
+     "type": "utility"
+    },
+    {
+     "node": "port_n2",
+     "position": [
+      2.0,
+      1.5,
+      2.0
+     ],
+     "direction": [
+      0.0,
+      0.0,
+      1.0
+     ],
+     "type": "utility"
+    },
+    {
+     "node": "port_s",
+     "position": [
+      -2.0,
+      1.5,
+      -2.0
+     ],
+     "direction": [
+      0.0,
+      0.0,
+      -1.0
+     ],
+     "type": "utility"
+    },
+    {
+     "node": "port_s2",
+     "position": [
+      2.0,
+      1.5,
+      -2.0
+     ],
+     "direction": [
+      0.0,
+      0.0,
+      -1.0
+     ],
+     "type": "utility"
+    }
+   ],
+   "triangles": 3772,
+   "bytes": 137676,
+   "budget_bytes": 307200,
+   "source": "procedural (tools/assets/build_modules.py)",
+   "license": "Original work generated by tools/assets for this project; no third-party content",
+   "attribution": "Mars surface kit, generated for this project",
+   "gameplay": {
+    "power_w": -25000,
+    "o2_kg_per_sol": 24.0,
+    "water_l_per_sol": 15.0,
+    "crew_capacity": 0,
+    "storage": 0,
+    "methane_kg_per_sol": 6.0,
+    "regolith_kg_per_sol": -300,
+    "notes": "Game design values, sized from the published scale: MOXIE made ~6-10 g O2 per hour for ~300 W; mission-scale studies assume ~25-30 kW for 2-3 kg O2 per hour. Here: 25 kW for ~1 kg O2 per hour plus water from regolith ice."
+   }
+  },
+  {
+   "id": "water_tank",
+   "kind": "module",
+   "file": "water_tank.glb",
+   "name": "Water tank",
+   "description": "Insulated vertical water tank, 2.7 m diameter, about 12 m3, with ladder and ground manifold (blue marking band).",
+   "bounds": [
+    3.31,
+    2.878,
+    3.53
+   ],
+   "aabb": {
+    "min": [
+     -1.41,
+     0.0,
+     -1.9
+    ],
+    "max": [
+     1.468,
+     3.53,
+     1.41
+    ]
+   },
+   "footprint": [
+    1,
+    1
+   ],
+   "grid": 4.0,
+   "ports": [
+    {
+     "node": "port_n",
+     "position": [
+      0.0,
+      1.5,
+      2.0
+     ],
+     "direction": [
+      0.0,
+      0.0,
+      1.0
+     ],
+     "type": "utility"
+    },
+    {
+     "node": "port_e",
+     "position": [
+      2.0,
+      1.5,
+      0.0
+     ],
+     "direction": [
+      1.0,
+      0.0,
+      0.0
+     ],
+     "type": "utility"
+    },
+    {
+     "node": "port_s",
+     "position": [
+      0.0,
+      1.5,
+      -2.0
+     ],
+     "direction": [
+      0.0,
+      0.0,
+      -1.0
+     ],
+     "type": "utility"
+    },
+    {
+     "node": "port_w",
+     "position": [
+      -2.0,
+      1.5,
+      0.0
+     ],
+     "direction": [
+      -1.0,
+      0.0,
+      0.0
+     ],
+     "type": "utility"
+    }
+   ],
+   "triangles": 2064,
+   "bytes": 72700,
+   "budget_bytes": 307200,
+   "source": "procedural (tools/assets/build_modules.py)",
+   "license": "Original work generated by tools/assets for this project; no third-party content",
+   "attribution": "Mars surface kit, generated for this project",
+   "gameplay": {
+    "power_w": -150,
+    "o2_kg_per_sol": 0.0,
+    "water_l_per_sol": 0.0,
+    "crew_capacity": 0,
+    "storage": 0,
+    "water_capacity_l": 12000,
+    "notes": "Capacity follows the modelled volume (~12 m3); power is a game design value for heaters."
+   }
+  },
+  {
+   "id": "oxygen_tank",
+   "kind": "module",
+   "file": "oxygen_tank.glb",
+   "name": "Oxygen tank",
+   "description": "Spherical cryogenic oxygen tank, 2.5 m diameter, on a cradle with two buffer bottles (green marking band).",
+   "bounds": [
+    3.65,
+    3.9,
+    3.38
+   ],
+   "aabb": {
+    "min": [
+     -1.95,
+     0.0,
+     -1.75
+    ],
+    "max": [
+     1.95,
+     3.38,
+     1.9
+    ]
+   },
+   "footprint": [
+    1,
+    1
+   ],
+   "grid": 4.0,
+   "ports": [
+    {
+     "node": "port_n",
+     "position": [
+      0.0,
+      1.5,
+      2.0
+     ],
+     "direction": [
+      0.0,
+      0.0,
+      1.0
+     ],
+     "type": "utility"
+    },
+    {
+     "node": "port_e",
+     "position": [
+      2.0,
+      1.5,
+      0.0
+     ],
+     "direction": [
+      1.0,
+      0.0,
+      0.0
+     ],
+     "type": "utility"
+    },
+    {
+     "node": "port_s",
+     "position": [
+      0.0,
+      1.5,
+      -2.0
+     ],
+     "direction": [
+      0.0,
+      0.0,
+      -1.0
+     ],
+     "type": "utility"
+    },
+    {
+     "node": "port_w",
+     "position": [
+      -2.0,
+      1.5,
+      0.0
+     ],
+     "direction": [
+      -1.0,
+      0.0,
+      0.0
+     ],
+     "type": "utility"
+    }
+   ],
+   "triangles": 2044,
+   "bytes": 65136,
+   "budget_bytes": 307200,
+   "source": "procedural (tools/assets/build_modules.py)",
+   "license": "Original work generated by tools/assets for this project; no third-party content",
+   "attribution": "Mars surface kit, generated for this project",
+   "gameplay": {
+    "power_w": -300,
+    "o2_kg_per_sol": 0.0,
+    "water_l_per_sol": 0.0,
+    "crew_capacity": 0,
+    "storage": 0,
+    "o2_capacity_kg": 9000,
+    "notes": "Capacity follows the modelled volume: 8.2 m3 of liquid oxygen at 1141 kg/m3 is ~9.3 t. Power is a game design value for the cryocooler."
+   }
+  },
+  {
+   "id": "comms_tower",
+   "kind": "module",
+   "file": "comms_tower.glb",
+   "name": "Comms tower",
+   "description": "Guyed 10 m lattice mast with a steerable 1.8 m dish (node \"dish\", pivot at its hub, boresight = local +Z, delivered elevated 25 deg).",
+   "bounds": [
+    3.76,
+    3.742,
+    10.3
+   ],
+   "aabb": {
+    "min": [
+     -1.871,
+     0.0,
+     -1.88
+    ],
+    "max": [
+     1.871,
+     10.3,
+     1.88
+    ]
+   },
+   "footprint": [
+    1,
+    1
+   ],
+   "grid": 4.0,
+   "ports": [
+    {
+     "node": "port_n",
+     "position": [
+      0.0,
+      1.5,
+      2.0
+     ],
+     "direction": [
+      0.0,
+      0.0,
+      1.0
+     ],
+     "type": "utility"
+    },
+    {
+     "node": "port_e",
+     "position": [
+      2.0,
+      1.5,
+      0.0
+     ],
+     "direction": [
+      1.0,
+      0.0,
+      0.0
+     ],
+     "type": "utility"
+    },
+    {
+     "node": "port_s",
+     "position": [
+      0.0,
+      1.5,
+      -2.0
+     ],
+     "direction": [
+      0.0,
+      0.0,
+      -1.0
+     ],
+     "type": "utility"
+    },
+    {
+     "node": "port_w",
+     "position": [
+      -2.0,
+      1.5,
+      0.0
+     ],
+     "direction": [
+      -1.0,
+      0.0,
+      0.0
+     ],
+     "type": "utility"
+    }
+   ],
+   "steer": {
+    "node": "dish",
+    "boresight": [
+     0,
+     0,
+     1
+    ],
+    "default_elevation_deg": 25
+   },
+   "triangles": 2108,
+   "bytes": 97292,
+   "budget_bytes": 307200,
+   "source": "procedural (tools/assets/build_modules.py)",
+   "license": "Original work generated by tools/assets for this project; no third-party content",
+   "attribution": "Mars surface kit, generated for this project",
+   "gameplay": {
+    "power_w": -500,
+    "o2_kg_per_sol": 0.0,
+    "water_l_per_sol": 0.0,
+    "crew_capacity": 0,
+    "storage": 0,
+    "comms_range_m": 20000,
+    "notes": "Game design values."
+   }
+  },
+  {
+   "id": "garage",
+   "kind": "module",
+   "file": "garage.glb",
+   "name": "Rover garage",
+   "description": "Arched rover bay, 2 x 2 cells (7.4 m wide, 4.2 m high) on ground-level footings. Vehicle door 5.0 x 3.2 m on the north side (node \"door\", origin on its top edge); two pressurized personnel ports on the south wall.",
+   "bounds": [
+    7.67,
+    7.88,
+    4.31
+   ],
+   "aabb": {
+    "min": [
+     -3.94,
+     0.0,
+     -4.0
+    ],
+    "max": [
+     3.94,
+     4.31,
+     3.67
+    ]
+   },
+   "footprint": [
+    2,
+    2
+   ],
+   "grid": 4.0,
+   "ports": [
+    {
+     "node": "port_s",
+     "position": [
+      -2.0,
+      1.5,
+      -4.0
+     ],
+     "direction": [
+      0.0,
+      0.0,
+      -1.0
+     ],
+     "type": "pressurized"
+    },
+    {
+     "node": "port_s2",
+     "position": [
+      2.0,
+      1.5,
+      -4.0
+     ],
+     "direction": [
+      0.0,
+      0.0,
+      -1.0
+     ],
+     "type": "pressurized"
+    },
+    {
+     "node": "port_w",
+     "position": [
+      -4.0,
+      1.5,
+      -2.0
+     ],
+     "direction": [
+      -1.0,
+      0.0,
+      0.0
+     ],
+     "type": "utility"
+    },
+    {
+     "node": "port_w2",
+     "position": [
+      -4.0,
+      1.5,
+      2.0
+     ],
+     "direction": [
+      -1.0,
+      0.0,
+      0.0
+     ],
+     "type": "utility"
+    },
+    {
+     "node": "port_e",
+     "position": [
+      4.0,
+      1.5,
+      -2.0
+     ],
+     "direction": [
+      1.0,
+      0.0,
+      0.0
+     ],
+     "type": "utility"
+    },
+    {
+     "node": "port_e2",
+     "position": [
+      4.0,
+      1.5,
+      2.0
+     ],
+     "direction": [
+      1.0,
+      0.0,
+      0.0
+     ],
+     "type": "utility"
+    }
+   ],
+   "hatches": [
+    "hatch_s",
+    "hatch_s2"
+   ],
+   "doors": [
+    {
+     "node": "door",
+     "type": "vehicle",
+     "opening": [
+      5.0,
+      3.2
+     ],
+     "hinge": "top edge (node origin)",
+     "open": "translate the node +Y by 3.2 m, or rotate it -90 deg about local X"
+    }
+   ],
+   "triangles": 2852,
+   "bytes": 110888,
+   "budget_bytes": 307200,
+   "source": "procedural (tools/assets/build_modules.py)",
+   "license": "Original work generated by tools/assets for this project; no third-party content",
+   "attribution": "Mars surface kit, generated for this project",
+   "gameplay": {
+    "power_w": -800,
+    "o2_kg_per_sol": 0,
+    "water_l_per_sol": 0,
+    "crew_capacity": 0,
+    "storage": 20,
+    "vehicle_slots": 1,
+    "charge_w": 10000,
+    "notes": "Game design values."
+   }
+  },
+  {
+   "id": "landing_pad",
+   "kind": "module",
+   "file": "landing_pad.glb",
+   "name": "Landing pad",
+   "description": "Octagonal sintered-regolith landing pad, 3 x 3 cells (12 m across flats), with marking ring, edge lights and blast deflectors.",
+   "bounds": [
+    11.96,
+    11.96,
+    0.75
+   ],
+   "aabb": {
+    "min": [
+     -5.98,
+     0.0,
+     -5.98
+    ],
+    "max": [
+     5.98,
+     0.75,
+     5.98
+    ]
+   },
+   "footprint": [
+    3,
+    3
+   ],
+   "grid": 4.0,
+   "ports": [
+    {
+     "node": "port_n",
+     "position": [
+      0.0,
+      1.5,
+      6.0
+     ],
+     "direction": [
+      0.0,
+      0.0,
+      1.0
+     ],
+     "type": "utility"
+    },
+    {
+     "node": "port_e",
+     "position": [
+      6.0,
+      1.5,
+      0.0
+     ],
+     "direction": [
+      1.0,
+      0.0,
+      0.0
+     ],
+     "type": "utility"
+    },
+    {
+     "node": "port_s",
+     "position": [
+      0.0,
+      1.5,
+      -6.0
+     ],
+     "direction": [
+      0.0,
+      0.0,
+      -1.0
+     ],
+     "type": "utility"
+    },
+    {
+     "node": "port_w",
+     "position": [
+      -6.0,
+      1.5,
+      0.0
+     ],
+     "direction": [
+      -1.0,
+      0.0,
+      0.0
+     ],
+     "type": "utility"
+    }
+   ],
+   "triangles": 1420,
+   "bytes": 66892,
+   "budget_bytes": 307200,
+   "source": "procedural (tools/assets/build_modules.py)",
+   "license": "Original work generated by tools/assets for this project; no third-party content",
+   "attribution": "Mars surface kit, generated for this project",
+   "gameplay": {
+    "power_w": -200,
+    "o2_kg_per_sol": 0.0,
+    "water_l_per_sol": 0.0,
+    "crew_capacity": 0,
+    "storage": 0,
+    "notes": "Game design values."
+   }
+  },
+  {
+   "id": "regolith_berm",
+   "kind": "module",
+   "file": "regolith_berm.glb",
+   "name": "Regolith berm",
+   "description": "Radiation / blast shielding berm segment, 4 m long, 2.1 m high, 2.5 m thick at the base. Ends are flat on the cell boundary so segments chain east-west.",
+   "bounds": [
+    2.728,
+    4.0,
+    2.236
+   ],
+   "aabb": {
+    "min": [
+     -2.0,
+     0.0,
+     -1.364
+    ],
+    "max": [
+     2.0,
+     2.236,
+     1.364
+    ]
+   },
+   "footprint": [
+    1,
+    1
+   ],
+   "grid": 4.0,
+   "ports": [
+    {
+     "node": "port_e",
+     "position": [
+      2.0,
+      1.5,
+      0.0
+     ],
+     "direction": [
+      1.0,
+      0.0,
+      0.0
+     ],
+     "type": "utility"
+    },
+    {
+     "node": "port_w",
+     "position": [
+      -2.0,
+      1.5,
+      0.0
+     ],
+     "direction": [
+      -1.0,
+      0.0,
+      0.0
+     ],
+     "type": "utility"
+    }
+   ],
+   "triangles": 988,
+   "bytes": 48048,
+   "budget_bytes": 307200,
+   "source": "procedural (tools/assets/build_modules.py)",
+   "license": "Original work generated by tools/assets for this project; no third-party content",
+   "attribution": "Mars surface kit, generated for this project",
+   "gameplay": {
+    "power_w": 0,
+    "o2_kg_per_sol": 0.0,
+    "water_l_per_sol": 0.0,
+    "crew_capacity": 0,
+    "storage": 0,
+    "shielding": 1.0,
+    "notes": "Game design values. ~2 m of regolith is roughly 300 g/cm2, in the range NASA studies quote for long-stay shielding."
+   }
+  },
+  {
+   "id": "light_mast",
+   "kind": "module",
+   "file": "light_mast.glb",
+   "name": "Light mast",
+   "description": "Solar-buffered floodlight mast, 5.7 m, two lamp heads aimed toward +Z (\"glow\" material carries the emissive).",
+   "bounds": [
+    1.86,
+    2.074,
+    5.74
+   ],
+   "aabb": {
+    "min": [
+     -1.037,
+     0.0,
+     -0.68
+    ],
+    "max": [
+     1.037,
+     5.74,
+     1.18
+    ]
+   },
+   "footprint": [
+    1,
+    1
+   ],
+   "grid": 4.0,
+   "ports": [
+    {
+     "node": "port_n",
+     "position": [
+      0.0,
+      1.5,
+      2.0
+     ],
+     "direction": [
+      0.0,
+      0.0,
+      1.0
+     ],
+     "type": "utility"
+    },
+    {
+     "node": "port_e",
+     "position": [
+      2.0,
+      1.5,
+      0.0
+     ],
+     "direction": [
+      1.0,
+      0.0,
+      0.0
+     ],
+     "type": "utility"
+    },
+    {
+     "node": "port_s",
+     "position": [
+      0.0,
+      1.5,
+      -2.0
+     ],
+     "direction": [
+      0.0,
+      0.0,
+      -1.0
+     ],
+     "type": "utility"
+    },
+    {
+     "node": "port_w",
+     "position": [
+      -2.0,
+      1.5,
+      0.0
+     ],
+     "direction": [
+      -1.0,
+      0.0,
+      0.0
+     ],
+     "type": "utility"
+    }
+   ],
+   "triangles": 564,
+   "bytes": 30268,
+   "budget_bytes": 307200,
+   "source": "procedural (tools/assets/build_modules.py)",
+   "license": "Original work generated by tools/assets for this project; no third-party content",
+   "attribution": "Mars surface kit, generated for this project",
+   "gameplay": {
+    "power_w": -150,
+    "o2_kg_per_sol": 0.0,
+    "water_l_per_sol": 0.0,
+    "crew_capacity": 0,
+    "storage": 0,
+    "light_radius_m": 25,
+    "notes": "Game design values."
+   }
+  },
+  {
+   "id": "storage_crate",
+   "kind": "module",
+   "file": "storage_crate.glb",
+   "name": "Storage container",
+   "description": "Cargo container on corner feet, 3.4 x 2.3 x 2.2 m, doors on the east end. Stackable on port_up.",
+   "bounds": [
+    2.3,
+    3.42,
+    2.45
+   ],
+   "aabb": {
+    "min": [
+     -1.7,
+     0.0,
+     -1.15
+    ],
+    "max": [
+     1.72,
+     2.45,
+     1.15
+    ]
+   },
+   "footprint": [
+    1,
+    1
+   ],
+   "grid": 4.0,
+   "ports": [
+    {
+     "node": "port_n",
+     "position": [
+      0.0,
+      1.5,
+      2.0
+     ],
+     "direction": [
+      0.0,
+      0.0,
+      1.0
+     ],
+     "type": "utility"
+    },
+    {
+     "node": "port_e",
+     "position": [
+      2.0,
+      1.5,
+      0.0
+     ],
+     "direction": [
+      1.0,
+      0.0,
+      0.0
+     ],
+     "type": "utility"
+    },
+    {
+     "node": "port_s",
+     "position": [
+      0.0,
+      1.5,
+      -2.0
+     ],
+     "direction": [
+      0.0,
+      0.0,
+      -1.0
+     ],
+     "type": "utility"
+    },
+    {
+     "node": "port_w",
+     "position": [
+      -2.0,
+      1.5,
+      0.0
+     ],
+     "direction": [
+      -1.0,
+      0.0,
+      0.0
+     ],
+     "type": "utility"
+    },
+    {
+     "node": "port_up",
+     "position": [
+      0.0,
+      2.45,
+      0.0
+     ],
+     "direction": [
+      0.0,
+      1.0,
+      0.0
+     ],
+     "type": "stack",
+     "accepts": [
+      "storage_crate"
+     ],
+     "note": "place the stacked module with its origin (ground point) at this port"
+    }
+   ],
+   "triangles": 596,
+   "bytes": 36708,
+   "budget_bytes": 307200,
+   "source": "procedural (tools/assets/build_modules.py)",
+   "license": "Original work generated by tools/assets for this project; no third-party content",
+   "attribution": "Mars surface kit, generated for this project",
+   "gameplay": {
+    "power_w": 0,
+    "o2_kg_per_sol": 0.0,
+    "water_l_per_sol": 0.0,
+    "crew_capacity": 0,
+    "storage": 120,
+    "notes": "Game design values."
+   }
+  },
+  {
+   "id": "hab_hdu",
+   "kind": "module",
+   "file": "hab_hdu.glb",
+   "name": "Habitat Demonstration Unit (NASA reference habitat)",
+   "description": "NASA Habitat Demonstration Unit / Deep Space Habitat analog (Desert RATS 2010-11): hard-shell lab with inflatable loft, airlock and hygiene module, on its transport frame with ramps. Scenery-grade reference habitat: it is not on the kit grid and has no snap ports.",
+   "bounds": [
+    11.647,
+    16.673,
+    5.833
+   ],
+   "aabb": {
+    "min": [
+     -8.839,
+     0.0,
+     -5.187
+    ],
+    "max": [
+     7.834,
+     5.833,
+     6.46
+    ]
+   },
+   "footprint": [
+    5,
+    4
+   ],
+   "grid": 4.0,
+   "ports": [],
+   "triangles": 6480,
+   "bytes": 317496,
+   "budget_bytes": 409600,
+   "source": "NASA 3D Resources: 3D Models/Habitat Demonstration Unit/Habitat Demonstration Unit (part 1).glb + (part 2).glb",
+   "license": "NASA media usage guidelines (https://www.nasa.gov/nasa-brand-center/images-and-media/): generally not copyrighted, free to use; no implied NASA endorsement; NASA insignia/logotype use is restricted",
+   "attribution": "Habitat Demonstration Unit: model courtesy NASA, from NASA 3D Resources (https://github.com/nasa/NASA-3D-Resources); adapted (decimated / re-materialed / re-rooted) for this game. Use does not imply NASA endorsement.",
+   "processing": "Draco-decoded; parts 1 and 2 merged into one node; scaled from inches to metres (x0.0254, inferred from door height); textures resized to 320 px JPEG; materials set double-sided because the source decks are single-sided planes.",
+   "gameplay": {
+    "power_w": -3000,
+    "o2_kg_per_sol": 0,
+    "water_l_per_sol": 0,
+    "crew_capacity": 4,
+    "storage": 40,
+    "notes": "Game design values. The real HDU housed a crew of 4 during Desert RATS 2011."
+   }
+  },
+  {
+   "id": "astronaut",
+   "kind": "character",
+   "file": "astronaut.glb",
+   "name": "Astronaut (EVA suit)",
+   "description": "NASA low-poly EVA-suited astronaut, 1.88 m. UNRIGGED: no skeleton or skin weights. The single suit mesh was cut by planes into six rigid nodes (torso > head, arm_l, arm_r, leg_l, leg_r) pivoted at the neck, shoulders and hips so a walk can be faked by swinging limbs about local X. The source is in a T-pose; the arm nodes carry a default rotation of -/+72 deg about Z that lowers them to the sides.",
+   "bounds": [
+    0.699,
+    0.967,
+    1.88
+   ],
+   "aabb": {
+    "min": [
+     -0.484,
+     0.0,
+     -0.349
+    ],
+    "max": [
+     0.484,
+     1.88,
+     0.349
+    ]
+   },
+   "parts": [
+    "torso",
+    "head",
+    "arm_l",
+    "arm_r",
+    "leg_l",
+    "leg_r"
+   ],
+   "pivots": {
+    "torso": [
+     -0.0,
+     0.6236,
+     0.0886
+    ],
+    "head": [
+     -0.0,
+     1.5982,
+     -0.0127
+    ],
+    "arm_l": [
+     0.3494,
+     1.3957,
+     0.0886
+    ],
+    "arm_r": [
+     -0.3494,
+     1.3957,
+     0.0886
+    ],
+    "leg_l": [
+     0.1772,
+     0.6236,
+     0.0987
+    ],
+    "leg_r": [
+     -0.1772,
+     0.6236,
+     0.0987
+    ]
+   },
+   "hierarchy": {
+    "torso": [
+     "head",
+     "arm_l",
+     "arm_r",
+     "leg_l",
+     "leg_r"
+    ]
+   },
+   "animation_hint": {
+    "swing_axis": [
+     1,
+     0,
+     0
+    ],
+    "arm_rest_rotation_z_deg": {
+     "arm_l": -72.0,
+     "arm_r": 72.0
+    },
+    "three_js": "arm.rotation.set(swing, 0, restZ) with default XYZ order; leg.rotation.x = swing; walk: legs +/-25 deg, arms -/+15 deg, opposite phase"
+   },
+   "triangles": 7001,
+   "bytes": 264992,
+   "budget_bytes": 524288,
+   "source": "NASA 3D Resources: 3D Models/Astronaut/Astronaut.glb",
+   "license": "NASA media usage guidelines (https://www.nasa.gov/nasa-brand-center/images-and-media/): generally not copyrighted, free to use; no implied NASA endorsement; NASA insignia/logotype use is restricted",
+   "attribution": "Astronaut: model courtesy NASA, from NASA 3D Resources (https://github.com/nasa/NASA-3D-Resources); adapted (decimated / re-materialed / re-rooted) for this game. Use does not imply NASA endorsement.",
+   "processing": "Draco-decoded; scaled to 1.88 m; suit shell clipped by 5 planes into 6 rigid parts with fan caps on the cuts; texture resized 1024 -> 512 px JPEG. Chosen over the Mark III (69k tris, inside-out torso faces, arms forward) and the Z2 (17 MB of baked 4K textures, arms-down pose that does not cut cleanly).",
+   "gameplay": {
+    "mass_kg": 200,
+    "o2_kg_per_sol": -0.84,
+    "water_l_per_sol": -3.0,
+    "suit_o2_hours": 8,
+    "walk_speed_ms": 1.4,
+    "notes": "Real figures: a crew member consumes ~0.84 kg O2 and ~3 L drinking water per day (NASA ECLSS planning numbers); EMU primary life support lasts ~8 h. mass_kg (astronaut 80 kg + suit 120 kg) and walk speed are game design values."
+   }
+  },
+  {
+   "id": "rock_small_01",
+   "kind": "prop",
+   "file": "rock_small_01.glb",
+   "name": "Rock (round, 0.28 m)",
+   "description": "Low-poly wind-faceted basalt rock, flat-bottomed and partly buried. All rocks share one white \"rock\" material tinted by vertex colours (COLOR_0), so they batch / instance together.",
+   "bounds": [
+    0.248,
+    0.28,
+    0.128
+   ],
+   "aabb": {
+    "min": [
+     -0.14,
+     0.0,
+     -0.124
+    ],
+    "max": [
+     0.14,
+     0.128,
+     0.124
+    ]
+   },
+   "instancing": {
+    "shared_material": "rock",
+    "vertex_colors": true
+   },
+   "triangles": 258,
+   "bytes": 10844,
+   "budget_bytes": 102400,
+   "source": "procedural (tools/assets/build_procedural.py)",
+   "license": "Original work generated by tools/assets for this project; no third-party content",
+   "attribution": "Mars surface kit, generated for this project",
+   "gameplay": {
+    "mass_kg": 19.1,
+    "storage": 0,
+    "notes": "mass: basalt 2900 kg/m3 x ~0.3 x size^3 (rough fill factor of the bounding cube)."
+   }
+  },
+  {
+   "id": "rock_small_02",
+   "kind": "prop",
+   "file": "rock_small_02.glb",
+   "name": "Rock (slab, 0.36 m)",
+   "description": "Low-poly wind-faceted basalt rock, flat-bottomed and partly buried. All rocks share one white \"rock\" material tinted by vertex colours (COLOR_0), so they batch / instance together.",
+   "bounds": [
+    0.256,
+    0.36,
+    0.089
+   ],
+   "aabb": {
+    "min": [
+     -0.18,
+     0.0,
+     -0.128
+    ],
+    "max": [
+     0.18,
+     0.089,
+     0.128
+    ]
+   },
+   "instancing": {
+    "shared_material": "rock",
+    "vertex_colors": true
+   },
+   "triangles": 262,
+   "bytes": 9888,
+   "budget_bytes": 102400,
+   "source": "procedural (tools/assets/build_procedural.py)",
+   "license": "Original work generated by tools/assets for this project; no third-party content",
+   "attribution": "Mars surface kit, generated for this project",
+   "gameplay": {
+    "mass_kg": 40.6,
+    "storage": 0,
+    "notes": "mass: basalt 2900 kg/m3 x ~0.3 x size^3 (rough fill factor of the bounding cube)."
+   }
+  },
+  {
+   "id": "rock_small_03",
+   "kind": "prop",
+   "file": "rock_small_03.glb",
+   "name": "Rock (round, 0.45 m)",
+   "description": "Low-poly wind-faceted basalt rock, flat-bottomed and partly buried. All rocks share one white \"rock\" material tinted by vertex colours (COLOR_0), so they batch / instance together.",
+   "bounds": [
+    0.45,
+    0.439,
+    0.302
+   ],
+   "aabb": {
+    "min": [
+     -0.219,
+     0.0,
+     -0.225
+    ],
+    "max": [
+     0.219,
+     0.302,
+     0.225
+    ]
+   },
+   "instancing": {
+    "shared_material": "rock",
+    "vertex_colors": true
+   },
+   "triangles": 261,
+   "bytes": 10808,
+   "budget_bytes": 102400,
+   "source": "procedural (tools/assets/build_procedural.py)",
+   "license": "Original work generated by tools/assets for this project; no third-party content",
+   "attribution": "Mars surface kit, generated for this project",
+   "gameplay": {
+    "mass_kg": 79.3,
+    "storage": 0,
+    "notes": "mass: basalt 2900 kg/m3 x ~0.3 x size^3 (rough fill factor of the bounding cube)."
+   }
+  },
+  {
+   "id": "rock_small_04",
+   "kind": "prop",
+   "file": "rock_small_04.glb",
+   "name": "Rock (tall, 0.50 m)",
+   "description": "Low-poly wind-faceted basalt rock, flat-bottomed and partly buried. All rocks share one white \"rock\" material tinted by vertex colours (COLOR_0), so they batch / instance together.",
+   "bounds": [
+    0.484,
+    0.5,
+    0.521
+   ],
+   "aabb": {
+    "min": [
+     -0.25,
+     0.0,
+     -0.242
+    ],
+    "max": [
+     0.25,
+     0.521,
+     0.242
+    ]
+   },
+   "instancing": {
+    "shared_material": "rock",
+    "vertex_colors": true
+   },
+   "triangles": 282,
+   "bytes": 11516,
+   "budget_bytes": 102400,
+   "source": "procedural (tools/assets/build_procedural.py)",
+   "license": "Original work generated by tools/assets for this project; no third-party content",
+   "attribution": "Mars surface kit, generated for this project",
+   "gameplay": {
+    "mass_kg": 108.8,
+    "storage": 0,
+    "notes": "mass: basalt 2900 kg/m3 x ~0.3 x size^3 (rough fill factor of the bounding cube)."
+   }
+  },
+  {
+   "id": "rock_small_05",
+   "kind": "prop",
+   "file": "rock_small_05.glb",
+   "name": "Rock (slab, 0.62 m)",
+   "description": "Low-poly wind-faceted basalt rock, flat-bottomed and partly buried. All rocks share one white \"rock\" material tinted by vertex colours (COLOR_0), so they batch / instance together.",
+   "bounds": [
+    0.536,
+    0.62,
+    0.232
+   ],
+   "aabb": {
+    "min": [
+     -0.31,
+     0.0,
+     -0.268
+    ],
+    "max": [
+     0.31,
+     0.232,
+     0.268
+    ]
+   },
+   "instancing": {
+    "shared_material": "rock",
+    "vertex_colors": true
+   },
+   "triangles": 249,
+   "bytes": 10672,
+   "budget_bytes": 102400,
+   "source": "procedural (tools/assets/build_procedural.py)",
+   "license": "Original work generated by tools/assets for this project; no third-party content",
+   "attribution": "Mars surface kit, generated for this project",
+   "gameplay": {
+    "mass_kg": 207.3,
+    "storage": 0,
+    "notes": "mass: basalt 2900 kg/m3 x ~0.3 x size^3 (rough fill factor of the bounding cube)."
+   }
+  },
+  {
+   "id": "rock_small_06",
+   "kind": "prop",
+   "file": "rock_small_06.glb",
+   "name": "Rock (round, 0.75 m)",
+   "description": "Low-poly wind-faceted basalt rock, flat-bottomed and partly buried. All rocks share one white \"rock\" material tinted by vertex colours (COLOR_0), so they batch / instance together.",
+   "bounds": [
+    0.665,
+    0.75,
+    0.399
+   ],
+   "aabb": {
+    "min": [
+     -0.375,
+     0.0,
+     -0.333
+    ],
+    "max": [
+     0.375,
+     0.399,
+     0.333
+    ]
+   },
+   "instancing": {
+    "shared_material": "rock",
+    "vertex_colors": true
+   },
+   "triangles": 283,
+   "bytes": 11384,
+   "budget_bytes": 102400,
+   "source": "procedural (tools/assets/build_procedural.py)",
+   "license": "Original work generated by tools/assets for this project; no third-party content",
+   "attribution": "Mars surface kit, generated for this project",
+   "gameplay": {
+    "mass_kg": 367.0,
+    "storage": 0,
+    "notes": "mass: basalt 2900 kg/m3 x ~0.3 x size^3 (rough fill factor of the bounding cube)."
+   }
+  },
+  {
+   "id": "rock_large_01",
+   "kind": "prop",
+   "file": "rock_large_01.glb",
+   "name": "Rock (round, 1.90 m)",
+   "description": "Low-poly wind-faceted basalt rock, flat-bottomed and partly buried. All rocks share one white \"rock\" material tinted by vertex colours (COLOR_0), so they batch / instance together.",
+   "bounds": [
+    1.629,
+    1.9,
+    1.047
+   ],
+   "aabb": {
+    "min": [
+     -0.95,
+     0.0,
+     -0.815
+    ],
+    "max": [
+     0.95,
+     1.047,
+     0.815
+    ]
+   },
+   "instancing": {
+    "shared_material": "rock",
+    "vertex_colors": true
+   },
+   "triangles": 986,
+   "bytes": 31284,
+   "budget_bytes": 102400,
+   "source": "procedural (tools/assets/build_procedural.py)",
+   "license": "Original work generated by tools/assets for this project; no third-party content",
+   "attribution": "Mars surface kit, generated for this project",
+   "gameplay": {
+    "mass_kg": 5967.3,
+    "storage": 0,
+    "notes": "mass: basalt 2900 kg/m3 x ~0.3 x size^3 (rough fill factor of the bounding cube)."
+   }
+  },
+  {
+   "id": "rock_large_02",
+   "kind": "prop",
+   "file": "rock_large_02.glb",
+   "name": "Rock (slab, 2.80 m)",
+   "description": "Low-poly wind-faceted basalt rock, flat-bottomed and partly buried. All rocks share one white \"rock\" material tinted by vertex colours (COLOR_0), so they batch / instance together.",
+   "bounds": [
+    2.8,
+    1.951,
+    0.87
+   ],
+   "aabb": {
+    "min": [
+     -0.976,
+     0.0,
+     -1.4
+    ],
+    "max": [
+     0.976,
+     0.87,
+     1.4
+    ]
+   },
+   "instancing": {
+    "shared_material": "rock",
+    "vertex_colors": true
+   },
+   "triangles": 1066,
+   "bytes": 34732,
+   "budget_bytes": 102400,
+   "source": "procedural (tools/assets/build_procedural.py)",
+   "license": "Original work generated by tools/assets for this project; no third-party content",
+   "attribution": "Mars surface kit, generated for this project",
+   "gameplay": {
+    "mass_kg": 19098.2,
+    "storage": 0,
+    "notes": "mass: basalt 2900 kg/m3 x ~0.3 x size^3 (rough fill factor of the bounding cube)."
+   }
+  },
+  {
+   "id": "rock_large_03",
+   "kind": "prop",
+   "file": "rock_large_03.glb",
+   "name": "Rock (tall, 3.40 m)",
+   "description": "Low-poly wind-faceted basalt rock, flat-bottomed and partly buried. All rocks share one white \"rock\" material tinted by vertex colours (COLOR_0), so they batch / instance together.",
+   "bounds": [
+    3.079,
+    3.4,
+    3.58
+   ],
+   "aabb": {
+    "min": [
+     -1.7,
+     0.0,
+     -1.54
+    ],
+    "max": [
+     1.7,
+     3.58,
+     1.54
+    ]
+   },
+   "instancing": {
+    "shared_material": "rock",
+    "vertex_colors": true
+   },
+   "triangles": 989,
+   "bytes": 31584,
+   "budget_bytes": 102400,
+   "source": "procedural (tools/assets/build_procedural.py)",
+   "license": "Original work generated by tools/assets for this project; no third-party content",
+   "attribution": "Mars surface kit, generated for this project",
+   "gameplay": {
+    "mass_kg": 34194.5,
+    "storage": 0,
+    "notes": "mass: basalt 2900 kg/m3 x ~0.3 x size^3 (rough fill factor of the bounding cube)."
+   }
+  },
+  {
+   "id": "sample_tube",
+   "kind": "prop",
+   "file": "sample_tube.glb",
+   "name": "Mars 2020 sample tube",
+   "description": "Perseverance titanium sample tube lying on the ground, real size (14.2 cm long as modelled in the NASA print file).",
+   "bounds": [
+    0.142,
+    0.023,
+    0.024
+   ],
+   "aabb": {
+    "min": [
+     -0.011,
+     0.0,
+     -0.071
+    ],
+    "max": [
+     0.011,
+     0.024,
+     0.071
+    ]
+   },
+   "triangles": 900,
+   "bytes": 36932,
+   "budget_bytes": 102400,
+   "source": "NASA 3D Resources: 3D Printing/Mars 2020 sample tube/Mars 2020 sample tube.stl",
+   "license": "NASA media usage guidelines (https://www.nasa.gov/nasa-brand-center/images-and-media/): generally not copyrighted, free to use; no implied NASA endorsement; NASA insignia/logotype use is restricted",
+   "attribution": "Mars 2020 sample tube: model courtesy NASA/JPL-Caltech, from NASA 3D Resources (https://github.com/nasa/NASA-3D-Resources); adapted (decimated / re-materialed / re-rooted) for this game. Use does not imply NASA endorsement.",
+   "processing": "STL (inches) scaled to metres, quadric-decimated 42120 -> 900 triangles, laid on its side, single titanium material.",
+   "gameplay": {
+    "mass_kg": 0.057,
+    "storage": 0,
+    "science_value": 10,
+    "notes": "Real: an empty tube weighs ~57 g and holds ~15 g of rock core. science_value is a game design value."
+   }
+  },
+  {
+   "id": "flag_marker",
+   "kind": "prop",
+   "file": "flag_marker.glb",
+   "name": "Flag marker",
+   "description": "Survey / waypoint marker: 1.6 m pole with an orange pennant flying toward +X.",
+   "bounds": [
+    0.14,
+    0.504,
+    1.632
+   ],
+   "aabb": {
+    "min": [
+     -0.07,
+     0.0,
+     -0.07
+    ],
+    "max": [
+     0.434,
+     1.632,
+     0.07
+    ]
+   },
+   "triangles": 140,
+   "bytes": 10484,
+   "budget_bytes": 102400,
+   "source": "procedural (tools/assets/build_procedural.py)",
+   "license": "Original work generated by tools/assets for this project; no third-party content",
+   "attribution": "Mars surface kit, generated for this project",
+   "gameplay": {
+    "storage": 0,
+    "notes": "Waypoint marker; no stats."
+   }
+  },
+  {
+   "id": "beacon",
+   "kind": "prop",
+   "file": "beacon.glb",
+   "name": "Navigation beacon",
+   "description": "Tripod radio / light beacon, 1.45 m, red lamp on the \"glow_red\" emissive material.",
+   "bounds": [
+    0.75,
+    0.847,
+    1.45
+   ],
+   "aabb": {
+    "min": [
+     -0.424,
+     0.0,
+     -0.27
+    ],
+    "max": [
+     0.424,
+     1.45,
+     0.48
+    ]
+   },
+   "triangles": 558,
+   "bytes": 24964,
+   "budget_bytes": 102400,
+   "source": "procedural (tools/assets/build_procedural.py)",
+   "license": "Original work generated by tools/assets for this project; no third-party content",
+   "attribution": "Mars surface kit, generated for this project",
+   "gameplay": {
+    "power_w": -5,
+    "comms_range_m": 2000,
+    "light_radius_m": 8,
+    "notes": "Game design values."
+   }
+  },
+  {
+   "id": "crate",
+   "kind": "prop",
+   "file": "crate.glb",
+   "name": "Supply crate",
+   "description": "Carry-size supply crate, 0.8 x 0.6 x 0.6 m, flat lid so crates stack.",
+   "bounds": [
+    0.629,
+    0.89,
+    0.6
+   ],
+   "aabb": {
+    "min": [
+     -0.445,
+     0.0,
+     -0.31
+    ],
+    "max": [
+     0.445,
+     0.6,
+     0.32
+    ]
+   },
+   "triangles": 564,
+   "bytes": 28468,
+   "budget_bytes": 102400,
+   "source": "procedural (tools/assets/build_procedural.py)",
+   "license": "Original work generated by tools/assets for this project; no third-party content",
+   "attribution": "Mars surface kit, generated for this project",
+   "gameplay": {
+    "storage": 4,
+    "mass_kg": 12,
+    "notes": "Game design values."
+   }
+  },
+  {
+   "id": "rover_upgrade_kit",
+   "kind": "part",
+   "file": "rover_upgrade_kit.glb",
+   "name": "Rover upgrade kit",
+   "description": "Bolt-on parts for the Workshop upgrades (game/progress.js), one node each, every node's origin its mount point: kit_battery_pod (left flank, inner bottom edge, extends +X; mirror for the right), kit_solar_wing (hinge on the left roof edge, deployed along +X), kit_light_bar (bottom centre, lamps facing +Z), kit_dust_filter (bottom of the stalk), kit_drill_arm (turret base; child kit_drill_boom pivots about local X), and three wheel sets kit_wheel_mesh, kit_wheel_balloon (0.62 m wide), kit_wheel_spring: radius 0.5 m, origin at the wheel centre, axle on +X, scaled by the game to each design's wheel radius.",
+   "bounds": [
+    9.566,
+    7.641,
+    1.14
+   ],
+   "aabb": {
+    "min": [
+     -4.985,
+     0.0,
+     -6.56
+    ],
+    "max": [
+     2.656,
+     1.14,
+     3.006
+    ]
+   },
+   "parts": [
+    "kit_battery_pod",
+    "kit_solar_wing",
+    "kit_light_bar",
+    "kit_drill_arm",
+    "kit_drill_boom",
+    "kit_dust_filter",
+    "kit_wheel_mesh",
+    "kit_wheel_balloon",
+    "kit_wheel_spring"
+   ],
+   "triangles": 6380,
+   "bytes": 269712,
+   "budget_bytes": 327680,
+   "source": "procedural (tools/assets/build_procedural.py)",
+   "license": "Original work generated by tools/assets for this project; no third-party content",
+   "attribution": "Mars surface kit, generated for this project",
+   "gameplay": {
+    "notes": "Effects are in game/progress_data.js; these are pictures of them."
+   }
+  }
+ ]
+}

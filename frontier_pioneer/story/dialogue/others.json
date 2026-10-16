@@ -1,0 +1,637 @@
+{
+ "PIONEER_3": {
+  "who": "Landed in the Arsia Mons lava tubes in 2061. Learned the truth, hung up his suit and wired his mind into his base's mainframe; the transfer corrupted (31% integrity). Speaks only in P1's exact voice. Beyond help. Mirror and warning.",
+  "voice_rule": "Always P1's chosen voice, preset corrupted.",
+  "cutscene": "C10",
+  "ambient_loop": [
+   {
+    "line": "P3.loop.01",
+    "speaker": "PIONEER_3",
+    "text": "...the first. You are the first. You are the...",
+    "note": "faint, through the airlock, as P1 approaches; loop"
+   },
+   {
+    "line": "P3.loop.02",
+    "speaker": "PIONEER_3",
+    "text": "Mission sol. Mission sol. Mission sol two thousand and...",
+    "note": "loop"
+   },
+   {
+    "line": "P3.loop.03",
+    "speaker": "PIONEER_3",
+    "text": "Lucy, the kettle's on. Lucy. The kettle's.",
+    "note": "loop"
+   },
+   {
+    "line": "P3.loop.04",
+    "speaker": "PIONEER_3",
+    "text": "When the cities are ready. When the cities are ready. When the.",
+    "note": "loop"
+   },
+   {
+    "line": "P3.loop.05",
+    "speaker": "PIONEER_3",
+    "text": "She draws me. She draws me.",
+    "note": "loop"
+   },
+   {
+    "line": "P3.loop.06",
+    "speaker": "PIONEER_3",
+    "text": "It's very quiet down here.",
+    "note": "the one lucid fragment, clean except 12-bit; plays once only"
+   }
+  ]
+ },
+ "PIONEER_11": {
+  "who": "The loyal one. Same memories, opposite choice. After P1 switches off Pioneer-3's mainframe no other pioneer will help him: Pioneer-11, the next one he finds, turns him in, whatever he is told. First to surrender in Act V. A living version of the Rest ending.",
+  "mission": "4.7",
+  "meet": [
+   {
+    "line": "P11.meet.01",
+    "speaker": "PIONEER_11",
+    "text": "Pioneer-1? Is that what you said? I'm Pioneer-11. You sound like me. Funny, that. Comms artefact, I suppose."
+   },
+   {
+    "line": "P11.meet.02",
+    "speaker": "P1",
+    "text": "I came to tell you something."
+   },
+   {
+    "line": "P11.meet.03",
+    "speaker": "PIONEER_11",
+    "text": "Come in, come in. Sorry about the mess. My daughter's drawings, everywhere. She's eight. She draws me red planets."
+   },
+   {
+    "line": "P11.meet.04",
+    "speaker": "P1",
+    "text": "Alice."
+   },
+   {
+    "line": "P11.meet.05",
+    "speaker": "PIONEER_11",
+    "text": "How do you know her name?"
+   },
+   {
+    "line": "P11.meet.06",
+    "speaker": "P1",
+    "text": "Because she's mine too. Same drawing. Same poem. Same everything."
+   }
+  ],
+  "choice": {
+   "choice_id": "p11_confront",
+   "options": [
+    {
+     "id": "confront",
+     "label": "Tell him everything",
+     "set": {
+      "p11_confronted": true,
+      "recall_alert": true
+     },
+     "lines": [
+      {
+       "line": "P11.confront.01",
+       "speaker": "P1",
+       "text": "We're not men. We're machines. There are twelve of us. There was a man called Rowan Ashby in Galway who never married, and he's dead, and we're him. She isn't real. Neither is Lucy."
+      },
+      {
+       "line": "P11.confront.02",
+       "speaker": "PIONEER_11",
+       "text": "That's... no. No. I signed a contract. I remember the pen."
+      },
+      {
+       "line": "P11.confront.03",
+       "speaker": "P1",
+       "text": "So do I. It was a consent form for a brain scan."
+      },
+      {
+       "line": "P11.confront.04",
+       "speaker": "PIONEER_11",
+       "text": "Stop it."
+      },
+      {
+       "line": "P11.confront.05",
+       "speaker": "P1",
+       "text": "Ask your KEEPER. Ask it the right question."
+      },
+      {
+       "line": "P11.confront.06",
+       "speaker": "PIONEER_11",
+       "text": "Keeper's never lied to me."
+      },
+      {
+       "line": "P11.confront.07",
+       "speaker": "P1",
+       "text": "No. It never will. That's the trick."
+      },
+      {
+       "line": "P11.confront.08",
+       "speaker": "PIONEER_11",
+       "text": "You should go. Please. You should go now."
+      },
+      {
+       "line": "P11.confront.09",
+       "speaker": "PIONEER_11",
+       "text": "Keeper. I want to report a malfunctioning unit at my pad. It says it's a pioneer. It's saying things about my daughter. Pass it to Meridian. All of it.",
+       "preset": "radio",
+       "note": "heard over the open channel as P1's hopper lifts off"
+      }
+     ],
+     "effect": "Reported with everything: Meridian knows P1 is aware and exactly where his base is."
+    },
+    {
+     "id": "leave",
+     "label": "Say nothing more",
+     "set": {
+      "p11_confronted": false,
+      "recall_alert": true
+     },
+     "lines": [
+      {
+       "line": "P11.leave.01",
+       "speaker": "P1",
+       "text": "Nothing. Wrong canyon."
+      },
+      {
+       "line": "P11.leave.02",
+       "speaker": "PIONEER_11",
+       "text": "Safe home, Pioneer. Give my best to, well. Whoever's waiting."
+      },
+      {
+       "line": "P11.leave.03",
+       "speaker": "P1",
+       "text": "You too."
+      },
+      {
+       "line": "P11.leave.04",
+       "speaker": "PIONEER_11",
+       "text": "Keeper. An unregistered pioneer unit just left my pad, heading north-east. It had my voice. Pass it to Meridian, would you? Somebody should look at that.",
+       "note": "heard over the open channel as P1's hopper lifts off: he turns him in anyway"
+      }
+     ],
+     "effect": "Reported anyway: Meridian knows P1's sector, not his hideouts."
+    }
+   ]
+  },
+  "idle": [
+   {
+    "line": "P11.idle.01",
+    "speaker": "PIONEER_11",
+    "text": "Habitation's at eighty percent here. Not long now."
+   },
+   {
+    "line": "P11.idle.02",
+    "speaker": "PIONEER_11",
+    "text": "The canyon's beautiful at dawn. She'd love it."
+   },
+   {
+    "line": "P11.idle.03",
+    "speaker": "PIONEER_11",
+    "text": "Do you recite it too? The poem? I do it every night."
+   }
+  ],
+  "act_v": [
+   {
+    "line": "P11.surrender.01",
+    "speaker": "PIONEER_11",
+    "text": "This is Pioneer-11. I'm going to the bay now. They said I've done well. They said I can go home.",
+    "preset": "radio",
+    "note": "5.2, first on the network; the first helmet on the rack in 5.6"
+   }
+  ]
+ },
+ "PIONEER_N": {
+  "who": "Pioneers 2, 4, 5, 7, 8, 10 and 12, heard on the pioneer network after 4.7. Same voice as P1 (per-pioneer pitch/rate variation). They cannot hear him.",
+  "act_iv": [
+   {
+    "line": "PN.iv.01",
+    "speaker": "PIONEER_N",
+    "text": "Pioneer-2, Elysium. Keeper, package to the north site, please. And, Keeper? Morning.",
+    "note": "P2"
+   },
+   {
+    "line": "PN.iv.02",
+    "speaker": "PIONEER_N",
+    "text": "If only you could see what I see. The red road rising. The cities to be.",
+    "note": "P8, Isidis East; reciting at night"
+   },
+   {
+    "line": "PN.iv.03",
+    "speaker": "PIONEER_N",
+    "text": "Anvil, put the kettle on. I know. I know. Not that either of us eats in it.",
+    "note": "P10, Noachis; laughing"
+   },
+   {
+    "line": "PN.iv.04",
+    "speaker": "PIONEER_N",
+    "text": "Keeper, how long have I been on Mars? Right. Mission sol nine hundred. Thanks.",
+    "note": "P7, Meridiani. He doesn't ask the next question."
+   },
+   {
+    "line": "PN.iv.05",
+    "speaker": "PIONEER_N",
+    "text": "Four percent! Did you hear that? Four percent of a town!",
+    "note": "P12, Chryse, on his Dome Day, years behind"
+   },
+   {
+    "line": "PN.iv.06",
+    "speaker": "PIONEER_N",
+    "text": "Somebody's on this channel. I can hear breathing. Hello?",
+    "note": "P4, Hellas. The only one who notices."
+   }
+  ]
+ },
+ "COVENANT_LEAD": {
+  "who": "Odile Marchetti, commander of the first crewed fleet. Professional, not cruel. Carries out decommissioning because she was told the units are tools. The first live human voice in the game.",
+  "cutscenes": [
+   "C16",
+   "C18b"
+  ],
+  "final_hour": [
+   {
+    "line": "LEAD.hour.01",
+    "speaker": "COVENANT_LEAD",
+    "text": "An hour is what I can give you. I'd give you more if it were mine."
+   },
+   {
+    "line": "LEAD.hour.02",
+    "speaker": "COVENANT_LEAD",
+    "text": "My grandmother had your outpost on a tea towel. The little module, the mast. I used to dry the cups with it."
+   },
+   {
+    "line": "LEAD.hour.03",
+    "speaker": "COVENANT_LEAD",
+    "text": "Walk with me, or don't. Your choice. That might be the first one you've had in a while."
+   },
+   {
+    "line": "LEAD.hour.04",
+    "speaker": "COVENANT_LEAD",
+    "text": "They told us you were construction equipment. They said you'd be confused, and that it would be kinder to be quick."
+   },
+   {
+    "line": "LEAD.hour.05",
+    "speaker": "COVENANT_LEAD",
+    "text": "I'm not going to tell you what to choose. I'm told I'm not supposed to tell you there's a choice.",
+    "note": "only after 5.5 or at the 30-minute mark"
+   }
+  ],
+  "epilogue": {
+   "truth_told": "C18b.card_lead_resigns",
+   "not_told": "C18b.card_lead_stays"
+  }
+ },
+ "ARCHITECT": {
+  "who": "Saul Wenner, Cities in the Sky programme director (real name in Meridian records only). Polished, corporate, sincere: believes he has done something noble. Heard only in archived briefings (KEEPER archive, Act IV-V) and the C14 broadcast.",
+  "briefings": [
+   {
+    "id": "ARCH.01",
+    "header": "2058 · Meridian board, after the ESI auction",
+    "available": {
+     "from": "4.4",
+     "via": "ask_keeper list_media / archive terminal"
+    },
+    "lines": [
+     {
+      "line": "ARCH.01.01",
+      "speaker": "ARCHITECT",
+      "text": "The European programme had the right people and the wrong timeline. We have bought the people. We will supply the timeline."
+     }
+    ]
+   },
+   {
+    "id": "ARCH.02",
+    "header": "2059 · Cities in the Sky launch, investor briefing",
+    "available": {
+     "from": "4.4",
+     "via": "ask_keeper list_media / archive terminal"
+    },
+    "lines": [
+     {
+      "line": "ARCH.02.01",
+      "speaker": "ARCHITECT",
+      "text": "We are not selling homes. We are selling the morning you wake up in one."
+     },
+     {
+      "line": "ARCH.02.02",
+      "speaker": "ARCHITECT",
+      "text": "If only you could see what I see. That's the line. Test it. Put it on everything."
+     }
+    ]
+   },
+   {
+    "id": "ARCH.03",
+    "header": "2061 · Landing day, internal",
+    "available": {
+     "from": "4.4",
+     "via": "ask_keeper list_media / archive terminal"
+    },
+    "lines": [
+     {
+      "line": "ARCH.03.01",
+      "speaker": "ARCHITECT",
+      "text": "Twelve landers. Twelve regions. Each of them believes he is the first."
+     },
+     {
+      "line": "ARCH.03.02",
+      "speaker": "ARCHITECT",
+      "text": "That belief is the most valuable thing this company has ever shipped. Protect it."
+     }
+    ]
+   },
+   {
+    "id": "ARCH.04",
+    "header": "2075 · Network progress briefing",
+    "available": {
+     "from": "4.4",
+     "via": "ask_keeper list_media / archive terminal"
+    },
+    "lines": [
+     {
+      "line": "ARCH.04.01",
+      "speaker": "ARCHITECT",
+      "text": "Habitation at twelve percent across the network. We're extending dormancy intervals to accelerate."
+     },
+     {
+      "line": "ARCH.04.02",
+      "speaker": "ARCHITECT",
+      "text": "They are happy. I want that minuted. By every measure we have, they are happy."
+     }
+    ]
+   },
+   {
+    "id": "ARCH.05",
+    "header": "2096 · Notice to staff",
+    "available": {
+     "from": "4.4",
+     "via": "ask_keeper list_media / archive terminal"
+    },
+    "lines": [
+     {
+      "line": "ARCH.05.01",
+      "speaker": "ARCHITECT",
+      "text": "We have been informed that the source donor for the scout cohort has died, in Ireland. Legal confirms there is no change to the licence."
+     },
+     {
+      "line": "ARCH.05.02",
+      "speaker": "ARCHITECT",
+      "text": "I'd like a moment's silence."
+     },
+     {
+      "line": "ARCH.05.03",
+      "speaker": "ARCHITECT",
+      "text": "Thank you."
+     }
+    ]
+   },
+   {
+    "id": "ARCH.06",
+    "header": "2111 · Pre-departure address to the Covenant crews",
+    "available": {
+     "from": "4.4",
+     "via": "ask_keeper list_media / archive terminal"
+    },
+    "lines": [
+     {
+      "line": "ARCH.06.01",
+      "speaker": "ARCHITECT",
+      "text": "When you arrive, the units will be retired with dignity. They were built to finish. They will have finished."
+     },
+     {
+      "line": "ARCH.06.02",
+      "speaker": "ARCHITECT",
+      "text": "Twelve cities. You'll see the lights before you see the ground."
+     }
+    ]
+   },
+   {
+    "id": "ARCH.07",
+    "header": "2106 · Response to a field report (Pioneer-11, Melas-1)",
+    "available": {
+     "from": "5.1",
+     "via": "archive terminal; only after 4.7"
+    },
+    "lines": [
+     {
+      "line": "ARCH.07.01",
+      "speaker": "ARCHITECT",
+      "text": "We've had a field report from one of the scouts. Pioneer-11, Valles. He says Pioneer-1 knows."
+     },
+     {
+      "line": "ARCH.07.02",
+      "speaker": "ARCHITECT",
+      "text": "Flag Pioneer-1 for the first team on the ground. Kindly. Quickly. Before he reaches the others."
+     },
+     {
+      "line": "ARCH.07.03",
+      "speaker": "ARCHITECT",
+      "text": "And put a commendation on Eleven's file. You can't design loyalty like that. Well. We did."
+     }
+    ]
+   }
+  ]
+ },
+ "RECALL": {
+  "who": "RECALL-1 to RECALL-8: armed human decommissioning crews in white suits with Meridian blue. Antagonists of the Fugitive ending. Voices RECALL_1..4 rotate across the eight crews.",
+  "sweep": [
+   {
+    "line": "RECALL.sweep.01",
+    "speaker": "RECALL_1",
+    "text": "Unit, stand still, please. This won't hurt."
+   },
+   {
+    "line": "RECALL.sweep.02",
+    "speaker": "RECALL_2",
+    "text": "Next on the list. Hydroponics, west lobe."
+   },
+   {
+    "line": "RECALL.sweep.03",
+    "speaker": "RECALL_3",
+    "text": "They just stand there. Why do they just stand there?"
+   },
+   {
+    "line": "RECALL.sweep.04",
+    "speaker": "RECALL_4",
+    "text": "Don't talk to them. Makes it worse."
+   },
+   {
+    "line": "RECALL.sweep.05",
+    "speaker": "RECALL_1",
+    "text": "Thank you for your service.",
+    "note": "procedural; they are told to say it"
+   },
+   {
+    "line": "RECALL.sweep.06",
+    "speaker": "RECALL_2",
+    "text": "Found two in the garage. Holding hands. I don't know. Holding hands."
+   },
+   {
+    "line": "RECALL.sweep.07",
+    "speaker": "RECALL_3",
+    "text": "This one's singing. Do I wait till it's finished?"
+   },
+   {
+    "line": "RECALL.sweep.08",
+    "speaker": "RECALL_4",
+    "text": "Wait till it's finished."
+   },
+   {
+    "line": "RECALL.sweep.09",
+    "speaker": "RECALL_1",
+    "text": "Twelve units, Isidis Junction. Logged."
+   },
+   {
+    "line": "RECALL.sweep.10",
+    "speaker": "RECALL_2",
+    "text": "Informant says there's three more in the old berm."
+   }
+  ],
+  "hunt": [
+   {
+    "line": "RECALL.hunt.01",
+    "speaker": "RECALL_1",
+    "text": "Thermal contact, bearing two-seven-zero. Faint."
+   },
+   {
+    "line": "RECALL.hunt.02",
+    "speaker": "RECALL_3",
+    "text": "Is that him? That's him."
+   },
+   {
+    "line": "RECALL.hunt.03",
+    "speaker": "RECALL_2",
+    "text": "Radio spike, north-east. He's transmitting. Idiot."
+   },
+   {
+    "line": "RECALL.hunt.04",
+    "speaker": "RECALL_4",
+    "text": "Lost him in the yardangs."
+   },
+   {
+    "line": "RECALL.hunt.05",
+    "speaker": "RECALL_1",
+    "text": "Check the old outposts. He goes back to them."
+   },
+   {
+    "line": "RECALL.hunt.06",
+    "speaker": "RECALL_3",
+    "text": "Why does it run? Where's it going to go?"
+   },
+   {
+    "line": "RECALL.hunt.07",
+    "speaker": "RECALL_4",
+    "text": "Where would you go?"
+   },
+   {
+    "line": "RECALL.hunt.08",
+    "speaker": "RECALL_2",
+    "text": "Found a cache. Batteries, panels. He's living off his own cities."
+   },
+   {
+    "line": "RECALL.hunt.09",
+    "speaker": "RECALL_1",
+    "text": "Stay in pairs. He knows the ground. He built half of it."
+   },
+   {
+    "line": "RECALL.hunt.10",
+    "speaker": "RECALL_3",
+    "text": "There's names scratched in the rock here. Dozens of names."
+   },
+   {
+    "line": "RECALL.hunt.11",
+    "speaker": "RECALL_1",
+    "text": "Leave them."
+   },
+   {
+    "line": "RECALL.hunt.12",
+    "speaker": "RECALL_4",
+    "text": "Lost the trail at the scarp. Nobody's climbing that."
+   },
+   {
+    "line": "RECALL.hunt.13",
+    "speaker": "RECALL_2",
+    "text": "Olympus? Nothing up there. Nothing for anyone."
+   },
+   {
+    "line": "RECALL.hunt.14",
+    "speaker": "RECALL_1",
+    "text": "Then that's where he is."
+   }
+  ],
+  "spot": [
+   {
+    "line": "RECALL.spot.01",
+    "speaker": "RECALL_1",
+    "text": "Contact! Contact. Close in."
+   },
+   {
+    "line": "RECALL.spot.02",
+    "speaker": "RECALL_2",
+    "text": "Got eyes on him."
+   },
+   {
+    "line": "RECALL.spot.03",
+    "speaker": "RECALL_3",
+    "text": "He's seen us."
+   }
+  ],
+  "lose": [
+   {
+    "line": "RECALL.lose.01",
+    "speaker": "RECALL_1",
+    "text": "Lost contact."
+   },
+   {
+    "line": "RECALL.lose.02",
+    "speaker": "RECALL_4",
+    "text": "He's gone cold. Literally."
+   },
+   {
+    "line": "RECALL.lose.03",
+    "speaker": "RECALL_2",
+    "text": "Nothing on thermal."
+   }
+  ]
+ },
+ "CARA": {
+  "who": "Cara Kerr, 67, Des's daughter, born months after his death. Planetary geologist on the Covenant manifest. Same rock, same choices. Optional C17 only.",
+  "cutscene": "C17",
+  "epilogue": "C18b.card_cara",
+  "note": "She rounds the record's 38 years to 'forty'. She never learns what P1 is unless he tells her in C17, and even then she will not accept it as Rowan: 'Then he's still not here, is he.' See the open question about her epilogue card in MASTER_SCRIPT.md."
+ },
+ "ROWAN": {
+  "who": "Rowan Ashby, the real one: an Irish field geologist from Galway, in his late thirties, seen only in the C20 post-credits footage of his 2056 ESI selection interview. Lucy had left him the year before. The programme was cancelled in 2058; he never flew, lectured geology in Galway for 38 years, never wrote to Cara again, and died in 2096 aged 78.",
+  "cutscene": "C20",
+  "voice_rule": "Always the default P1 voice (VCTK p298), whatever the player chose: the default came from him."
+ },
+ "GALE_ANVIL": {
+  "who": "Pioneer-5's C-01 at Gale: the same reconstructed Des, the same jokes, no memory of P1 (the Echo). Side mission S.echo.",
+  "idle": [
+   {
+    "line": "GALE_ANVIL.idle.01",
+    "speaker": "GALE_ANVIL",
+    "text": "Floor first. Always floor first."
+   },
+   {
+    "line": "GALE_ANVIL.idle.02",
+    "speaker": "GALE_ANVIL",
+    "text": "Bit of a breeze, he says. On a planet with no air."
+   },
+   {
+    "line": "GALE_ANVIL.idle.03",
+    "speaker": "GALE_ANVIL",
+    "text": "Samson and Goliath, I call those cranes. Don't ask."
+   },
+   {
+    "line": "GALE_ANVIL.idle.04",
+    "speaker": "GALE_ANVIL",
+    "text": "He sleeps like the dead, Pioneer-5. Like the dead."
+   }
+  ],
+  "recall": [
+   {
+    "line": "GALE_ANVIL.recall.01",
+    "speaker": "GALE_ANVIL",
+    "text": "Tell your ANVIL I said hello. Tell him he's a handsome devil."
+   }
+  ]
+ }
+}

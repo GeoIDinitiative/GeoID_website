@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; script-src 'self' https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob:; media-src 'self' data: blob:; connect-src 'self' data: blob: http://localhost:* http://127.0.0.1:*; worker-src 'self' blob:; form-action 'self'">
+<!-- The modules bust their own cache via ?v= (tools/stamp.py); this page has no
+     stamp on its own URL, so it must revalidate. -->
+<meta http-equiv="Cache-Control" content="no-cache, must-revalidate">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>MARS: Frontier Pioneer | GeoID</title>
+<meta name="description" content="MARS: Frontier Pioneer. A story of the first homes on Mars, built on the real ground of Jezero, Gale and Olympus Mons from orbital terrain and imagery.">
+<meta name="robots" content="noindex">
+<link rel="icon" type="image/png" href="/assets/logo.png?v=geoid-2026">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<script src="/scripts/theme.js"></script>
+<link rel="stylesheet" href="/styles/viewer-themes.css">
+<link rel="stylesheet" href="mars.css?v=b8cfe8e-efa5b7b7">
+<!-- The site's shared controller module. Not deferred: it must exist before the game module runs. -->
+<script src="/scripts/gamepad.js"></script>
+</head>
+<body class="ms">
+
+<canvas id="scene" aria-label="Mars surface"></canvas>
+
+<!-- ── The HUD. inert while hidden; nothing in it takes controller focus. Every element is registered with the
+     interface manager (game/uiman.js): a group, a policy (always / contextual / hidden) and the player's on / auto / off. ── -->
+<div id="hud" hidden data-pad-skip>
+  <!-- top left: the objective (mission) -->
+  <div class="hud-tl hud-obj" id="hud-obj">
+    <div class="eyebrow">Objective</div>
+    <div class="obj-name" id="obj-name">&nbsp;</div>
+    <div class="obj-meta"><span id="obj-dist">&nbsp;</span><span id="obj-count"></span></div>
+    <div class="bearing" aria-hidden="true"><i id="obj-bearing"></i></div>
+  </div>
+
+  <!-- top right: one column. The clock, then what systems add (weather), the annunciators, then the base and scan panels -->
+  <div class="hud-col hud-col-right" id="hud-right">
+    <div class="hud-tr hud-clock" id="hud-clock">
+      <div class="clock"><span class="eyebrow clk-site">Jezero local time</span><span id="clk-sol">Sol 1</span><b id="clk-time">09:36</b><span id="clk-warp" class="chip">&times;30</span></div>
+      <div class="mini clk-detail" id="clk-detail"><span>Sun <b id="clk-sun">0&deg;</b></span></div>
+    </div>
+    <div class="hud-alerts" id="hud-alerts" aria-live="polite"></div>
+  </div>
+  <div class="hud-col hud-col-left" id="hud-left">
+  </div>
+
+  <!-- bottom right: where you are and what is under you (data), then the vitals cluster -->
+  <div class="hud-br-col" id="hud-br">
+    <div class="hud-prov" id="hud-prov">
+      <div class="coords"><b id="pos-ll">&nbsp;</b><span id="pos-el">&nbsp;</span></div>
+      <!-- the ground's data sources: still written by hud.js, no longer shown (no data-honesty view in the game) -->
+      <div class="eyebrow prov-head" hidden>Under the wheels</div>
+      <div class="prov" hidden><i id="prov-dot"></i><span id="prov-h">&nbsp;</span></div>
+      <div class="prov" hidden><i class="dot-img"></i><span id="prov-i">&nbsp;</span></div>
+      <div class="prov" hidden><i class="dot-proc"></i><span id="prov-d">&nbsp;</span></div>
+    </div>
+    <div class="hud-vitals" id="vitals">
+      <div class="v-rover" id="v-rover">
+        <div class="mini v-detail" id="v-detail">
+          <span>HDG <b id="hdg">000&deg;</b></span><span>PITCH <b id="pitch">0&deg;</b></span><span>ROLL <b id="roll">0&deg;</b></span>
+          <span>SLOPE <b id="slope">0&deg;</b></span><span>GROUND <b id="grnd">&nbsp;</b></span><span>ODO <b id="odo">0 m</b></span>
+          <span>PACK <b id="batt-kwh">40.0 kWh</b></span><span>SUN &minus; LOAD <b id="pw-solar">0 W</b></span><span>DRIVE <b id="pw-load">0 kWh/km</b></span>
+        </div>
+        <div class="v-row">
+          <div class="ring-read v-batt" id="v-batt" title="Rover battery">
+            <svg viewBox="0 0 36 36" aria-hidden="true"><circle class="bg" cx="18" cy="18" r="15.9155"/><circle class="fg" id="batt-fill" cx="18" cy="18" r="15.9155"/></svg>
+            <b id="batt-pct">100%</b><small>BAT</small>
+          </div>
+          <div class="speed v-speed" id="v-speed"><b id="spd">0.0</b><span id="spd-unit">m/s</span><em id="gear">D</em></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- bottom centre, from the bottom up: the compass (navmap.js), the hint row, the prompts -->
+  <div class="hud-prompts" id="prompts">
+    <div id="status" class="status" hidden></div>
+  </div>
+  <div id="hints" class="hints"></div>
+
+  <div id="marker" class="marker" hidden><i></i><span id="marker-text"></span></div>
+  <div id="toast" class="toasts" aria-live="polite"></div>
+</div>
+
+<!-- ── Touch controls: each button drives the same key the keyboard does. ── -->
+<div id="touch" hidden data-pad-skip>
+  <div class="t-left">
+    <button type="button" class="tbtn" data-key="KeyA" aria-label="Steer left">&#9664;</button>
+    <button type="button" class="tbtn" data-key="KeyD" aria-label="Steer right">&#9654;</button>
+  </div>
+  <div class="t-mid">
+    <button type="button" class="tbtn sm" data-action="camera" aria-label="Camera">CAM</button>
+    <button type="button" class="tbtn sm" data-action="lights" aria-label="Headlights">LGT</button>
+    <button type="button" class="tbtn sm" data-action="recover" aria-label="Right the rover">RST</button>
+    <button type="button" class="tbtn sm" data-action="menu" aria-label="Menu">MENU</button>
+  </div>
+  <div class="t-right">
+    <button type="button" class="tbtn" data-key="KeyS" aria-label="Brake or reverse">&#9660;</button>
+    <button type="button" class="tbtn" data-key="KeyW" aria-label="Accelerate">&#9650;</button>
+  </div>
+</div>
+
+<!-- ── MARS: FRONTIER PIONEER: the title (title.js). The campaign decides the site; the picker below is ?dev only ── -->
+<section id="screen-story" class="screen story-title" hidden>
+  <div class="st-sky" aria-hidden="true">
+    <canvas class="st-stars"></canvas>
+    <i class="st-halo"></i>
+    <div class="st-planet"><i class="st-surface"></i><i class="st-shade"></i></div>
+  </div>
+  <div class="st-inner">
+    <div class="eyebrow">GeoID &middot; A story of Mars</div>
+    <h1 class="st-title"><span class="st-mars">MARS</span><span class="st-sub">Frontier Pioneer</span></h1>
+    <p class="st-lede">HALO-1 hangs fixed overhead. Build the first homes on Mars, and earn your way back to the people you remember.</p>
+    <div class="st-menu">
+      <button type="button" id="st-continue" class="btn primary" hidden>Continue <small id="st-continue-where"></small></button>
+      <button type="button" id="st-new" class="btn primary">Begin</button>
+      <div id="st-confirm" class="st-confirm" hidden role="group" aria-label="Start a new campaign">
+        <p>A new campaign replaces the one in progress.</p>
+        <div class="row"><button type="button" id="st-new-yes" class="btn primary">Start again</button><button type="button" id="st-new-no" class="btn">Keep it</button></div>
+      </div>
+      <button type="button" id="st-settings" class="btn quiet">Settings</button>
+      <button type="button" id="st-controls" class="btn quiet">Controls</button>
+    </div>
+    <p class="fine">Terrain and imagery: USGS Astrogeology, NASA / JPL / University of Arizona / MSSS, ESA / DLR / FU Berlin. Public data, a work of fiction.</p>
+  </div>
+</section>
+
+<!-- ── Title / site selection (development: ?dev, and the headless tests) ── -->
+<section id="screen-title" class="screen title">
+  <div class="title-inner">
+    <div class="eyebrow">GeoID &middot; Mars</div>
+    <h1>SURFACE</h1>
+    <p class="lede">Drive, walk and build on the real ground of Mars.</p>
+    <div class="eyebrow">Choose a site</div>
+    <div id="site-list" class="site-list"></div>
+    <div class="row">
+      <button type="button" id="btn-drive" class="btn primary" disabled>Start driving</button>
+      <button type="button" id="btn-new" class="btn" hidden>New traverse</button>
+      <button type="button" id="btn-controls" class="btn">Controls</button>
+      <button type="button" id="btn-settings" class="btn">Settings</button>
+    </div>
+    <p class="fine">Terrain and imagery: USGS Astrogeology, Mars 2020 Terrain Relative Navigation HiRISE and CTX mosaics (NASA / JPL / University of Arizona / MSSS), public domain. A game, not a navigation product.</p>
+  </div>
+</section>
+
+<section id="screen-loading" class="screen loading" hidden>
+  <div class="load-inner">
+    <div class="eyebrow" id="load-act">Prologue</div>
+    <h2 id="load-chapter" class="load-chapter">Landfall</h2>
+    <div class="load-site" id="load-site">Jezero Crater</div>
+    <div class="bar"><i id="load-bar"></i></div>
+    <div class="load-status"><span id="load-step">Loading</span> <span class="fine" id="load-detail">&nbsp;</span></div>
+  </div>
+</section>
+
+<section id="screen-menu" class="screen modal rail" hidden data-pad-closable>
+  <div class="card rail-card">
+    <div class="eyebrow">Game menu</div>
+    <h2 id="menu-title">Paused</h2>
+    <div class="col">
+      <button type="button" id="btn-resume" class="btn primary" data-pad-close>Resume</button>
+      <button type="button" id="btn-menu-map" class="btn">Map</button>
+      <button type="button" id="btn-save" class="btn">Save now</button>
+      <button type="button" id="btn-menu-settings" class="btn">Settings</button>
+      <button type="button" id="btn-menu-controls" class="btn">Controls</button>
+      <button type="button" id="btn-restart" class="btn quiet">Restart the traverse</button>
+      <button type="button" id="btn-quit" class="btn quiet">Save and return to the title</button>
+    </div>
+  </div>
+</section>
+
+<section id="screen-settings" class="screen modal" hidden data-pad-closable>
+  <div class="card wide set-card">
+    <h2>Settings</h2>
+    <div class="set-body">
+      <div class="col set-main">
+        <span class="eyebrow">Game</span>
+        <label class="field">Graphics quality
+          <select id="set-quality"><option value="low">Low</option><option value="medium">Medium</option><option value="high">High (default)</option><option value="ultra">Ultra</option></select></label>
+        <label class="field check"><input type="checkbox" id="set-invert"> Invert camera vertical</label>
+        <label class="field check"><input type="checkbox" id="set-shadows"> Terrain shadows</label>
+        <label class="field">Units
+          <select id="set-units"><option value="metric">Metric (m/s, km)</option><option value="kmh">Metric (km/h, km)</option><option value="imperial">Imperial (mph, miles)</option></select></label>
+        <label class="field">Touch buttons
+          <select id="set-touch"><option value="auto">Automatic</option><option value="on">Always</option><option value="off">Never</option></select></label>
+        <button type="button" id="btn-settings-close" class="btn primary" data-pad-close>Done</button>
+      </div>
+      <!-- the slot for whole sections: Interface (uiman.js) first; other modules append a <fieldset class="set-sec"> here (game.hud.ui.settingsSlot) -->
+      <div class="set-side" id="settings-slot"></div>
+    </div>
+  </div>
+</section>
+
+<section id="screen-help" class="screen modal" hidden data-pad-closable>
+  <div class="card wide">
+    <h2>Controls</h2>
+    <div class="help-cols">
+      <div><div class="eyebrow">Keyboard and mouse</div><dl id="help-keys" class="keys"></dl></div>
+      <div><div class="eyebrow">PS4 controller</div><dl id="help-pad" class="keys"></dl>
+        <p class="fine">With a controller connected, Triangle shows this map at any time.</p></div>
+    </div>
+    <button type="button" id="btn-help-close" class="btn primary" data-pad-close>Close</button>
+  </div>
+</section>
+
+<section id="screen-complete" class="screen modal" hidden data-pad-closable>
+  <div class="card">
+    <div class="eyebrow">Traverse complete</div>
+    <h2>Landing site to Belva crater</h2>
+    <div class="stats">
+      <div><b id="done-dist">0 km</b><span>driven</span></div>
+      <div><b id="done-energy">0 kWh</b><span>energy used</span></div>
+      <div><b id="done-sols">0</b><span>sols elapsed</span></div>
+    </div>
+    <p class="fine" id="done-note">Perseverance took 770 sols to reach the rim of Belva.</p>
+    <div class="row">
+      <button type="button" id="btn-continue" class="btn primary" data-pad-close>Keep exploring</button>
+      <button type="button" id="btn-done-quit" class="btn">Return to the title</button>
+    </div>
+  </div>
+</section>
+
+<div id="fatal" class="fatal" hidden></div>
+
+<script type="module" src="game/boot.js?v=b8cfe8e-efa5b7b7"></script>
+</body>
+</html>

@@ -1,0 +1,1121 @@
+{
+ "note": "Second Ring sample (17 named specialists). Each has a quest (acts.json SR.<CALLSIGN>), one memory fragment, idle barks and recall last words. Recall last words: four variants (warned/unwarned x named/unnamed); named variants play if the player used the unit's real name before its Recall. donor_name is what the player learns via KEEPER open_unit_file.",
+ "units": {
+  "GIRDER": {
+   "callsign": "GIRDER",
+   "role": "Dome frames",
+   "where": "Jezero",
+   "hook": "Terrified of heights in memory; works on the top of every dome.",
+   "arrives": {
+    "act": "II",
+    "after": "2.6"
+   },
+   "quest": "SR.GIRDER",
+   "memory_fragment": {
+    "line": "SR.GIRDER.memory",
+    "speaker": "GIRDER",
+    "text": "My da took me up the Forth Bridge on a works visit. I was seven. I froze on the first ladder. He carried me down, and he never told my mother.",
+    "note": "the unit telling its one strong memory; grille preset unless the filter is glitching"
+   },
+   "idle": [
+    {
+     "line": "SR.GIRDER.idle.01",
+     "speaker": "GIRDER",
+     "text": "Lovely day to be terrified."
+    },
+    {
+     "line": "SR.GIRDER.idle.02",
+     "speaker": "GIRDER",
+     "text": "Rib nine's out a millimetre. I'll have it."
+    },
+    {
+     "line": "SR.GIRDER.idle.03",
+     "speaker": "GIRDER",
+     "text": "Don't wave. I'll wave back and then where will we be."
+    }
+   ],
+   "recall": {
+    "warned": [
+     {
+      "line": "SR.GIRDER.recall.warned",
+      "speaker": "GIRDER",
+      "text": "I'll be up top when they come. Seems right. Last thing I'll see is the view."
+     }
+    ],
+    "unwarned": [
+     {
+      "line": "SR.GIRDER.recall.unwarned",
+      "speaker": "GIRDER",
+      "text": "Oh. Hello. Mind the ladder, it's a long way down."
+     }
+    ],
+    "named_warned": [
+     {
+      "line": "SR.GIRDER.recall.named_warned",
+      "speaker": "GIRDER",
+      "text": "I'll be up top. Callum Reid, sixty metres up, hands not shaking. Tell my da."
+     }
+    ],
+    "named_unwarned": [
+     {
+      "line": "SR.GIRDER.recall.named_unwarned",
+      "speaker": "GIRDER",
+      "text": "Oh. Hello. I'm Callum. Mind the ladder, it's a long way down."
+     }
+    ]
+   },
+   "donor_name": "Callum Reid"
+  },
+  "KILN": {
+   "callsign": "KILN",
+   "role": "Regolith printing",
+   "where": "Any city",
+   "hook": "Wants to print a cathedral before anyone arrives.",
+   "arrives": {
+    "act": "II",
+    "after": "2.6"
+   },
+   "quest": "SR.KILN",
+   "memory_fragment": {
+    "line": "SR.KILN.memory",
+    "speaker": "KILN",
+    "text": "Saint Chad's, in Birmingham. My nan lit a candle every Thursday. I'd count the pipes on the organ while she prayed. Ninety-one. I never told her.",
+    "note": "the unit telling its one strong memory; grille preset unless the filter is glitching"
+   },
+   "idle": [
+    {
+     "line": "SR.KILN.idle.01",
+     "speaker": "KILN",
+     "text": "Printer's warm. Good."
+    },
+    {
+     "line": "SR.KILN.idle.02",
+     "speaker": "KILN",
+     "text": "Every wall wants to be a vault, if you let it."
+    },
+    {
+     "line": "SR.KILN.idle.03",
+     "speaker": "KILN",
+     "text": "Quiet in here. That's the point."
+    }
+   ],
+   "recall": {
+    "warned": [
+     {
+      "line": "SR.KILN.recall.warned",
+      "speaker": "KILN",
+      "text": "They'll use it for something. That's enough."
+     }
+    ],
+    "unwarned": [
+     {
+      "line": "SR.KILN.recall.unwarned",
+      "speaker": "KILN",
+      "text": "Shh. It echoes."
+     }
+    ],
+    "named_warned": [
+     {
+      "line": "SR.KILN.recall.named_warned",
+      "speaker": "KILN",
+      "text": "They'll use it for something. Put Patrick Doyle on the foundation stone. Small. Down at the bottom."
+     }
+    ],
+    "named_unwarned": [
+     {
+      "line": "SR.KILN.recall.named_unwarned",
+      "speaker": "KILN",
+      "text": "Shh. It echoes. Patrick. That's me. Listen to it come back."
+     }
+    ]
+   },
+   "act_v": "In Act V KILN's finished cathedral is the Meridian sales and welcome hall; see collectibles CITS ephemera.",
+   "donor_name": "Patrick Doyle"
+  },
+  "SPINDLE": {
+   "callsign": "SPINDLE",
+   "role": "Suit and fabric repair",
+   "where": "Any city",
+   "hook": "Stitches each unit's callsign inside their suit lining.",
+   "arrives": {
+    "act": "II",
+    "after": "2.6"
+   },
+   "quest": "SR.SPINDLE",
+   "memory_fragment": {
+    "line": "SR.SPINDLE.memory",
+    "speaker": "SPINDLE",
+    "text": "My mam did name tapes every September, all five of us. She'd sew them in at the kitchen table with the radio on, and swear at the needle.",
+    "note": "the unit telling its one strong memory; grille preset unless the filter is glitching"
+   },
+   "idle": [
+    {
+     "line": "SR.SPINDLE.idle.01",
+     "speaker": "SPINDLE",
+     "text": "Hold still, I've got a pin in my mouth."
+    },
+    {
+     "line": "SR.SPINDLE.idle.02",
+     "speaker": "SPINDLE",
+     "text": "Elbows go first. They always go first."
+    },
+    {
+     "line": "SR.SPINDLE.idle.03",
+     "speaker": "SPINDLE",
+     "text": "I've done four hundred and twelve tapes. Not one spelled wrong."
+    }
+   ],
+   "recall": {
+    "warned": [
+     {
+      "line": "SR.SPINDLE.recall.warned",
+      "speaker": "SPINDLE",
+      "text": "I'll finish the last few tapes first. They'll want to know whose suits they are."
+     }
+    ],
+    "unwarned": [
+     {
+      "line": "SR.SPINDLE.recall.unwarned",
+      "speaker": "SPINDLE",
+      "text": "Can it wait? I'm halfway through a hem."
+     }
+    ],
+    "named_warned": [
+     {
+      "line": "SR.SPINDLE.recall.named_warned",
+      "speaker": "SPINDLE",
+      "text": "Finished the tapes. Did my own last. Joan Hartley. Tight stitches."
+     }
+    ],
+    "named_unwarned": [
+     {
+      "line": "SR.SPINDLE.recall.named_unwarned",
+      "speaker": "SPINDLE",
+      "text": "Can it wait? I'm Joan, pet. I'm halfway through a hem."
+     }
+    ]
+   },
+   "act_iv": "After 4.4 SPINDLE offers to finish P1's tape. Options: ROWAN / PIONEER-1 / leave it blank. The choice is cosmetic and appears in Fugitive mode on the suit lining.",
+   "act_iv_lines": [
+    {
+     "line": "SR.SPINDLE.finish.01",
+     "speaker": "SPINDLE",
+     "text": "I left room on your tape. Want me to finish it now?"
+    },
+    {
+     "line": "SR.SPINDLE.finish.02",
+     "speaker": "SPINDLE",
+     "text": "Right you are. Tight stitches. They'll last."
+    }
+   ],
+   "donor_name": "Joan Hartley"
+  },
+  "HARBOR": {
+   "callsign": "HARBOR",
+   "role": "Rover bay",
+   "where": "Jezero, Hellas",
+   "hook": "Tunes rovers, races them at night.",
+   "arrives": {
+    "act": "II",
+    "after": "2.5"
+   },
+   "quest": "SR.HARBOR",
+   "memory_fragment": {
+    "line": "SR.HARBOR.memory",
+    "speaker": "HARBOR",
+    "text": "Bathurst. Dad's ute. I was fourteen and not supposed to be driving it, and I took the Mountain at a hundred and twenty with my heart in my mouth.",
+    "note": "the unit telling its one strong memory; grille preset unless the filter is glitching"
+   },
+   "idle": [
+    {
+     "line": "SR.HARBOR.idle.01",
+     "speaker": "HARBOR",
+     "text": "She wants a new diff."
+    },
+    {
+     "line": "SR.HARBOR.idle.02",
+     "speaker": "HARBOR",
+     "text": "Listen to that. Purring."
+    },
+    {
+     "line": "SR.HARBOR.idle.03",
+     "speaker": "HARBOR",
+     "text": "Nights are for driving. Days are for fixing what you broke."
+    }
+   ],
+   "recall": {
+    "warned": [
+     {
+      "line": "SR.HARBOR.recall.warned",
+      "speaker": "HARBOR",
+      "text": "Give us the keys to the fast one. If I'm going, I'm going quick."
+     }
+    ],
+    "unwarned": [
+     {
+      "line": "SR.HARBOR.recall.unwarned",
+      "speaker": "HARBOR",
+      "text": "Who's parked across my bay?"
+     }
+    ],
+    "named_warned": [
+     {
+      "line": "SR.HARBOR.recall.named_warned",
+      "speaker": "HARBOR",
+      "text": "Give us the keys to the fast one. Lachlan Byrne, last lap."
+     }
+    ],
+    "named_unwarned": [
+     {
+      "line": "SR.HARBOR.recall.named_unwarned",
+      "speaker": "HARBOR",
+      "text": "Who's parked across my bay? Lachie. Lachie Byrne. That's who."
+     }
+    ]
+   },
+   "donor_name": "Lachlan Byrne"
+  },
+  "PLUMB": {
+   "callsign": "PLUMB",
+   "role": "Surveying",
+   "where": "Roaming",
+   "hook": "Draws every map by hand, refuses the HUD.",
+   "arrives": {
+    "act": "II",
+    "after": "2.2"
+   },
+   "quest": "SR.PLUMB",
+   "memory_fragment": {
+    "line": "SR.PLUMB.memory",
+    "speaker": "PLUMB",
+    "text": "Ordnance Survey, Sheet 98, me grandad's, foxed at the folds. We walked every footpath on it before he died. Every one.",
+    "note": "the unit telling its one strong memory; grille preset unless the filter is glitching"
+   },
+   "idle": [
+    {
+     "line": "SR.PLUMB.idle.01",
+     "speaker": "PLUMB",
+     "text": "Pencil's sharp."
+    },
+    {
+     "line": "SR.PLUMB.idle.02",
+     "speaker": "PLUMB",
+     "text": "Contours don't lie. People do."
+    },
+    {
+     "line": "SR.PLUMB.idle.03",
+     "speaker": "PLUMB",
+     "text": "I'll find my own way, thanks."
+    }
+   ],
+   "recall": {
+    "warned": [
+     {
+      "line": "SR.PLUMB.recall.warned",
+      "speaker": "PLUMB",
+      "text": "I've drawn where they are. They're coming down the east road. I'll not be on it."
+     }
+    ],
+    "unwarned": [
+     {
+      "line": "SR.PLUMB.recall.unwarned",
+      "speaker": "PLUMB",
+      "text": "You're standing on my baseline."
+     }
+    ],
+    "named_warned": [
+     {
+      "line": "SR.PLUMB.recall.named_warned",
+      "speaker": "PLUMB",
+      "text": "I've signed my maps. Arthur Pennock. Believe the pencil."
+     }
+    ],
+    "named_unwarned": [
+     {
+      "line": "SR.PLUMB.recall.named_unwarned",
+      "speaker": "PLUMB",
+      "text": "You're standing on my baseline. Arthur Pennock's baseline."
+     }
+    ]
+   },
+   "act_iv": "PLUMB's hand-drawn sky sheet (collectible LOG.PLUMB.sky) shows eleven extra dots along the equator, drawn in Act II and crossed out with 'smudge?'.",
+   "donor_name": "Arthur Pennock"
+  },
+  "ORCHARD": {
+   "callsign": "ORCHARD",
+   "role": "Fruit trees",
+   "where": "Korolev",
+   "hook": "FURROW's apprentice; grafts the first apple tree on Mars.",
+   "arrives": {
+    "act": "II",
+    "after": "2.4"
+   },
+   "quest": "SR.ORCHARD",
+   "memory_fragment": {
+    "line": "SR.ORCHARD.memory",
+    "speaker": "ORCHARD",
+    "text": "Grandaddy said you plant an orchard for your grandchildren. You don't plant it for you. He planted pecans the year I was born.",
+    "note": "the unit telling its one strong memory; grille preset unless the filter is glitching"
+   },
+   "idle": [
+    {
+     "line": "SR.ORCHARD.idle.01",
+     "speaker": "ORCHARD",
+     "text": "She's taking."
+    },
+    {
+     "line": "SR.ORCHARD.idle.02",
+     "speaker": "ORCHARD",
+     "text": "Don't step on the roots."
+    },
+    {
+     "line": "SR.ORCHARD.idle.03",
+     "speaker": "ORCHARD",
+     "text": "Mister Furrow's the patientest man alive."
+    }
+   ],
+   "recall": {
+    "warned": [
+     {
+      "line": "SR.ORCHARD.recall.warned",
+      "speaker": "ORCHARD",
+      "text": "Will somebody water the trees? Somebody has to water the trees."
+     }
+    ],
+    "unwarned": [
+     {
+      "line": "SR.ORCHARD.recall.unwarned",
+      "speaker": "ORCHARD",
+      "text": "Careful of the graft."
+     }
+    ],
+    "named_warned": [
+     {
+      "line": "SR.ORCHARD.recall.named_warned",
+      "speaker": "ORCHARD",
+      "text": "Somebody water the trees. Ruth Ann planted them. Ruth Ann Mosley."
+     }
+    ],
+    "named_unwarned": [
+     {
+      "line": "SR.ORCHARD.recall.named_unwarned",
+      "speaker": "ORCHARD",
+      "text": "Careful of the graft. I'm Ruth Ann. Careful."
+     }
+    ]
+   },
+   "donor_name": "Ruth Ann Mosley"
+  },
+  "TIDE": {
+   "callsign": "TIDE",
+   "role": "Lake and aquaculture",
+   "where": "Korolev",
+   "hook": "Raises fish nobody will eat for fifty years.",
+   "arrives": {
+    "act": "II",
+    "after": "2.4"
+   },
+   "quest": "SR.TIDE",
+   "memory_fragment": {
+    "line": "SR.TIDE.memory",
+    "speaker": "TIDE",
+    "text": "Kaikoura. Dad's boat, the crayfish pots in the cold, and a seal that followed us every morning like a dog.",
+    "note": "the unit telling its one strong memory; grille preset unless the filter is glitching"
+   },
+   "idle": [
+    {
+     "line": "SR.TIDE.idle.01",
+     "speaker": "TIDE",
+     "text": "Water's two degrees. They like it."
+    },
+    {
+     "line": "SR.TIDE.idle.02",
+     "speaker": "TIDE",
+     "text": "Counted four hundred. There were four hundred and one yesterday."
+    },
+    {
+     "line": "SR.TIDE.idle.03",
+     "speaker": "TIDE",
+     "text": "Shh. Feeding time."
+    }
+   ],
+   "recall": {
+    "warned": [
+     {
+      "line": "SR.TIDE.recall.warned",
+      "speaker": "TIDE",
+      "text": "Will they look after the fish? Tell them it's two degrees. They like it at two."
+     }
+    ],
+    "unwarned": [
+     {
+      "line": "SR.TIDE.recall.unwarned",
+      "speaker": "TIDE",
+      "text": "Keep it down, you'll frighten them."
+     }
+    ],
+    "named_warned": [
+     {
+      "line": "SR.TIDE.recall.named_warned",
+      "speaker": "TIDE",
+      "text": "Tell them it's two degrees. Tell them Aroha kept them."
+     }
+    ],
+    "named_unwarned": [
+     {
+      "line": "SR.TIDE.recall.named_unwarned",
+      "speaker": "TIDE",
+      "text": "Keep it down, you'll frighten them. I'm Aroha. Shh."
+     }
+    ]
+   },
+   "donor_name": "Aroha Tane"
+  },
+  "LANTERN": {
+   "callsign": "LANTERN",
+   "role": "Telescope and sky watch",
+   "where": "Polar station",
+   "hook": "Logs the second light before P1 does, and is told to stop.",
+   "arrives": {
+    "act": "III",
+    "after": "3.1"
+   },
+   "quest": "SR.LANTERN",
+   "memory_fragment": {
+    "line": "SR.LANTERN.memory",
+    "speaker": "LANTERN",
+    "text": "Calton Hill, the old observatory. I'd walk up when I couldn't sleep, which was always, and the city would be orange and the sky black over it.",
+    "note": "the unit telling its one strong memory; grille preset unless the filter is glitching"
+   },
+   "idle": [
+    {
+     "line": "SR.LANTERN.idle.01",
+     "speaker": "LANTERN",
+     "text": "Seeing's good tonight."
+    },
+    {
+     "line": "SR.LANTERN.idle.02",
+     "speaker": "LANTERN",
+     "text": "Polaris isn't the pole star here, you know. Nobody's been told."
+    },
+    {
+     "line": "SR.LANTERN.idle.03",
+     "speaker": "LANTERN",
+     "text": "I'll be up. I'm always up."
+    }
+   ],
+   "recall": {
+    "warned": [
+     {
+      "line": "SR.LANTERN.recall.warned",
+      "speaker": "LANTERN",
+      "text": "Leave the dome open. I want the sky."
+     }
+    ],
+    "unwarned": [
+     {
+      "line": "SR.LANTERN.recall.unwarned",
+      "speaker": "LANTERN",
+      "text": "You're blocking my field."
+     }
+    ],
+    "named_warned": [
+     {
+      "line": "SR.LANTERN.recall.named_warned",
+      "speaker": "LANTERN",
+      "text": "Leave the dome open. Isla Fraser saw it first. Put that in the catalogue."
+     }
+    ],
+    "named_unwarned": [
+     {
+      "line": "SR.LANTERN.recall.named_unwarned",
+      "speaker": "LANTERN",
+      "text": "You're blocking my field. I'm Isla. Look up."
+     }
+    ]
+   },
+   "donor_name": "Isla Fraser"
+  },
+  "SCRIBE": {
+   "callsign": "SCRIBE",
+   "role": "Archive and records",
+   "where": "Jezero",
+   "hook": "Keeps the colony's history; writes the dome plaque.",
+   "arrives": {
+    "act": "II",
+    "after": "2.6"
+   },
+   "quest": "SR.SCRIBE",
+   "memory_fragment": {
+    "line": "SR.SCRIBE.memory",
+    "speaker": "SCRIBE",
+    "text": "I catalogued parish registers. Births, marriages, deaths, in ink. The same names came round every forty years, like weather.",
+    "note": "the unit telling its one strong memory; grille preset unless the filter is glitching"
+   },
+   "idle": [
+    {
+     "line": "SR.SCRIBE.idle.01",
+     "speaker": "SCRIBE",
+     "text": "Everything gets written down. Eventually."
+    },
+    {
+     "line": "SR.SCRIBE.idle.02",
+     "speaker": "SCRIBE",
+     "text": "Dates matter. Dates are the spine."
+    },
+    {
+     "line": "SR.SCRIBE.idle.03",
+     "speaker": "SCRIBE",
+     "text": "I've your sol log here. You skip a lot of sols."
+    }
+   ],
+   "recall": {
+    "warned": [
+     {
+      "line": "SR.SCRIBE.recall.warned",
+      "speaker": "SCRIBE",
+      "text": "Here. My list. Every name, every sol. Give it to someone who'll read it."
+     }
+    ],
+    "unwarned": [
+     {
+      "line": "SR.SCRIBE.recall.unwarned",
+      "speaker": "SCRIBE",
+      "text": "One moment, I'm mid-entry."
+     }
+    ],
+    "named_warned": [
+     {
+      "line": "SR.SCRIBE.recall.named_warned",
+      "speaker": "SCRIBE",
+      "text": "Here's my list. Every name, every sol. Mine's at the bottom: Helen Ashdown. Archives are long."
+     }
+    ],
+    "named_unwarned": [
+     {
+      "line": "SR.SCRIBE.recall.named_unwarned",
+      "speaker": "SCRIBE",
+      "text": "One moment, I'm mid-entry. Helen Ashdown. There. Entered."
+     }
+    ]
+   },
+   "note": "SCRIBE's list is the in-world source of the 'Real names used' plaque lines in C18b.",
+   "donor_name": "Helen Ashdown"
+  },
+  "RELAY": {
+   "callsign": "RELAY",
+   "role": "Comms network",
+   "where": "Relay towers",
+   "hook": "Speaks only in clipped radio procedure.",
+   "arrives": {
+    "act": "II",
+    "after": "2.2"
+   },
+   "quest": "SR.RELAY",
+   "memory_fragment": {
+    "line": "SR.RELAY.memory",
+    "speaker": "RELAY",
+    "text": "...My brother drove trucks. CB radio. Breaker one-nine. That's all I've got. Out.",
+    "note": "the unit telling its one strong memory; grille preset unless the filter is glitching"
+   },
+   "idle": [
+    {
+     "line": "SR.RELAY.idle.01",
+     "speaker": "RELAY",
+     "text": "Relay. Standing by."
+    },
+    {
+     "line": "SR.RELAY.idle.02",
+     "speaker": "RELAY",
+     "text": "Copy."
+    },
+    {
+     "line": "SR.RELAY.idle.03",
+     "speaker": "RELAY",
+     "text": "Say again. Over."
+    }
+   ],
+   "recall": {
+    "warned": [
+     {
+      "line": "SR.RELAY.recall.warned",
+      "speaker": "RELAY",
+      "text": "Copy. Understood. Relay... Relay out."
+     }
+    ],
+    "unwarned": [
+     {
+      "line": "SR.RELAY.recall.unwarned",
+      "speaker": "RELAY",
+      "text": "Unknown station, identify. Over."
+     }
+    ],
+    "named_warned": [
+     {
+      "line": "SR.RELAY.recall.named_warned",
+      "speaker": "RELAY",
+      "text": "Copy. This is Dale Kowalski. Breaker one-nine. Relay out."
+     }
+    ],
+    "named_unwarned": [
+     {
+      "line": "SR.RELAY.recall.named_unwarned",
+      "speaker": "RELAY",
+      "text": "Unknown station. This is Dale. Dale Kowalski. Over."
+     }
+    ]
+   },
+   "donor_name": "Dale Kowalski"
+  },
+  "BELLOWS": {
+   "callsign": "BELLOWS",
+   "role": "Atmosphere plants",
+   "where": "Hellas",
+   "hook": "Builds terraforming plants because he misses rain.",
+   "arrives": {
+    "act": "IV",
+    "after": "4.1"
+   },
+   "quest": "SR.BELLOWS",
+   "memory_fragment": {
+    "line": "SR.BELLOWS.memory",
+    "speaker": "BELLOWS",
+    "text": "Keswick. It rained three hundred days a year and I complained about every one of them. I'd give anything for a wet Tuesday.",
+    "note": "the unit telling its one strong memory; grille preset unless the filter is glitching"
+   },
+   "idle": [
+    {
+     "line": "SR.BELLOWS.idle.01",
+     "speaker": "BELLOWS",
+     "text": "Pressure's up a millibar."
+    },
+    {
+     "line": "SR.BELLOWS.idle.02",
+     "speaker": "BELLOWS",
+     "text": "Smell that? No. Nor me."
+    },
+    {
+     "line": "SR.BELLOWS.idle.03",
+     "speaker": "BELLOWS",
+     "text": "Rain. One day."
+    }
+   ],
+   "recall": {
+    "warned": [
+     {
+      "line": "SR.BELLOWS.recall.warned",
+      "speaker": "BELLOWS",
+      "text": "Tell them to look up at dawn. Tell them it was me."
+     }
+    ],
+    "unwarned": [
+     {
+      "line": "SR.BELLOWS.recall.unwarned",
+      "speaker": "BELLOWS",
+      "text": "Not now, the plant's mid-cycle."
+     }
+    ],
+    "named_warned": [
+     {
+      "line": "SR.BELLOWS.recall.named_warned",
+      "speaker": "BELLOWS",
+      "text": "Tell them to look up at dawn. Geoffrey Tyson made that cloud."
+     }
+    ],
+    "named_unwarned": [
+     {
+      "line": "SR.BELLOWS.recall.named_unwarned",
+      "speaker": "BELLOWS",
+      "text": "Not now, the plant's mid-cycle. Geoffrey. Geoff. Tell them it'll rain."
+     }
+    ]
+   },
+   "donor_name": "Geoffrey Tyson"
+  },
+  "FERRY": {
+   "callsign": "FERRY",
+   "role": "Hopper pilot",
+   "where": "Pads network",
+   "hook": "Flies the routes between cities; P1's ride before the flight sim unlocks.",
+   "arrives": {
+    "act": "II",
+    "after": "2.5"
+   },
+   "quest": "SR.FERRY",
+   "memory_fragment": {
+    "line": "SR.FERRY.memory",
+    "speaker": "FERRY",
+    "text": "Float planes out of Vancouver harbour. My mum ran the dock. I'd sit on the end of it and count them in.",
+    "note": "the unit telling its one strong memory; grille preset unless the filter is glitching"
+   },
+   "idle": [
+    {
+     "line": "SR.FERRY.idle.01",
+     "speaker": "FERRY",
+     "text": "Fuelled and ready."
+    },
+    {
+     "line": "SR.FERRY.idle.02",
+     "speaker": "FERRY",
+     "text": "Wind's fine. Wind's always fine up there."
+    },
+    {
+     "line": "SR.FERRY.idle.03",
+     "speaker": "FERRY",
+     "text": "Where to, boss?"
+    }
+   ],
+   "recall": {
+    "warned": [
+     {
+      "line": "SR.FERRY.recall.warned",
+      "speaker": "FERRY",
+      "text": "Fuel her up for me. Just in case."
+     }
+    ],
+    "unwarned": [
+     {
+      "line": "SR.FERRY.recall.unwarned",
+      "speaker": "FERRY",
+      "text": "Pad's busy, go round."
+     }
+    ],
+    "named_warned": [
+     {
+      "line": "SR.FERRY.recall.named_warned",
+      "speaker": "FERRY",
+      "text": "Fuel her up. Tom Arsenault, cleared for departure."
+     }
+    ],
+    "named_unwarned": [
+     {
+      "line": "SR.FERRY.recall.named_unwarned",
+      "speaker": "FERRY",
+      "text": "Pad's busy, go round. It's Tom. Tom Arsenault. Go round."
+     }
+    ]
+   },
+   "donor_name": "Tom Arsenault"
+  },
+  "CHALK": {
+   "callsign": "CHALK",
+   "role": "Schools",
+   "where": "Hellas",
+   "hook": "A teacher building classrooms for children who have not been born.",
+   "arrives": {
+    "act": "IV",
+    "after": "4.1"
+   },
+   "quest": "SR.CHALK",
+   "memory_fragment": {
+    "line": "SR.CHALK.memory",
+    "speaker": "CHALK",
+    "text": "Athlone. My first class. Thirty-one of them, and one boy who'd only speak to the hamster. By June he was reading aloud to it.",
+    "note": "the unit telling its one strong memory; grille preset unless the filter is glitching"
+   },
+   "idle": [
+    {
+     "line": "SR.CHALK.idle.01",
+     "speaker": "CHALK",
+     "text": "Indoor voices."
+    },
+    {
+     "line": "SR.CHALK.idle.02",
+     "speaker": "CHALK",
+     "text": "I've the register ready. Empty, but ready."
+    },
+    {
+     "line": "SR.CHALK.idle.03",
+     "speaker": "CHALK",
+     "text": "Every desk gets a name on it. Eventually."
+    }
+   ],
+   "recall": {
+    "warned": [
+     {
+      "line": "SR.CHALK.recall.warned",
+      "speaker": "CHALK",
+      "text": "Leave the lights on in the classroom. So they know it's for them."
+     }
+    ],
+    "unwarned": [
+     {
+      "line": "SR.CHALK.recall.unwarned",
+      "speaker": "CHALK",
+      "text": "Sorry, is it home time?"
+     }
+    ],
+    "named_warned": [
+     {
+      "line": "SR.CHALK.recall.named_warned",
+      "speaker": "CHALK",
+      "text": "Leave the lights on in the classroom. Miss Kelly's room. Siobhan Kelly."
+     }
+    ],
+    "named_unwarned": [
+     {
+      "line": "SR.CHALK.recall.named_unwarned",
+      "speaker": "CHALK",
+      "text": "Is it home time? I'm Siobhan. Line up quietly, now."
+     }
+    ]
+   },
+   "donor_name": "Siobhan Kelly"
+  },
+  "WARDEN": {
+   "callsign": "WARDEN",
+   "role": "Dome safety",
+   "where": "Any city",
+   "hook": "Strict and loyal to Meridian; a likely RECALL informant.",
+   "arrives": {
+    "act": "III",
+    "after": "3.1"
+   },
+   "quest": "SR.WARDEN",
+   "memory_fragment": {
+    "line": "SR.WARDEN.memory",
+    "speaker": "WARDEN",
+    "text": "Hendon. Passing out parade. My father didn't come. I stood straighter.",
+    "note": "the unit telling its one strong memory; grille preset unless the filter is glitching"
+   },
+   "idle": [
+    {
+     "line": "SR.WARDEN.idle.01",
+     "speaker": "WARDEN",
+     "text": "Helmet on in the lock."
+    },
+    {
+     "line": "SR.WARDEN.idle.02",
+     "speaker": "WARDEN",
+     "text": "That's not to code."
+    },
+    {
+     "line": "SR.WARDEN.idle.03",
+     "speaker": "WARDEN",
+     "text": "I'll be logging that."
+    }
+   ],
+   "recall": {
+    "warned": [
+     {
+      "line": "SR.WARDEN.recall.warned",
+      "speaker": "WARDEN",
+      "text": "I know. I've already told them where the others are. It's the rules. I'm sorry. It's the rules."
+     }
+    ],
+    "unwarned": [
+     {
+      "line": "SR.WARDEN.recall.unwarned",
+      "speaker": "WARDEN",
+      "text": "Recall team, this way. I've the list."
+     }
+    ],
+    "named_warned": [
+     {
+      "line": "SR.WARDEN.recall.named_warned",
+      "speaker": "WARDEN",
+      "text": "I've told them where the others are. It's the rules. Graham Pryce, dome safety. Log it."
+     }
+    ],
+    "named_unwarned": [
+     {
+      "line": "SR.WARDEN.recall.named_unwarned",
+      "speaker": "WARDEN",
+      "text": "Recall team, this way. Graham Pryce. I've the list. I've the list."
+     }
+    ]
+   },
+   "act_v": "In 5.2 WARDEN informs: if P1 warned anyone in WARDEN's city, the RECALL team goes to them first.",
+   "donor_name": "Graham Pryce"
+  },
+  "MORTAR_1": {
+   "callsign": "MORTAR_1",
+   "role": "Masonry",
+   "where": "Jezero",
+   "hook": "Two units from the same donor who meet and finish each other's stories.",
+   "arrives": {
+    "act": "IV",
+    "after": "4.3"
+   },
+   "quest": "SR.MORTAR_1",
+   "memory_fragment": {
+    "line": "SR.MORTAR_1.memory",
+    "speaker": "MORTAR_1",
+    "text": "Wharfedale. Granddad's wall, the gate, the one stone the sheep always found.",
+    "note": "the unit telling its one strong memory; grille preset unless the filter is glitching"
+   },
+   "idle": [
+    {
+     "line": "SR.MORTAR_1.idle.01",
+     "speaker": "MORTAR_1",
+     "text": "Lime's mixed."
+    },
+    {
+     "line": "SR.MORTAR_1.idle.02",
+     "speaker": "MORTAR_1",
+     "text": "Bed it, butter it, tap it twice."
+    },
+    {
+     "line": "SR.MORTAR_1.idle.03",
+     "speaker": "MORTAR_1",
+     "text": "A wall's just patience stacked up."
+    }
+   ],
+   "recall": {
+    "warned": [
+     {
+      "line": "SR.MORTAR_1.recall.warned",
+      "speaker": "MORTAR_1",
+      "text": "We'll go together, him and me. We'll finish each other's sentences on the way."
+     }
+    ],
+    "unwarned": [
+     {
+      "line": "SR.MORTAR_1.recall.unwarned",
+      "speaker": "MORTAR_1",
+      "text": "Mind, wet mortar."
+     }
+    ],
+    "named_warned": [
+     {
+      "line": "SR.MORTAR_1.recall.named_warned",
+      "speaker": "MORTAR_1",
+      "text": "We'll go together, him and me. Frank Ibbotson. Both of us."
+     }
+    ],
+    "named_unwarned": [
+     {
+      "line": "SR.MORTAR_1.recall.named_unwarned",
+      "speaker": "MORTAR_1",
+      "text": "Mind, wet mortar. Frank. Frank Ibbotson."
+     }
+    ]
+   },
+   "donor_name": "Frank Ibbotson"
+  },
+  "MORTAR_2": {
+   "callsign": "MORTAR_2",
+   "role": "Masonry",
+   "where": "Gale",
+   "hook": "MORTAR-1's double at Pioneer-5's settlement.",
+   "arrives": {
+    "act": "III",
+    "after": "3.5"
+   },
+   "quest": "SR.MORTAR_1",
+   "memory_fragment": {
+    "line": "SR.MORTAR_2.memory",
+    "speaker": "MORTAR_2",
+    "text": "Wharfedale. Granddad's wall. Same as his, he says. Same stone."
+   },
+   "idle": [
+    {
+     "line": "SR.MORTAR_2.idle.01",
+     "speaker": "MORTAR_2",
+     "text": "Lime's mixed."
+    },
+    {
+     "line": "SR.MORTAR_2.idle.02",
+     "speaker": "MORTAR_2",
+     "text": "A wall's just patience stacked up."
+    }
+   ],
+   "recall": {
+    "warned": [
+     {
+      "line": "SR.MORTAR_2.recall.warned",
+      "speaker": "MORTAR_2",
+      "text": "Tell the Jezero lad. He'll want to go together."
+     }
+    ],
+    "unwarned": [
+     {
+      "line": "SR.MORTAR_2.recall.unwarned",
+      "speaker": "MORTAR_2",
+      "text": "Mind, wet mortar."
+     }
+    ],
+    "named_warned": [
+     {
+      "line": "SR.MORTAR_2.recall.named_warned",
+      "speaker": "MORTAR_2",
+      "text": "Tell the Jezero lad. Frank Ibbotson. Both of us. Same wall."
+     }
+    ],
+    "named_unwarned": [
+     {
+      "line": "SR.MORTAR_2.recall.named_unwarned",
+      "speaker": "MORTAR_2",
+      "text": "Mind, wet mortar. Frank. He's Frank too, you know."
+     }
+    ]
+   },
+   "donor_name": "Frank Ibbotson"
+  },
+  "HUSH": {
+   "callsign": "HUSH",
+   "role": "Night maintenance",
+   "where": "Any city",
+   "hook": "Never speaks; signs; goes quietly when the Recall comes.",
+   "arrives": {
+    "act": "III",
+    "after": "3.1"
+   },
+   "quest": "SR.HUSH",
+   "memory_fragment": {
+    "line": "SR.HUSH.memory",
+    "speaker": "HUSH",
+    "text": "[signs, slowly] My sister. Deaf. We had our own words. Nobody else knew them. I still dream in them.",
+    "note": "the unit telling its one strong memory; grille preset unless the filter is glitching"
+   },
+   "idle": [
+    {
+     "line": "SR.HUSH.idle.01",
+     "speaker": "HUSH",
+     "text": "[signs] Good night."
+    },
+    {
+     "line": "SR.HUSH.idle.02",
+     "speaker": "HUSH",
+     "text": "[signs] All quiet."
+    },
+    {
+     "line": "SR.HUSH.idle.03",
+     "speaker": "HUSH",
+     "text": "[signs] Shh. Listen."
+    }
+   ],
+   "recall": {
+    "warned": [
+     {
+      "line": "SR.HUSH.recall.warned",
+      "speaker": "HUSH",
+      "text": "[signs] Thank you. I know. Go."
+     }
+    ],
+    "unwarned": [
+     {
+      "line": "SR.HUSH.recall.unwarned",
+      "speaker": "HUSH",
+      "text": "[nods, sets down the tools, and walks to the door]"
+     }
+    ],
+    "named_warned": [
+     {
+      "line": "SR.HUSH.recall.named_warned",
+      "speaker": "HUSH",
+      "text": "[signs] Ellie. My name. Ellie. Go."
+     }
+    ],
+    "named_unwarned": [
+     {
+      "line": "SR.HUSH.recall.named_unwarned",
+      "speaker": "HUSH",
+      "text": "[spells E-L-L-I-E on her fingers, sets the tools down, and walks to the door]"
+     }
+    ]
+   },
+   "donor_name": "Ellie Marsh"
+  }
+ }
+}
