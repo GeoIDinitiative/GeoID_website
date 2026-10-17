@@ -16,8 +16,9 @@
 
 import {
   grouped as globalGrouped, layerForDataset, HOMES,
-} from "./global-data.js?v=20261017-5db4dbb";
-import { MAP_LAYERS, layerForMap } from "./map-layers.js?v=20261017-5db4dbb";
+} from "./global-data.js?v=20261017-2a1e37f";
+import { DATA_TYPES, typeOf } from "./data-tags.js?v=20261017-2a1e37f";
+import { MAP_LAYERS, layerForMap } from "./map-layers.js?v=20261017-2a1e37f";
 
 /**
  * WHICH HEADER A CATALOGUE HOME LIGHTS, READ FROM THE DOM.
@@ -66,9 +67,26 @@ const LABEL_TOGGLES = [
 
 const isOn = (layer) => layer && layer.visible !== false && layer.status !== "error";
 
+/**
+ * WHAT KIND OF DATA LIGHTS EACH TAB, as well as whether it is lit: every layer
+ * that lights a section also votes its tag (data-tags.js), and the tab's
+ * bookmark bar is drawn in the winning tag's colour -- the colour that layer's
+ * Workspace row is outlined in. Hazards with a hazard dataset on goes red.
+ */
+let kinds = new Map();
+function vote(section, layer) {
+  if (!section || !layer) return;
+  const t = typeOf(layer);
+  const tally = kinds.get(section) || new Map();
+  tally.set(t, (tally.get(t) || 0) + 1);
+  kinds.set(section, tally);
+}
+
 function activeSections() {
   const active = new Set();
   const claimed = new Set();
+  kinds = new Map();
+  const light = (section, layer) => { active.add(section); vote(section, layer); };
   globalGrouped().forEach(({ entries }) => entries.forEach((entry) => {
     const layer = layerForDataset(entry.id);
     if (!layer) return;
@@ -76,13 +94,13 @@ function activeSections() {
     // The homeless catalogue (graticule, borders, countries, cables) has no
     // `home` at all and is offered from Basemaps, which is what the fallback
     // is for -- not for a home whose section simply was not listed.
-    if (isOn(layer)) active.add(sectionForHome(entry.home) || "basemap-relief-section");
+    if (isOn(layer)) light(sectionForHome(entry.home) || "basemap-relief-section", layer);
   }));
   MAP_LAYERS.forEach((entry) => {
     const layer = layerForMap(entry.id);
     if (!layer) return;
     claimed.add(layer.id);
-    if (isOn(layer)) active.add("basemap-relief-section");
+    if (isOn(layer)) light("basemap-relief-section", layer);
   });
   (window.GeoIDImportManager?.getLayers?.() || []).forEach((layer) => {
     if (claimed.has(layer.id) || !isOn(layer)) return;
@@ -95,26 +113,26 @@ function activeSections() {
      */
     if (layer.home) {
       const section = sectionForHome(layer.home);
-      if (section) { active.add(section); return; }
+      if (section) { light(section, layer); return; }
     }
     const name = layer.name || "";
-    if (name.startsWith("Live satellites")) { active.add("satellites-section"); return; }
-    if (name.startsWith("Live aircraft") || name.startsWith("Live ships")) { active.add("traffic-section"); return; }
-    if (name === "Live events") { active.add("gis-group-events"); return; }
+    if (name.startsWith("Live satellites")) { light("satellites-section", layer); return; }
+    if (name.startsWith("Live aircraft") || name.startsWith("Live ships")) { light("traffic-section", layer); return; }
+    if (name === "Live events") { light("gis-group-events", layer); return; }
     if (layer.ext === "gee") {
       const home = window.GeoIDGeeCatalogue?.homeOfLayerName?.(name);
-      active.add(GEE_SECTION[home] || "gis-group-modelled");
+      light(GEE_SECTION[home] || "gis-group-modelled", layer);
       return;
     }
     // Tile drapes and basemap refine patches are Basemap and Relief's.
-    if (layer.ext === "tiles") { active.add("basemap-relief-section"); return; }
+    if (layer.ext === "tiles") { light("basemap-relief-section", layer); return; }
     if (layer.geologyDataset || /geolog|macrostrat|contacts and faults/i.test(name)) {
-      active.add("geology-section");
+      light("geology-section", layer);
       return;
     }
     // The NI prototype's finished maps live in Geohazards.
-    if (/susceptibility|flood/i.test(name)) { active.add("modelled-data-section"); return; }
-    active.add("gis-group-polygons");
+    if (/susceptibility|flood/i.test(name)) { light("modelled-data-section", layer); return; }
+    light("gis-group-polygons", layer);
   });
   if (LABEL_TOGGLES.some((id) => document.getElementById(id)?.checked)) {
     active.add("geoid-controls-group");
@@ -129,7 +147,12 @@ function activeSections() {
    */
   [...active].forEach((id) => {
     const parent = document.getElementById(id)?.closest("details.toolbox-group");
-    if (parent?.id && parent.id !== id) active.add(parent.id);
+    if (parent?.id && parent.id !== id) {
+      active.add(parent.id);
+      const tally = kinds.get(parent.id) || new Map();
+      (kinds.get(id) || new Map()).forEach((n, t) => tally.set(t, (tally.get(t) || 0) + n));
+      if (tally.size) kinds.set(parent.id, tally);
+    }
   });
   return active;
 }
@@ -192,16 +215,35 @@ function markSubsections(active) {
 }
 
 let last = "";
+/**
+ * The winning tag's colour for a section, or null (the accent stands). A
+ * hazard outranks the count: the Hazards tab carries default hydrology layers
+ * (sea level, water) that would otherwise outvote the one hazard just turned
+ * on, and "a hazard is on in here" is the thing the red bar exists to say.
+ */
+function colourFor(id) {
+  const tally = kinds.get(id);
+  if (!tally) return null;
+  if (tally.has("hazard")) return DATA_TYPES.hazard.colour;
+  let best = null, n = 0;
+  tally.forEach((count, t) => { if (count > n) { best = t; n = count; } });
+  return best ? DATA_TYPES[best].colour : null;
+}
+
 function refresh() {
   const active = activeSections();
-  const key = [...active].sort().join("|");
+  const key = [...active].sort().join("|") + "#" + [...kinds].map(([id]) => `${id}:${colourFor(id)}`).sort().join("|");
   // The sub-tab pass runs even when the TAB set is unchanged: ticking a
   // second dataset inside one tab changes nothing at level 1 and everything
   // one tier down.
   if (key === last) { markSubsections(active); return; }
   last = key;
   SECTIONS.forEach((id) => {
-    document.getElementById(id)?.classList.toggle("has-active-data", active.has(id));
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.classList.toggle("has-active-data", active.has(id));
+    const c = active.has(id) ? colourFor(id) : null;
+    if (c) el.style.setProperty("--tag", c); else el.style.removeProperty("--tag");
   });
   markSubsections(active);
 }
@@ -242,13 +284,13 @@ function installStyle() {
   tag.textContent = [
     "details.control-section.has-active-data:not([open]) > .section-toggle {",
     `  background: ${tint} !important;`,
-    `  border-left-color: ${accent} !important;`,
-    `  box-shadow: inset 3px 0 0 ${accent} !important;`,
+    `  border-left-color: var(--tag, ${accent}) !important;`,
+    `  box-shadow: inset 3px 0 0 var(--tag, ${accent}) !important;`,
     `  color: ${accent} !important;`,
     "}",
     "details.gis-tool-section.has-active-data:not([open]) > summary {",
     `  background: ${tint} !important;`,
-    `  box-shadow: inset 3px 0 0 ${accent} !important;`,
+    `  box-shadow: inset 3px 0 0 var(--tag, ${accent}) !important;`,
     `  color: ${accent} !important;`,
     "}",
     "details.gis-tool-section.has-active-data:not([open]) > summary * {",

@@ -10,18 +10,18 @@
 // everything below. That is the opposite of three.js renderOrder, so the two are
 // inverted when applied.
 
-import { escapeHtml } from "./escape-html.js?v=20261017-5db4dbb";
-import { bandOf } from "./draw-order.js?v=20261017-5db4dbb";
-import { paintOpacity } from "./layer-opacity.js?v=20261017-5db4dbb";
-import { currentBody } from "./bodies.js?v=20261017-5db4dbb";
-import { samplerToRaster } from "./raster-analysis.js?v=20261017-5db4dbb";
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20261017-5db4dbb";
-import { datasetInfoButton } from "./catalogue-list.js?v=20261017-5db4dbb";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20261017-5db4dbb";
+import { escapeHtml } from "./escape-html.js?v=20261017-2a1e37f";
+import { bandOf } from "./draw-order.js?v=20261017-2a1e37f";
+import { paintOpacity } from "./layer-opacity.js?v=20261017-2a1e37f";
+import { currentBody } from "./bodies.js?v=20261017-2a1e37f";
+import { samplerToRaster } from "./raster-analysis.js?v=20261017-2a1e37f";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20261017-2a1e37f";
+import { datasetInfoButton } from "./catalogue-list.js?v=20261017-2a1e37f";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20261017-2a1e37f";
 import {
   openSymbologyDialog, geometrySummary, geometryKind,
-} from "./symbology-dialog.js?v=20261017-5db4dbb";
-import { chipHtml, typeSelect, applyTag, descriptionOf, isUserInput } from "./data-tags.js?v=20261017-5db4dbb";
+} from "./symbology-dialog.js?v=20261017-2a1e37f";
+import { tagOf, DATA_TYPES, typeSelect, applyTag, descriptionOf, isUserInput } from "./data-tags.js?v=20261017-2a1e37f";
 
 /**
  * The row grew a column and gained a tile, and .layer-row is declared twice --
@@ -101,11 +101,12 @@ const STYLE = `
   text-shadow: none !important;
 }
 #layer-dock .layer-dock-head .section-icon { color: rgb(var(--nav-accent-rgb)) !important; }
-/* Seven columns now: grip, disclosure, name, kind, opacity, moves, eye. The
+/* Six columns: grip, disclosure, name, opacity, moves, eye. The kind is no
+   longer a chip in its own column; it is the row's outline colour (below). The
    eye is FIRST in the markup and placed LAST by panel-styles.js's "order", so
    it sits at the right edge with every other tick in the sidebar. */
 .layer-stack .layer-row {
-  grid-template-columns: auto auto 1fr auto 4.5rem auto auto;
+  grid-template-columns: auto auto 1fr 4.5rem auto auto;
 }
 /* The basemap row is its own shape: a grip, the name, the ⓘ, and the eye at
    the end. It holds four children, not eight, so the stack's template would
@@ -126,7 +127,40 @@ const STYLE = `
 .layer-label-size input { width: 5.5rem; accent-color: rgb(var(--nav-accent-rgb)); }
 /* One more column, for the ⓘ every layer carries. */
 .layer-stack .layer-row.has-info {
-  grid-template-columns: auto auto 1fr auto auto 4.5rem auto auto;
+  grid-template-columns: auto auto 1fr auto 4.5rem auto auto;
+}
+
+/* THE KIND IS THE OUTLINE. The HAZARD / HYDROLOGY / VECTOR chips took a column
+   and a word on every row to say what a colour can: each entry is edged in its
+   tag's colour (data-tags.js DATA_TYPES), the same colour a nav tab lit by that
+   data draws its bookmark bar in (section-activity.js). The tag's name rides on
+   the name's tooltip. Rows without a tag (the pinned labels row) keep the
+   accent. color-mix keeps the hex colours and var(--skin-data) alike. */
+.layer-stack .layer-row {
+  border-color: color-mix(in srgb, var(--tag, rgb(var(--nav-accent-rgb))) 70%, transparent) !important;
+  transition: border-color 160ms ease, box-shadow 160ms ease;
+}
+@media (hover: hover) and (pointer: fine) {
+  .layer-stack .layer-row:hover {
+    border-color: var(--tag, rgb(var(--nav-accent-rgb))) !important;
+    box-shadow: 0 0 12px color-mix(in srgb, var(--tag, rgb(var(--nav-accent-rgb))) 45%, transparent) !important;
+  }
+}
+
+/* ONE TILE, NOT TWO. The layer list sits in #gis-group-layers, which is a
+   tab-shaped section, so it wore the open-tab frame and glow inside the
+   Workspace's own frame -- a box in a box -- and the dock body's 10.4 px side
+   padding held every entry off the edges. The frame goes and the padding
+   shrinks to the head's own inset, so entries run margin to margin. Ids, so
+   these outrank the tab rules they undo, in every theme. */
+#layer-dock #gis-group-layers {
+  border: 0 !important;
+  box-shadow: none !important;
+  background: none !important;
+}
+#layer-dock #layer-dock-body {
+  padding-left: 0.35rem !important;
+  padding-right: 0.35rem !important;
 }
 /* Nudged off the chip beside it, and never a drag handle. */
 .layer-row .layer-info { margin: 0 0.15rem; }
@@ -550,6 +584,9 @@ function row(layer) {
   node.dataset.layerId = layer.id;
   const opacity = Number.isFinite(layer.opacity) ? layer.opacity : 1;
   const visible = layer.visible !== false;
+  const tag = tagOf(layer);
+  node.dataset.type = tag.type;
+  node.style.setProperty("--tag", tag.colour);
   // Two dot columns used to sit at the head of the row and both meant the same
   // thing: grab here. One says it, and the space the other took becomes the way
   // into this layer's own options.
@@ -561,8 +598,7 @@ function row(layer) {
     <label class="layer-eye" title="Visible">
       <input type="checkbox" ${visible ? "checked" : ""} data-role="visible">
     </label>
-    <span class="layer-name" title="Click to rename" tabindex="0" role="button">${layer.name || "layer"}</span>
-    ${chipHtml(layer)}
+    <span class="layer-name" title="${tag.label} · click to rename" tabindex="0" role="button">${layer.name || "layer"}</span>
     <input class="layer-opacity" type="range" min="0" max="1" step="0.05"
       value="${opacity}" data-role="opacity" title="Transparency">
     <span class="layer-moves">
@@ -1163,6 +1199,8 @@ function basemapRow() {
   const viewer = window.GeoIDViewer;
   const node = document.createElement("div");
   node.className = "layer-row layer-row-basemap";
+  node.dataset.type = "basemap";
+  node.style.setProperty("--tag", DATA_TYPES.basemap.colour);
   const visible = viewer?.globe?.visible !== false;
   const base = activeBasemap();
   node.innerHTML = `

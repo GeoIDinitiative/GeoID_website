@@ -98,6 +98,16 @@ export function typeOf(layer) {
   return inferType(descriptorOf(layer));
 }
 
+/**
+ * The tag's colour and label for a layer. The Workspace draws a row's outline
+ * in it, and a nav tab lit by that layer draws its bookmark bar in it, so the
+ * two always agree about what kind of data is on.
+ */
+export function tagOf(layer) {
+  const type = typeOf(layer);
+  return { type, ...DATA_TYPES[type] };
+}
+
 export function descriptionOf(layer) {
   return layer?.description
     || layer?.collection?.features?.[0]?.properties?.data_note || "";

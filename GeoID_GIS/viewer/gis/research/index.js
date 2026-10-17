@@ -1,47 +1,47 @@
-import * as hub from "./hub.js?v=20261017-5db4dbb";
-import { openDrawer } from "./drawers.js?v=20261017-5db4dbb";
-import { registeredCount } from "./stages.js?v=20261017-5db4dbb";
-import * as store from "./project-store.js?v=20261017-5db4dbb";
-import * as bridge from "./bridge.js?v=20261017-5db4dbb";
+import * as hub from "./hub.js?v=20261017-2a1e37f";
+import { openDrawer } from "./drawers.js?v=20261017-2a1e37f";
+import { registeredCount } from "./stages.js?v=20261017-2a1e37f";
+import * as store from "./project-store.js?v=20261017-2a1e37f";
+import * as bridge from "./bridge.js?v=20261017-2a1e37f";
 // The sidecar belongs ON the seam: two callers already reached for
 // window.GeoIDResearch.sidecar -- the Meshing Studio's gmsh button and the
 // Model Builder's -- and it was never published there, so both reported "no
 // sidecar" with one connected and answering. A seam a module addresses is
 // part of the contract whether or not it was written down.
-import * as sidecar from "./sidecar.js?v=20261017-5db4dbb";
+import * as sidecar from "./sidecar.js?v=20261017-2a1e37f";
 
 // Pages register themselves on import. This list is the only place that has to
 // change when one is added.
-import "./pages/dashboard.js?v=20261017-5db4dbb";
+import "./pages/dashboard.js?v=20261017-2a1e37f";
 // The curated Workspace home replaces the transliterated Dashboard: it registers
 // "Dashboard" second, so its mount wins. Imported here, right after the page it
 // supersedes, so the override is visible rather than buried.
-import "./pages/workspace.js?v=20261017-5db4dbb";
-import "./pages/projects.js?v=20261017-5db4dbb";
-import "./pages/repository.js?v=20261017-5db4dbb";
-import "./pages/notes.js?v=20261017-5db4dbb";
-import "./pages/plotter.js?v=20261017-5db4dbb";
-import "./pages/signal.js?v=20261017-5db4dbb";
-import "./pages/fem.js?v=20261017-5db4dbb";
-import "./pages/storyboard.js?v=20261017-5db4dbb";
-import "./pages/docs.js?v=20261017-5db4dbb";
-import "./pages/reports.js?v=20261017-5db4dbb";
-import "./pages/builder.js?v=20261017-5db4dbb";
-import "./pages/notebook.js?v=20261017-5db4dbb";
+import "./pages/workspace.js?v=20261017-2a1e37f";
+import "./pages/projects.js?v=20261017-2a1e37f";
+import "./pages/repository.js?v=20261017-2a1e37f";
+import "./pages/notes.js?v=20261017-2a1e37f";
+import "./pages/plotter.js?v=20261017-2a1e37f";
+import "./pages/signal.js?v=20261017-2a1e37f";
+import "./pages/fem.js?v=20261017-2a1e37f";
+import "./pages/storyboard.js?v=20261017-2a1e37f";
+import "./pages/docs.js?v=20261017-2a1e37f";
+import "./pages/reports.js?v=20261017-2a1e37f";
+import "./pages/builder.js?v=20261017-2a1e37f";
+import "./pages/notebook.js?v=20261017-2a1e37f";
 
 // Imported last on purpose: it wraps whatever each page already does.
-import { completeAllPages } from "./spec-page.js?v=20261017-5db4dbb";
+import { completeAllPages } from "./spec-page.js?v=20261017-2a1e37f";
 // Behaviour for the controls the spec brings across; must load before
 // completion runs so a wired control is never drawn disabled.
-import "./wiring.js?v=20261017-5db4dbb";
-import "./wiring-pages.js?v=20261017-5db4dbb";
-import "./wiring-final.js?v=20261017-5db4dbb";
-import "./pages/ingest.js?v=20261017-5db4dbb";
-import "./pages/postprocess.js?v=20261017-5db4dbb";
-import "./pages/prepare.js?v=20261017-5db4dbb";
-import "./pages/analysis.js?v=20261017-5db4dbb";
-import "./pages/manage.js?v=20261017-5db4dbb";
-import "./pages/workbench.js?v=20261017-5db4dbb";
+import "./wiring.js?v=20261017-2a1e37f";
+import "./wiring-pages.js?v=20261017-2a1e37f";
+import "./wiring-final.js?v=20261017-2a1e37f";
+import "./pages/ingest.js?v=20261017-2a1e37f";
+import "./pages/postprocess.js?v=20261017-2a1e37f";
+import "./pages/prepare.js?v=20261017-2a1e37f";
+import "./pages/analysis.js?v=20261017-2a1e37f";
+import "./pages/manage.js?v=20261017-2a1e37f";
+import "./pages/workbench.js?v=20261017-2a1e37f";
 
 /**
  * Entry point for the Research Hub.
