@@ -8,7 +8,7 @@
  * words rather than failing somewhere a reader cannot see.
  */
 
-import { toolByName, checkArgs } from "./atlas-tools.js?v=20261017-631721e";
+import { toolByName, checkArgs } from "./atlas-tools.js?v=20261017-5db4dbb";
 
 const STAMP = new URL(import.meta.url).search || "";
 
@@ -66,14 +66,14 @@ const RUNNERS = {
 
   async total_risk() {
     const T = window.GeoIDTotalRisk;
-    if (!T?.compute) return { text: "The total-risk card is not on this page (Hazards ▸ myGeoID on the Earth globe).", actions: [] };
+    if (!T?.compute) return { text: "Total risk is computed on the Earth globe only.", actions: [] };
     const out = await T.compute();
-    if (!out) return { text: "Nothing could answer for that place yet — the card in Hazards ▸ myGeoID says why.", actions: [] };
+    if (!out) return { text: "Nothing could answer for the middle of the view yet. The Workspace shield reads each risk map for the people there.", actions: [] };
     const fos = out.fos ?? out.worst?.fos;
     return {
       text: Number.isFinite(fos)
-        ? `Total factor of safety at the centre of the view: **${fos.toFixed(2)}** — the card in Hazards ▸ myGeoID shows every model behind it.`
-        : "Computed — the card in Hazards ▸ myGeoID shows every model behind it.",
+        ? `Total factor of safety at the centre of the view over the next 3 days: **${fos.toFixed(2)}**. The Workspace shield reads each risk map for the people there.`
+        : "Computed. The Workspace shield reads each risk map for the people there.",
       actions: [],
     };
   },

@@ -14,7 +14,7 @@
  * model that is revised.
  */
 
-import { dataUrl } from "./data-base.js?v=20261017-631721e";
+import { dataUrl } from "./data-base.js?v=20261017-5db4dbb";
 
 const URL_PATH = "/data/global/ice/thickness.json";
 

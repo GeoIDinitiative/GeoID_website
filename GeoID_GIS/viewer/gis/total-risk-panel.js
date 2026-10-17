@@ -28,7 +28,7 @@ import {
   weatherTerms, cycloneTerm, aftershockTerm, proximityTerm, fosTerm, backgroundTerm,
   combine, combineInTime, combineEnsemble, floodTerm, mainDangerSentence, DEFAULT_WEIGHTS, distanceKm,
   ensembleMembers, seawardBearing, waveTerm, ashTerm, peopleWithin, exposureClass, hazardLevel, riskMatrix,
-} from "./total-risk.js?v=20261017-631721e";
+} from "./total-risk.js?v=20261017-5db4dbb";
 
 const byId = (id) => document.getElementById(id);
 const WEIGHTS_KEY = "geoid-gis:total-risk-weights";
@@ -564,9 +564,14 @@ function buildCard() {
   return true;
 }
 
+/* NO CARD (removed on request, 2026-10-17): "Total risk here" under Hazards was
+ * a second door to a reading the Workspace shield already gives -- the risk
+ * reader, people exposed under every risk map, over the drawn area or view.
+ * The engine stays: Atlas's total_risk tool (atlas-runner.js) and the
+ * verification ledger (atlas-ledger-page.js, which records each computation
+ * announced below) still use it, at the middle of the view over 72 h, the
+ * defaults compute() falls back to when no card supplies a choice. buildCard()
+ * is kept so the card can be restored by calling it. */
 if (typeof window !== "undefined" && typeof window.addEventListener === "function") {
-  let tries = 0;
-  const attempt = () => { if (!buildCard() && (tries += 1) < 60) setTimeout(attempt, 500); };
-  attempt();
-  window.GeoIDTotalRisk = { compute, gather, last: () => last };
+  window.GeoIDTotalRisk = { compute, gather, last: () => last, buildCard };
 }
