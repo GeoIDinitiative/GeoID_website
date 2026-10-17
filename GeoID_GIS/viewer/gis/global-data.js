@@ -26,18 +26,18 @@
  * rebuilt or updated without guessing what was done to them.
  */
 
-import { runConnector } from "./research/connectors.js?v=20261017-aebca4f";
-import { explainFetchFailure, dataUrl } from "./data-base.js?v=20261017-aebca4f";
-import { mathsFor } from "./equations.js?v=20261017-aebca4f";
+import { runConnector } from "./research/connectors.js?v=20261017-e89152e";
+import { explainFetchFailure, dataUrl } from "./data-base.js?v=20261017-e89152e";
+import { mathsFor } from "./equations.js?v=20261017-e89152e";
 import {
   riskEdges, RISK_LABELS,
-} from "./cyclone-risk.js?v=20261017-aebca4f";
-import { colourRange as volcanicColourRange } from "./volcanic-risk.js?v=20261017-aebca4f";
-import { featureForModel, may, refusal } from "./membership.js?v=20261017-aebca4f";
-import { colourRange as seismicColourRange } from "./seismic-bands.js?v=20261017-aebca4f";
+} from "./cyclone-risk.js?v=20261017-e89152e";
+import { colourRange as volcanicColourRange } from "./volcanic-risk.js?v=20261017-e89152e";
+import { featureForModel, may, refusal } from "./membership.js?v=20261017-e89152e";
+import { colourRange as seismicColourRange } from "./seismic-bands.js?v=20261017-e89152e";
 // The cyclone tracks are classed on the same scale the live storm markers
 // band by, so the archive and the feed cut intensity at the same knots.
-import { SAFFIR_SIMPSON_KTS } from "./event-sources.js?v=20261017-aebca4f";
+import { SAFFIR_SIMPSON_KTS } from "./event-sources.js?v=20261017-e89152e";
 
 /** Order the groups read in, coarse to specific. */
 export const GROUPS = ["Physical", "Hydrology", "Boundaries", "Tectonics",
@@ -106,6 +106,11 @@ export const HOMES = {
   // rows — the GEE Service form's arrangement — so the nine planets, which have
   // no weather service, never see an empty heading.
   weather: "weather-catalogue",
+  // Earth System ▸ Atmosphere ▸ Wind vectors: the live streamlines, as their
+  // own entry. They were a row inside the weather services list with a second
+  // door on the tool rail; a moving map of the air is a dataset, and a dataset
+  // lives in the catalogue, under the subject it is about.
+  wind: "wind-catalogue",
   // Hydrology ▸ Sea level: the streamed-DEM sea-level model, a TILED row with
   // its level control in the row's drawer. No shipped file lives here.
   "sea-level": "sea-level-catalogue",
@@ -1030,7 +1035,7 @@ function drawnBbox() {
 async function viewBbox() {
   try {
     const THREE = await import("../vendor/three.module.js");
-    const { visibleBounds } = await import("./view-extent.js?v=20261017-aebca4f");
+    const { visibleBounds } = await import("./view-extent.js?v=20261017-e89152e");
     const b = visibleBounds(window.GeoIDViewer, THREE);
     const ok = b && [b.minLon, b.minLat, b.maxLon, b.maxLat].every(Number.isFinite);
     return ok ? { minLon: b.minLon, minLat: b.minLat, maxLon: b.maxLon, maxLat: b.maxLat } : null;

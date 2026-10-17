@@ -4948,6 +4948,12 @@ canvas {
     .event-row:hover .event-name { color: var(--nav-accent); }
     .event-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
+/* Grouped rows have no glyph (events.js eventRowHtml), and the room went to
+   the names: they were set at the panel's 0.62rem, unreadable on the globe. */
+.event-row .event-name { font-size: 0.8rem; line-height: 1.35; }
+.event-row.is-grouped { padding: 0.24rem 0 0.24rem 0.35rem; }
+.event-group-head { font-size: 0.72rem !important; }
+
     /* The feeds you can switch on, in the sidebar's Events tab. Ticking one is the
        control that produces the list of events, so it cannot live inside that
        list -- with everything off there would be nothing to click on.

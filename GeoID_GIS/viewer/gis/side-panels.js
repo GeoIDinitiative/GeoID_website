@@ -38,7 +38,7 @@
  */
 const SHELF_NAMES = { geoprocess: "Geoprocessing", analysis: "Analysis" };
 
-import { isParked } from "./parked.js?v=20261017-aebca4f";
+import { isParked } from "./parked.js?v=20261017-e89152e";
 const PANELS = [
   {
     id: "preprocess",
@@ -119,23 +119,6 @@ const PANELS = [
     icon: '<circle cx="10.5" cy="10.5" r="6" fill="none" stroke="currentColor" stroke-width="1.7"/>'
       + '<path d="m15.2 15.2 4.3 4.3" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>',
     action: () => window.GeoIDToolSearch?.open?.(""),
-  },
-  {
-    // Not a panel either: the live wind and ocean currents were rows three
-    // levels down (Earth Observation ▸ Atmosphere ▸ Live fields, and
-    // ▸ Hydrology ▸ Ocean), which is how a moving map of the planet's air
-    // came to be reported as missing. The rail is where a reader looks for
-    // something to switch on over the globe. Earth only: on a world that loads
-    // no flow layer there is nothing for the button to do, so it is not built.
-    id: "flow",
-    label: "Flow",
-    title: "Wind and currents",
-    hint: "Wind and ocean currents — live streamlines",
-    when: () => Boolean(window.GeoIDFlow?.add),
-    icon: '<path d="M3 8.5h10.5a2.6 2.6 0 1 0-2.6-2.6" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>'
-      + '<path d="M3 12.5h15a2.8 2.8 0 1 1-2.8 2.8" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>'
-      + '<path d="M3 16.5h6" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>',
-    action: () => window.GeoIDFlowQuick?.toggle?.(),
   },
 ];
 
@@ -961,8 +944,9 @@ input:not([type=range]):not([type=checkbox]):not([type=radio]),
  * behind them where they overlap -- a material laid over the map rather than
  * a wall in front of it. The two containers carry the blur; everything inside
  * them drops to a thinner black so the blurred globe reads through the rows
- * as well as between them. Default theme only, as a test, like the rest of
- * this sheet. Reduced transparency gets the solid black back. */
+ * as well as between them. The events and legend panels, the place pop-ups
+ * and every sub-tab follow (asked for the same day). Default theme only, as a
+ * test, like the rest of this sheet. Reduced transparency gets the solid black back. */
 :root:not([data-skin]) #ui,
 :root:not([data-skin]) #layer-dock {
   background: rgba(0, 0, 0, 0.42) !important;
@@ -976,8 +960,32 @@ input:not([type=range]):not([type=checkbox]):not([type=radio]),
 :root:not([data-skin]) #core-view-section {
   background: rgba(0, 0, 0, 0.32) !important;
 }
+:root:not([data-skin]) .map-legend-panel,
+:root:not([data-skin]) #scene-popup,
+:root:not([data-skin]) #geo-popup {
+  background: rgba(0, 0, 0, 0.42) !important;
+  -webkit-backdrop-filter: blur(14px) saturate(140%);
+  backdrop-filter: blur(14px) saturate(140%);
+}
+/* Every surface INSIDE the glass: clear, or a thin black over it. Selectors
+   match the specificity of the rules they replace (the sub-tab rule further up
+   is #ui + three classes), and sit after them, so they win in place. */
+:root:not([data-skin]) #layer-dock-body,
+:root:not([data-skin]) #layers-tools-host,
+:root:not([data-skin]) #layer-dock .layer-dock-head,
+:root:not([data-skin]) .map-legend-panel .legend-entry-body,
+:root:not([data-skin]) #ui details.control-section[open] > .section-body {
+  background: transparent !important;
+}
+:root:not([data-skin]) #ui .control-section.toolbox-group :is(details.control-section, details.gis-tool-section, .geoid-mode-bar),
+:root:not([data-skin]) #ui details.control-section details.gis-tool-section,
+:root:not([data-skin]) .map-legend-panel .legend-entry {
+  background: rgba(0, 0, 0, 0.32) !important;
+}
 @media (prefers-reduced-transparency: reduce) {
-  :root:not([data-skin]) #ui, :root:not([data-skin]) #layer-dock {
+  :root:not([data-skin]) #ui, :root:not([data-skin]) #layer-dock,
+  :root:not([data-skin]) .map-legend-panel, :root:not([data-skin]) #scene-popup,
+  :root:not([data-skin]) #geo-popup {
     background: rgb(4, 2, 10) !important;
     -webkit-backdrop-filter: none; backdrop-filter: none;
   }

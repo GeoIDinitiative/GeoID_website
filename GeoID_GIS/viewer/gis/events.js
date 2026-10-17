@@ -16,9 +16,9 @@ import {
   gdacsPoints, resolveColour,
   MARKER_LIFT_MAX, liftForAltitude, dotSizePx, zoomGain, MARKER_MAX_PX, isQuake, publisherOf, restoreActive,
   stormCategory, stormScale, stormLabel, STORM_BASE_CAP, markerHitGeometry, nearestHit,
-} from "./event-sources.js?v=20261017-aebca4f";
-import { escapeHtml, safeUrl } from "./escape-html.js?v=20261017-aebca4f";
-import { holdLaunch } from "./launch-ready.js?v=20261017-aebca4f";
+} from "./event-sources.js?v=20261017-e89152e";
+import { escapeHtml, safeUrl } from "./escape-html.js?v=20261017-e89152e";
+import { holdLaunch } from "./launch-ready.js?v=20261017-e89152e";
 
 const API = "https://eonet.gsfc.nasa.gov/api/v3/events";
 
@@ -896,9 +896,17 @@ function wireRows(panel) {
   });
 }
 
-function eventRowHtml(event, symbol) {
-  return `<div class="event-row" data-id="${event.id}" title="${event.title}">
-      ${glyphSpan(symbol)}
+/**
+ * A row under a category heading carries NO glyph: the heading already wears
+ * it, and repeating the same symbol down a list of 165 earthquakes was ink
+ * spent saying nothing -- in a column too narrow to read the names in. The
+ * room goes to the name, set larger (shell.css / styles.css .event-name). The
+ * Live feed keeps its glyphs: it mixes categories, so there the symbol is the
+ * only thing saying which kind each row is. `symbol` stays in the signature
+ * for the callers that pass it.
+ */
+function eventRowHtml(event, symbol) { // eslint-disable-line no-unused-vars
+  return `<div class="event-row is-grouped" data-id="${event.id}" title="${event.title}">
       <span class="event-name">${event.title}</span>
     </div>`;
 }
@@ -2704,8 +2712,8 @@ async function showTrace(event) {
   }
 
   const [plot, { spectrogram }] = await Promise.all([
-    import("./seismogram-plot.js?v=20261017-aebca4f"),
-    import("./research/dsp.js?v=20261017-aebca4f"),
+    import("./seismogram-plot.js?v=20261017-e89152e"),
+    import("./research/dsp.js?v=20261017-e89152e"),
   ]);
   if (stale()) return;
 

@@ -29,15 +29,15 @@
 
 import {
   HOMES, MIRRORS, grouped, addDataset, layerForDataset, loadLaunchDefaults,
-} from "./global-data.js?v=20261017-aebca4f";
-import { isParked } from "./parked.js?v=20261017-aebca4f";
-import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20261017-aebca4f";
-import { holdLaunch } from "./launch-ready.js?v=20261017-aebca4f";
-import { mathsFor } from "./equations.js?v=20261017-aebca4f";
+} from "./global-data.js?v=20261017-e89152e";
+import { isParked } from "./parked.js?v=20261017-e89152e";
+import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20261017-e89152e";
+import { holdLaunch } from "./launch-ready.js?v=20261017-e89152e";
+import { mathsFor } from "./equations.js?v=20261017-e89152e";
 import { bandOf, bandRows, bandSymbology, describeFilter, magOf }
-  from "./seismic-magnitude.js?v=20261017-aebca4f";
+  from "./seismic-magnitude.js?v=20261017-e89152e";
 import { filterVolcanoes, yearRankOf, yearWords, DEFAULT_YEAR_RANK }
-  from "./volcano-filter.js?v=20261017-aebca4f";
+  from "./volcano-filter.js?v=20261017-e89152e";
 
 const byId = (id) => document.getElementById(id);
 
@@ -465,6 +465,31 @@ const TILED = {
    * the TEMP and PRESSURE readouts use, over the view's own grid, so the map
    * and the number under the cursor are one calculation.
    */
+  /**
+   * THE WIND, ON ITS OWN. Atmosphere ▸ Wind vectors holds this one row (with
+   * its level, time, shading and particle controls in the drawer under it),
+   * where it had been the second row of the weather services list and was
+   * reached instead through a rail button that opened a card of its own.
+   */
+  "wind": [{
+    id: "wind-flow",
+    label: "Wind — live streamlines (GFS)",
+    title: "The wind as moving lines over the globe, the way nullschool draws it: NOAA "
+      + "GFS through Open-Meteo, at 10 m or on a pressure level up to the jet stream, "
+      + "now or up to three days ahead. Click the map to read the wind at a point.",
+    info: {
+      summary: "Particles carried by the wind on a lattice fetched over the world and "
+        + "refined over the view, coloured by speed on a ramp anchored to the Beaufort "
+        + "scale, over a shaded sheet of the speed itself. A MODEL's wind at the hour "
+        + "shown — gusts, sea breezes and valley winds below its resolution are not in it.",
+      citation: "NOAA GFS via Open-Meteo (open-meteo.com), CC BY 4.0",
+    },
+    settings: "wind-flow-controls",
+    ready: () => Boolean(window.GeoIDFlow?.add),
+    layerOf: () => window.GeoIDFlow?.layerOf?.("wind") || null,
+    load: () => window.GeoIDFlow.add("wind"),
+    unload: () => window.GeoIDFlow?.remove?.("wind"),
+  }],
   "weather": [{
     id: "forecast-hazards",
     group: "Live fields",
@@ -485,25 +510,6 @@ const TILED = {
     layerOf: () => window.GeoIDFlow?.layerOf?.("hazards") || null,
     load: () => window.GeoIDFlow.add("hazards"),
     unload: () => window.GeoIDFlow?.remove?.("hazards"),
-  }, {
-    id: "wind-flow",
-    group: "Live fields",
-    label: "Wind — live streamlines (GFS)",
-    title: "The wind as moving lines over the globe, the way nullschool draws it: NOAA "
-      + "GFS through Open-Meteo, at 10 m or on a pressure level up to the jet stream, "
-      + "now or up to three days ahead. Click the map to read the wind at a point.",
-    info: {
-      summary: "Particles carried by the wind on a lattice fetched over the world and "
-        + "refined over the view, coloured by speed on a ramp anchored to the Beaufort "
-        + "scale, over a shaded sheet of the speed itself. A MODEL's wind at the hour "
-        + "shown — gusts, sea breezes and valley winds below its resolution are not in it.",
-      citation: "NOAA GFS via Open-Meteo (open-meteo.com), CC BY 4.0",
-    },
-    settings: "wind-flow-controls",
-    ready: () => Boolean(window.GeoIDFlow?.add),
-    layerOf: () => window.GeoIDFlow?.layerOf?.("wind") || null,
-    load: () => window.GeoIDFlow.add("wind"),
-    unload: () => window.GeoIDFlow?.remove?.("wind"),
   }, {
     id: "climate-temperature",
     group: "Climate normals",

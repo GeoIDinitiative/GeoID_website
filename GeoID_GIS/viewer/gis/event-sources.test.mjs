@@ -828,12 +828,13 @@ check("no timestamp gets a sensible middle", recencyOpacity(null, now, day), 0.8
     /background:currentColor;-webkit-mask:/.test(code), true);
   check("and every row goes through it",
     !/event-glyph" style="color:\$\{symbol\.colour\}">\$\{symbol\.glyph\}/.test(code), true);
-  /* Five call sites: four inside templates, one assigned to a variable. The
-     fifth is `sourceRow`, the feed panel's own tick rows -- which drew a
+  /* Four call sites now: the rows under a category heading dropped theirs
+     (the heading carries it -- events.js eventRowHtml). Of the four, the
+     last is `sourceRow`, the feed panel's own tick rows -- which drew a
      literal "●" for every source until the row template was shared with the
      Hazards proxy, so the storm row in Live now wears the cyclone mask too. */
   const spans = (code.match(/glyphSpan\(symbol\)/g) || []).length;
-  check("all five of them", spans - 1, 5);   // less the definition itself
+  check("all four of them", spans - 1, 4);   // less the definition itself
 
   /* The file is an opaque WHITE silhouette on transparency with the eye
      punched out of its alpha, which is why nothing here recolours it: white is
