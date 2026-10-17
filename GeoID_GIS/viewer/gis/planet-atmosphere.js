@@ -25,12 +25,12 @@
  */
 
 import * as THREE from "/GeoID_GIS/viewer/vendor/three.module.js";
-import { currentBodyId } from "./bodies.js?v=20261018-6f942b9";
+import { currentBodyId } from "./bodies.js?v=20261018-e04e41a";
 
 const PROFILES = {
   mercury: null,
   moon: null,
-  venus: { day: [1.0, 0.9, 0.62], dusk: [1.0, 0.62, 0.3], gain: 1.05, tight: 0.05, wide: 0.15, haze: 0.6 },
+  venus: { day: [1.0, 0.9, 0.62], dusk: [1.0, 0.62, 0.3], gain: 0.8, tight: 0.045, wide: 0.13, haze: 0.45 },
   mars: { day: [0.96, 0.64, 0.44], dusk: [0.42, 0.62, 1.0], gain: 0.42, tight: 0.018, wide: 0.06, haze: 0.28 },
   jupiter: { day: [0.92, 0.86, 0.74], dusk: [1.0, 0.62, 0.36], gain: 0.55, tight: 0.025, wide: 0.07, haze: 0.3 },
   saturn: { day: [0.96, 0.86, 0.6], dusk: [1.0, 0.6, 0.32], gain: 0.55, tight: 0.025, wide: 0.07, haze: 0.3 },
@@ -38,7 +38,19 @@ const PROFILES = {
   neptune: { day: [0.34, 0.55, 1.0], dusk: [0.6, 0.6, 1.0], gain: 0.75, tight: 0.03, wide: 0.08, haze: 0.42 },
   pluto: { day: [0.5, 0.7, 1.0], dusk: [0.6, 0.75, 1.0], gain: 0.32, tight: 0.015, wide: 0.05, haze: 0.18 },
 };
-const DAY_LIFT = 0.22;
+/**
+ * SUNLIGHT ON THE SURFACE. A flat lift read as nothing (reported: "the day and
+ * night sides need visualisation ... on the surface itself"), because every
+ * viewer's ambient wash already lights the whole ball. So the lift follows the
+ * sun's angle -- brightest under the sun and rolling off to the terminator,
+ * the way a lit sphere shades -- and beyond the terminator the surface steps
+ * down to NIGHT_LEVEL, so the two halves read apart from orbit. (Earth keeps
+ * its night side as mapped; this is the other worlds' shading.)
+ */
+const DAY_LIFT = 0.6;
+const NIGHT_LEVEL = 0.62;
+// Bright, bare worlds blow out under the full lift; theirs is gentler.
+const LIFT_FOR = { moon: 0.35, mercury: 0.45 };
 
 const VERT = `
   varying vec3 vN;
@@ -102,7 +114,7 @@ function findSun(scene) {
 
 /** The sunlit hemisphere lifted; zero on the night side. Chained onto the
  *  globe material's own onBeforeCompile so a viewer's injections survive. */
-function liftDaySide(THREE, material, sunView) {
+function liftDaySide(THREE, material, sunView, lift = DAY_LIFT) {
   if (!material || material.userData.geoidDayLift) return;
   material.userData.geoidDayLift = true;
   const previous = material.onBeforeCompile;
@@ -116,12 +128,14 @@ function liftDaySide(THREE, material, sunView) {
         "#include <normal_fragment_maps>",
         `#include <normal_fragment_maps>
         {
-          float dayK = smoothstep(-0.06, 0.32, dot(normalize(vNormal), uSunView));
-          diffuseColor.rgb *= 1.0 + ${DAY_LIFT.toFixed(2)} * dayK;
+          float ndl = dot(normalize(vNormal), uSunView);
+          float dayK = smoothstep(-0.08, 0.18, ndl);
+          float lambert = pow(max(ndl, 0.0), 0.75);
+          diffuseColor.rgb *= mix(${NIGHT_LEVEL.toFixed(2)}, 1.0, dayK) * (1.0 + ${lift.toFixed(2)} * lambert);
         }`,
       );
   };
-  material.customProgramCacheKey = () => `${previousKey ? previousKey() : ""}|geoid-day-lift`;
+  material.customProgramCacheKey = () => `${previousKey ? previousKey() : ""}|geoid-day-lift-2`;
   material.needsUpdate = true;
 }
 
@@ -137,7 +151,7 @@ function attach(viewer) {
   const fade = { value: 1 };
   const sun = { value: sunWorld };
 
-  liftDaySide(THREE, globe.material, sunView);
+  liftDaySide(THREE, globe.material, sunView, LIFT_FOR[currentBodyId()] ?? DAY_LIFT);
 
   const layers = [];
   if (profile) {
@@ -200,12 +214,16 @@ function attach(viewer) {
     sunWorld.normalize();
     sunView.copy(sunWorld).transformDirection(cam.matrixWorldInverse);
     if (!layers.length) return;
+    // THE CUTAWAY SHOWS THE INSIDE, so the air goes with the outer skin: a
+    // glow wrapped round a half-sphere read as a lit shell round nothing
+    // (reported on Venus). Every viewer carries the same #core-toggle.
+    const cutaway = Boolean(document.getElementById("core-toggle")?.checked);
     const centre = new THREE.Vector3();
     globe.getWorldPosition(centre);
     const ground = R + relief();
     layers.forEach((mesh) => {
       mesh.position.copy(mesh.parent ? mesh.parent.worldToLocal(centre.clone()) : centre);
-      mesh.visible = globe.visible;
+      mesh.visible = globe.visible && !cutaway;
       if (mesh.material.uniforms.uEdge) {
         const r = ground + R * mesh.userData.thickness;
         mesh.scale.setScalar(r);
@@ -223,12 +241,26 @@ function attach(viewer) {
 }
 
 function start() {
-  if (currentBodyId() === "earth") return;   // Earth's viewer builds its own
+  window.GeoIDAtmosphereState = `start:${currentBodyId()}`;
   let tries = 0;
   const attempt = () => {
+    // Asked each time, not once at import: a planet page can declare its body
+    // after this module has loaded, and a first answer of "earth" is wrong.
+    if (currentBodyId() === "earth") {      // Earth's viewer builds its own
+      if (tries++ < 180) setTimeout(attempt, 1000);
+      return;
+    }
     const viewer = window.GeoIDViewer;
-    if (viewer && attach(viewer)) return;
-    if (tries++ < 60) setTimeout(attempt, 500);
+    try {
+      if (viewer && attach(viewer)) { window.GeoIDAtmosphereState = "attached"; return; }
+      window.GeoIDAtmosphereState = `waiting:${Boolean(viewer?.scene)}/${Boolean(viewer?.globe)}`;
+    } catch (error) {
+      // Recorded rather than thrown: the GIS layer must not fall over for a
+      // glow, and the next attempt may find the scene complete.
+      window.GeoIDAtmosphereError = String(error?.stack || error);
+      console.warn("[GeoID GIS] atmosphere:", error?.message || error);
+    }
+    if (tries++ < 180) setTimeout(attempt, 1000);
   };
   attempt();
 }

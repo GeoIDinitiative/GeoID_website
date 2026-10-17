@@ -14,7 +14,7 @@
  * (`atlas-tools.js`). This only says what was asked.
  */
 
-import { SIZE_WORDS } from "./ash-plume.js?v=20261018-6f942b9";
+import { SIZE_WORDS } from "./ash-plume.js?v=20261018-e04e41a";
 
 /**
  * The tasks a sentence can name, most specific first. Each is a test on the
