@@ -25,8 +25,8 @@ const script = read("scripts/theme.js");
 const css = read("styles/viewer-themes.css");
 
 const ids = [...script.matchAll(/\{ id: "([a-z]+)"/g)].map((m) => m[1]);
-ok("the registry offers the default and six skins",
-  ids.join(",") === "default,crt,pixel,vector,outrun,beige,hud", ids.join(","));
+ok("the registry offers the default and five skins",
+  ids.join(",") === "default,pixel,vector,outrun,beige,hud", ids.join(","));
 
 // Comments quote the ids while explaining them, so the blocks are counted from
 // the SELECTORS — the same reason the shelf-name check strips prose.
@@ -278,7 +278,7 @@ ok("and a received theme is applied without being re-announced",
   const styles = read("GeoID_GIS/viewer/styles.css").replace(/\/\*[\s\S]*?\*\//g, "");
   ok("the row hover is a token, not a violet literal",
     !/190, ?120, ?255|#be78ff/.test(styles) && /--skin-hover-rgb/.test(styles));
-  for (const t of ["crt", "pixel", "vector", "outrun", "beige", "hud"]) {
+  for (const t of ["pixel", "vector", "outrun", "beige", "hud"]) {
     const at = css.indexOf(`:root[data-skin="${t}"] {`);
     const block = css.slice(at, css.indexOf("}", at));
     ok(`${t} gives the row hover its own colour`,
@@ -457,7 +457,7 @@ ok("and a received theme is applied without being re-announced",
   const sound = read("scripts/ui-sound.js");
   const voices = [...sound.matchAll(/^    "?(\w+)"?: \{ hover:/gm)].map((m) => m[1]);
   ok("every theme has a voice, and so does the default",
-    voices.join(",") === "default,crt,pixel,vector,outrun,beige,hud", voices.join(","));
+    voices.join(",") === "default,pixel,vector,outrun,beige,hud", voices.join(","));
   ok("the voice is read from the theme on the root",
     /getAttribute\("data-skin"\)/.test(sound) && /VOICES\[skin\]/.test(sound));
   // The default entry is what this file always played, so a reader on the

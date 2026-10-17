@@ -10,18 +10,18 @@
 // everything below. That is the opposite of three.js renderOrder, so the two are
 // inverted when applied.
 
-import { escapeHtml } from "./escape-html.js?v=20261017-1560483";
-import { bandOf } from "./draw-order.js?v=20261017-1560483";
-import { paintOpacity } from "./layer-opacity.js?v=20261017-1560483";
-import { currentBody } from "./bodies.js?v=20261017-1560483";
-import { samplerToRaster } from "./raster-analysis.js?v=20261017-1560483";
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20261017-1560483";
-import { datasetInfoButton } from "./catalogue-list.js?v=20261017-1560483";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20261017-1560483";
+import { escapeHtml } from "./escape-html.js?v=20261017-6f23fb5";
+import { bandOf } from "./draw-order.js?v=20261017-6f23fb5";
+import { paintOpacity } from "./layer-opacity.js?v=20261017-6f23fb5";
+import { currentBody } from "./bodies.js?v=20261017-6f23fb5";
+import { samplerToRaster } from "./raster-analysis.js?v=20261017-6f23fb5";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20261017-6f23fb5";
+import { datasetInfoButton } from "./catalogue-list.js?v=20261017-6f23fb5";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20261017-6f23fb5";
 import {
   openSymbologyDialog, geometrySummary, geometryKind,
-} from "./symbology-dialog.js?v=20261017-1560483";
-import { tagOf, DATA_TYPES, typeSelect, applyTag, descriptionOf, isUserInput } from "./data-tags.js?v=20261017-1560483";
+} from "./symbology-dialog.js?v=20261017-6f23fb5";
+import { tagOf, DATA_TYPES, typeSelect, applyTag, descriptionOf, isUserInput } from "./data-tags.js?v=20261017-6f23fb5";
 
 /**
  * The row grew a column and gained a tile, and .layer-row is declared twice --
@@ -148,6 +148,26 @@ const STYLE = `
     box-shadow: inset 3px 0 0 var(--tag, rgb(var(--nav-accent-rgb))),
       0 0 12px color-mix(in srgb, var(--tag, rgb(var(--nav-accent-rgb))) 45%, transparent) !important;
   }
+}
+
+/* A ROW IS DRESSED LIKE A TAB. The rows wore their own rounded, flat-filled
+   card in every theme -- the one shape in the sidebar no theme had chosen.
+   mirrorTabLook() copies a real nav tab's corner, ground and label type onto
+   the dock as --wr-* whenever the theme changes, so a square-cornered theme
+   gets square rows, Outrun gets its round ones, and the names set in each
+   theme's own face, tracking and case. Fallbacks are the old look. */
+#layer-dock .layer-stack .layer-row {
+  border-radius: var(--wr-radius, 0.4rem) !important;
+  background-color: var(--wr-bg, rgb(16, 7, 36)) !important;
+  background-image: var(--wr-bgi, none) !important;
+}
+#layer-dock .layer-stack .layer-row .layer-name,
+#layer-dock .layer-stack .layer-row .layer-name-input {
+  font-family: var(--wr-font, inherit) !important;
+  font-weight: var(--wr-weight, inherit) !important;
+  letter-spacing: var(--wr-track, normal) !important;
+  text-transform: var(--wr-case, none) !important;
+  font-size: calc(1em * var(--wr-scale, 1)) !important;
 }
 
 /* ONE TILE, NOT TWO. The layer list sits in #gis-group-layers, which is a
@@ -1895,8 +1915,61 @@ function initDock() {
   }
 }
 
+/**
+ * Copy the nav tabs' look onto the Workspace, as --wr-* on #layer-dock (the
+ * CSS note "A ROW IS DRESSED LIKE A TAB"). Read from a live, closed, unlit tab
+ * rather than from a table per theme: the themes style their tabs through
+ * several sheets and a table would drift the first time one changed. Tracking
+ * is carried in em, so a 16 px label's spacing scales to the row's size.
+ */
+function mirrorTabLook() {
+  const dock = document.getElementById("layer-dock");
+  const tab = [...document.querySelectorAll("#ui details.control-section:not([open]):not(.has-active-data)")]
+    .find((t) => t.offsetParent && t.querySelector(".section-title"));
+  if (!dock || !tab) return false;
+  const frame = getComputedStyle(tab);
+  const label = tab.querySelector(".section-title-row > span:last-child") || tab.querySelector(".section-title");
+  const type = getComputedStyle(label);
+  const size = parseFloat(type.fontSize) || 16;
+  const track = type.letterSpacing === "normal" ? "normal" : `${(parseFloat(type.letterSpacing) / size).toFixed(3)}em`;
+  const set = (k, v) => dock.style.setProperty(k, v);
+  set("--wr-radius", frame.borderTopLeftRadius);
+  set("--wr-bg", frame.backgroundColor);
+  set("--wr-bgi", frame.backgroundImage);
+  set("--wr-font", type.fontFamily);
+  set("--wr-weight", type.fontWeight);
+  set("--wr-track", track);
+  set("--wr-case", type.textTransform);
+  // A WIDE FACE IS SCALED TO THE ROW. The pixel theme's Press Start 2P sets
+  // about twice the width of the body face at one size, and a row has a fixed
+  // name column, so the names are scaled until they set as wide as the row's
+  // own face would -- never up, and never below 0.7 of the row's size.
+  const name = dock.querySelector(".layer-name");
+  if (name) {
+    const ctx = (mirrorTabLook.canvas ||= document.createElement("canvas")).getContext("2d");
+    const sample = "LANDSLIDE SUSCEPTIBILITY";
+    ctx.font = `${type.fontWeight} 20px ${type.fontFamily}`;
+    const wide = ctx.measureText(sample).width;
+    ctx.font = `${getComputedStyle(dock).fontWeight} 20px ${getComputedStyle(dock).fontFamily}`;
+    const base = ctx.measureText(sample).width;
+    set("--wr-scale", wide > 0 ? String(Math.min(1, Math.max(0.7, base / wide))) : "1");
+  }
+  return true;
+}
+
+function watchTheme() {
+  let tries = 0;
+  const attempt = () => { if (!mirrorTabLook() && tries++ < 40) setTimeout(attempt, 500); };
+  attempt();
+  // A theme switch restamps data-skin on the root; its sheets apply on the
+  // next frame, so read after that rather than in the callback.
+  new MutationObserver(() => requestAnimationFrame(() => requestAnimationFrame(mirrorTabLook)))
+    .observe(document.documentElement, { attributes: true, attributeFilter: ["data-skin"] });
+}
+
 function init() {
   injectStyle();
+  watchTheme();
   initDock();
   document.getElementById("metadata-copy")?.addEventListener("click", copyCitations);
   // Reparenting the legend to <body> and opening it on click both moved to

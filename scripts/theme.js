@@ -29,7 +29,6 @@
    */
   var THEMES = [
     { id: "default", name: "GeoHUB", note: "magenta chrome, cyan data" },
-    { id: "crt", name: "CRT terminal", note: "green phosphor and scanlines" },
     { id: "pixel", name: "8-bit pixel", note: "hard bevels, nothing rounded" },
     { id: "vector", name: "Vector glow", note: "black ground, hairline strokes" },
     { id: "outrun", name: "Outrun", note: "violet ground, neon glow" },

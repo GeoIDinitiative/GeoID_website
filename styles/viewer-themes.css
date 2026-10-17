@@ -148,47 +148,6 @@
   font-family: var(--skin-display) !important;
 }
 
-/* ═══ A · CRT TERMINAL ═════════════════════════════════════════════════
-   Green phosphor and scanlines. The mark keeps its own colours — it is the
-   badge on the bezel, not part of the picture — so nothing tints it. */
-:root[data-skin="crt"] {
-  --skin-chrome: #5dff9b;
-  --skin-chrome-rgb: 93, 255, 155;
-  --skin-chrome-ink: #04120a;
-  --skin-data: #ffc447;
-  --skin-data-rgb: 255, 196, 71;
-  --skin-bg: #03070a;
-  --skin-panel: 6, 18, 12;
-  --skin-ink: #b9ffd2;
-  --skin-muted: 122, 214, 158;
-  --skin-vignette: 2, 6, 4;
-  --skin-display: "VT323", monospace;
-  --skin-body: "VT323", monospace;
-  --skin-tab-ground: rgb(4, 12, 8);
-  --skin-card-ground: rgb(7, 20, 13);
-  --skin-clock: #5dff9b;
-  --skin-chip: #5dff9b;
-  --skin-hover-map: #9dffc4;
-  --skin-hover: #9dffc4;
-  --skin-hover-rgb: 157, 255, 196;
-  --skin-hover-ink: #e8fff1;
-}
-/* VT323 is a small face at any given size: without this the whole UI reads
-   a size down from every other theme. */
-:root[data-skin="crt"] body { font-size: 1.06em; letter-spacing: 0.02em; }
-/* The scanlines. One fixed overlay, ignored by the pointer, so it cannot
-   come between a reader and the globe. */
-:root[data-skin="crt"] body::after {
-  content: "";
-  position: fixed; inset: 0; z-index: 9999; pointer-events: none;
-  background: repeating-linear-gradient(rgba(0, 0, 0, 0) 0 2px,
-    rgba(0, 0, 0, 0.22) 2px 3px);
-}
-:root[data-skin="crt"] .control-section,
-:root[data-skin="crt"] .gis-tool-section {
-  border-radius: 0.2rem !important;
-}
-
 /* ═══ B · 8-BIT PIXEL ══════════════════════════════════════════════════
    Hard bevels, no radius anywhere, an NES palette. The most opinionated of
    the five and the one that changes the most beyond colour. */
@@ -605,7 +564,6 @@
 /* Each skin's tab radius, read by the open tab's head and body so their
    fill's corners follow the outline's (styles.css, gis/shell.css). The
    values are the .control-section radii each skin sets above. */
-:root[data-skin="crt"] { --tab-r: 0.2rem; }
 :root[data-skin="pixel"], :root[data-skin="beige"] { --tab-r: 0rem; }
 :root[data-skin="vector"] { --tab-r: 0.15rem; }
 :root[data-skin="outrun"] { --tab-r: 0.55rem; }

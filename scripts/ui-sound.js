@@ -132,7 +132,6 @@
    * The DEFAULT entry is the values this file has always played, so a reader
    * on the GeoHUB theme hears no change at all.
    *
-   *   crt      a soft terminal blip, squared off
    *   pixel    two square steps — the era's hardware could not glide
    *   vector   a clean sine pair, high and airy
    *   outrun   a saw stab with a fifth under it
@@ -142,8 +141,6 @@
   var VOICES = {
     "default": { hover: [2050, 0.032, 0.045, "sine"],
       click: [[1350, 0.055, 0.13, "triangle"], [760, 0.065, 0.09, "square"]] },
-    crt: { hover: [1500, 0.026, 0.035, "square"],
-      click: [[1180, 0.046, 0.10, "square"], [880, 0.05, 0.05, "square"]] },
     pixel: { hover: [1760, 0.022, 0.04, "square"],
       click: [[660, 0.045, 0.12, "square"], [990, 0.05, 0.10, "square"]] },
     vector: { hover: [2400, 0.03, 0.04, "sine"],
