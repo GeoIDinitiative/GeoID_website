@@ -16,7 +16,7 @@ import {
   bgsGeologyToGeoJSON, metRainfallToGeoJSON, CONNECTORS,
   boxSpanDeg, overpassRoadsQuery, overpassRoadsToGeoJSON, ROAD_TIERS,
   assembleRings, relationPolygon, placeNameKey, overpassOutlinesQuery,
-  overpassOutlinesToGeoJSON, OUTLINE_MAX_SPAN,
+  overpassOutlinesToGeoJSON, OUTLINE_MAX_SPAN, clipToBox, NE_URBAN_URL,
 } from "./connectors.js";
 
 let failures = 0;
@@ -337,6 +337,16 @@ try { overpassOutlinesQuery(box(-10, 50, 0, 58)); } catch (e) { outlineBig = e.m
 check("outlines refuse a box wider than their limit", outlineBig.includes(`${OUTLINE_MAX_SPAN}°`));
 check("the outline query starts from the places and asks which boundaries contain them",
   /is_in/.test(overpassOutlinesQuery(box(-3.3, 55.9, -3.1, 56)).query));
+const urban = { type: "FeatureCollection", features: [
+  { type: "Feature", properties: { n: "in" }, geometry: { type: "Polygon", coordinates: [[[1, 1], [2, 1], [2, 2], [1, 1]]] } },
+  { type: "Feature", properties: { n: "edge" }, geometry: { type: "MultiPolygon", coordinates: [[[[9, 9], [12, 9], [12, 12], [9, 9]]]] } },
+  { type: "Feature", properties: { n: "out" }, geometry: { type: "Polygon", coordinates: [[[50, 50], [51, 50], [51, 51], [50, 50]]] } },
+] };
+check("a wide view keeps only the urban areas that touch it",
+  clipToBox(urban, box(0, 0, 10, 10)).features.map((f) => f.properties.n).join() === "in,edge");
+check("no box keeps every urban area", clipToBox(urban, null).features.length === 3);
+check("city outlines load their own source, so a wide view is not an error",
+  typeof CONNECTORS["osm-city-outlines"].load === "function" && /ne_10m_urban_areas/.test(NE_URBAN_URL));
 check("the OSM connectors have stable filenames",
   CONNECTORS["osm-roads"].filename({}) === "osm_roads.geojson"
   && CONNECTORS["osm-city-outlines"].filename({}) === "osm_city_outlines.geojson");

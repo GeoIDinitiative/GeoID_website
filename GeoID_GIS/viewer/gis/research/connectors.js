@@ -19,7 +19,7 @@
  */
 
 import { createLedger, latestGlaciers, pieceAreaKm2 }
-  from "../glacier-outlines.js?v=20261017-43e621f";
+  from "../glacier-outlines.js?v=20261017-412e7b2";
 
 /** N days ago as an ISO date (YYYY-MM-DD). */
 function daysAgoISO(days) {
@@ -746,6 +746,62 @@ function overpassOutlinesUrl({ bbox } = {}) {
   return `https://overpass-api.de/api/interpreter?data=${encodeURIComponent(query)}`;
 }
 
+/** The global urban extents the outlines fall back to over a wide view. */
+export const NE_URBAN_URL = "https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_10m_urban_areas.geojson";
+
+/** A feature's [minLon, minLat, maxLon, maxLat], from every coordinate it has. */
+function featureBox(feature) {
+  let w = Infinity, s = Infinity, e = -Infinity, n = -Infinity;
+  (function walk(c) {
+    if (typeof c?.[0] === "number") {
+      if (c[0] < w) w = c[0];
+      if (c[0] > e) e = c[0];
+      if (c[1] < s) s = c[1];
+      if (c[1] > n) n = c[1];
+    } else if (Array.isArray(c)) c.forEach(walk);
+  })(feature?.geometry?.coordinates);
+  return [w, s, e, n];
+}
+
+/** The features of `fc` that touch `bbox` (all of them when there is no box). */
+export function clipToBox(fc, bbox) {
+  const features = fc?.features || [];
+  if (!bbox) return { type: "FeatureCollection", features };
+  return {
+    type: "FeatureCollection",
+    features: features.filter((f) => {
+      const [w, s, e, n] = featureBox(f);
+      return e >= bbox.minLon && w <= bbox.maxLon && n >= bbox.minLat && s <= bbox.maxLat;
+    }),
+  };
+}
+
+/**
+ * OSM OUTLINES WHERE OVERPASS CAN ANSWER, NATURAL EARTH WHERE IT CANNOT.
+ *
+ * The layer is ticked from the globe, usually at a global view, and over
+ * anything wider than OUTLINE_MAX_SPAN Overpass returns megabytes of county
+ * geometry or times out -- so the layer used to answer only with an error
+ * telling the reader to tick a different layer. Now a wide view draws the
+ * Natural Earth urban extents for the same area, labelled as such, and a view
+ * under the limit draws the settlements' own OSM outlines.
+ */
+async function loadCityOutlines(opts = {}) {
+  const bbox = opts.bbox || null;
+  if (bbox && boxSpanDeg(bbox) <= OUTLINE_MAX_SPAN) {
+    const url = overpassOutlinesUrl(opts);
+    const response = await fetch(url, { headers: { Accept: "application/json" } });
+    if (!response.ok) throw new Error(`OSM city outlines returned HTTP ${response.status}.`);
+    return { geojson: overpassOutlinesToGeoJSON(await response.json()), endpoint: url };
+  }
+  const response = await fetch(NE_URBAN_URL, { headers: { Accept: "application/json" } });
+  if (!response.ok) throw new Error(`Natural Earth urban areas returned HTTP ${response.status}.`);
+  const geojson = clipToBox(await response.json(), bbox);
+  const note = `Natural Earth urban extent — zoom in under ${OUTLINE_MAX_SPAN}° across for OpenStreetMap outlines`;
+  geojson.features.forEach((f) => { f.properties = { ...(f.properties || {}), outline: note }; });
+  return { geojson, endpoint: NE_URBAN_URL };
+}
+
 const SAME_POINT = 1e-7;
 function samePoint(a, b) {
   return Math.abs(a[0] - b[0]) < SAME_POINT && Math.abs(a[1] - b[1]) < SAME_POINT;
@@ -1439,7 +1495,8 @@ export const CONNECTORS = {
   },
   "osm-city-outlines": {
     label: "OSM city outlines",
-    attribution: "© OpenStreetMap contributors (ODbL)",
+    attribution: "© OpenStreetMap contributors (ODbL); Natural Earth (public domain) over wide views",
+    load: loadCityOutlines,
     url: overpassOutlinesUrl,
     toGeoJSON: overpassOutlinesToGeoJSON,
     filename: () => "osm_city_outlines.geojson",

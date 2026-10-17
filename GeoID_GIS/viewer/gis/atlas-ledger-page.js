@@ -19,8 +19,8 @@
 
 import {
   VERIFY, recordFrom, addRecords, dueRecords, verifyEvent, verifyWeather,
-  summarise, reportText, toCsv, eonetEvents, usgsEvents, weatherVars, naiveProbability, verified,
-} from "./atlas-ledger.js?v=20261017-43e621f";
+  summarise, reportText, toCsv, eonetEvents, usgsEvents, weatherVars,
+} from "./atlas-ledger.js?v=20261017-412e7b2";
 
 const KEY = "geoid-gis:atlas-ledger";
 const PROJECT_PATH = "metadata/atlas_ledger.json";
@@ -28,7 +28,6 @@ const HOUR = 3_600_000;
 const DAY = 24 * HOUR;
 const ARCHIVE_LAG = 6 * DAY;
 const EVERY = 30 * 60_000;
-const byId = (id) => document.getElementById(id);
 
 let ledger = load();
 let busy = false;
@@ -46,13 +45,10 @@ function save() {
   const store = window.GeoIDResearch?.store;
   if (store?.getActive?.()) store.writeJson?.(PROJECT_PATH, { kind: "geoid-atlas-ledger", saved: new Date().toISOString(), records: ledger }).catch(() => {});
   window.dispatchEvent(new CustomEvent("geoid-gis:atlas-ledger-changed", { detail: { count: ledger.length } }));
-  render();
 }
 
 function say(text) {
   lastStatus = text;
-  const node = byId("atlas-ledger-status");
-  if (node) node.textContent = text;
 }
 
 /* ── recording ──────────────────────────────────────────────────────────── */
@@ -202,7 +198,7 @@ export async function report(hazard = null) {
 export async function exportCsv() {
   // Through the app's one download path: it files the CSV into an open
   // project and keeps the membership gate on saving.
-  const { downloadText } = await import("./extraction.js?v=20261017-43e621f");
+  const { downloadText } = await import("./extraction.js?v=20261017-412e7b2");
   return downloadText("atlas_verification_ledger.csv", toCsv(ledger), "text/csv");
 }
 
@@ -212,85 +208,15 @@ export function clear() {
   say("The ledger is empty.");
 }
 
-/* ── the card ───────────────────────────────────────────────────────────── */
-
-function drawReliability(canvas, records) {
-  const ctx = canvas?.getContext?.("2d");
-  if (!ctx) return;
-  const w = canvas.width = canvas.clientWidth || 260;
-  const h = canvas.height = 120;
-  ctx.clearRect(0, 0, w, h);
-  const pad = 18;
-  ctx.strokeStyle = "rgba(255,255,255,0.25)";
-  ctx.beginPath(); ctx.moveTo(pad, h - pad); ctx.lineTo(w - 6, 6); ctx.stroke();
-  ctx.fillStyle = "rgba(255,255,255,0.6)";
-  ctx.font = "10px 'Exo 2', sans-serif";
-  ctx.fillText("forecast probability →", pad, h - 4);
-  const v = verified(records);
-  const bins = Array.from({ length: 5 }, () => ({ n: 0, y: 0 }));
-  for (const r of v) {
-    const p = naiveProbability(r.score);
-    const b = bins[Math.min(4, Math.floor(p * 5))];
-    b.n += 1; b.y += r.outcome.observed ? 1 : 0;
-  }
-  ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue("--nav-accent").trim() || "#ff2bd6";
-  bins.forEach((b, i) => {
-    if (!b.n) return;
-    const x = pad + ((i + 0.5) / 5) * (w - pad - 6);
-    const y = h - pad - (b.y / b.n) * (h - pad - 6);
-    ctx.beginPath(); ctx.arc(x, y, Math.min(7, 2 + Math.sqrt(b.n)), 0, Math.PI * 2); ctx.fill();
-  });
-}
-
-function render() {
-  const out = byId("atlas-ledger-summary");
-  if (!out) return;
-  const a = summarise(ledger).all;
-  out.textContent = a.recorded
-    ? `${a.recorded} forecast${a.recorded === 1 ? "" : "s"} recorded, ${a.n} verified, ${a.pending} waiting.`
-      + (a.n ? ` Hits ${a.hits}, misses ${a.misses}, false alarms ${a.falseAlarms}.` : "")
-    : "No forecasts recorded yet — compute the total risk for a place and its readings land here.";
-  drawReliability(byId("atlas-ledger-reliability"), ledger);
-}
-
-function buildCard() {
-  const host = byId("hazards-mygeoid-host");
-  if (!host || byId("atlas-ledger-card")) return Boolean(host);
-  const card = document.createElement("details");
-  card.className = "gis-tool-section";
-  card.id = "atlas-ledger-card";
-  card.innerHTML = `
-    <summary>How well the models have done</summary>
-    <div class="gis-tool-body">
-      <p class="compact-copy">Every total-risk reading is kept and checked against what happened once its window has passed:
-        the weather against the recorded weather, the events against NASA EONET and the USGS catalogue.</p>
-      <div id="atlas-ledger-summary" class="gis-metric"></div>
-      <canvas id="atlas-ledger-reliability" style="width:100%;height:120px" aria-label="Reliability: how often the event happened at each forecast probability"></canvas>
-      <div class="gis-btn-row">
-        <button id="atlas-ledger-verify" class="button primary" type="button">Verify now</button>
-        <button id="atlas-ledger-csv" class="button secondary" type="button">Export CSV</button>
-        <button id="atlas-ledger-clear" class="button secondary" type="button">Clear</button>
-      </div>
-      <div id="atlas-ledger-status" class="gis-metric"></div>
-    </div>`;
-  const after = byId("total-risk-card");
-  if (after?.parentNode === host) after.after(card); else host.appendChild(card);
-  byId("atlas-ledger-verify").addEventListener("click", () => void verify());
-  byId("atlas-ledger-csv").addEventListener("click", () => void exportCsv());
-  byId("atlas-ledger-clear").addEventListener("click", () => {
-    if (window.confirm("Clear every recorded forecast and its outcome from this browser?")) clear();
-  });
-  card.addEventListener("toggle", () => { if (card.open) render(); });
-  if (lastStatus) say(lastStatus);
-  render();
-  return true;
-}
+/* ── no card ───────────────────────────────────────────────────────────────
+ * The ledger had its own "How well the models have done" card under the
+ * total-risk card. It was removed as redundant (2026-10-17): the ledger still
+ * records and verifies in the background, and the assistant's verification
+ * tool (window.GeoIDAtlasLedger) is how it is read.
+ */
 
 if (typeof window !== "undefined" && typeof window.addEventListener === "function") {
   window.addEventListener("geoid-gis:total-risk-computed", (e) => { record(e.detail || {}); });
-  let tries = 0;
-  const attempt = () => { if (!buildCard() && (tries += 1) < 60) setTimeout(attempt, 500); };
-  attempt();
   setTimeout(() => void verify(), 5000);
   setInterval(() => void verify(), EVERY);
   window.GeoIDAtlasLedger = { record, verify, report, stats, exportCsv, clear, ledger: () => ledger };
