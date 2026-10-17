@@ -34,6 +34,8 @@
 
 const STAMP = new URL(import.meta.url).search || "";
 const ENDPOINT_KEY = "geoid-gis:atlas-endpoint";
+/** The "…" bubble of the answer being worked on, so a long run can say where it is. */
+let statusNode = null;
 const byId = (id) => document.getElementById(id);
 
 let panel = null;
@@ -84,6 +86,10 @@ async function appContext() {
       bits.push("project: none open");
     }
   } catch (error) { /* context is best-effort */ }
+  try {
+    const { toolPrompt } = await import(`./atlas-tools.js${STAMP}`);
+    bits.push("", toolPrompt());
+  } catch (error) { /* a model without tools still answers */ }
   return bits.join("\n");
 }
 
@@ -392,6 +398,34 @@ async function grounded(question) {
           : "For open-ended questions I need a model: connect an Atlas hub and I'll use it."),
       actions: [["What should I do next?", () => submit("what should I do next?")]],
     };
+  }
+
+  // A request to RUN a model — "model a small ashfall from Etna at 4pm today".
+  // Read into a task, a place, a size and a time (atlas-intent.js), turned into
+  // a call on the tool registry (atlas-tools.js) and run (atlas-runner.js):
+  // the same registry a connected model is shown, so a phrase and a model
+  // reach exactly the same tools.
+  if (/\b(ash|plume|tephra)\b/.test(q) && /\b3d\b|three.?d|in the air\b/.test(q) && !/\b(erupt|vei|small|large)\b/.test(q)) {
+    const { runTool } = await import(`./atlas-runner.js${STAMP}`);
+    return runTool("ash3d", {});
+  }
+  {
+    const [{ readIntent }, { callFromIntent }] = await Promise.all([
+      import(`./atlas-intent.js${STAMP}`), import(`./atlas-tools.js${STAMP}`),
+    ]);
+    const intent = readIntent(question, { zoneOffsetMin: -new Date().getTimezoneOffset() });
+    const call = callFromIntent(intent);
+    if (call) {
+      const { runTool } = await import(`./atlas-runner.js${STAMP}`);
+      const heard = intent.task === "ashfall"
+        ? `Reading that as: ash from **${intent.place || "?"}**, VEI ${call.args.vei}, starting ${new Date(intent.time.ms).toUTCString().replace(/:00 GMT$/, " UTC")} (“${intent.time.said}”).\n\n`
+        : "";
+      if (intent.task === "ashfall" && !intent.place) {
+        return { text: "Which volcano? Say “model ash from Etna at 4pm today”.", actions: [] };
+      }
+      const answer = await runTool(call.name, call.args, { onStatus: (m) => { if (statusNode) statusNode.textContent = m; } });
+      return { text: heard + answer.text, actions: answer.actions || [] };
+    }
   }
 
   // "Build a volcano with a chamber" -- the Meshing Studio's own text box
@@ -718,6 +752,7 @@ async function submit(text) {
   bubble("user", question);
   inputNode.value = "";
   const thinking = bubble("atlas", "…");
+  statusNode = thinking;
   try {
     const answer = await grounded(question);
     if (answer) {
@@ -739,6 +774,21 @@ async function submit(text) {
       return;
     }
     const reply = await askModel(question);
+    // A model may answer with a TOOL line; the registry decides whether it
+    // names a tool and whether its arguments pass, so nothing a model writes
+    // runs unchecked.
+    const { parseToolCall } = await import(`./atlas-tools.js${STAMP}`);
+    const call = parseToolCall(reply.text);
+    if (call) {
+      thinking.textContent = call.before || "…";
+      const { runTool } = await import(`./atlas-runner.js${STAMP}`);
+      const answer = await runTool(call.name, call.args, { onStatus: (m) => { thinking.textContent = m; } });
+      thinking.remove();
+      if (call.before) bubble("atlas", call.before);
+      bubble("atlas", answer.text);
+      if (answer.actions?.length) actionRow(answer.actions);
+      return;
+    }
     thinking.remove();
     bubble("atlas", reply.text || "The hub returned nothing.");
   } catch (error) {
