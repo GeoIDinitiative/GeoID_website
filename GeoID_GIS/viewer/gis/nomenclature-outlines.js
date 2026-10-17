@@ -46,11 +46,11 @@
  *     a crater on Io. The satellites' own seam, for the same reason.
  */
 import * as THREE from "../vendor/three.module.js";
-import { dataUrl } from "./data-base.js?v=20261017-2aa9da4";
-import { currentBodyId, getBody } from "./bodies.js?v=20261017-2aa9da4";
-import { latLonToVector3 } from "./geo-utils.js?v=20261017-2aa9da4";
-import { pointInPolygon } from "./geometry.js?v=20261017-2aa9da4";
-import { paintByField } from "./symbology-dialog.js?v=20261017-2aa9da4";
+import { dataUrl } from "./data-base.js?v=20261017-5b7fa73";
+import { currentBodyId, getBody } from "./bodies.js?v=20261017-5b7fa73";
+import { latLonToVector3 } from "./geo-utils.js?v=20261017-5b7fa73";
+import { pointInPolygon } from "./geometry.js?v=20261017-5b7fa73";
+import { paintByField } from "./symbology-dialog.js?v=20261017-5b7fa73";
 
 export const OUTLINE_BODIES = {
   moon: { path: "/data/global/nomenclature/moon.geojson", name: "Moon" },

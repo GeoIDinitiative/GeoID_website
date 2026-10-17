@@ -38,7 +38,7 @@
  */
 const SHELF_NAMES = { geoprocess: "Geoprocessing", analysis: "Analysis" };
 
-import { isParked } from "./parked.js?v=20261017-2aa9da4";
+import { isParked } from "./parked.js?v=20261017-5b7fa73";
 const PANELS = [
   {
     id: "preprocess",
@@ -631,6 +631,72 @@ body.viewer-page button:not(.gis-catalogue-info-btn):not(#info-btn):not(.planet-
 /* Cards and the tool sections take the game's ground. */
 .gis-tool-section, #tour-mode-section, #search-section, #locations-section, #core-view-section {
   background: rgba(13, 2, 33, 0.82) !important;
+}
+
+/* ── ONE tab, ONE sub-tab, ONE gap ───────────────────────────────────────────
+ *
+ * Asked for: every tab and sub-tab formatted the same, evenly spaced. Measured
+ * on Earth and Mars (2026-10-17), what differed:
+ *   - gaps: 8 px between tabs, 10.4 between sub-tabs, 0 where a host holding
+ *     sub-tabs is a plain block (Satellites against Air and sea traffic; the
+ *     myGeoID row against Total risk), 57.5 where that row sat first;
+ *   - heads: 39.4 px, but 40.7 wherever an Enter button rode in the head
+ *     (Tour Mode, Explorer Models, Flight Simulator, Moon Viewer) and 45.1 for
+ *     the myGeoID row, which is a full tab nested inside Hazards;
+ *   - shape and ground: control-section sub-tabs kept the level-2 card's
+ *     rounding and lighter ground, the tool-section ones went square, and six
+ *     wore a white hairline where the rest wear the accent.
+ * So: any container whose own children are tabs is a grid with one gap; every
+ * sub-tab (whatever class built it, at whatever depth) is the same box with a
+ * fixed head; tabs keep their own fixed head. #ui in each selector so these
+ * outrank the level-2 rules above, which are !important too. */
+#ui {
+  --tab-gap: 0.5rem;
+  --tab-head: 2.75rem;
+  --subtab-head: 2.5rem;
+}
+#ui :is(div, section):has(> :is(details.control-section, details.gis-tool-section, .geoid-mode-bar)) {
+  display: grid !important;
+  gap: var(--tab-gap) !important;
+  align-content: start;
+}
+#ui :is(details.control-section, details.gis-tool-section, .geoid-mode-bar) {
+  margin: 0 !important;
+}
+#ui .control-section.toolbox-group :is(details.control-section, details.gis-tool-section, .geoid-mode-bar) {
+  border-radius: 0 !important;
+  border: 1px solid rgba(var(--nav-accent-rgb), 0.32) !important;
+  background: rgba(13, 2, 33, 0.82) !important;
+  box-shadow: none !important;
+}
+#ui .control-section.toolbox-group :is(details.control-section, details.gis-tool-section, .geoid-mode-bar):hover,
+#ui .control-section.toolbox-group :is(details.control-section, details.gis-tool-section, .geoid-mode-bar):focus-within {
+  border-color: rgb(var(--nav-accent-rgb)) !important;
+  box-shadow: 0 0 14px rgba(var(--nav-accent-rgb), 0.4) !important;
+}
+#ui .control-section.toolbox-group :is(details.control-section, details.gis-tool-section, .geoid-mode-bar) > :is(summary, .section-toggle) {
+  box-sizing: border-box !important;
+  min-height: var(--subtab-head) !important;
+  height: var(--subtab-head) !important;
+  padding-block: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  border-radius: 0 !important;
+}
+/* The tabs themselves: one head height, the GeoID bar included. */
+#ui > * .control-section.toolbox-group:not(.control-section.toolbox-group .control-section.toolbox-group) > .section-toggle,
+#ui .control-section.toolbox-group:not(.control-section.toolbox-group .control-section.toolbox-group) > .section-toggle {
+  box-sizing: border-box !important;
+  min-height: var(--tab-head) !important;
+  height: var(--tab-head) !important;
+  padding-block: 0 !important;
+}
+/* An Enter button in a head sized the head; it now fits inside it. */
+#ui .section-toggle .section-toggle-controls button,
+#ui summary .section-toggle-controls button {
+  padding: 0.2rem 0.55rem !important;
+  line-height: 1.1 !important;
+  min-height: 0 !important;
 }
 
 /* ── Level 2 IS the tool card, verbatim ─────────────────────────────────
