@@ -10,18 +10,18 @@
 // everything below. That is the opposite of three.js renderOrder, so the two are
 // inverted when applied.
 
-import { escapeHtml } from "./escape-html.js?v=20261017-2a1e37f";
-import { bandOf } from "./draw-order.js?v=20261017-2a1e37f";
-import { paintOpacity } from "./layer-opacity.js?v=20261017-2a1e37f";
-import { currentBody } from "./bodies.js?v=20261017-2a1e37f";
-import { samplerToRaster } from "./raster-analysis.js?v=20261017-2a1e37f";
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20261017-2a1e37f";
-import { datasetInfoButton } from "./catalogue-list.js?v=20261017-2a1e37f";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20261017-2a1e37f";
+import { escapeHtml } from "./escape-html.js?v=20261017-1560483";
+import { bandOf } from "./draw-order.js?v=20261017-1560483";
+import { paintOpacity } from "./layer-opacity.js?v=20261017-1560483";
+import { currentBody } from "./bodies.js?v=20261017-1560483";
+import { samplerToRaster } from "./raster-analysis.js?v=20261017-1560483";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20261017-1560483";
+import { datasetInfoButton } from "./catalogue-list.js?v=20261017-1560483";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20261017-1560483";
 import {
   openSymbologyDialog, geometrySummary, geometryKind,
-} from "./symbology-dialog.js?v=20261017-2a1e37f";
-import { tagOf, DATA_TYPES, typeSelect, applyTag, descriptionOf, isUserInput } from "./data-tags.js?v=20261017-2a1e37f";
+} from "./symbology-dialog.js?v=20261017-1560483";
+import { tagOf, DATA_TYPES, typeSelect, applyTag, descriptionOf, isUserInput } from "./data-tags.js?v=20261017-1560483";
 
 /**
  * The row grew a column and gained a tile, and .layer-row is declared twice --
@@ -136,14 +136,17 @@ const STYLE = `
    data draws its bookmark bar in (section-activity.js). The tag's name rides on
    the name's tooltip. Rows without a tag (the pinned labels row) keep the
    accent. color-mix keeps the hex colours and var(--skin-data) alike. */
-.layer-stack .layer-row {
+#layer-dock .layer-stack .layer-row {
   border-color: color-mix(in srgb, var(--tag, rgb(var(--nav-accent-rgb))) 70%, transparent) !important;
+  border-left-color: var(--tag, rgb(var(--nav-accent-rgb))) !important;
+  box-shadow: inset 3px 0 0 var(--tag, rgb(var(--nav-accent-rgb))) !important;
   transition: border-color 160ms ease, box-shadow 160ms ease;
 }
 @media (hover: hover) and (pointer: fine) {
-  .layer-stack .layer-row:hover {
+  #layer-dock .layer-stack .layer-row:hover {
     border-color: var(--tag, rgb(var(--nav-accent-rgb))) !important;
-    box-shadow: 0 0 12px color-mix(in srgb, var(--tag, rgb(var(--nav-accent-rgb))) 45%, transparent) !important;
+    box-shadow: inset 3px 0 0 var(--tag, rgb(var(--nav-accent-rgb))),
+      0 0 12px color-mix(in srgb, var(--tag, rgb(var(--nav-accent-rgb))) 45%, transparent) !important;
   }
 }
 
