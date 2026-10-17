@@ -10,18 +10,18 @@
 // everything below. That is the opposite of three.js renderOrder, so the two are
 // inverted when applied.
 
-import { escapeHtml } from "./escape-html.js?v=20261017-61f076b";
-import { bandOf } from "./draw-order.js?v=20261017-61f076b";
-import { paintOpacity } from "./layer-opacity.js?v=20261017-61f076b";
-import { currentBody } from "./bodies.js?v=20261017-61f076b";
-import { samplerToRaster } from "./raster-analysis.js?v=20261017-61f076b";
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20261017-61f076b";
-import { datasetInfoButton } from "./catalogue-list.js?v=20261017-61f076b";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20261017-61f076b";
+import { escapeHtml } from "./escape-html.js?v=20261017-f1cb73e";
+import { bandOf } from "./draw-order.js?v=20261017-f1cb73e";
+import { paintOpacity } from "./layer-opacity.js?v=20261017-f1cb73e";
+import { currentBody } from "./bodies.js?v=20261017-f1cb73e";
+import { samplerToRaster } from "./raster-analysis.js?v=20261017-f1cb73e";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20261017-f1cb73e";
+import { datasetInfoButton } from "./catalogue-list.js?v=20261017-f1cb73e";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20261017-f1cb73e";
 import {
   openSymbologyDialog, geometrySummary, geometryKind,
-} from "./symbology-dialog.js?v=20261017-61f076b";
-import { chipHtml, typeSelect, applyTag, descriptionOf, isUserInput } from "./data-tags.js?v=20261017-61f076b";
+} from "./symbology-dialog.js?v=20261017-f1cb73e";
+import { chipHtml, typeSelect, applyTag, descriptionOf, isUserInput } from "./data-tags.js?v=20261017-f1cb73e";
 
 /**
  * The row grew a column and gained a tile, and .layer-row is declared twice --

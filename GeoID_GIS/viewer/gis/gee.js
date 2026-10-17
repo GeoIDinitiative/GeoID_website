@@ -10,26 +10,26 @@
 // its own opacity and draw order, is listed in the legend, and carries its
 // source and licence into the metadata panel like anything else imported.
 
-import { escapeHtml } from "./escape-html.js?v=20261017-61f076b";
-import { attachReliefAttributes, attachExactReliefAttributes, followRelief } from "./vector-render.js?v=20261017-61f076b";
-import { latLonToVector3, drapedRadius } from "./geo-utils.js?v=20261017-61f076b";
-import { geeSamplerFromImage, columnName } from "./gee-sample.js?v=20261017-61f076b";
+import { escapeHtml } from "./escape-html.js?v=20261017-f1cb73e";
+import { attachReliefAttributes, attachExactReliefAttributes, followRelief } from "./vector-render.js?v=20261017-f1cb73e";
+import { latLonToVector3, drapedRadius } from "./geo-utils.js?v=20261017-f1cb73e";
+import { geeSamplerFromImage, columnName } from "./gee-sample.js?v=20261017-f1cb73e";
 import { visibleBounds, viewChangedEnough, onViewSettled }
-  from "./view-extent.js?v=20261017-61f076b";
+  from "./view-extent.js?v=20261017-f1cb73e";
 import {
   resolvePolygonExtent, refreshPolygonOptions, promptDrawTool, drawnOverlayBounds,
   persistExtent,
-} from "./extent-picker.js?v=20261017-61f076b";
-import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20261017-61f076b";
+} from "./extent-picker.js?v=20261017-f1cb73e";
+import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20261017-f1cb73e";
 import {
   // Aliased: this module already has a `loadCatalogue`, which fills the
   // dropdown from the SERVICE. Two catalogues, and the names have to say so.
   loadCatalogue as loadGeeCatalogue,
   catalogueReady, searchCatalogue, categories, datasetById, describeDataset,
   freshness, isNewDataset, isExtendedDataset, indexedHrefs, bakedOn,
-} from "./gee-catalogue-index.js?v=20261017-61f076b";
-import { checkCatalogue, describeCheck } from "./gee-watch.js?v=20261017-61f076b";
-import { may, refusal, dataPass } from "./membership.js?v=20261017-61f076b";
+} from "./gee-catalogue-index.js?v=20261017-f1cb73e";
+import { checkCatalogue, describeCheck } from "./gee-watch.js?v=20261017-f1cb73e";
+import { may, refusal, dataPass } from "./membership.js?v=20261017-f1cb73e";
 
 // The page's own stamp. A dynamic import under any other query is a SECOND
 // module instance with its own state — the trap that made a stopped player

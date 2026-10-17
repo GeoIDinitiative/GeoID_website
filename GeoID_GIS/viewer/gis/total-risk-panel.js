@@ -28,7 +28,7 @@ import {
   weatherTerms, cycloneTerm, aftershockTerm, proximityTerm, fosTerm, backgroundTerm,
   combine, combineInTime, combineEnsemble, floodTerm, mainDangerSentence, DEFAULT_WEIGHTS, distanceKm,
   ensembleMembers, seawardBearing, waveTerm, ashTerm, peopleWithin, exposureClass, hazardLevel, riskMatrix,
-} from "./total-risk.js?v=20261017-61f076b";
+} from "./total-risk.js?v=20261017-f1cb73e";
 
 const byId = (id) => document.getElementById(id);
 const WEIGHTS_KEY = "geoid-gis:total-risk-weights";
@@ -458,6 +458,11 @@ export async function compute() {
   try {
     const { terms, memberTerms, shared, missing, nowMs, people, coast } = await gather(place, horizon);
     last = { terms, memberTerms, shared, missing, place, horizon, nowMs, people, coast };
+    // The verification ledger (atlas-ledger-page.js) records each reading it
+    // can check once the window has passed.
+    if (typeof window.dispatchEvent === "function") {
+      window.dispatchEvent(new CustomEvent("geoid-gis:total-risk-computed", { detail: { terms, place, nowMs, horizon } }));
+    }
     render();
     say(`${terms.length} model reading${terms.length === 1 ? "" : "s"} combined.`);
     return memberTerms.length > 1

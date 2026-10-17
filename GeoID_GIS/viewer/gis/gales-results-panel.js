@@ -30,15 +30,15 @@ import {
   exposedFaces, thresholdKeep, keptTriangles,
   flagSummary, stationsForFlag, nodeLocator, specPoints, parsePointList, stationCsvFiles,
   groupResultFiles, timeOf, referencePlan, differenceOf, DERIVED_DOFS,
-} from "./gales-results.js?v=20261017-61f076b";
-import { zipStore } from "./shapefile-writer.js?v=20261017-61f076b";
-import { fieldArrays, pvdText, vtkCells, vtuParts } from "./vtk-export.js?v=20261017-61f076b";
-import { parse as parseExpression, namesIn, variableTable, evaluate as evaluateExpression } from "./field-calculator.js?v=20261017-61f076b";
-import { parseSolidProps } from "./strain-stress.js?v=20261017-61f076b";
-import { vtkHead, readVtkGrid, parsePvd, vtkFieldName } from "./vtk-read.js?v=20261017-61f076b";
-import { PLATFORMS, DEFAULT_GEOMETRY, losVector, losDisplacement, wrapFringes, fringeCount, fringesPerEdge, FRINGE_MAP } from "./insar.js?v=20261017-61f076b";
-import { may, refusal } from "./membership.js?v=20261017-61f076b";
-import { downloadText } from "./extraction.js?v=20261017-61f076b";
+} from "./gales-results.js?v=20261017-f1cb73e";
+import { zipStore } from "./shapefile-writer.js?v=20261017-f1cb73e";
+import { fieldArrays, pvdText, vtkCells, vtuParts } from "./vtk-export.js?v=20261017-f1cb73e";
+import { parse as parseExpression, namesIn, variableTable, evaluate as evaluateExpression } from "./field-calculator.js?v=20261017-f1cb73e";
+import { parseSolidProps } from "./strain-stress.js?v=20261017-f1cb73e";
+import { vtkHead, readVtkGrid, parsePvd, vtkFieldName } from "./vtk-read.js?v=20261017-f1cb73e";
+import { PLATFORMS, DEFAULT_GEOMETRY, losVector, losDisplacement, wrapFringes, fringeCount, fringesPerEdge, FRINGE_MAP } from "./insar.js?v=20261017-f1cb73e";
+import { may, refusal } from "./membership.js?v=20261017-f1cb73e";
+import { downloadText } from "./extraction.js?v=20261017-f1cb73e";
 
 const VERSION = new URL(import.meta.url).search;
 const MODEL_TO_SCENE = new THREE.Matrix4().makeRotationX(-Math.PI / 2);

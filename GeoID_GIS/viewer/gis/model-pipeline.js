@@ -2,31 +2,31 @@ import {
   buildSurface, planGrid, surfaceStl, domainStl, stlStats,
   gmshScript, femSpec, makeLocalFrame, DEFAULT_MATERIALS,
   nativeStepM, sizeField, structuredFieldText, DEFAULT_FLAGS, atmosphereStl, DEFAULT_MAX_NODES, triangleWriter,
-} from "./model-build.js?v=20261017-61f076b";
-import { ringsFromCollection } from "./extraction.js?v=20261017-61f076b";
+} from "./model-build.js?v=20261017-f1cb73e";
+import { ringsFromCollection } from "./extraction.js?v=20261017-f1cb73e";
 import {
   buildTin, tinHeightAt, tinSurfaceStl, tinShellStl, samplingSizeField,
   extendBoundary, extendedBoundaryLines, gridAsTin, shellFacets,
-} from "./surface-sampling.js?v=20261017-61f076b";
-import { renderFeatureCollection } from "./vector-render.js?v=20261017-61f076b";
-import { promptDrawTool } from "./extent-picker.js?v=20261017-61f076b";
+} from "./surface-sampling.js?v=20261017-f1cb73e";
+import { renderFeatureCollection } from "./vector-render.js?v=20261017-f1cb73e";
+import { promptDrawTool } from "./extent-picker.js?v=20261017-f1cb73e";
 import {
   profileAlong, profileHeightAt, sectionPolygons, sectionPositions, sectionGmshScript, profileCsv,
-} from "./section-model.js?v=20261017-61f076b";
-import { defaultField, describeField, FIELD_TYPES, smallestSize } from "./mesh-size-fields.js?v=20261017-61f076b";
+} from "./section-model.js?v=20261017-f1cb73e";
+import { defaultField, describeField, FIELD_TYPES, smallestSize } from "./mesh-size-fields.js?v=20261017-f1cb73e";
 import {
   layerHeights, layeredVolumes, REGOLITH_ON_ROCK_M, facetsStlByFace, layeredGmshScript, thinLayerSizeM, tinWith, LAYER_FLAGS, facetsClosed,
   facetsVolume, facetsArea, estimateElements, estimateSentence,
-} from "./layered-model.js?v=20261017-61f076b";
-import { waterMasks, waterFeatures } from "./water-mask.js?v=20261017-61f076b";
-import { bathymetryGrid, gridAt } from "./bathymetry.js?v=20261017-61f076b";
-import { burnRivers } from "./river-zones.js?v=20261017-61f076b";
+} from "./layered-model.js?v=20261017-f1cb73e";
+import { waterMasks, waterFeatures } from "./water-mask.js?v=20261017-f1cb73e";
+import { bathymetryGrid, gridAt } from "./bathymetry.js?v=20261017-f1cb73e";
+import { burnRivers } from "./river-zones.js?v=20261017-f1cb73e";
 import {
   linesFromCollection, hasLines, faultPlane, faultDefaultsFrom, nonCrossing, faultsStl, bearingDeg, traceLength,
   clipTraceToBox, FAULT_FLAG_BASE, slug as faultSlug,
-} from "./fault-planes.js?v=20261017-61f076b";
-import { describeQuery, openReader, sampleAtNodes, fieldCsv, slugOf, syncReader } from "./layer-query.js?v=20261017-61f076b";
-import { loadRockProperties, resolveLithology } from "./rock-properties.js?v=20261017-61f076b";
+} from "./fault-planes.js?v=20261017-f1cb73e";
+import { describeQuery, openReader, sampleAtNodes, fieldCsv, slugOf, syncReader } from "./layer-query.js?v=20261017-f1cb73e";
+import { loadRockProperties, resolveLithology } from "./rock-properties.js?v=20261017-f1cb73e";
 
 /**
  * The Model Builder tab: the GIS study area becomes a meshable domain.

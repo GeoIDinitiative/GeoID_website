@@ -405,6 +405,14 @@ async function grounded(question) {
   // a call on the tool registry (atlas-tools.js) and run (atlas-runner.js):
   // the same registry a connected model is shown, so a phrase and a model
   // reach exactly the same tools.
+  // "How well have the models done?" -- the verification ledger, answered
+  // by the same tool a connected model is offered.
+  if (/\b(verif\w*|ledger|how (well|accurate|good)|accuracy|calibrat\w*|error distribution|false alarms?|hit rate|skill)\b/.test(q)
+    && !/\b(watch|project)\b/.test(q)) {
+    const { runTool } = await import(`./atlas-runner.js${STAMP}`);
+    const hazard = (q.match(/\b(rain|snow|gusts?|wind|heat|cold|cape|thunder\w*|fire weather|cyclones?|hurricanes?|floods?|landslides?|eruptions?|ash|wildfires?|aftershocks?|earthquakes?)\b/) || [])[1] || null;
+    return runTool("verification", hazard ? { hazard } : {});
+  }
   if (/\b(ash|plume|tephra)\b/.test(q) && /\b3d\b|three.?d|in the air\b/.test(q) && !/\b(erupt|vei|small|large)\b/.test(q)) {
     const { runTool } = await import(`./atlas-runner.js${STAMP}`);
     return runTool("ash3d", {});
