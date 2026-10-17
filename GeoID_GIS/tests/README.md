@@ -18,6 +18,20 @@ Add a test by dropping a `*.test.mjs` anywhere under `viewer/`; the runner finds
 it with no registration. A test file is a standalone script that prints
 `PASS`/`FAIL` lines and exits non-zero on failure.
 
+**On a fresh checkout, fetch the data first.** A few tests check the datasets
+themselves (bounds, tile pyramids, outlines, the Earth Engine catalogue), and
+`data/global` is gitignored: it is baked locally and published to the bucket.
+
+```bash
+python3 GeoID_GIS/tests/fetch-test-data.py
+npm ci --prefix GeoID_GIS/services/gee-tiles
+```
+
+The first puts back the files in `test-data.txt` from what is published,
+verifying each against `sources.json` or its pyramid manifest; CI runs it before
+the suite. If a test starts reading another data file, rebuild the list with
+`fetch-test-data.py --record` on a machine that has the data.
+
 ## Smoke test — every page still mounts
 
 ```bash
