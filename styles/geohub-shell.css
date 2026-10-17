@@ -550,3 +550,26 @@ body::after {
 /* A little breathing room so the first row never sits flush against the
    strip's lower edge. */
 .hub-drawer-inner { padding-top: 1.15rem !important; }
+
+/* ── The Frontier skin, header half ─────────────────────────────────────────
+ * The viewers below wear Frontier Pioneer's title-screen chrome (square
+ * corners, magenta hairlines, one lit pick: GeoID_GIS/viewer/gis/side-panels.js).
+ * The mode bar up here is GeoHUB's, so it is squared here rather than in
+ * site-nav.css, where it would change every other page's header too. */
+.site-nav .nav-modebar-modes {
+  border-radius: 0;
+  border-color: rgba(255, 62, 200, 0.32);
+  background: rgba(13, 2, 33, 0.7);
+}
+.site-nav .nav-modebar-pill { border-radius: 0; }
+.site-nav .nav-modebar-pill.is-active { box-shadow: 0 0 14px rgba(255, 62, 200, 0.45); }
+.site-nav .nav-modebar-icon {
+  border-radius: 0;
+  border-color: rgba(255, 62, 200, 0.32);
+  background: rgba(13, 2, 33, 0.7);
+}
+.site-nav .nav-modebar-icon:hover,
+.site-nav .nav-modebar-pill:not(.is-active):hover {
+  border-color: rgb(255, 62, 200);
+  box-shadow: 0 0 14px rgba(255, 62, 200, 0.4);
+}

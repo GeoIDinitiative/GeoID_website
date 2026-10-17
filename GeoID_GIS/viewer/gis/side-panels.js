@@ -38,7 +38,7 @@
  */
 const SHELF_NAMES = { geoprocess: "Geoprocessing", analysis: "Analysis" };
 
-import { isParked } from "./parked.js?v=20261017-90ae10c";
+import { isParked } from "./parked.js?v=20261017-2aa9da4";
 const PANELS = [
   {
     id: "preprocess",
@@ -578,6 +578,59 @@ body[data-hub-armed="true"] .map-legend {
     0 0 22px -2px rgba(var(--nav-accent-rgb), 0.7),
     0 0 2px rgba(var(--nav-accent-rgb), 0.9),
     inset 0 0 0 1px rgba(var(--nav-accent-rgb), 0.18) !important;
+}
+
+/* ── The Frontier skin: the rest of the chrome, the title screen's way ─────
+ *
+ * The rows alone did not read as the game ("I see no change -- it should look
+ * like the Pioneer Frontier load screen"). What makes that screen is not the
+ * rows but three things everywhere: SQUARE corners (mars.css sets radius 0 on
+ * every control), ONE colour in the chrome (magenta; no cyan edges), and a
+ * deep purple night rather than black. So every rounded control here goes
+ * square, the cyan chrome edges go magenta, and the panels take the game's
+ * ground. Deliberate circles stay round: the (i) buttons, the planet icons,
+ * range thumbs and the checkboxes the browser draws. It wins by !important,
+ * not by its place in the sheet, because the skin's own rules are !important. */
+#ui, #layer-dock,
+.control-section, .gis-tool-section, .gis-side-panel,
+.tool-rail-btn, .tool-rail-panel-btn, .tool-rail-action-btn, .view-mode-btn,
+.button, button.button, .input, select, textarea,
+input:not([type=range]):not([type=checkbox]):not([type=radio]),
+.layer-row, .layer-name, .layer-disclose, .gis-catalogue-row, .gis-catalogue-box,
+.gis-catalogue-sym, .gis-catalogue-members, .gis-lock-card, .gis-lock-go,
+.search-suggestion, .lsp-pill, .lsp-n, .lsp-pbtn, .data-tag-chip,
+.event-view-tab, #nav-collapse-btn, .section-toggle,
+#time-scrub-toggle, #time-rate-toggle, .map-legend-toggle, .map-legend-panel,
+#geoid-zoom-step, .gis-planet-toggle,
+body.viewer-page button:not(.gis-catalogue-info-btn):not(#info-btn):not(.planet-node),
+[class*="chip"], [class*="pill"], [class*="card"], [class*="tab-btn"] {
+  border-radius: 0 !important;
+}
+/* The HUD over the globe (clock, LIVE, the events list) was edged in cyan;
+   the game's chrome speaks one colour. */
+#time-scrub-toggle, #time-rate-toggle, .map-legend-panel {
+  border-color: rgba(var(--nav-accent-rgb), 0.42) !important;
+}
+#ui, #layer-dock {
+  border-color: rgba(var(--nav-accent-rgb), 0.38) !important;
+  box-shadow: 0 0 22px -8px rgba(var(--nav-accent-rgb), 0.45) !important;
+}
+.tool-rail-btn:not(.is-active) {
+  background: rgba(13, 2, 33, 0.9) !important;
+  border-color: rgba(var(--nav-accent-rgb), 0.42) !important;
+  box-shadow: none !important;
+}
+.tool-rail-btn:not(.is-active):hover,
+.tool-rail-btn:not(.is-active):focus-visible,
+.button:hover:not([disabled]), .button:focus-visible,
+.event-view-tab:hover, .event-view-tab:focus-visible {
+  border-color: rgb(var(--nav-accent-rgb)) !important;
+  box-shadow: 0 0 14px rgba(var(--nav-accent-rgb), 0.45) !important;
+  outline: none;
+}
+/* Cards and the tool sections take the game's ground. */
+.gis-tool-section, #tour-mode-section, #search-section, #locations-section, #core-view-section {
+  background: rgba(13, 2, 33, 0.82) !important;
 }
 
 /* ── Level 2 IS the tool card, verbatim ─────────────────────────────────

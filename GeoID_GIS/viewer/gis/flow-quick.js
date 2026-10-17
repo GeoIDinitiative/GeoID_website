@@ -19,7 +19,7 @@
  * Placed left of the rail beside its own button, the way a workbench is.
  */
 
-import { isParked } from "./parked.js?v=20261017-90ae10c";
+import { isParked } from "./parked.js?v=20261017-2aa9da4";
 
 const CARD_ID = "geoid-flow-quick";
 const byId = (id) => document.getElementById(id);
