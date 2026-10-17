@@ -5,6 +5,8 @@
         "/assets/music/nikitakondrashev-space-440026.mp3",
         "/assets/music/sigmamusicart-space-ambient-background-music-462074.mp3",
         "/assets/music/universfield-ambient-space-background-350710.mp3",
+        "/assets/music/Meridian.mp3",
+        "/assets/music/Zenith.mp3",
       ];
       let playlist = [];
       let trackIndex = 0, manuallyPaused = false;
