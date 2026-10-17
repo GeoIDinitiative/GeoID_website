@@ -38,7 +38,7 @@
  */
 const SHELF_NAMES = { geoprocess: "Geoprocessing", analysis: "Analysis" };
 
-import { isParked } from "./parked.js?v=20261017-e89152e";
+import { isParked } from "./parked.js?v=20261017-08f6418";
 const PANELS = [
   {
     id: "preprocess",
@@ -946,10 +946,11 @@ input:not([type=range]):not([type=checkbox]):not([type=radio]),
  * them drops to a thinner black so the blurred globe reads through the rows
  * as well as between them. The events and legend panels, the place pop-ups
  * and every sub-tab follow (asked for the same day). Default theme only, as a
- * test, like the rest of this sheet. Reduced transparency gets the solid black back. */
+ * test, like the rest of this sheet. The zoom pill joined later, and every
+ * ground went 5% clearer (0.42 -> 0.37 containers, 0.32 -> 0.27 inside). Reduced transparency gets the solid black back. */
 :root:not([data-skin]) #ui,
 :root:not([data-skin]) #layer-dock {
-  background: rgba(0, 0, 0, 0.42) !important;
+  background: rgba(0, 0, 0, 0.37) !important;
   -webkit-backdrop-filter: blur(14px) saturate(140%);
   backdrop-filter: blur(14px) saturate(140%);
 }
@@ -958,12 +959,14 @@ input:not([type=range]):not([type=checkbox]):not([type=radio]),
 :root:not([data-skin]) .gis-tool-section, :root:not([data-skin]) #tour-mode-section,
 :root:not([data-skin]) #search-section, :root:not([data-skin]) #locations-section,
 :root:not([data-skin]) #core-view-section {
-  background: rgba(0, 0, 0, 0.32) !important;
+  background: rgba(0, 0, 0, 0.27) !important;
 }
 :root:not([data-skin]) .map-legend-panel,
 :root:not([data-skin]) #scene-popup,
-:root:not([data-skin]) #geo-popup {
-  background: rgba(0, 0, 0, 0.42) !important;
+:root:not([data-skin]) #geo-popup,
+:root:not([data-skin]) #event-popup,
+:root:not([data-skin]) #geoid-zoom-step {
+  background: rgba(0, 0, 0, 0.37) !important;
   -webkit-backdrop-filter: blur(14px) saturate(140%);
   backdrop-filter: blur(14px) saturate(140%);
 }
@@ -980,12 +983,13 @@ input:not([type=range]):not([type=checkbox]):not([type=radio]),
 :root:not([data-skin]) #ui .control-section.toolbox-group :is(details.control-section, details.gis-tool-section, .geoid-mode-bar),
 :root:not([data-skin]) #ui details.control-section details.gis-tool-section,
 :root:not([data-skin]) .map-legend-panel .legend-entry {
-  background: rgba(0, 0, 0, 0.32) !important;
+  background: rgba(0, 0, 0, 0.27) !important;
 }
 @media (prefers-reduced-transparency: reduce) {
   :root:not([data-skin]) #ui, :root:not([data-skin]) #layer-dock,
   :root:not([data-skin]) .map-legend-panel, :root:not([data-skin]) #scene-popup,
-  :root:not([data-skin]) #geo-popup {
+  :root:not([data-skin]) #geo-popup, :root:not([data-skin]) #event-popup,
+  :root:not([data-skin]) #geoid-zoom-step {
     background: rgb(4, 2, 10) !important;
     -webkit-backdrop-filter: none; backdrop-filter: none;
   }

@@ -1185,11 +1185,9 @@ body[data-hub-armed="true"] .events-overlay {
 
 .event-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-/* Grouped rows have no glyph (events.js eventRowHtml), and the room went to
-   the names: they were set at the panel's 0.62rem, unreadable on the globe. */
-.event-row .event-name { font-size: 0.8rem; line-height: 1.35; }
-.event-row.is-grouped { padding: 0.24rem 0 0.24rem 0.35rem; }
-.event-group-head { font-size: 0.72rem !important; }
+/* Grouped rows have no glyph (events.js eventRowHtml); the names keep the
+   panel's own size (0.8rem was tried and reverted). */
+.event-row.is-grouped { padding-left: 0.35rem; }
 
 /* The feeds you can switch on, in the sidebar's Events tab. Ticking one is the
    control that produces the list of events, so it cannot live inside that
