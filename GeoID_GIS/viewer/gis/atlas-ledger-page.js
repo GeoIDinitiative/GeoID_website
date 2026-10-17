@@ -20,7 +20,7 @@
 import {
   VERIFY, recordFrom, addRecords, dueRecords, verifyEvent, verifyWeather,
   summarise, reportText, toCsv, eonetEvents, usgsEvents, weatherVars, naiveProbability, verified,
-} from "./atlas-ledger.js?v=20261017-f1cb73e";
+} from "./atlas-ledger.js?v=20261017-9debac0";
 
 const KEY = "geoid-gis:atlas-ledger";
 const PROJECT_PATH = "metadata/atlas_ledger.json";
@@ -76,10 +76,10 @@ async function getJson(url) {
 }
 
 /** Records grouped by place (to a tenth of a degree), so one request serves a place. */
-function byPlace(records) {
+function byPlace(records, extra = () => "") {
   const groups = new Map();
   for (const r of records) {
-    const k = `${r.lat.toFixed(1)},${r.lon.toFixed(1)}`;
+    const k = `${r.lat.toFixed(1)},${r.lon.toFixed(1)}|${extra(r)}`;
     if (!groups.has(k)) groups.set(k, []);
     groups.get(k).push(r);
   }
@@ -163,7 +163,10 @@ export async function verify() {
   say(`Verifying ${due.length} record${due.length === 1 ? "" : "s"}…`);
   let done = 0;
   try {
-    for (const g of byPlace(due.filter((r) => VERIFY[r.key].kind === "weather"))) done += await verifyWeatherGroup(g, nowMs);
+    // A record the archive covers is never asked of the model analysis just
+    // because a recent record at the same place shares its request.
+    const archivable = (r) => (r.toMs + ARCHIVE_LAG <= nowMs ? "archive" : "recent");
+    for (const g of byPlace(due.filter((r) => VERIFY[r.key].kind === "weather"), archivable)) done += await verifyWeatherGroup(g, nowMs);
     for (const g of byPlace(due.filter((r) => VERIFY[r.key].kind === "event"))) done += await verifyEventGroup(g, nowMs);
   } finally {
     busy = false;
@@ -199,7 +202,7 @@ export async function report(hazard = null) {
 export async function exportCsv() {
   // Through the app's one download path: it files the CSV into an open
   // project and keeps the membership gate on saving.
-  const { downloadText } = await import("./extraction.js?v=20261017-f1cb73e");
+  const { downloadText } = await import("./extraction.js?v=20261017-9debac0");
   return downloadText("atlas_verification_ledger.csv", toCsv(ledger), "text/csv");
 }
 

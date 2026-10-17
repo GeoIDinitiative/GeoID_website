@@ -30,6 +30,8 @@ ok(/ARCHIVE_LAG = 6 \* DAY/.test(pageSrc), "the archive is trusted six days afte
 ok(/eonet\.gsfc\.nasa\.gov\/api\/v3\/events\?status=all/.test(pageSrc) && /bbox=/.test(pageSrc),
   "events: EONET over each place's own box and window");
 ok(/earthquake\.usgs\.gov\/fdsnws\/event\/1\/query\?format=geojson&minmagnitude=5/.test(pageSrc), "aftershocks: the USGS catalogue, M ≥ 5");
+ok(/byPlace\(due\.filter\(\(r\) => VERIFY\[r\.key\]\.kind === "weather"\), archivable\)/.test(pageSrc),
+  "archived and recent records are asked separately, so an old one is never read provisionally");
 ok(/capeOnly/.test(pageSrc), "CAPE is read from the model analysis whatever the age (ERA5 lacks it)");
 ok(/import\("\.\/extraction\.js\?v=[^"]+"\)/.test(pageSrc) && /downloadText\(/.test(pageSrc),
   "the CSV goes through the app's one download path");

@@ -15,7 +15,7 @@ import {
   RAMPS,
   buildSymbology, colourOf, legendInfoFrom, METHODS, RAMP_NAMES,
   categoricalSymbology, suggestCategoryField, QUALITATIVE, QUALITATIVE_RAMP,
-} from "./symbology.js?v=20261017-f1cb73e";
+} from "./symbology.js?v=20261017-9debac0";
 
 const HOST_ID = "gis-symbology-host";
 /**
