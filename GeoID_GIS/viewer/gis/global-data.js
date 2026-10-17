@@ -26,18 +26,18 @@
  * rebuilt or updated without guessing what was done to them.
  */
 
-import { runConnector } from "./research/connectors.js?v=20261017-6f23fb5";
-import { explainFetchFailure, dataUrl } from "./data-base.js?v=20261017-6f23fb5";
-import { mathsFor } from "./equations.js?v=20261017-6f23fb5";
+import { runConnector } from "./research/connectors.js?v=20261017-aebca4f";
+import { explainFetchFailure, dataUrl } from "./data-base.js?v=20261017-aebca4f";
+import { mathsFor } from "./equations.js?v=20261017-aebca4f";
 import {
   riskEdges, RISK_LABELS,
-} from "./cyclone-risk.js?v=20261017-6f23fb5";
-import { colourRange as volcanicColourRange } from "./volcanic-risk.js?v=20261017-6f23fb5";
-import { featureForModel, may, refusal } from "./membership.js?v=20261017-6f23fb5";
-import { colourRange as seismicColourRange } from "./seismic-bands.js?v=20261017-6f23fb5";
+} from "./cyclone-risk.js?v=20261017-aebca4f";
+import { colourRange as volcanicColourRange } from "./volcanic-risk.js?v=20261017-aebca4f";
+import { featureForModel, may, refusal } from "./membership.js?v=20261017-aebca4f";
+import { colourRange as seismicColourRange } from "./seismic-bands.js?v=20261017-aebca4f";
 // The cyclone tracks are classed on the same scale the live storm markers
 // band by, so the archive and the feed cut intensity at the same knots.
-import { SAFFIR_SIMPSON_KTS } from "./event-sources.js?v=20261017-6f23fb5";
+import { SAFFIR_SIMPSON_KTS } from "./event-sources.js?v=20261017-aebca4f";
 
 /** Order the groups read in, coarse to specific. */
 export const GROUPS = ["Physical", "Hydrology", "Boundaries", "Tectonics",
@@ -137,13 +137,11 @@ export const DATASETS = [
     summary: "4,224 lines, 260,393 vertices",
     licence: "Natural Earth — public domain",
     /**
-     * ON WHEN THE PAGE OPENS, like the plate boundaries: the gazetteer names
-     * ~500 rivers, and a river's name floating over imagery that does not
-     * show the river reads as a label in the wrong place. Half strength, so
-     * the network is context under the map rather than a net over it. An
-     * explicit untick is remembered, as for every launch default.
+     * OFF WHEN THE PAGE OPENS (it was on, for the gazetteer's river names):
+     * the opening globe is the plates and the imagery, and a 260k-vertex
+     * network drawn before anybody asked for it was a net over that. One tick
+     * in Hydrology brings it back at the strength below.
      */
-    defaultOn: true,
     colour: "#2f6fd6",
     opacity: 0.4,
   },
@@ -191,7 +189,8 @@ export const DATASETS = [
     summary: "515 lines",
     licence: "Natural Earth — public domain",
     /**
-     * ON WHEN THE PAGE OPENS, and WHITE. The LINES, not the country polygons —
+     * OFF WHEN THE PAGE OPENS (asked for: the opening globe carries the plates
+     * alone), and WHITE when ticked. The LINES, not the country polygons —
      * a filled country is a tint over the whole planet, a border is only where
      * one country ends.
      *
@@ -202,7 +201,6 @@ export const DATASETS = [
      * a political boundary read as a dataset. White is the neutral the rest of
      * the palette is defined against and belongs to nothing else here.
      */
-    defaultOn: true,
     colour: "#ffffff",
     // A fifth of full strength was the note here and 1 was the number; 30% is
     // the one asked for. White at full strength rules a political map over the
@@ -226,25 +224,43 @@ export const DATASETS = [
     home: "geology-tectonics",
     featureNoun: "Plate boundary",
     group: "Tectonics",
-    label: "Plate boundaries — global (Bird 2003)",
-    url: "https://raw.githubusercontent.com/fraxen/tectonicplates/master/GeoJSON/PB2002_boundaries.json",
-    name: "Plate boundaries (Bird 2003).geojson",
-    summary: "241 boundary segments, named by the two plates they separate",
+    label: "Plate boundaries by type — global (Bird 2003)",
+    /**
+     * BAKED BY KIND, with the symbols that say which kind (2026-10-17). The
+     * live `PB2002_boundaries.json` this fetched marks only subduction; Bird's
+     * own steps file classes every 30 km, and services/bake-plate-boundaries.py
+     * groups it into the four kinds below and draws each kind's map symbol as
+     * short lines in the same file: barbs on the overriding plate, alternating
+     * teeth on a collision, bars across a ridge, paired half-arrows giving a
+     * transform's sense of slip. Being geometry, they take this layer's
+     * colour, weight and visibility, and the key lists four kinds because the
+     * file holds four.
+     */
+    path: "/data/global/plate-boundaries.geojson",
+    name: "Plate boundaries by type (Bird 2003).geojson",
+    summary: "1,679 boundary lines in four kinds -- subduction, collision, "
+      + "ridge or rift, transform -- each drawn with its map symbol",
     licence: "Bird (2003), PB2002 — cite the paper; redistributed via "
       + "fraxen/tectonicplates, which states no licence of its own",
-    live: true,
+    colourBy: "kind",
+    colours: {
+      "Subduction zone": "#ff5c4d",
+      "Convergent (collision)": "#ff9f43",
+      "Divergent (ridge or rift)": "#ffd166",
+      "Transform (conservative)": "#6fd08c",
+    },
     /**
-     * ON WHEN THE PAGE OPENS, at a third of full strength.
+     * ON WHEN THE PAGE OPENS, at a little over half strength.
      *
      * Almost everything this app maps is read against the plates — the
      * seismicity most of all, which is 63% within 100 km of a boundary — so
      * they are the one dataset that is context for the others rather than a
-     * subject of its own. That is also why they are faint: at full strength
-     * 241 segments across the planet is a net drawn OVER the map, and the
-     * point of them is to be underneath what you are reading.
+     * subject of its own. They were a third: a plain net under the map. The
+     * symbols are small strokes and vanish at a third, so the weight rose to
+     * where a barb can be told from a bar.
      */
     defaultOn: true,
-    opacity: 0.3,
+    opacity: 0.55,
   },
   {
     /**
@@ -1014,7 +1030,7 @@ function drawnBbox() {
 async function viewBbox() {
   try {
     const THREE = await import("../vendor/three.module.js");
-    const { visibleBounds } = await import("./view-extent.js?v=20261017-6f23fb5");
+    const { visibleBounds } = await import("./view-extent.js?v=20261017-aebca4f");
     const b = visibleBounds(window.GeoIDViewer, THREE);
     const ok = b && [b.minLon, b.minLat, b.maxLon, b.maxLat].every(Number.isFinite);
     return ok ? { minLon: b.minLon, minLat: b.minLat, maxLon: b.maxLon, maxLat: b.maxLat } : null;

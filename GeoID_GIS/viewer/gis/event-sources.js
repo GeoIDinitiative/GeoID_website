@@ -387,8 +387,11 @@ export function stormLabel(category, kts) {
  * Category 5 a factor of two apart when the difference between them is the
  * whole point of the scale.
  */
-export const STORM_BASE_SCALE = 3;
-export const STORM_CATEGORY_STEP = 0.75;
+// 3 + 0.75/category was still "much too small" at the opening view: the
+// spiral's ink is under half its sprite, so a tropical storm read as a speck.
+// Both terms doubled, which keeps the Category 5 / storm ratio at 2.25.
+export const STORM_BASE_SCALE = 6;
+export const STORM_CATEGORY_STEP = 1.5;
 export function stormScale(category) {
   const band = Number.isFinite(category) ? Math.max(0, Math.min(5, category)) : 0;
   return STORM_BASE_SCALE + band * STORM_CATEGORY_STEP;
@@ -663,13 +666,17 @@ export function liftForAltitude() {
  * everything else sharpens and the markers do not.
  *
  * So the CAP is driven by altitude, which keeps moving when the projection has
- * stopped: 16 px above a thousand kilometres, growing to 34 by twenty, held
- * there below. Logarithmic, because the zoom is.
+ * stopped: 16 px above three thousand kilometres, growing to 44 by ten, held
+ * there below. Logarithmic, because the zoom is. (It was 1000 km to 20 km and
+ * 16 to 34: between 3000 and 1000 km the projection had already stopped and
+ * nothing grew, and 34 px at street scale still read as "the symbols shrink as
+ * we zoom in" -- the ground magnifies a thousandfold and the marker had to
+ * keep some of that pace to stay attached to it.)
  */
 export const DOT_CAP_FAR = 16;
-export const DOT_CAP_NEAR = 34;
-const DOT_CAP_FAR_KM = 1000;
-const DOT_CAP_NEAR_KM = 20;
+export const DOT_CAP_NEAR = 44;
+const DOT_CAP_FAR_KM = 3000;
+const DOT_CAP_NEAR_KM = 10;
 
 /**
  * The size ALTITUDE alone asks for, and zero where the projection still works.
@@ -694,6 +701,28 @@ export function dotSizePx(globePx, altitudeMetres) {
   const far = globePx * 0.022;
   return Math.max(4, Math.min(DOT_CAP_NEAR, Math.max(far, nearSizePx(altitudeMetres))));
 }
+
+/**
+ * HOW MUCH THE ZOOM HAS GROWN THE DOT, for the symbols whose base is capped.
+ *
+ * The earthquakes and storms multiply a CAPPED base (8 and 16 px) by their
+ * magnitude or category, and the cap was a constant -- so from orbit to the
+ * street they never grew at all, and against ground that magnifies a
+ * thousandfold they appeared to shrink (reported: "all event symbols get too
+ * small as we zoom in", the storms most of all). The cap now grows by the
+ * same factor the plain dot has, never below one, so every marker on the
+ * globe follows one zoom curve and only their proportions differ.
+ */
+export function zoomGain(dotPx) {
+  return Math.max(1, (Number(dotPx) || 0) / DOT_CAP_FAR);
+}
+
+/**
+ * The largest sprite anything is drawn at. Drivers clamp point sprites (this
+ * file records 255 on real hardware), and a symbol past this size is covering
+ * the ground it is about rather than marking it.
+ */
+export const MARKER_MAX_PX = 240;
 
 
 /* ── picking a marker ─────────────────────────────────────────────────────── */

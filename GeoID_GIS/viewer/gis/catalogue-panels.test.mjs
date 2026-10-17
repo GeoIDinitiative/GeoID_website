@@ -146,7 +146,7 @@ check("and every listed group still has something in it",
      drawn OVER the map, and the point of them is to be underneath what you are
      reading. */
   const plates = DATASETS.find((d) => d.id === "plate-boundaries");
-  check("at 30%", plates.opacity === 0.3, String(plates.opacity));
+  check("at 55%, enough to read the type symbols", plates.opacity === 0.55, String(plates.opacity));
   check("and every launch default declares the weight it opens at",
     defaults.every((d) => Number.isFinite(d.opacity)),
     defaults.filter((d) => !Number.isFinite(d.opacity)).map((d) => d.id).join(", ") || "all do");

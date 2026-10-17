@@ -15,7 +15,7 @@ import {
   resolveColour, liftForAltitude, dotSizePx, nearSizePx, isQuake, publisherOf,
   sourcesOff, restoreActive, stormCategory, stormScale, stormLabel, STORM_BASE_CAP,
   SAFFIR_SIMPSON_KTS,
-  MARKER_LIFT_MAX, MARKER_LIFT_M, DOT_CAP_FAR, DOT_CAP_NEAR,
+  MARKER_LIFT_MAX, MARKER_LIFT_M, DOT_CAP_FAR, DOT_CAP_NEAR, zoomGain, MARKER_MAX_PX,
 }  from "./event-sources.js";
 import { readFileSync } from "node:fs";
 
@@ -168,7 +168,7 @@ check("and the old key is read once and retired",
 // already said it may not breathe; what it read did.
 ok("the cloud keeps the size it would be WITHOUT the breath",
   /points\.userData\.steadySize = steady;/.test(eventsSrc)
-  && /const want = steady \* \(pulsing \? 1 \+ PULSE_SIZE \* phase : 1\);/.test(eventsSrc));
+  && /const want = Math\.min\(MARKER_MAX_PX, steady \* \(pulsing \? 1 \+ PULSE_SIZE \* phase : 1\)\);/.test(eventsSrc));
 ok("and anything measuring a marker reads that, never the drawn size",
   /found = node\.userData\.steadySize \|\| node\.material\?\.size \|\| 0;/.test(eventsSrc));
 ok("the tracker writes whole pixels, and only when they change",
@@ -539,20 +539,20 @@ check("no timestamp gets a sensible middle", recencyOpacity(null, now, day), 0.8
      imagery gained three hundred times the detail. */
   check("the far field is unchanged — the projection still decides it",
     +dotSizePx(434, 8_000_000).toFixed(1), 9.5);
-  check("nothing is added above a thousand kilometres", nearSizePx(2_000_000), 0);
+  check("nothing is added above three thousand kilometres", nearSizePx(4_000_000), 0);
   check("and the near field grows where the projection has stopped",
     dotSizePx(945, 10_000) > dotSizePx(945, 1_000_000), true);
-  check("reaching the near cap by twenty kilometres",
-    +dotSizePx(945, 20_000).toFixed(1), DOT_CAP_NEAR);
+  check("reaching the near cap by ten kilometres",
+    +dotSizePx(945, 10_000).toFixed(1), DOT_CAP_NEAR);
   check("and never going past it", dotSizePx(1e6, 100) <= DOT_CAP_NEAR, true);
   check("a distant marker still stays clickable", dotSizePx(1, 8_000_000) >= 4, true);
   /* The two rules must meet without a step, or the markers jump at 1000 km. */
   check("the two rules meet smoothly at the hand-over", (() => {
-    const above = dotSizePx(815, 1_010_000);
-    const below = dotSizePx(815, 990_000);
+    const above = dotSizePx(815, 3_010_000);
+    const below = dotSizePx(815, 2_990_000);
     return Math.abs(above - below) < 0.5;
   })(), true);
-  check("the far cap is what the near ramp starts from", nearSizePx(1_000_000 - 1) >= DOT_CAP_FAR, true);
+  check("the far cap is what the near ramp starts from", nearSizePx(3_000_000 - 1) >= DOT_CAP_FAR, true);
 }
 
 /* ── the selection ring, anchored the way the symbol it circles is ─────────
@@ -889,13 +889,15 @@ check("no timestamp gets a sensible middle", recencyOpacity(null, now, day), 0.8
   check("an unknown band is drawn at the base size", stormScale(null), stormScale(0));
   check("and nothing goes past the top of the scale", stormScale(99), stormScale(5));
 
-  /* The cap that stops the ZOOM multiplying on top of the strength. On the
-     hardware this file records, a sprite past 255 is clamped, and past that
-     the multiplier stops meaning anything. */
-  const near = 34;   // DOT_CAP_NEAR, the biggest base a marker is given
-  check("a close-range Category 5 stays inside what a driver will draw",
-    Math.min(near, STORM_BASE_CAP) * stormScale(5) < 255, true);
-  check("and the cap is what holds it there", STORM_BASE_CAP < near, true);
+  /* The cap grows with the zoom now (zoomGain), so what keeps a close-range
+     Category 5 inside what a driver will draw is MARKER_MAX_PX, applied to
+     the drawn size in events.js. */
+  check("the sprite ceiling sits under the 255 a driver clamps at", MARKER_MAX_PX < 255, true);
+  check("the zoom gain never shrinks a cap", zoomGain(4) === 1 && zoomGain(0) === 1, true);
+  check("and grows a cap by the dot's own growth near the ground",
+    +zoomGain(DOT_CAP_NEAR).toFixed(2), +(DOT_CAP_NEAR / DOT_CAP_FAR).toFixed(2));
+  check("the drawn size is clamped to it",
+    /Math\.min\(MARKER_MAX_PX, steady \*/.test(readFileSync(new URL("./events.js", import.meta.url), "utf-8")), true);
 
   /* The label the card reads by. */
   check("a hurricane is named by its category",

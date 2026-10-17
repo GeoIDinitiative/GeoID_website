@@ -14,11 +14,11 @@ import {
   SOURCES, sourceById, usgsPoints, magnitudeSize, recencyOpacity, magnitudeColour,
   activeGroups, sourcesInGroup, groupState, defaultEnabled, restoreSources, sourcesOff,
   gdacsPoints, resolveColour,
-  MARKER_LIFT_MAX, liftForAltitude, dotSizePx, isQuake, publisherOf, restoreActive,
+  MARKER_LIFT_MAX, liftForAltitude, dotSizePx, zoomGain, MARKER_MAX_PX, isQuake, publisherOf, restoreActive,
   stormCategory, stormScale, stormLabel, STORM_BASE_CAP, markerHitGeometry, nearestHit,
-} from "./event-sources.js?v=20261017-6f23fb5";
-import { escapeHtml, safeUrl } from "./escape-html.js?v=20261017-6f23fb5";
-import { holdLaunch } from "./launch-ready.js?v=20261017-6f23fb5";
+} from "./event-sources.js?v=20261017-aebca4f";
+import { escapeHtml, safeUrl } from "./escape-html.js?v=20261017-aebca4f";
+import { holdLaunch } from "./launch-ready.js?v=20261017-aebca4f";
 
 const API = "https://eonet.gsfc.nasa.gov/api/v3/events";
 
@@ -1330,7 +1330,9 @@ function trackScale() {
          * every other category was 34 px and the volcanoes **8.9**, which is
          * the reported "at zoomed views the location dots are far too small".
          */
-        const cap = points.userData.baseCap;
+        // The cap grows with the zoom (event-sources.js zoomGain), so a
+        // capped quake or storm keeps the plain dot's pace into the street.
+        const cap = points.userData.baseCap ? points.userData.baseCap * zoomGain(size) : 0;
         const from = cap ? Math.min(size, cap) : size;
         /**
          * THE SIZE THE CLOUD WOULD BE WITHOUT THE BREATH, kept beside the one
@@ -1341,9 +1343,9 @@ function trackScale() {
          * stay on the dot's circumference if it stays that size, and the card
          * is placed a ring's radius clear of the dot.
          */
-        const steady = from * (points.userData.sizeScale || 1);
+        const steady = Math.min(MARKER_MAX_PX, from * (points.userData.sizeScale || 1));
         points.userData.steadySize = steady;
-        const want = steady * (pulsing ? 1 + PULSE_SIZE * phase : 1);
+        const want = Math.min(MARKER_MAX_PX, steady * (pulsing ? 1 + PULSE_SIZE * phase : 1));
         if (points.material.size !== want) points.material.size = want;
         if (pulsing) {
           // The glow, which is the bloom baked into the symbol coming up and
@@ -2702,8 +2704,8 @@ async function showTrace(event) {
   }
 
   const [plot, { spectrogram }] = await Promise.all([
-    import("./seismogram-plot.js?v=20261017-6f23fb5"),
-    import("./research/dsp.js?v=20261017-6f23fb5"),
+    import("./seismogram-plot.js?v=20261017-aebca4f"),
+    import("./research/dsp.js?v=20261017-aebca4f"),
   ]);
   if (stale()) return;
 

@@ -38,7 +38,7 @@
  */
 const SHELF_NAMES = { geoprocess: "Geoprocessing", analysis: "Analysis" };
 
-import { isParked } from "./parked.js?v=20261017-6f23fb5";
+import { isParked } from "./parked.js?v=20261017-aebca4f";
 const PANELS = [
   {
     id: "preprocess",
@@ -954,6 +954,34 @@ input:not([type=range]):not([type=checkbox]):not([type=radio]),
   padding: 0;
 }
 .gis-side-panel-body > .toolbox-group > summary { display: none; }
+
+/* ── GLASS: the globe shows through, blurred (default theme, a trial) ──────
+ * The sidebar and the Workspace were opaque purple slabs over the planet.
+ * Asked for (2026-10-17): black, semi-transparent, and the globe blurred
+ * behind them where they overlap -- a material laid over the map rather than
+ * a wall in front of it. The two containers carry the blur; everything inside
+ * them drops to a thinner black so the blurred globe reads through the rows
+ * as well as between them. Default theme only, as a test, like the rest of
+ * this sheet. Reduced transparency gets the solid black back. */
+:root:not([data-skin]) #ui,
+:root:not([data-skin]) #layer-dock {
+  background: rgba(0, 0, 0, 0.42) !important;
+  -webkit-backdrop-filter: blur(14px) saturate(140%);
+  backdrop-filter: blur(14px) saturate(140%);
+}
+:root:not([data-skin]) .control-section.toolbox-group:not([open]),
+:root:not([data-skin]) #ui .control-section.toolbox-group[open],
+:root:not([data-skin]) .gis-tool-section, :root:not([data-skin]) #tour-mode-section,
+:root:not([data-skin]) #search-section, :root:not([data-skin]) #locations-section,
+:root:not([data-skin]) #core-view-section {
+  background: rgba(0, 0, 0, 0.32) !important;
+}
+@media (prefers-reduced-transparency: reduce) {
+  :root:not([data-skin]) #ui, :root:not([data-skin]) #layer-dock {
+    background: rgb(4, 2, 10) !important;
+    -webkit-backdrop-filter: none; backdrop-filter: none;
+  }
+}
 `;
 
 /**

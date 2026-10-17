@@ -62,7 +62,7 @@ const borders = data.slice(data.indexOf('id: "boundaries-10m"'), data.indexOf('i
  * border left to the renderer takes `lineColor`, the app's own data cyan, and
  * reads as a measured layer.
  */
-ok(/defaultOn: true/.test(borders), "country borders are on at launch");
+ok(!/defaultOn: true/.test(borders), "country borders are off at launch");
 ok(/colour: "#ffffff"/.test(borders), "and white, not the renderer's data cyan");
 ok(/opacity: 0\.3\b/.test(borders), "and faint enough to locate rather than rule");
 

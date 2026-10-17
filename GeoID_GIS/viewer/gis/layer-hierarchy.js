@@ -10,18 +10,18 @@
 // everything below. That is the opposite of three.js renderOrder, so the two are
 // inverted when applied.
 
-import { escapeHtml } from "./escape-html.js?v=20261017-6f23fb5";
-import { bandOf } from "./draw-order.js?v=20261017-6f23fb5";
-import { paintOpacity } from "./layer-opacity.js?v=20261017-6f23fb5";
-import { currentBody } from "./bodies.js?v=20261017-6f23fb5";
-import { samplerToRaster } from "./raster-analysis.js?v=20261017-6f23fb5";
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20261017-6f23fb5";
-import { datasetInfoButton } from "./catalogue-list.js?v=20261017-6f23fb5";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20261017-6f23fb5";
+import { escapeHtml } from "./escape-html.js?v=20261017-aebca4f";
+import { bandOf } from "./draw-order.js?v=20261017-aebca4f";
+import { paintOpacity } from "./layer-opacity.js?v=20261017-aebca4f";
+import { currentBody } from "./bodies.js?v=20261017-aebca4f";
+import { samplerToRaster } from "./raster-analysis.js?v=20261017-aebca4f";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20261017-aebca4f";
+import { datasetInfoButton } from "./catalogue-list.js?v=20261017-aebca4f";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20261017-aebca4f";
 import {
   openSymbologyDialog, geometrySummary, geometryKind,
-} from "./symbology-dialog.js?v=20261017-6f23fb5";
-import { tagOf, DATA_TYPES, typeSelect, applyTag, descriptionOf, isUserInput } from "./data-tags.js?v=20261017-6f23fb5";
+} from "./symbology-dialog.js?v=20261017-aebca4f";
+import { tagOf, DATA_TYPES, typeSelect, applyTag, descriptionOf, isUserInput } from "./data-tags.js?v=20261017-aebca4f";
 
 /**
  * The row grew a column and gained a tile, and .layer-row is declared twice --
@@ -961,34 +961,17 @@ function optionsTile(layer) {
   }
 
   /**
-   * Remove asks first.
-   *
-   * It disposes the geometry and there is no undo -- an imported layer would
-   * have to be found and loaded again, and a derived one recomputed. It also
-   * now sits an inch from Hide, which is the button people reach for when they
-   * mean "get this off my screen", so a misfire is likely rather than exotic.
-   * A second click inside the tile rather than a modal: the weight should match
-   * losing one layer, not losing the project.
+   * Remove removes, in one click. It used to arm first ("Sure?", a second
+   * click within 4 s) and that step was asked to go: the button lives inside
+   * an opened drawer, which is already a deliberate reach, and a catalogue
+   * layer comes back with one tick.
    */
   const remove = document.createElement("button");
   remove.type = "button";
   remove.className = "button secondary layer-options-btn is-danger";
-  remove.textContent = layer.confirmRemove ? "Sure?" : "Remove";
-  remove.title = layer.confirmRemove
-    ? "Click again to remove this layer for good"
-    : "Remove this layer";
-  remove.addEventListener("click", () => {
-    if (layer.confirmRemove) { manager?.removeLayer?.(layer.id); return; }
-    layer.confirmRemove = true;
-    render();
-    // It stands down on its own, so an armed button is never left lying under
-    // the pointer for the next person to press.
-    window.setTimeout(() => {
-      if (!layer.confirmRemove) return;
-      layer.confirmRemove = false;
-      render();
-    }, 4000);
-  });
+  remove.textContent = "Remove";
+  remove.title = "Remove this layer";
+  remove.addEventListener("click", () => manager?.removeLayer?.(layer.id));
   actions.appendChild(remove);
 
   tile.appendChild(actions);

@@ -94,4 +94,4 @@ ok(/id="moon-toggle" type="checkbox" checked/.test(html), "the Moons row (the Mo
 }
 const data = readFileSync(join(HERE, "global-data.js"), "utf-8");
 const rivers = data.slice(data.indexOf('id: "rivers-10m"'), data.indexOf('id: "marine-areas"'));
-ok(/defaultOn: true/.test(rivers), "the global rivers are drawn at launch");
+ok(!/defaultOn: true/.test(rivers), "the global rivers are off at launch -- one tick in Hydrology");
