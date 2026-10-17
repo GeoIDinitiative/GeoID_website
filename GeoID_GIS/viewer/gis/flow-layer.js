@@ -32,14 +32,14 @@
  */
 
 import * as THREE from "../vendor/three.module.js";
-import { followRelief } from "./vector-render.js?v=20261017-6d0ca92";
-import { visibleBounds } from "./view-extent.js?v=20261017-6d0ca92";
+import { followRelief } from "./vector-render.js?v=20261017-e6461b9";
+import { visibleBounds } from "./view-extent.js?v=20261017-e6461b9";
 import {
   WORLD, RAMPS, OPEN_METEO, OPEN_METEO_MARINE, planGrid, gridPoints, chunkPoints,
   requestUrl, readHourly, buildField, sampleStack, sampleScalar, advect, randomPoint,
   rampAt, rampPalette, headingOf, compassPoint, beaufort, wrapLon, RAD,
-  aggregateHourly, countFinite,
-} from "./flow-field.js?v=20261017-6d0ca92";
+  aggregateHourly, countFinite, createCallBudget,
+} from "./flow-field.js?v=20261017-e6461b9";
 
 /* ── the two sources ───────────────────────────────────────────────────── */
 
@@ -62,8 +62,11 @@ const SOURCES = {
     stepPerMs: 1 / 1500,
     // GFS's own grid is 0.25°, the seamless blend's finest about 0.11°.
     nativeDeg: 0.12,
-    worldBudget: 2000,
-    viewBudget: 600,
+    // INSIDE ONE MINUTE OF OPEN-METEO (see CALLS_PER_MINUTE): about a 12°
+    // lattice over the world, and the view's own finer one when zoomed in,
+    // which waits for the minute to turn rather than being refused.
+    worldBudget: 450,
+    viewBudget: 400,
     unit: "m/s",
     credit: "NOAA GFS via Open-Meteo (open-meteo.com), CC BY 4.0",
     statusId: "wind-flow-status",
@@ -77,8 +80,8 @@ const SOURCES = {
     extra: { wind_speed_unit: "ms", models: "gfs_seamless" },
     levels: {},
     nativeDeg: 0.12,
-    worldBudget: 2000,
-    viewBudget: 600,
+    worldBudget: 450,
+    viewBudget: 400,
     credit: "NOAA GFS via Open-Meteo (open-meteo.com), CC BY 4.0",
     statusId: "hazard-field-status",
   },
@@ -98,8 +101,8 @@ const SOURCES = {
     stepPerMs: 1 / 70,
     // SMOC is a twelfth of a degree.
     nativeDeg: 0.083,
-    worldBudget: 2200,
-    viewBudget: 700,
+    worldBudget: 450,
+    viewBudget: 400,
     unit: "m/s",
     credit: "Open-Meteo Marine (open-meteo.com), CC BY 4.0 — Météo-France SMOC ocean currents, "
       + "sea surface temperature from the same model",
@@ -201,9 +204,42 @@ function cacheKey(source, box, nx, ny) {
     box.south.toFixed(1), box.north.toFixed(1), nx, ny].join("|");
 }
 
-/** One request, with one retry under a plainer window if a service refuses the hour window. */
-async function fetchChunk(url, signal) {
+/** Every Open-Meteo point this page's flow layers ask for, a minute at a time. */
+const calls = createCallBudget();
+
+/** Spend `n` points from the minute's budget, saying so if it means a wait. */
+async function spend(n, source, signal) {
+  const ms = calls.waitFor(n);
+  if (ms > 1500 && source) {
+    const secs = Math.ceil(ms / 1000);
+    // Already drawing the world's field: this wait is only the view's finer
+    // one, so the line keeps saying what is shown and adds when detail lands.
+    say(source, live[source]?.world
+      ? `${describe(source)} Finer detail for this view in about ${secs} s.`
+      : `Waiting ${secs} s — Open-Meteo allows ${calls.limit} points a minute…`);
+  }
+  await calls.take(n, signal);
+}
+
+const sleep = (ms, signal) => new Promise((resolve, reject) => {
+  const t = setTimeout(resolve, ms);
+  signal?.addEventListener?.("abort", () => { clearTimeout(t); reject(Object.assign(new Error("aborted"), { name: "AbortError" })); }, { once: true });
+});
+
+/**
+ * One request of `n` points, paid for from the minute's budget. A 429 means
+ * something else on this address spent the minute (another tab, the weather
+ * cards), so it waits the minute out once and asks again. One retry under a
+ * plainer window if a service refuses the hour window.
+ */
+async function fetchChunk(url, signal, n = 1, source = null) {
+  await spend(n, source, signal);
   let res = await fetch(url, { signal });
+  if (res.status === 429) {
+    if (source) say(source, "Open-Meteo's minute is used up on this connection — asking again in a minute…");
+    await sleep(61_000, signal);
+    res = await fetch(url, { signal });
+  }
   if (res.status === 400) {
     const plain = url.replace(/&past_hours=\d+/, "").replace(/&forecast_hours=(\d+)/,
       (_, h) => `&forecast_days=${Math.max(1, Math.ceil(Number(h) / 24))}`);
@@ -232,6 +268,38 @@ async function pool(tasks, limit) {
 }
 
 /**
+ * KEPT FOR THE HOUR IN THIS BROWSER, not only in memory: the model changes
+ * hourly, and a reload or a second tab would otherwise spend the whole minute's
+ * budget again on numbers it already has. Only the raw lattice is stored;
+ * the field is rebuilt from it. Anything from another hour is dropped.
+ */
+const STORE = "geoid-flow:";
+
+function storeGet(key) {
+  try {
+    const raw = localStorage.getItem(STORE + key);
+    if (!raw) return null;
+    const back = (a) => Float64Array.from(a, (x) => (x === null ? NaN : x));
+    const d = JSON.parse(raw);
+    return { speed: back(d.speed), dir: back(d.dir), time: d.time,
+      scalars: Object.fromEntries(Object.entries(d.scalars || {}).map(([k, v]) => [k, back(v)])) };
+  } catch { return null; }
+}
+
+function storePut(key, { speed, dir, scalars, time }) {
+  try {
+    const hour = `|${hourKey()}|`;
+    for (let i = localStorage.length - 1; i >= 0; i -= 1) {
+      const k = localStorage.key(i);
+      if (k?.startsWith(STORE) && !k.includes(hour)) localStorage.removeItem(k);
+    }
+    const out = (a) => Array.from(a, (x) => (Number.isFinite(x) ? Math.round(x * 1000) / 1000 : null));
+    localStorage.setItem(STORE + key, JSON.stringify({ speed: out(speed), dir: out(dir), time,
+      scalars: Object.fromEntries(Object.entries(scalars || {}).map(([k, v]) => [k, out(v)])) }));
+  } catch { /* storage full or blocked: the memory cache still holds it */ }
+}
+
+/**
  * The field over a box, fetched point lattice by point lattice and cached for
  * the hour. Answers a field, or throws with the service's own reason.
  */
@@ -249,6 +317,12 @@ async function fetchField(source, box, budget, signal) {
   if (cache.has(key)) return cache.get(key);
   const { lats, lons } = gridPoints(box, nx, ny);
   if (def.kind === "scalar") return fetchScalar(source, box, nx, ny, lats, lons, key, signal);
+  const stored = storeGet(key);
+  if (stored) {
+    const field = buildField(box, nx, ny, stored.speed, stored.dir,
+      { convention: def.convention, scalars: stored.scalars, time: stored.time });
+    if (field.valid) { cache.set(key, field); return field; }
+  }
   const scalarVars = Object.values(def.scalars || {});
   const variables = [level.speed, level.dir, ...scalarVars];
   const chunks = chunkPoints(lats, lons);
@@ -262,7 +336,7 @@ async function fetchField(source, box, budget, signal) {
     const url = requestUrl(def.base, {
       lats: chunk.lats, lons: chunk.lons, variables, extra: def.extra, hoursAhead: s.hoursAhead,
     });
-    const json = await fetchChunk(url, signal);
+    const json = await fetchChunk(url, signal, chunk.lats.length, source);
     const read = readHourly(json, variables, {
       nowMs, hoursAhead: s.hoursAhead, convert: { [level.speed]: "speed" },
     });
@@ -276,7 +350,7 @@ async function fetchField(source, box, budget, signal) {
     }
   }), CONCURRENCY);
   const field = buildField(box, nx, ny, speed, dir, { convention: def.convention, scalars, time });
-  if (field.valid) cache.set(key, field);
+  if (field.valid) { cache.set(key, field); storePut(key, { speed, dir, scalars, time }); }
   // Keep the cache to the last couple of dozen fields.
   while (cache.size > 24) cache.delete(cache.keys().next().value);
   return field;
@@ -296,7 +370,7 @@ async function fetchScalar(source, box, nx, ny, lats, lons, key, signal) {
       lats: chunk.lats, lons: chunk.lons, variables: [hv.variable], extra: def.extra,
       hoursAhead: s.windowHours,
     });
-    const json = await fetchChunk(url, signal);
+    const json = await fetchChunk(url, signal, chunk.lats.length, source);
     const read = aggregateHourly(json, hv.variable, {
       nowMs, toHours: s.windowHours, op: hv.op, convert: hv.convert || null,
     });

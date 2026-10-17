@@ -19,11 +19,13 @@
  * Placed left of the rail beside its own button, the way a workbench is.
  */
 
+import { isParked } from "./parked.js?v=20261017-e6461b9";
+
 const CARD_ID = "geoid-flow-quick";
 const byId = (id) => document.getElementById(id);
 const flow = () => window.GeoIDFlow;
 
-const ROWS = [
+const ALL_ROWS = [
   {
     source: "wind",
     name: "Wind",
@@ -41,6 +43,9 @@ const ROWS = [
     row: "current-flow",
   },
 ];
+
+// A parked source (parked.js) has no row here either.
+const ROWS = ALL_ROWS.filter((r) => !isParked(r.row));
 
 const LEVELS = [
   ["10m", "10 m"],

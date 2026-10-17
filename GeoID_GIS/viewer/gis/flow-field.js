@@ -127,6 +127,57 @@ export const OPEN_METEO_MARINE = "https://marine-api.open-meteo.com/v1/marine";
  */
 export const CHUNK = 250;
 
+/**
+ * OPEN-METEO COUNTS POINTS, NOT REQUESTS. Each coordinate in a request is one
+ * call against a free limit of 600 a minute per address -- measured on
+ * 2026-10-17: three requests of 250 points answered, the fourth was refused
+ * with "Minutely API request limit exceeded". The world lattice used to be
+ * 2,000 points, so it was refused on every load and the wind never drew.
+ * The flow layers spend from this budget instead, below the limit because
+ * the page's other Open-Meteo readers (weather cards, total risk) share it.
+ */
+export const CALLS_PER_MINUTE = 500;
+
+/**
+ * A rolling one-minute budget of calls. `take(n)` resolves once n calls fit
+ * in the last minute and records them; `waitFor(n)` says how long that wait
+ * is now. The clock and the sleep are injectable so a test can run a minute
+ * without waiting one.
+ */
+export function createCallBudget(limit = CALLS_PER_MINUTE, {
+  windowMs = 60_000,
+  now = () => Date.now(),
+  sleep = (ms, signal) => new Promise((resolve, reject) => {
+    const t = setTimeout(resolve, ms);
+    signal?.addEventListener?.("abort", () => { clearTimeout(t); reject(Object.assign(new Error("aborted"), { name: "AbortError" })); }, { once: true });
+  }),
+} = {}) {
+  const spent = [];                       // [time, n] in the order they were taken
+  const used = (t) => {
+    while (spent.length && spent[0][0] <= t - windowMs) spent.shift();
+    return spent.reduce((a, [, n]) => a + n, 0);
+  };
+  function waitFor(n) {
+    const t = now();
+    let over = used(t) + n - limit;
+    if (over <= 0) return 0;
+    for (const [at, k] of spent) {
+      over -= k;
+      if (over <= 0) return at + windowMs - t + 1;
+    }
+    return windowMs;                      // n alone is more than the limit
+  }
+  async function take(n, signal) {
+    if (n > limit) throw new Error(`${n} points is more than the ${limit}-a-minute limit`);
+    for (let ms = waitFor(n); ms > 0; ms = waitFor(n)) {
+      if (signal?.aborted) throw Object.assign(new Error("aborted"), { name: "AbortError" });
+      await sleep(ms, signal);
+    }
+    spent.push([now(), n]);
+  }
+  return { take, waitFor, used: () => used(now()), limit };
+}
+
 /** Split a lattice into request-sized lists of points. */
 export function chunkPoints(lats, lons, size = CHUNK) {
   const out = [];

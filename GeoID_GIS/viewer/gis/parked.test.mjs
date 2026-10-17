@@ -16,7 +16,10 @@ process.on("exit", () => {
 
 const here = (f) => readFileSync(new URL(f, import.meta.url), "utf8");
 
-ok(PARKED instanceof Set && isParked("wind-flow") && !isParked("hydro-rivers"), "isParked reads the set");
+ok(PARKED instanceof Set && isParked("current-flow") && !isParked("hydro-rivers"), "isParked reads the set");
+ok(!isParked("wind-flow") && !isParked("flow"), "wind and its Flow button are live again");
+ok(/const ROWS = ALL_ROWS\.filter\(\(r\) => !isParked\(r\.row\)\)/.test(here("./flow-quick.js")),
+  "the Flow card offers no row for a parked source");
 for (const id of PARKED) {
   ok(typeof id === "string" && id.length > 0, `a parked id is a name: ${id}`);
 }

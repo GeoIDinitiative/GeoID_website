@@ -186,3 +186,24 @@ ok(beaufort(0.2).name === "Calm" && beaufort(18).number === 8 && beaufort(40).na
   ok(Number.isNaN(none.values[0]), "no value in the window is NaN, not zero");
   ok(countFinite([1, NaN, 2]) === 2, "count finite");
 }
+
+/* the call budget: points per minute, never over */
+{
+  const { createCallBudget, CALLS_PER_MINUTE, planGrid: plan, WORLD: W } = await import("./flow-field.js");
+  let t = 0;
+  const slept = [];
+  const budget = createCallBudget(500, { now: () => t, sleep: async (ms) => { slept.push(ms); t += ms; } });
+  await budget.take(250);
+  await budget.take(200);
+  ok(budget.used() === 450 && slept.length === 0, "calls inside the limit go at once");
+  ok(budget.waitFor(100) === 60_001, `the next 100 wait for the first batch to leave the minute (${budget.waitFor(100)})`);
+  t = 10_000;
+  await budget.take(100);
+  ok(slept.length === 1 && t === 60_001 && budget.used() === 100, `a call over the limit waits until the minute has passed, then goes (${t}, ${budget.used()})`);
+  let refused = "";
+  try { await budget.take(501); } catch (e) { refused = e.message; }
+  ok(/more than the 500/.test(refused), "a single request bigger than the limit is refused, not waited on forever");
+  ok(CALLS_PER_MINUTE < 600, "the budget sits under Open-Meteo's 600-a-minute free limit");
+  const { nx, ny } = plan(W, 450);
+  ok(nx * ny <= 500, `the world lattice fits one minute's budget (${nx}×${ny} = ${nx * ny})`);
+}
