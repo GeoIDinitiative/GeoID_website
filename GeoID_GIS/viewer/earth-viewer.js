@@ -13532,6 +13532,16 @@ function fmtProp(value) {
 		      let embeddedHubExpanded = false;
 		      let embeddedFrameAnimation = null;
 		      let suppressEmbeddedFrameCameraUntil = 0;
+	      // FALSE UNTIL THE GEO SELECTOR STATE EXISTS. The `message` listener
+	      // below is live from here, but the module then awaits its texture and
+	      // elevation loads before it declares geoSelectorLocalPinPos and builds
+	      // userPinLayer (which needs the elevation sampler, so it cannot simply
+	      // move up). A `geoid:resize` from the shell during those awaits read
+	      // them uninitialised -- "Cannot access 'geoSelectorLocalPinPos' before
+	      // initialization", five times per load on the live homepage, and the
+	      // embedded re-frame never ran. Before this is set there is no
+	      // selection, so there is nothing to keep in frame or to clear.
+	      let geoSelectorReady = false;
 	      const defaultCameraDistance = Math.sqrt(
 	        (DEFAULT_CAMERA_POSITION.x ** 2)
 	        + (DEFAULT_CAMERA_POSITION.y ** 2)
@@ -13632,7 +13642,7 @@ function fmtProp(value) {
 	          applyEmbeddedFrameState();
 	          return;
 	        }
-	        if (msg.type === "geoid:clear-selection") {
+	        if (msg.type === "geoid:clear-selection" && geoSelectorReady) {
 	          clearGeoSelectorSelection({ notifyParent: false, resetView: true });
 	        }
 	      });
@@ -15945,6 +15955,7 @@ uniform float uViewportWidth;`,
 	      let geoSelectorLocalPinPos = null;
 	      let geoSelectorPrevSpinDelta = null; // spinDelta from last frame, for incremental tracking
 	      let geoSelectorLocalCameraOffset = null;
+	      geoSelectorReady = true;
 
 	      function emitGeoSelectorClear() {
 	        if (window.self === window.top) {
@@ -16093,6 +16104,7 @@ uniform float uViewportWidth;`,
 	      }
 
 	      function hasGeoSelectorSelection() {
+	        if (!geoSelectorReady) return false;
 	        return Boolean(geoSelectorLocalPinPos)
 	          || Boolean(userPinLayer?.entries?.some((entry) => entry.item?.type === "GeoSelector pin"));
 	      }
