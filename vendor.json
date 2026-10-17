@@ -24,8 +24,8 @@
       "advisories": "https://github.com/mrdoob/three.js/security/advisories",
       "licence": "MIT",
       "sha256": "5916c8dfb5f4e3ee",
-      "copies": 14,
-      "note": "Never versioned with ?v= -- earth-viewer.js imports it unversioned and a second URL breaks class identity. All 14 copies are byte-identical; keep them so."
+      "copies": 15,
+      "note": "Never versioned with ?v= -- earth-viewer.js imports it unversioned and a second URL breaks class identity. All 15 copies (frontier_pioneer's included) are byte-identical; keep them so."
     },
     {
       "name": "OrbitControls",
@@ -69,6 +69,28 @@
       "sha256": ["9ee4f9ce4546eaa0", "6ee2b640eb303edf", "6a99cf3cd0a1459a"],
       "copies": 9,
       "note": "THREE DIFFERENT VERSIONS across nine copies, which is drift rather than a supply-chain risk -- it is our code. Recorded so the divergence is visible; converging them is its own change."
+    },
+    {
+      "name": "GLTFLoader.js",
+      "version": "r165",
+      "version_source": "three.js examples/jsm addon shipped beside three.module.js r165 in frontier_pioneer/vendor",
+      "upstream": "https://github.com/mrdoob/three.js/tree/r165/examples/jsm",
+      "advisories": "https://github.com/mrdoob/three.js/security/advisories",
+      "licence": "MIT",
+      "sha256": "f0bceddde2b351fa",
+      "copies": 1,
+      "note": "Frontier Pioneer only; keep at the same revision as that page's three.module.js."
+    },
+    {
+      "name": "BufferGeometryUtils.js",
+      "version": "r165",
+      "version_source": "three.js examples/jsm addon shipped beside three.module.js r165 in frontier_pioneer/vendor",
+      "upstream": "https://github.com/mrdoob/three.js/tree/r165/examples/jsm",
+      "advisories": "https://github.com/mrdoob/three.js/security/advisories",
+      "licence": "MIT",
+      "sha256": "3988b47a34c48664",
+      "copies": 1,
+      "note": "Frontier Pioneer only; keep at the same revision as that page's three.module.js."
     }
   ]
 }

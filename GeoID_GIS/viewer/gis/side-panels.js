@@ -119,6 +119,23 @@ const PANELS = [
       + '<path d="m15.2 15.2 4.3 4.3" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>',
     action: () => window.GeoIDToolSearch?.open?.(""),
   },
+  {
+    // Not a panel either: the live wind and ocean currents were rows three
+    // levels down (Earth Observation ▸ Atmosphere ▸ Live fields, and
+    // ▸ Hydrology ▸ Ocean), which is how a moving map of the planet's air
+    // came to be reported as missing. The rail is where a reader looks for
+    // something to switch on over the globe. Earth only: on a world that loads
+    // no flow layer there is nothing for the button to do, so it is not built.
+    id: "flow",
+    label: "Flow",
+    title: "Wind and currents",
+    hint: "Wind and ocean currents — live streamlines",
+    when: () => Boolean(window.GeoIDFlow?.add),
+    icon: '<path d="M3 8.5h10.5a2.6 2.6 0 1 0-2.6-2.6" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>'
+      + '<path d="M3 12.5h15a2.8 2.8 0 1 1-2.8 2.8" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>'
+      + '<path d="M3 16.5h6" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>',
+    action: () => window.GeoIDFlowQuick?.toggle?.(),
+  },
 ];
 
 /**
@@ -1153,6 +1170,7 @@ export function init() {
     const group = groups[index];
     if (!group) return;
     let button = null;
+    if (spec.when && !spec.when()) return;      // nothing for it to act on here
     if (spec.rail !== false) {
       const built = buildRailItem(spec);
       rail.appendChild(built.item);
