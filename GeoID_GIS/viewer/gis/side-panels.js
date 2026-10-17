@@ -38,6 +38,7 @@
  */
 const SHELF_NAMES = { geoprocess: "Geoprocessing", analysis: "Analysis" };
 
+import { isParked } from "./parked.js?v=20261017-6d0ca92";
 const PANELS = [
   {
     id: "preprocess",
@@ -1171,6 +1172,7 @@ export function init() {
     if (!group) return;
     let button = null;
     if (spec.when && !spec.when()) return;      // nothing for it to act on here
+    if (isParked(spec.id)) return;              // built, but hidden from the site (parked.js)
     if (spec.rail !== false) {
       const built = buildRailItem(spec);
       rail.appendChild(built.item);
