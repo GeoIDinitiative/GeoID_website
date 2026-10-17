@@ -16,8 +16,8 @@
 
 import {
   grouped as globalGrouped, layerForDataset, HOMES,
-} from "./global-data.js?v=20261017-5b7fa73";
-import { MAP_LAYERS, layerForMap } from "./map-layers.js?v=20261017-5b7fa73";
+} from "./global-data.js?v=20261017-631721e";
+import { MAP_LAYERS, layerForMap } from "./map-layers.js?v=20261017-631721e";
 
 /**
  * WHICH HEADER A CATALOGUE HOME LIGHTS, READ FROM THE DOM.
@@ -231,11 +231,14 @@ function installStyle() {
   const tag = document.createElement("style");
   tag.id = "geoid-section-activity-style";
   const accent = "rgb(var(--nav-accent-rgb, 255, 43, 214))";
-  // A dark row lit by its own edge and ink, not a pink wash: the column wears
-  // Frontier Pioneer's menu (side-panels.js), where only the picked tab is
-  // filled. The glow is what makes "a layer is on in here" luminous.
-  const tint = "rgba(8, 2, 22, 0.88)";
+  const tint = "linear-gradient(180deg, rgba(var(--nav-accent-rgb, 255, 43, 214), 0.28), rgba(var(--nav-accent-rgb, 255, 43, 214), 0.12))";
+  // THE DEFAULT THEME ONLY (no data-skin on <html>) wears Frontier Pioneer's
+  // menu (side-panels.js): a dark row lit by its own edge and ink, not a pink
+  // wash, and the glow is what makes "a layer is on in here" luminous. The
+  // arcade skins keep the wash above.
+  const dark = "rgba(8, 2, 22, 0.88)";
   const glow = "0 0 8px rgba(var(--nav-accent-rgb, 255, 43, 214), 0.6)";
+  const D = ":root:not([data-skin]) ";
   tag.textContent = [
     "details.control-section.has-active-data:not([open]) > .section-toggle {",
     `  background: ${tint} !important;`,
@@ -256,7 +259,7 @@ function installStyle() {
     "details.control-section.has-active-data:not([open]) > .section-toggle .section-icon {",
     `  color: ${accent} !important;`,
     "  filter: none !important;",
-    `  text-shadow: ${glow} !important;`,
+    "  text-shadow: none !important;",
     "}",
     /**
      * THE CHEVRON TOO — it is a pseudo-element, so `> summary *` never
@@ -270,6 +273,15 @@ function installStyle() {
     `  color: ${accent} !important;`,
     "  opacity: 1 !important;",
     "  text-shadow: none !important;",
+    "}",
+    `${D}details.control-section.has-active-data:not([open]) > .section-toggle,`,
+    `${D}details.gis-tool-section.has-active-data:not([open]) > summary {`,
+    `  background: ${dark} !important;`,
+    "}",
+    `${D}details.control-section.has-active-data:not([open]) > .section-toggle .section-title,`,
+    `${D}details.control-section.has-active-data:not([open]) > .section-toggle .section-icon,`,
+    `${D}details.gis-tool-section.has-active-data:not([open]) > summary * {`,
+    `  text-shadow: ${glow} !important;`,
     "}",
   ].join("\n");
   document.head.appendChild(tag);

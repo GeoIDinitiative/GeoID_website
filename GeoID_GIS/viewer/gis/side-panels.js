@@ -38,7 +38,7 @@
  */
 const SHELF_NAMES = { geoprocess: "Geoprocessing", analysis: "Analysis" };
 
-import { isParked } from "./parked.js?v=20261017-5b7fa73";
+import { isParked } from "./parked.js?v=20261017-631721e";
 const PANELS = [
   {
     id: "preprocess",
@@ -550,30 +550,33 @@ body[data-hub-armed="true"] .map-legend {
  * The two panel grounds step darker by the same amount, so the rows read as
  * rows against them. Corners stay on the site's tile system rather than the
  * game's square ones. !important where the skin pins section chrome with its
- * own !important (border-color at 34%, the gradient ground). */
-#ui,
-#layer-dock {
+ * own !important (border-color at 34%, the gradient ground).
+ * DEFAULT THEME ONLY (:root without data-skin): the arcade skins in
+ * styles/viewer-themes.css (outrun, workstation/beige, crt, hud, pixel, vector)
+ * are their own looks and must not inherit this one. */
+:root:not([data-skin]) #ui,
+:root:not([data-skin]) #layer-dock {
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.015), rgba(0, 0, 0, 0) 18%),
     linear-gradient(180deg, rgba(13, 2, 33, 0.97), rgba(6, 1, 16, 0.98)) !important;
 }
-.control-section.toolbox-group:not([open]) {
+:root:not([data-skin]) .control-section.toolbox-group:not([open]) {
   background: rgba(8, 2, 22, 0.88) !important;
   border: 1px solid rgba(var(--nav-accent-rgb), 0.42) !important;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03) !important;
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
-.control-section.toolbox-group:not([open]) > .section-toggle {
+:root:not([data-skin]) .control-section.toolbox-group:not([open]) > .section-toggle {
   background: none !important;
 }
-.control-section.toolbox-group:not([open]):hover,
-.control-section.toolbox-group:not([open]):focus-within {
+:root:not([data-skin]) .control-section.toolbox-group:not([open]):hover,
+:root:not([data-skin]) .control-section.toolbox-group:not([open]):focus-within {
   border-color: rgb(var(--nav-accent-rgb)) !important;
   box-shadow:
     0 0 14px rgba(var(--nav-accent-rgb), 0.45),
     inset 0 0 0 1px rgba(var(--nav-accent-rgb), 0.22) !important;
 }
-.control-section.toolbox-group[open] {
+:root:not([data-skin]) .control-section.toolbox-group[open] {
   box-shadow:
     0 0 22px -2px rgba(var(--nav-accent-rgb), 0.7),
     0 0 2px rgba(var(--nav-accent-rgb), 0.9),
@@ -590,46 +593,47 @@ body[data-hub-armed="true"] .map-legend {
  * square, the cyan chrome edges go magenta, and the panels take the game's
  * ground. Deliberate circles stay round: the (i) buttons, the planet icons,
  * range thumbs and the checkboxes the browser draws. It wins by !important,
- * not by its place in the sheet, because the skin's own rules are !important. */
-#ui, #layer-dock,
-.control-section, .gis-tool-section, .gis-side-panel,
-.tool-rail-btn, .tool-rail-panel-btn, .tool-rail-action-btn, .view-mode-btn,
-.button, button.button, .input, select, textarea,
+ * not by its place in the sheet, because the skin's own rules are !important.
+ * Default theme only, like the block above. */
+:root:not([data-skin]) #ui, :root:not([data-skin]) #layer-dock,
+:root:not([data-skin]) .control-section, :root:not([data-skin]) .gis-tool-section, :root:not([data-skin]) .gis-side-panel,
+:root:not([data-skin]) .tool-rail-btn, :root:not([data-skin]) .tool-rail-panel-btn, :root:not([data-skin]) .tool-rail-action-btn, :root:not([data-skin]) .view-mode-btn,
+:root:not([data-skin]) .button, :root:not([data-skin]) button.button, :root:not([data-skin]) .input, :root:not([data-skin]) select, :root:not([data-skin]) textarea,
 input:not([type=range]):not([type=checkbox]):not([type=radio]),
-.layer-row, .layer-name, .layer-disclose, .gis-catalogue-row, .gis-catalogue-box,
-.gis-catalogue-sym, .gis-catalogue-members, .gis-lock-card, .gis-lock-go,
-.search-suggestion, .lsp-pill, .lsp-n, .lsp-pbtn, .data-tag-chip,
-.event-view-tab, #nav-collapse-btn, .section-toggle,
-#time-scrub-toggle, #time-rate-toggle, .map-legend-toggle, .map-legend-panel,
-#geoid-zoom-step, .gis-planet-toggle,
-body.viewer-page button:not(.gis-catalogue-info-btn):not(#info-btn):not(.planet-node),
-[class*="chip"], [class*="pill"], [class*="card"], [class*="tab-btn"] {
+:root:not([data-skin]) .layer-row, :root:not([data-skin]) .layer-name, :root:not([data-skin]) .layer-disclose, :root:not([data-skin]) .gis-catalogue-row, :root:not([data-skin]) .gis-catalogue-box,
+:root:not([data-skin]) .gis-catalogue-sym, :root:not([data-skin]) .gis-catalogue-members, :root:not([data-skin]) .gis-lock-card, :root:not([data-skin]) .gis-lock-go,
+:root:not([data-skin]) .search-suggestion, :root:not([data-skin]) .lsp-pill, :root:not([data-skin]) .lsp-n, :root:not([data-skin]) .lsp-pbtn, :root:not([data-skin]) .data-tag-chip,
+:root:not([data-skin]) .event-view-tab, :root:not([data-skin]) #nav-collapse-btn, :root:not([data-skin]) .section-toggle,
+:root:not([data-skin]) #time-scrub-toggle, :root:not([data-skin]) #time-rate-toggle, :root:not([data-skin]) .map-legend-toggle, :root:not([data-skin]) .map-legend-panel,
+:root:not([data-skin]) #geoid-zoom-step, :root:not([data-skin]) .gis-planet-toggle,
+:root:not([data-skin]) body.viewer-page button:not(.gis-catalogue-info-btn):not(#info-btn):not(.planet-node),
+:root:not([data-skin]) [class*="chip"], :root:not([data-skin]) [class*="pill"], :root:not([data-skin]) [class*="card"], :root:not([data-skin]) [class*="tab-btn"] {
   border-radius: 0 !important;
 }
 /* The HUD over the globe (clock, LIVE, the events list) was edged in cyan;
    the game's chrome speaks one colour. */
-#time-scrub-toggle, #time-rate-toggle, .map-legend-panel {
+:root:not([data-skin]) #time-scrub-toggle, :root:not([data-skin]) #time-rate-toggle, :root:not([data-skin]) .map-legend-panel {
   border-color: rgba(var(--nav-accent-rgb), 0.42) !important;
 }
-#ui, #layer-dock {
+:root:not([data-skin]) #ui, :root:not([data-skin]) #layer-dock {
   border-color: rgba(var(--nav-accent-rgb), 0.38) !important;
   box-shadow: 0 0 22px -8px rgba(var(--nav-accent-rgb), 0.45) !important;
 }
-.tool-rail-btn:not(.is-active) {
+:root:not([data-skin]) .tool-rail-btn:not(.is-active) {
   background: rgba(13, 2, 33, 0.9) !important;
   border-color: rgba(var(--nav-accent-rgb), 0.42) !important;
   box-shadow: none !important;
 }
-.tool-rail-btn:not(.is-active):hover,
-.tool-rail-btn:not(.is-active):focus-visible,
-.button:hover:not([disabled]), .button:focus-visible,
-.event-view-tab:hover, .event-view-tab:focus-visible {
+:root:not([data-skin]) .tool-rail-btn:not(.is-active):hover,
+:root:not([data-skin]) .tool-rail-btn:not(.is-active):focus-visible,
+:root:not([data-skin]) .button:hover:not([disabled]), :root:not([data-skin]) .button:focus-visible,
+:root:not([data-skin]) .event-view-tab:hover, :root:not([data-skin]) .event-view-tab:focus-visible {
   border-color: rgb(var(--nav-accent-rgb)) !important;
   box-shadow: 0 0 14px rgba(var(--nav-accent-rgb), 0.45) !important;
   outline: none;
 }
 /* Cards and the tool sections take the game's ground. */
-.gis-tool-section, #tour-mode-section, #search-section, #locations-section, #core-view-section {
+:root:not([data-skin]) .gis-tool-section, :root:not([data-skin]) #tour-mode-section, :root:not([data-skin]) #search-section, :root:not([data-skin]) #locations-section, :root:not([data-skin]) #core-view-section {
   background: rgba(13, 2, 33, 0.82) !important;
 }
 
@@ -649,7 +653,9 @@ body.viewer-page button:not(.gis-catalogue-info-btn):not(#info-btn):not(.planet-
  * So: any container whose own children are tabs is a grid with one gap; every
  * sub-tab (whatever class built it, at whatever depth) is the same box with a
  * fixed head; tabs keep their own fixed head. #ui in each selector so these
- * outrank the level-2 rules above, which are !important too. */
+ * outrank the level-2 rules above, which are !important too.
+ * The SPACING and HEIGHTS hold in every theme -- they are layout. The box's
+ * look (square, fill, hairline, glow) is the default theme's alone. */
 #ui {
   --tab-gap: 0.5rem;
   --tab-head: 2.75rem;
@@ -663,14 +669,14 @@ body.viewer-page button:not(.gis-catalogue-info-btn):not(#info-btn):not(.planet-
 #ui :is(details.control-section, details.gis-tool-section, .geoid-mode-bar) {
   margin: 0 !important;
 }
-#ui .control-section.toolbox-group :is(details.control-section, details.gis-tool-section, .geoid-mode-bar) {
+:root:not([data-skin]) #ui .control-section.toolbox-group :is(details.control-section, details.gis-tool-section, .geoid-mode-bar) {
   border-radius: 0 !important;
   border: 1px solid rgba(var(--nav-accent-rgb), 0.32) !important;
   background: rgba(13, 2, 33, 0.82) !important;
   box-shadow: none !important;
 }
-#ui .control-section.toolbox-group :is(details.control-section, details.gis-tool-section, .geoid-mode-bar):hover,
-#ui .control-section.toolbox-group :is(details.control-section, details.gis-tool-section, .geoid-mode-bar):focus-within {
+:root:not([data-skin]) #ui .control-section.toolbox-group :is(details.control-section, details.gis-tool-section, .geoid-mode-bar):hover,
+:root:not([data-skin]) #ui .control-section.toolbox-group :is(details.control-section, details.gis-tool-section, .geoid-mode-bar):focus-within {
   border-color: rgb(var(--nav-accent-rgb)) !important;
   box-shadow: 0 0 14px rgba(var(--nav-accent-rgb), 0.4) !important;
 }
@@ -681,6 +687,8 @@ body.viewer-page button:not(.gis-catalogue-info-btn):not(#info-btn):not(.planet-
   padding-block: 0 !important;
   display: flex !important;
   align-items: center !important;
+}
+:root:not([data-skin]) #ui .control-section.toolbox-group :is(details.control-section, details.gis-tool-section, .geoid-mode-bar) > :is(summary, .section-toggle) {
   border-radius: 0 !important;
 }
 /* The tabs themselves: one head height, the GeoID bar included. */
