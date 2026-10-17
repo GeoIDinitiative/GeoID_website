@@ -8,7 +8,7 @@
  * words rather than failing somewhere a reader cannot see.
  */
 
-import { toolByName, checkArgs } from "./atlas-tools.js?v=20261018-e04e41a";
+import { toolByName, checkArgs } from "./atlas-tools.js?v=20261018-3ef6273";
 
 const STAMP = new URL(import.meta.url).search || "";
 

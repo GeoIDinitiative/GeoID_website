@@ -9,13 +9,21 @@
  * globe, GLOBE_RADIUS, getEffectiveRelief -- so the same treatment is attached
  * here once rather than ported into nine viewer copies.
  *
- * Per world, the air is what the world has:
- *   - Mercury and the Moon have none: sunlight only, no glow.
- *   - Venus: a thick pale-yellow envelope, the strongest of them.
- *   - Mars: thin and butterscotch by day, BLUE at sunset (its dust scatters
- *     blue forward, which is why Curiosity's sunsets are blue).
- *   - Jupiter and Saturn: thin cream and gold limbs; Uranus cyan; Neptune a
- *     deep blue; Pluto a faint blue haze (New Horizons' backlit rings).
+ * THE AIR IS COMPUTED, NOT PAINTED -- the same model as Earth's
+ * (earth-viewer.js, "THE AIR, AS SCATTERED LIGHT"): one shell drawn from its
+ * front faces, the line of sight's optical depth through an exponential
+ * atmosphere (Chapman grazing depth off the limb, airmass over the disc),
+ * scattering per channel, and sunlight filtered by its own path in. So every
+ * edge dissolves into space over a few scale heights rather than ending at a
+ * ring (reported of the painted shells: "needs to dissipate seamlessly into
+ * space", "way more subtle and diffuse"). Per world:
+ *   beta   which colours its air scatters most (its tint where thin);
+ *   k      vertical optical depth at the ground (how much air);
+ *   h      scale height as a fraction of R (how gradually it thins);
+ *   gain   overall brightness.
+ * Mercury and the Moon have no air: sunlight only. Venus is thick and pale
+ * yellow; Mars thin and butterscotch; Jupiter and Saturn cream and gold;
+ * Uranus cyan; Neptune blue; Pluto a faint blue haze.
  *
  * The SUN is the viewer's own key light (intensity 1.9 in every lineage), read
  * each frame, so the glow and the lift follow whatever drives that light. The
@@ -25,19 +33,20 @@
  */
 
 import * as THREE from "/GeoID_GIS/viewer/vendor/three.module.js";
-import { currentBodyId } from "./bodies.js?v=20261018-e04e41a";
+import { currentBodyId } from "./bodies.js?v=20261018-3ef6273";
 
 const PROFILES = {
   mercury: null,
   moon: null,
-  venus: { day: [1.0, 0.9, 0.62], dusk: [1.0, 0.62, 0.3], gain: 0.8, tight: 0.045, wide: 0.13, haze: 0.45 },
-  mars: { day: [0.96, 0.64, 0.44], dusk: [0.42, 0.62, 1.0], gain: 0.42, tight: 0.018, wide: 0.06, haze: 0.28 },
-  jupiter: { day: [0.92, 0.86, 0.74], dusk: [1.0, 0.62, 0.36], gain: 0.55, tight: 0.025, wide: 0.07, haze: 0.3 },
-  saturn: { day: [0.96, 0.86, 0.6], dusk: [1.0, 0.6, 0.32], gain: 0.55, tight: 0.025, wide: 0.07, haze: 0.3 },
-  uranus: { day: [0.55, 0.9, 0.95], dusk: [0.7, 0.85, 1.0], gain: 0.7, tight: 0.03, wide: 0.08, haze: 0.4 },
-  neptune: { day: [0.34, 0.55, 1.0], dusk: [0.6, 0.6, 1.0], gain: 0.75, tight: 0.03, wide: 0.08, haze: 0.42 },
-  pluto: { day: [0.5, 0.7, 1.0], dusk: [0.6, 0.75, 1.0], gain: 0.32, tight: 0.015, wide: 0.05, haze: 0.18 },
+  venus: { beta: [0.95, 0.82, 0.52], k: 0.16, h: 0.045, gain: 0.7 },
+  mars: { beta: [1.0, 0.68, 0.42], k: 0.05, h: 0.022, gain: 0.85 },
+  jupiter: { beta: [0.9, 0.82, 0.66], k: 0.07, h: 0.03, gain: 0.7 },
+  saturn: { beta: [0.98, 0.84, 0.55], k: 0.07, h: 0.03, gain: 0.7 },
+  uranus: { beta: [0.38, 0.82, 0.92], k: 0.09, h: 0.03, gain: 0.8 },
+  neptune: { beta: [0.24, 0.5, 1.0], k: 0.09, h: 0.03, gain: 0.85 },
+  pluto: { beta: [0.38, 0.6, 1.0], k: 0.03, h: 0.02, gain: 0.7 },
 };
+const TOP_IN_SCALE_HEIGHTS = 7;
 /**
  * SUNLIGHT ON THE SURFACE. A flat lift read as nothing (reported: "the day and
  * night sides need visualisation ... on the surface itself"), because every
@@ -53,55 +62,48 @@ const NIGHT_LEVEL = 0.62;
 const LIFT_FOR = { moon: 0.35, mercury: 0.45 };
 
 const VERT = `
-  varying vec3 vN;
   varying vec3 vP;
   void main() {
-    vN = normalize(mat3(modelMatrix) * normal);
     vec4 wp = modelMatrix * vec4(position, 1.0);
     vP = wp.xyz;
     gl_Position = projectionMatrix * viewMatrix * wp;
   }`;
 
-const SHELL_FRAG = `
+const FRAG = `
   uniform vec3 uSun;
   uniform float uFade;
-  uniform float uEdge;
+  uniform vec3 uCentre;
+  uniform float uGround;
+  uniform float uH;
+  uniform float uK;
+  uniform vec3 uBeta;
   uniform float uGain;
-  uniform float uPow;
-  uniform vec3 uDay;
-  uniform vec3 uDusk;
-  varying vec3 vN;
   varying vec3 vP;
+  const float TAU_PI = 6.2831853;
   void main() {
-    vec3 v = normalize(cameraPosition - vP);
-    float f = clamp(-dot(vN, v) / max(uEdge, 0.01), 0.0, 1.0);
-    float glow = pow(f, uPow);
-    float s = dot(vN, uSun);
-    float day = smoothstep(-0.22, 0.22, s);
-    float back = smoothstep(0.0, 0.85, dot(-v, uSun));
-    float dusk = back * (1.0 - smoothstep(-0.12, 0.35, s));
-    vec3 col = mix(uDay, uDusk, dusk);
-    float night = mix(1.0, 0.28, back);
-    gl_FragColor = vec4(col * glow * day * night * uGain * uFade, 1.0);
-  }`;
-
-const HAZE_FRAG = `
-  uniform vec3 uSun;
-  uniform float uFade;
-  uniform float uGain;
-  uniform vec3 uDay;
-  uniform vec3 uDusk;
-  varying vec3 vN;
-  varying vec3 vP;
-  void main() {
-    vec3 v = normalize(cameraPosition - vP);
-    float rim = pow(1.0 - max(dot(vN, v), 0.0), 2.4);
-    float s = dot(vN, uSun);
-    float day = smoothstep(-0.12, 0.45, s);
-    float back = smoothstep(0.0, 0.85, dot(-v, uSun));
-    float dusk = back * (1.0 - smoothstep(0.0, 0.35, s));
-    vec3 col = mix(uDay, uDusk, dusk);
-    gl_FragColor = vec4(col * rim * 0.75 * uGain * day * (1.0 - 0.7 * back) * uFade, 1.0);
+    vec3 rd = normalize(vP - cameraPosition);
+    vec3 oc = cameraPosition - uCentre;
+    float b = dot(oc, rd);
+    vec3 closest = oc - b * rd;
+    float h = length(closest);
+    float tau;
+    vec3 n;
+    if (h < uGround) {
+      float tHit = -b - sqrt(uGround * uGround - h * h);
+      n = normalize(oc + rd * tHit);
+      tau = uK / max(dot(n, -rd), 0.035);
+    } else {
+      n = normalize(closest);
+      tau = uK * exp(-(h - uGround) / uH) * sqrt(TAU_PI * h / uH);
+    }
+    tau = min(tau, 2.2);
+    float s = dot(n, uSun);
+    float lit = smoothstep(-0.06, 0.16, s);
+    vec3 sunlight = exp(-uBeta * uK * 0.7 / max(s + 0.22, 0.05)) * lit;
+    vec3 scatter = 1.0 - exp(-uBeta * tau);
+    float c = dot(rd, uSun);
+    float phase = 0.75 * (1.0 + c * c);
+    gl_FragColor = vec4(sunlight * scatter * phase * uGain * uFade, 1.0);
   }`;
 
 function findSun(scene) {
@@ -144,7 +146,18 @@ function attach(viewer) {
   if (!scene || !globe || globe.userData.atmosphere) return false;
   const sunLight = findSun(scene);
   if (!sunLight) return false;
-  const R = Number(viewer.GLOBE_RADIUS) || 3.2;
+  // The globe's TRUE size in the world: its geometry radius times its world
+  // scale. GLOBE_RADIUS is the nominal 3.2, and Jupiter's globe is scaled
+  // away from it -- the air came out as a band floating off the limb with a
+  // dark gap between (seen in capture). Read each frame below, since a viewer
+  // may rescale.
+  const worldScale = new THREE.Vector3();
+  const trueRadius = () => {
+    const base = Number(globe.geometry?.parameters?.radius) || Number(viewer.GLOBE_RADIUS) || 3.2;
+    globe.getWorldScale(worldScale);
+    return base * Math.max(worldScale.x, worldScale.y, worldScale.z);
+  };
+  let R = trueRadius();
   const profile = PROFILES[currentBodyId()];
   const sunWorld = new THREE.Vector3(1, 0, 0);
   const sunView = new THREE.Vector3(1, 0, 0);
@@ -154,47 +167,34 @@ function attach(viewer) {
   liftDaySide(THREE, globe.material, sunView, LIFT_FOR[currentBodyId()] ?? DAY_LIFT);
 
   const layers = [];
+  let shell = null;
   if (profile) {
-    const colour = (rgb) => new THREE.Vector3(...rgb);
-    const shell = (gain, pow) => new THREE.ShaderMaterial({
-      uniforms: {
-        uSun: sun, uFade: fade, uEdge: { value: 0.3 }, uGain: { value: gain }, uPow: { value: pow },
-        uDay: { value: colour(profile.day) }, uDusk: { value: colour(profile.dusk) },
-      },
-      vertexShader: VERT,
-      fragmentShader: SHELL_FRAG,
-      side: THREE.BackSide,
-      blending: THREE.AdditiveBlending,
-      transparent: true,
-      depthWrite: false,
-    });
-    const unit = new THREE.SphereGeometry(1, 128, 96);
-    const halo = new THREE.Mesh(unit, shell(profile.gain * 0.36, 2.4));
-    const limb = new THREE.Mesh(unit, shell(profile.gain, 1.35));
-    const haze = new THREE.Mesh(unit, new THREE.ShaderMaterial({
-      uniforms: {
-        uSun: sun, uFade: fade, uGain: { value: profile.haze },
-        uDay: { value: colour(profile.day) }, uDusk: { value: colour(profile.dusk) },
-      },
-      vertexShader: VERT,
-      fragmentShader: HAZE_FRAG,
-      side: THREE.FrontSide,
-      blending: THREE.AdditiveBlending,
-      transparent: true,
-      depthWrite: false,
-    }));
-    [halo, limb, haze].forEach((mesh, i) => {
-      mesh.userData.nonInteractive = true;
-      mesh.raycast = () => {};
-      mesh.renderOrder = 2 + i;
-      mesh.name = "geoid-atmosphere";
-    });
-    halo.userData.thickness = profile.wide;
-    limb.userData.thickness = profile.tight;
-    layers.push(halo, limb, haze);
-    // Into the globe's own parent: the shells are spheres, so the planet's
-    // tilt and spin do not move them, but its position does.
-    (globe.parent || scene).add(halo, limb, haze);
+    shell = new THREE.Mesh(
+      new THREE.SphereGeometry(1, 160, 120),
+      new THREE.ShaderMaterial({
+        uniforms: {
+          uSun: sun, uFade: fade,
+          uCentre: { value: new THREE.Vector3() },
+          uGround: { value: R },
+          uH: { value: R * profile.h },
+          uK: { value: profile.k },
+          uBeta: { value: new THREE.Vector3(...profile.beta) },
+          uGain: { value: profile.gain },
+        },
+        vertexShader: VERT,
+        fragmentShader: FRAG,
+        side: THREE.FrontSide,
+        blending: THREE.AdditiveBlending,
+        transparent: true,
+        depthWrite: false,
+      }),
+    );
+    shell.userData.nonInteractive = true;
+    shell.raycast = () => {};
+    shell.renderOrder = 3;
+    shell.name = "geoid-atmosphere";
+    layers.push(shell);
+    (globe.parent || scene).add(shell);
   }
 
   const relief = () => {
@@ -204,7 +204,7 @@ function attach(viewer) {
   };
 
   // One hook, on the globe, per frame: the sun in world and view space, the
-  // shells sized to the ground at its exaggeration, and the fade by height.
+  // shell sized to the ground at its exaggeration, and the fade by height.
   const before = globe.onBeforeRender;
   globe.onBeforeRender = function (renderer, sc, cam, ...rest) {
     if (typeof before === "function") before.call(this, renderer, sc, cam, ...rest);
@@ -213,28 +213,25 @@ function attach(viewer) {
     if (sunWorld.lengthSq() < 1e-9) sunWorld.set(1, 0, 0);
     sunWorld.normalize();
     sunView.copy(sunWorld).transformDirection(cam.matrixWorldInverse);
-    if (!layers.length) return;
+    if (!shell) return;
     // THE CUTAWAY SHOWS THE INSIDE, so the air goes with the outer skin: a
     // glow wrapped round a half-sphere read as a lit shell round nothing
     // (reported on Venus). Every viewer carries the same #core-toggle.
     const cutaway = Boolean(document.getElementById("core-toggle")?.checked);
-    const centre = new THREE.Vector3();
-    globe.getWorldPosition(centre);
-    const ground = R + relief();
-    layers.forEach((mesh) => {
-      mesh.position.copy(mesh.parent ? mesh.parent.worldToLocal(centre.clone()) : centre);
-      mesh.visible = globe.visible && !cutaway;
-      if (mesh.material.uniforms.uEdge) {
-        const r = ground + R * mesh.userData.thickness;
-        mesh.scale.setScalar(r);
-        mesh.material.uniforms.uEdge.value = Math.sqrt(Math.max(0, 1 - (ground / r) ** 2));
-      } else {
-        mesh.scale.setScalar(R + relief() * 0.5 + 0.012);
-      }
-    });
-    const d = cam.position.distanceTo(centre) / ground;
-    fade.value = Math.min(1, Math.max(0, (d - 1.03) / 0.22));
-    fade.value = fade.value * fade.value * (3 - 2 * fade.value);
+    shell.visible = globe.visible && !cutaway;
+    const u = shell.material.uniforms;
+    globe.getWorldPosition(u.uCentre.value);
+    shell.position.copy(shell.parent ? shell.parent.worldToLocal(u.uCentre.value.clone()) : u.uCentre.value);
+    R = trueRadius();
+    const rel = relief();
+    const ground = R + rel * 0.5;
+    u.uH.value = R * profile.h;
+    u.uGround.value = ground;
+    const parentScale = shell.parent ? shell.parent.getWorldScale(new THREE.Vector3()).x || 1 : 1;
+    shell.scale.setScalar((ground + R * profile.h * TOP_IN_SCALE_HEIGHTS + rel * 0.5) / parentScale);
+    const d = cam.position.distanceTo(u.uCentre.value) / ground;
+    const t = Math.min(1, Math.max(0, (d - 1.03) / 0.22));
+    fade.value = t * t * (3 - 2 * t);
   };
   globe.userData.atmosphere = layers;
   return true;

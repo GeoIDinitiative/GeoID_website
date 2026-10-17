@@ -2,13 +2,13 @@ import * as THREE from "./vendor/three.module.js";
 // The polygon-area rule lives in one place, with a test. Stamped by hand
 // once: stamp.py only rewrites a ?v= that already exists.
 import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
-  from "./gis/geo-utils.js?v=20261018-e04e41a";
+  from "./gis/geo-utils.js?v=20261018-3ef6273";
 import { attachReliefAttributes, followRelief }
-  from "./gis/vector-render.js?v=20261018-e04e41a";
+  from "./gis/vector-render.js?v=20261018-3ef6273";
 import { rockClass, crustalSetting, rockClassLabel, classificationBasis }
-  from "./gis/rock-class.js?v=20261018-e04e41a";
+  from "./gis/rock-class.js?v=20261018-3ef6273";
 import { lithologyLabel }
-  from "./gis/lithology-label.js?v=20261018-e04e41a";
+  from "./gis/lithology-label.js?v=20261018-3ef6273";
 
 /**
  * This module's own cache stamp, read off its own URL.
@@ -14473,98 +14473,103 @@ function fmtProp(value) {
       earthGlobeRef = globe;
 
       /**
-       * THE AIR, LIT BY THE SUN. The globe was a lit ball under a key light
-       * with nothing above it, so the limb was a hard cut to black on the day
-       * side -- the one thing that makes a photograph of Earth from orbit read
-       * as Earth. Three additive layers, all driven by the sun direction the
-       * terminator uses (_SUN_DIR, updated each frame in updateSolarModel):
+       * THE AIR, AS SCATTERED LIGHT. Three hand-tuned additive layers (a limb
+       * shell, a halo, a ground haze) read as a neon ring rather than air
+       * (reported: "doesn't look realistic at all"). What a photograph from
+       * orbit shows is a consequence of optical depth, so this computes it:
        *
-       *  - a TIGHT SHELL just above the highest ground: the bright blue limb;
-       *  - a WIDE SHELL, ~0.12 R further out, faint and slow to fall off: the
-       *    diffuse halo a single shell could not give (reported "not diffuse
-       *    enough" with one);
-       *  - a HAZE at the ground: Rayleigh scattering at grazing angles, a blue
-       *    brightening toward the sunlit limb that leaves mid-disc clear.
+       *  - ONE shell, drawn from its FRONT faces, so it covers the disc and
+       *    the limb alike and is never hidden behind the globe.
+       *  - Per pixel, the line of sight's optical depth through an
+       *    exponential atmosphere (scale height ATMO_H). A ray that misses the
+       *    ground gets the Chapman grazing depth at its closest approach,
+       *    exp(-(h - R)/H) * sqrt(2 pi h / H): about thirty times a vertical
+       *    path at the surface and falling off in a few scale heights -- the
+       *    thin bright band hugging the limb, gone a short way above it. A ray
+       *    that meets the ground gets the vertical depth times the airmass
+       *    1/cos(angle), so the haze over the disc thickens toward the edge.
+       *  - Rayleigh scattering per channel (ATMO_BETA, blue strongest):
+       *    1 - exp(-tau * beta) is blue where the air is thin and saturates
+       *    toward white where it is thick, as the real limb does.
+       *  - The sunlight reaching that air is filtered by ITS path, airmass
+       *    1/sin(sun elevation), so it reddens at the terminator: sunsets
+       *    without a second colour being painted in.
        *
-       * Sunset orange only where the line of sight runs TOWARD the sun across
-       * the terminator (forward scattering); seen from the day side the limb is
-       * the terminator too, and it is blue.
-       *
-       * THE AIR SITS ON THE TERRAIN, NOT ON THE SPHERE: the relief is displaced
-       * outward by the Vertical exaggeration slider (0 to 0.3 scene units on a
-       * 3.2 radius), so each frame the shells are sized from the ground's
-       * highest point and the haze from the ground itself -- at 0.3 the peaks
-       * otherwise stood through a fixed shell (reported). The grazing angle
-       * each shell brightens toward is recomputed with them.
-       *
-       * Every layer fades out as the camera comes down through the air
-       * (uFade), so close-range imagery is never tinted. Not raycastable;
-       * hidden with the cutaway, which shows the interior instead.
+       * Sized each frame on the terrain at its vertical exaggeration, faded as
+       * the camera comes down into the air, hidden with the cutaway.
        */
-      const ATMO_SUN = { value: _SUN_DIR };
-      const ATMO_FADE = { value: 1 };
-      const atmoVert = `
-        varying vec3 vN;
-        varying vec3 vP;
-        void main() {
-          vN = normalize(mat3(modelMatrix) * normal);
-          vec4 wp = modelMatrix * vec4(position, 1.0);
-          vP = wp.xyz;
-          gl_Position = projectionMatrix * viewMatrix * wp;
-        }`;
-      const shellFrag = `
-        uniform vec3 uSun;
-        uniform float uFade;
-        uniform float uEdge;   // -dot(n, v) where the sight line grazes the ground
-        uniform float uGain;
-        uniform float uPow;
-        varying vec3 vN;
-        varying vec3 vP;
-        void main() {
-          vec3 v = normalize(cameraPosition - vP);
-          float f = clamp(-dot(vN, v) / max(uEdge, 0.01), 0.0, 1.0);
-          float glow = pow(f, uPow);
-          float s = dot(vN, uSun);
-          float day = smoothstep(-0.22, 0.22, s);
-          float back = smoothstep(0.0, 0.85, dot(-v, uSun));
-          float dusk = back * (1.0 - smoothstep(-0.12, 0.35, s));
-          vec3 col = mix(vec3(0.34, 0.62, 1.00), vec3(1.00, 0.52, 0.26), dusk);
-          // Seen from the night side the whole limb sits on the terminator;
-          // it keeps a thin sunset line, not a lit ring round the dark.
-          float night = mix(1.0, 0.28, back);
-          gl_FragColor = vec4(col * glow * day * night * uGain * uFade, 1.0);
-        }`;
-      const shellMaterial = (gain, pow) => new THREE.ShaderMaterial({
-        uniforms: { uSun: ATMO_SUN, uFade: ATMO_FADE, uEdge: { value: 0.3 }, uGain: { value: gain }, uPow: { value: pow } },
-        vertexShader: atmoVert,
-        fragmentShader: shellFrag,
-        side: THREE.BackSide,
-        blending: THREE.AdditiveBlending,
-        transparent: true,
-        depthWrite: false,
-      });
-      const unitSphere = new THREE.SphereGeometry(1, 128, 96);
-      const atmoShell = new THREE.Mesh(unitSphere, shellMaterial(1.25, 1.35));
-      const atmoHalo = new THREE.Mesh(unitSphere, shellMaterial(0.45, 2.4));
-      const atmoHaze = new THREE.Mesh(
-        unitSphere,
+      const ATMO_H = 0.024;                       // scale height, fraction of R (visual)
+      const ATMO_TOP = 7;                         // shell top, in scale heights
+      const ATMO_BETA = new THREE.Vector3(0.16, 0.40, 1.0);
+      const atmoUniforms = {
+        uSun: { value: _SUN_DIR },
+        uFade: { value: 1 },
+        uCentre: { value: new THREE.Vector3() },
+        uGround: { value: 3.2 },
+        uTop: { value: 3.2 * (1 + ATMO_H * ATMO_TOP) },
+        uH: { value: 3.2 * ATMO_H },
+        uK: { value: 0.12 },                      // vertical optical depth (blue) at the ground
+        uBeta: { value: ATMO_BETA },
+        uGain: { value: 1.0 },
+      };
+      const atmoShell = new THREE.Mesh(
+        new THREE.SphereGeometry(1, 160, 120),
         new THREE.ShaderMaterial({
-          uniforms: { uSun: ATMO_SUN, uFade: ATMO_FADE },
-          vertexShader: atmoVert,
+          uniforms: atmoUniforms,
+          vertexShader: `
+            varying vec3 vP;
+            void main() {
+              vec4 wp = modelMatrix * vec4(position, 1.0);
+              vP = wp.xyz;
+              gl_Position = projectionMatrix * viewMatrix * wp;
+            }`,
           fragmentShader: `
             uniform vec3 uSun;
             uniform float uFade;
-            varying vec3 vN;
+            uniform vec3 uCentre;
+            uniform float uGround;
+            uniform float uTop;
+            uniform float uH;
+            uniform float uK;
+            uniform vec3 uBeta;
+            uniform float uGain;
             varying vec3 vP;
+            const float TAU_PI = 6.2831853;
             void main() {
-              vec3 v = normalize(cameraPosition - vP);
-              float rim = pow(1.0 - max(dot(vN, v), 0.0), 2.4);
-              float s = dot(vN, uSun);
-              float day = smoothstep(-0.12, 0.45, s);
-              float back = smoothstep(0.0, 0.85, dot(-v, uSun));
-              float dusk = back * (1.0 - smoothstep(0.0, 0.35, s));
-              vec3 col = mix(vec3(0.30, 0.56, 1.0), vec3(1.0, 0.6, 0.35), dusk);
-              gl_FragColor = vec4(col * rim * 0.75 * day * (1.0 - 0.7 * back) * uFade, 1.0);
+              vec3 rd = normalize(vP - cameraPosition);
+              vec3 oc = cameraPosition - uCentre;
+              float b = dot(oc, rd);
+              vec3 closest = oc - b * rd;              // nearest point of the ray to the centre
+              float h = length(closest);
+              float tauV = uK;                         // vertical depth, blue, at the ground
+              float tau;
+              vec3 n;
+              if (h < uGround) {
+                // Meets the ground: vertical depth times the airmass at the hit.
+                float tHit = -b - sqrt(uGround * uGround - h * h);
+                vec3 hit = oc + rd * tHit;
+                n = normalize(hit);
+                float mu = max(dot(n, -rd), 0.035);
+                tau = tauV / mu;
+              } else {
+                // Misses: Chapman grazing depth at the closest approach.
+                n = normalize(closest);
+                float rel = (h - uGround) / uH;
+                tau = tauV * exp(-rel) * sqrt(TAU_PI * h / uH);
+              }
+              // Capped: past this the real limb is multiply-scattered sky, not
+              // a white wall -- uncapped, grazing paths saturated to a hard ring.
+              tau = min(tau, 2.2);
+              // Sunlight at that air, filtered by its own path in.
+              float s = dot(n, uSun);
+              float lit = smoothstep(-0.06, 0.16, s);
+              vec3 sunlight = exp(-uBeta * tauV * 0.7 / max(s + 0.22, 0.05)) * lit;
+              vec3 scatter = 1.0 - exp(-uBeta * tau);
+              // Rayleigh phase: a little brighter looking toward or away from the sun.
+              float c = dot(rd, uSun);
+              float phase = 0.75 * (1.0 + c * c);
+              vec3 col = sunlight * scatter * phase * uGain;
+              gl_FragColor = vec4(col * uFade, 1.0);
             }`,
           side: THREE.FrontSide,
           blending: THREE.AdditiveBlending,
@@ -14572,32 +14577,25 @@ function fmtProp(value) {
           depthWrite: false,
         }),
       );
-      [atmoHalo, atmoShell, atmoHaze].forEach((mesh, i) => {
-        mesh.userData.nonInteractive = true;
-        mesh.raycast = () => {};
-        mesh.renderOrder = 2 + i;
-      });
-      const ATMO_TIGHT = 0.04;   // the bright limb, as a fraction of R above the peaks
-      const ATMO_WIDE = 0.12;    // the diffuse halo
-      const sizeShell = (mesh, ground, thickness) => {
-        const r = ground + 3.2 * thickness;
-        mesh.scale.setScalar(r);
-        mesh.material.uniforms.uEdge.value = Math.sqrt(Math.max(0, 1 - (ground / r) ** 2));
-      };
-      atmoHaze.onBeforeRender = (_r, _s, cam) => {
+      atmoShell.userData.nonInteractive = true;
+      atmoShell.raycast = () => {};
+      atmoShell.renderOrder = 3;
+      atmoShell.onBeforeRender = (_r, _s, cam) => {
         const relief = Math.max(0, Number(baseMaterial.displacementScale) || 0);
-        const peaks = 3.2 + relief;
-        // The haze sits on the mean ground (about half the relief, where the
-        // sea and the lowlands are), the shells clear the highest point.
-        atmoHaze.scale.setScalar(3.2 + relief * 0.5 + 0.012);
-        sizeShell(atmoShell, peaks, ATMO_TIGHT);
-        sizeShell(atmoHalo, peaks, ATMO_WIDE);
-        // Gone as the camera comes down through the air, whole well above it.
-        const d = cam.position.length() / peaks;
-        ATMO_FADE.value = THREE.MathUtils.smoothstep(d, 1.03, 1.25);
+        // The air sits on the mean ground (about half the relief -- sea and
+        // lowlands), so a high exaggeration lifts it with the terrain.
+        const ground = 3.2 + relief * 0.5;
+        marsGroup.getWorldPosition(atmoUniforms.uCentre.value);
+        atmoUniforms.uGround.value = ground;
+        atmoUniforms.uH.value = 3.2 * ATMO_H;
+        const top = ground + 3.2 * ATMO_H * ATMO_TOP + relief * 0.5;
+        atmoUniforms.uTop.value = top;
+        atmoShell.scale.setScalar(top);
+        const d = cam.position.distanceTo(atmoUniforms.uCentre.value) / ground;
+        atmoUniforms.uFade.value = THREE.MathUtils.smoothstep(d, 1.03, 1.25);
       };
-      marsGroup.add(atmoHalo, atmoShell, atmoHaze);
-      globe.userData.atmosphere = [atmoHalo, atmoShell, atmoHaze];
+      marsGroup.add(atmoShell);
+      globe.userData.atmosphere = [atmoShell];
       locatorViewState.camera = camera;
       locatorViewState.planetGroup = marsGroup;
       locatorViewState.globe = globe;
