@@ -23780,3 +23780,29 @@ in `research/connectors.js` (pure, tested in `connectors.test.mjs`).
 
 Verified headless with Overpass mocked: 30 roads classed by `class`, and
 Edinburgh drawn from "City of Edinburgh" (level 8) over a drawn area.
+
+## The Atlas verification ledger: forecasts checked against what happened
+
+`atlas-ledger.js` (pure, 47 checks) and `atlas-ledger-page.js` (the page
+half). The total-risk card dispatches `geoid-gis:total-risk-computed`; every
+reading with a `VERIFY` entry becomes a record (hazard, place, the window it
+is about, lead, score). Once the window has passed it is verified:
+
+- **Weather** against Open-Meteo: the ERA5 archive once the window is six
+  days old, the model analysis before it (marked provisional and replaced
+  later). CAPE is not in ERA5, so it is always read from the analysis and is
+  final. **Archived and recent records at one place are asked in SEPARATE
+  requests**: in one request the newest record decides the endpoint, and an
+  old record was read provisionally from the analysis.
+- **Events** against NASA EONET over each place's own box and window, and
+  aftershocks against the USGS catalogue (M ≥ 5). EONET is curated, so an
+  absence is a weak negative, and the report says so.
+
+What it learns: a contingency table, Brier skill against climatology, a
+cross-validated logistic calibration (needs 20 verified records), and for
+the weather the error distribution and its least-squares correction. It is
+kept in `localStorage["geoid-gis:atlas-ledger"]` and copied into an open
+project at `metadata/atlas_ledger.json`. It is shown in Hazards ▸ myGeoID ▸
+"How well the models have done". Atlas answers verification questions
+through the registry's `verification` tool. Verified headless with all three
+services mocked.
