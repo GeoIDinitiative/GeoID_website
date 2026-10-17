@@ -24,7 +24,7 @@
     })();
   </script>
   <meta charset="UTF-8">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; script-src 'self' https://static.cloudflareinsights.com 'sha256-gqZervCh0LjknXcRuRgppk1ee0wxzaJQKYND0hWU29k=' 'sha256-8tyYvppUhQaLRT0VdPdcZjsEPHe4jqdKZC7C96cdIgU=' 'sha256-rDdYEm63cRodo0Pct49R3DJzYsrko6oYkWHIvG0U4Wc='; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https: http://localhost:* http://127.0.0.1:*; media-src 'self' data: blob: https:; connect-src 'self' data: blob: https: http://localhost:* http://127.0.0.1:*; frame-src 'self' blob: https://docs.google.com https://drive.google.com; form-action 'self' https://formspree.io https://buy.stripe.com https://docs.google.com; worker-src 'self' blob:; child-src 'self' blob:; upgrade-insecure-requests">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; script-src 'self' https://static.cloudflareinsights.com 'sha256-gqZervCh0LjknXcRuRgppk1ee0wxzaJQKYND0hWU29k=' 'sha256-mCa+aejnqy2lJtGbyV+8EuPw4LmtBwRuKsLHKE8/OiM=' 'sha256-rDdYEm63cRodo0Pct49R3DJzYsrko6oYkWHIvG0U4Wc='; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https: http://localhost:* http://127.0.0.1:*; media-src 'self' data: blob: https:; connect-src 'self' data: blob: https: http://localhost:* http://127.0.0.1:*; frame-src 'self' blob: https://docs.google.com https://drive.google.com; form-action 'self' https://formspree.io https://buy.stripe.com https://docs.google.com; worker-src 'self' blob:; child-src 'self' blob:; upgrade-insecure-requests">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>GeoID: Explorer | Transit</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -72,10 +72,6 @@
     /* The words, brackets and bar are drawn on #tx-front by transit-render.js
        (off the main thread); this line is what a screen reader hears. */
     .tx-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
-    /* The two things a reader can do: go home, or get there now. */
-    #tx-actions { position: fixed; right: calc(34px * max(0.6, var(--u, 1)) + 20px); bottom: calc(34px * max(0.6, var(--u, 1)) + 14px); z-index: 5; display: flex; gap: 10px; transition: opacity .4s; }
-    #tx-actions a, #tx-actions button { font: 500 11px "Exo 2", sans-serif; letter-spacing: .2em; text-transform: uppercase; color: rgba(255,255,255,.6); background: rgba(3,6,8,.5); border: 1px solid rgba(255,255,255,.18); padding: 6px 12px; cursor: pointer; text-decoration: none; }
-    #tx-actions a:hover, #tx-actions button:hover, #tx-actions a:focus-visible, #tx-actions button:focus-visible { color: #fff; border-color: #f7bd68; outline: none; }
     /* ── Portrait orientation advisory ───────────────────────────────── */
     #portrait-advisory { display: none; }
 
@@ -151,13 +147,9 @@
   <canvas id="tx-front" aria-hidden="true"></canvas>
 
   <p id="tx-sr" class="tx-sr" aria-live="polite"></p>
-  <div id="tx-actions">
-    <a href="/" target="_top" rel="home">← Home</a>
-    <button type="button" id="tx-skip">Skip ›</button>
-  </div>
 
-  <script src="transit-render.js?v=20261018-3ef6273"></script>
-  <script src="transit-sequence.js?v=20261018-3ef6273"></script>
+  <script src="transit-render.js?v=20261018-3e9bb78"></script>
+  <script src="transit-sequence.js?v=20261018-3e9bb78"></script>
   <script>
     const destinations = {
       mercury: {
@@ -410,7 +402,8 @@
         if (!el) continue;
         el.style.transition = `opacity ${CROSSFADE_MS}ms ease`; el.style.opacity = "0";
       }
-      actions.style.opacity = "0"; actions.style.pointerEvents = "none";
+      // (The HOME / SKIP buttons were removed 2026-10-18, asked for.)
+      if (actions) { actions.style.opacity = "0"; actions.style.pointerEvents = "none"; }
       setTimeout(() => { viewerFrame.style.pointerEvents = "auto"; }, CROSSFADE_MS);
     }
 
@@ -433,7 +426,8 @@
     if (booting() || reduced) {
       revealViewer();
       viewerFrame.style.opacity = "0";
-      const deadline = performance.now() + 9000;
+      // See transit-sequence.js VIEWER_WAIT_S: a cold Mars is past 9 s.
+      const deadline = performance.now() + 45000;
       (function wait() {
         if (viewerHasDrawn() || performance.now() > deadline) { crossover(); return; }
         requestAnimationFrame(wait);

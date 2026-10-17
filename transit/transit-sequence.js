@@ -281,10 +281,16 @@
       }
     }
 
+    const VIEWER_WAIT_S = 45;
     function waitForViewer() {
       if (released || done) return;
-      if (hooks.viewerDrawn() || (performance.now() - revealedAt) / 1000 > 9) { release(); return; }
-      if (snd && !sndHold) { sndHold = true; soundHold(snd.run, lastT, 30); }
+      // HOLD UNTIL THE WORLD HAS DRAWN. This released after 9 s whatever the
+      // viewer's state, and a cold Mars needs ~13 s on the live site even
+      // headless -- so the first visit arrived at an unbuilt world and the
+      // second, cached, did not (reported: "Mars still doesn't load on the
+      // first try"). The hold loops its own animation and sound meanwhile.
+      if (hooks.viewerDrawn() || (performance.now() - revealedAt) / 1000 > VIEWER_WAIT_S) { release(); return; }
+      if (snd && !sndHold) { sndHold = true; soundHold(snd.run, lastT, VIEWER_WAIT_S); }
       setTimeout(waitForViewer, 100);
     }
 
