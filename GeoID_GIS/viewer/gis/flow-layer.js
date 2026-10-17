@@ -32,14 +32,14 @@
  */
 
 import * as THREE from "../vendor/three.module.js";
-import { followRelief } from "./vector-render.js?v=20261017-9debac0";
-import { visibleBounds } from "./view-extent.js?v=20261017-9debac0";
+import { followRelief } from "./vector-render.js?v=20261017-43e621f";
+import { visibleBounds } from "./view-extent.js?v=20261017-43e621f";
 import {
   WORLD, RAMPS, OPEN_METEO, OPEN_METEO_MARINE, planGrid, gridPoints, chunkPoints,
   requestUrl, readHourly, buildField, sampleStack, sampleScalar, advect, randomPoint,
   rampAt, rampPalette, headingOf, compassPoint, beaufort, wrapLon, RAD,
   aggregateHourly, countFinite,
-} from "./flow-field.js?v=20261017-9debac0";
+} from "./flow-field.js?v=20261017-43e621f";
 
 /* ── the two sources ───────────────────────────────────────────────────── */
 

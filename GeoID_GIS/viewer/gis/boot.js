@@ -1,4 +1,4 @@
-import { ready } from "./shell.js?v=20261017-9debac0";
+import { ready } from "./shell.js?v=20261017-43e621f";
 
 /**
  * The GIS layer's entry point on a planet page.
@@ -112,7 +112,7 @@ const MODULES = [
   "./atlas-assistant.js",
 ];
 
-const VERSION = "?v=20261017-9debac0";
+const VERSION = "?v=20261017-43e621f";
 
 async function boot() {
   const shell = await ready;
@@ -155,7 +155,30 @@ async function boot() {
   document.dispatchEvent(new CustomEvent("geoid:gis-ready"));
 }
 
+/**
+ * DOWNLOAD IN PARALLEL, EVALUATE IN ORDER. boot() awaits each import before
+ * starting the next, because the order above is load-bearing -- and so, on a
+ * first visit, each module's download also waited for the one before it: a
+ * waterfall of one round trip per file. At 60 ms of latency Jupiter's GIS
+ * layer took 20.9 s to settle, against the 9 s transit waits before handing a
+ * world over, so a world opened from the planet strip arrived with its panels
+ * still arranging and its main thread busy -- and the second attempt, from
+ * cache, was fine. `modulepreload` fetches every entry now, all at once,
+ * without running any of it; boot() still evaluates them one at a time. Same
+ * URLs as the imports (same stamp), or the preload is a second download.
+ */
+function preloadModules() {
+  const head = document.head || document.documentElement;
+  for (const path of MODULES) {
+    const link = document.createElement("link");
+    link.rel = "modulepreload";
+    link.href = new URL(`${path}${VERSION}`, import.meta.url).href;
+    head.appendChild(link);
+  }
+}
+
 window.GeoIDGisPending = true;
+preloadModules();
 
 void boot().catch((error) => {
   // The panel must never be left hidden by a failure. The shell's own timeout
