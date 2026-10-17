@@ -38,7 +38,7 @@
  */
 const SHELF_NAMES = { geoprocess: "Geoprocessing", analysis: "Analysis" };
 
-import { isParked } from "./parked.js?v=20261017-e6461b9";
+import { isParked } from "./parked.js?v=20261017-90ae10c";
 const PANELS = [
   {
     id: "preprocess",
@@ -534,6 +534,50 @@ body[data-hub-armed="true"] .map-legend {
 .control-section.toolbox-group[open]:hover > .section-toggle {
   background: rgb(var(--nav-accent-rgb));
   filter: brightness(1.1);
+}
+
+/* ── The column wears Frontier Pioneer's menu ───────────────────────────────
+ *
+ * Asked for by name (2026-10-17): the game's title menu reads clearer because
+ * it is DARK rows with hairline edges and one lit pick, where this column was
+ * every shut tab under a permanent 22 px pink halo on a purple ground -- the
+ * eye could not find the edges, and nothing was brighter than anything else.
+ * So, value for value from frontier_pioneer/mars.css .btn / .btn.quiet:
+ *   resting  a near-black fill, a 1px accent edge, no halo;
+ *   hover    the edge goes full accent and glows (.btn:hover, 0 0 14px);
+ *   picked   the solid accent fill above, now glowing as well, so it is the
+ *            one luminous object in the column.
+ * The two panel grounds step darker by the same amount, so the rows read as
+ * rows against them. Corners stay on the site's tile system rather than the
+ * game's square ones. !important where the skin pins section chrome with its
+ * own !important (border-color at 34%, the gradient ground). */
+#ui,
+#layer-dock {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.015), rgba(0, 0, 0, 0) 18%),
+    linear-gradient(180deg, rgba(13, 2, 33, 0.97), rgba(6, 1, 16, 0.98)) !important;
+}
+.control-section.toolbox-group:not([open]) {
+  background: rgba(8, 2, 22, 0.88) !important;
+  border: 1px solid rgba(var(--nav-accent-rgb), 0.42) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03) !important;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.control-section.toolbox-group:not([open]) > .section-toggle {
+  background: none !important;
+}
+.control-section.toolbox-group:not([open]):hover,
+.control-section.toolbox-group:not([open]):focus-within {
+  border-color: rgb(var(--nav-accent-rgb)) !important;
+  box-shadow:
+    0 0 14px rgba(var(--nav-accent-rgb), 0.45),
+    inset 0 0 0 1px rgba(var(--nav-accent-rgb), 0.22) !important;
+}
+.control-section.toolbox-group[open] {
+  box-shadow:
+    0 0 22px -2px rgba(var(--nav-accent-rgb), 0.7),
+    0 0 2px rgba(var(--nav-accent-rgb), 0.9),
+    inset 0 0 0 1px rgba(var(--nav-accent-rgb), 0.18) !important;
 }
 
 /* ── Level 2 IS the tool card, verbatim ─────────────────────────────────

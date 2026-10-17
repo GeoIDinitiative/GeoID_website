@@ -16,8 +16,8 @@
 
 import {
   grouped as globalGrouped, layerForDataset, HOMES,
-} from "./global-data.js?v=20261017-e6461b9";
-import { MAP_LAYERS, layerForMap } from "./map-layers.js?v=20261017-e6461b9";
+} from "./global-data.js?v=20261017-90ae10c";
+import { MAP_LAYERS, layerForMap } from "./map-layers.js?v=20261017-90ae10c";
 
 /**
  * WHICH HEADER A CATALOGUE HOME LIGHTS, READ FROM THE DOM.
@@ -231,7 +231,11 @@ function installStyle() {
   const tag = document.createElement("style");
   tag.id = "geoid-section-activity-style";
   const accent = "rgb(var(--nav-accent-rgb, 255, 43, 214))";
-  const tint = "linear-gradient(180deg, rgba(var(--nav-accent-rgb, 255, 43, 214), 0.28), rgba(var(--nav-accent-rgb, 255, 43, 214), 0.12))";
+  // A dark row lit by its own edge and ink, not a pink wash: the column wears
+  // Frontier Pioneer's menu (side-panels.js), where only the picked tab is
+  // filled. The glow is what makes "a layer is on in here" luminous.
+  const tint = "rgba(8, 2, 22, 0.88)";
+  const glow = "0 0 8px rgba(var(--nav-accent-rgb, 255, 43, 214), 0.6)";
   tag.textContent = [
     "details.control-section.has-active-data:not([open]) > .section-toggle {",
     `  background: ${tint} !important;`,
@@ -252,7 +256,7 @@ function installStyle() {
     "details.control-section.has-active-data:not([open]) > .section-toggle .section-icon {",
     `  color: ${accent} !important;`,
     "  filter: none !important;",
-    "  text-shadow: none !important;",
+    `  text-shadow: ${glow} !important;`,
     "}",
     /**
      * THE CHEVRON TOO — it is a pseudo-element, so `> summary *` never
