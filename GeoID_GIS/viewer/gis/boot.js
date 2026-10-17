@@ -1,4 +1,4 @@
-import { ready } from "./shell.js?v=20261017-c578ba1";
+import { ready } from "./shell.js?v=20261018-6f942b9";
 
 /**
  * The GIS layer's entry point on a planet page.
@@ -50,6 +50,8 @@ const MODULES = [
   "./draw-hud.js",
   "./add-data.js",
   "./section-activity.js",
+  // Sunlight and air for the worlds that are not Earth (Earth builds its own).
+  "./planet-atmosphere.js",
   // Two shelves by OUTPUT: a tool that makes a map layer is geoprocessing, one
   // that makes a table, a statistic or a chart is analysis.
   "./tool-shelves.js",
@@ -112,7 +114,7 @@ const MODULES = [
   "./atlas-assistant.js",
 ];
 
-const VERSION = "?v=20261017-c578ba1";
+const VERSION = "?v=20261018-6f942b9";
 
 async function boot() {
   const shell = await ready;

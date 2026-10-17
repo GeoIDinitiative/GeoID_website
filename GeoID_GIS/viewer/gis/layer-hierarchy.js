@@ -10,18 +10,18 @@
 // everything below. That is the opposite of three.js renderOrder, so the two are
 // inverted when applied.
 
-import { escapeHtml } from "./escape-html.js?v=20261017-c578ba1";
-import { bandOf } from "./draw-order.js?v=20261017-c578ba1";
-import { paintOpacity } from "./layer-opacity.js?v=20261017-c578ba1";
-import { currentBody } from "./bodies.js?v=20261017-c578ba1";
-import { samplerToRaster } from "./raster-analysis.js?v=20261017-c578ba1";
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20261017-c578ba1";
-import { datasetInfoButton } from "./catalogue-list.js?v=20261017-c578ba1";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20261017-c578ba1";
+import { escapeHtml } from "./escape-html.js?v=20261018-6f942b9";
+import { bandOf } from "./draw-order.js?v=20261018-6f942b9";
+import { paintOpacity } from "./layer-opacity.js?v=20261018-6f942b9";
+import { currentBody } from "./bodies.js?v=20261018-6f942b9";
+import { samplerToRaster } from "./raster-analysis.js?v=20261018-6f942b9";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20261018-6f942b9";
+import { datasetInfoButton } from "./catalogue-list.js?v=20261018-6f942b9";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20261018-6f942b9";
 import {
   openSymbologyDialog, geometrySummary, geometryKind,
-} from "./symbology-dialog.js?v=20261017-c578ba1";
-import { tagOf, DATA_TYPES, typeSelect, applyTag, descriptionOf, isUserInput } from "./data-tags.js?v=20261017-c578ba1";
+} from "./symbology-dialog.js?v=20261018-6f942b9";
+import { tagOf, DATA_TYPES, typeSelect, applyTag, descriptionOf, isUserInput } from "./data-tags.js?v=20261018-6f942b9";
 
 /**
  * The row grew a column and gained a tile, and .layer-row is declared twice --
@@ -1907,8 +1907,12 @@ function initDock() {
  */
 function mirrorTabLook() {
   const dock = document.getElementById("layer-dock");
+  // The WIDEST closed, unlit tab: always a top-level one. The first in
+  // document order was a nested sub-tab on the planet pages (rounded, 11.2 px),
+  // and the rows came out as pills there while Earth's were square.
   const tab = [...document.querySelectorAll("#ui details.control-section:not([open]):not(.has-active-data)")]
-    .find((t) => t.offsetParent && t.querySelector(".section-title"));
+    .filter((t) => t.offsetParent && t.querySelector(".section-title"))
+    .sort((x, y) => y.getBoundingClientRect().width - x.getBoundingClientRect().width)[0];
   if (!dock || !tab) return false;
   const frame = getComputedStyle(tab);
   const label = tab.querySelector(".section-title-row > span:last-child") || tab.querySelector(".section-title");
@@ -1944,6 +1948,12 @@ function watchTheme() {
   let tries = 0;
   const attempt = () => { if (!mirrorTabLook() && tries++ < 40) setTimeout(attempt, 500); };
   attempt();
+  // And read again while the page settles: the planet pages inject the
+  // default theme's tab rules after this first runs, and a read taken before
+  // them copied a rounded, pre-theme tab -- the rows were pills on Mars while
+  // Earth's were square (reported).
+  [1000, 3000, 6000, 12000].forEach((ms) => setTimeout(mirrorTabLook, ms));
+  window.addEventListener("load", () => mirrorTabLook(), { once: true });
   // A theme switch restamps data-skin on the root; its sheets apply on the
   // next frame, so read after that rather than in the callback.
   new MutationObserver(() => requestAnimationFrame(() => requestAnimationFrame(mirrorTabLook)))
