@@ -871,6 +871,7 @@
   <script src="/scripts/v2-site.js?v=20261017-5db4dbb" defer></script>
   <link rel="stylesheet" href="/styles/skins/synthwave.css">
   <link rel="stylesheet" href="/styles/site-nav.css?v=20261017-5db4dbb">
+  <link rel="stylesheet" href="/styles/earth-explorers.css?v=20261017-5db4dbb">
 </head>
 <body>
   <nav class="site-nav" role="navigation" aria-label="Primary navigation">
@@ -883,7 +884,6 @@
         <div class="nav-dropdown-menu" aria-label="About pages">
           <a href="/about/">Overview</a>
           <a href="/about_geohub/" class="active" aria-current="page">GeoHUB</a>
-          <a href="/earth_explorer/">Earth Explorer</a>
           <a href="/team/">Our Team</a>
           <a href="/get-involved/">Get Involved</a>
           <a href="/updates/">Journal</a>
@@ -905,7 +905,6 @@
       <div class="page-jump">
         <a href="/about/">Overview</a>
         <a href="/about_geohub/" class="active" aria-current="page">GeoHUB</a>
-        <a href="/earth_explorer/">Earth Explorer</a>
         <a href="/team/">Our Team</a>
         <a href="/get-involved/">Get Involved</a>
         <a href="/updates/">Journal</a>
@@ -1390,6 +1389,189 @@
         </div>
       </div>
 
+      <!-- ── Earth Explorers: the close-up viewers inside GeoHUB (moved from the retired
+           /earth_explorer/ landing page, 2026-10-17; that address forwards here) ── -->
+      <div id="earth-explorers">
+    <!-- ── Explore Earth tile ───────────────────────────────────────────────── -->
+    <section class="about-explorer-section" aria-labelledby="explore-earth-title">
+      <article class="about-explorer-tile new-worlds-tile">
+        <div class="new-worlds-layout">
+
+          <!-- Left: text content -->
+          <div class="new-worlds-content">
+            <div class="about-explorer-header new-worlds-header">
+              <div>
+                <h2 class="about-explorer-title" id="explore-earth-title">Explore our Dynamic Earth</h2>
+              </div>
+              <span class="new-worlds-rocket" aria-hidden="true">🌋</span>
+            </div>
+            <div class="about-explorer-body">
+              <div class="about-explorer-section-block">
+                <p class="about-col-heading">A different kind of geoscience interface</p>
+                <p>Professional GIS demands institutional access; educational apps reduce geology to passive imagery. Earth Explorer is neither: peer-reviewed datasets, toggled, stacked and explored in one session.</p>
+              </div>
+              <div class="about-explorer-section-block">
+                <p class="about-col-heading">Real science, directly interactive</p>
+                <p>Magmatic structures from seismic tomography and geodetic inversion, faults from national survey databases, hypocentres from the INGV catalogue — the datasets researchers publish from, live in your browser.</p>
+              </div>
+              <div class="about-explorer-section-block">
+                <p class="about-col-heading">Full 3D terrain navigation in the browser</p>
+                <p>A full WebGL terrain model, summit to coastline. Orbit and zoom, adjust vertical exaggeration, switch between satellite, hillshade and slope-angle basemaps, and open the cross-section to expose the plumbing below.</p>
+              </div>
+              <div class="about-explorer-section-block">
+                <p class="about-col-heading">A platform that scales with your curiosity</p>
+                <p>A researcher cross-referencing fault kinematics uses the same viewer as a student learning what a stratovolcano is — by design. Labelled features open descriptions written for both.</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Right: screenshot + layer previews -->
+          <div class="new-worlds-image">
+            <img src="/earth_explorer/assets/cross_section.png"
+                 alt="Earth Explorer — subsurface cross-section view"
+                 class="new-worlds-image-img" loading="lazy" decoding="async">
+            <div class="new-worlds-tools">
+              <p class="about-col-heading">Scientific layers</p>
+              <div class="new-worlds-tools-row">
+                <div class="new-worlds-tool-item">
+                  <img src="https://data.geoidinitiative.com/assets/hotlink-ok/etna/subsurface.png?v=d24c32924d26"
+                       alt="Subsurface magma chamber view" loading="lazy" decoding="async">
+                </div>
+                <div class="new-worlds-tool-item">
+                  <img src="https://data.geoidinitiative.com/assets/hotlink-ok/etna/seismic.png?v=c050040ea12e"
+                       alt="Seismicity overlay" loading="lazy" decoding="async">
+                </div>
+                <div class="new-worlds-tool-item">
+                  <img src="https://data.geoidinitiative.com/assets/hotlink-ok/etna/etna_geology.png?v=56e6ebcd2921"
+                       alt="Geological map layer" loading="lazy" decoding="async">
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </article>
+    </section>
+
+    <!-- ── Etna viewer tile ─────────────────────────────────────────────────── -->
+    <section class="earth-section" id="etna-viewer" aria-labelledby="flagship-heading">
+
+      <article class="earth-info-tile">
+
+        <!-- Header -->
+        <div class="earth-info-header">
+          <div>
+            <h3 class="earth-info-title" id="flagship-heading">Explore Europe's Most Active Volcano, Mount Etna, in 3D</h3>
+          </div>
+          <div style="display:flex;align-items:center;gap:0.75rem;flex-shrink:0;">
+            <span class="flagship-live-badge" aria-label="Live viewer">
+              <span class="flagship-live-dot"></span>LIVE
+            </span>
+            <a class="btn-primary" href="/earth_explorer/etna/" style="white-space:nowrap;font-size:0.8rem;padding:0.45rem 1rem;">▶ &nbsp;Open the Etna 3D model</a>
+          </div>
+        </div>
+
+        <!-- Body: section blocks full width -->
+        <div class="earth-info-body" style="padding:0.6rem 2.4rem 1rem;">
+
+          <p class="earth-info-lede" style="font-family:'Public Sans',sans-serif;font-size:0.95rem;line-height:1.7;color:rgba(210,230,240,0.88);margin:0;max-width:78ch;border-left:2px solid rgba(0,225,210,0.3);padding-left:1rem;">
+            Europe's tallest and most active volcano, erupting almost continuously since 2011 — the whole system in one environment, summit to coastline, surface to deep conduit.
+          </p>
+
+          <div class="earth-info-block">
+            <p class="earth-info-heading">Subsurface Structure</p>
+            <p>Three resolved magma chambers — shallow (~3 km), intermediate (~8 km), deep (12–16 km) — from published tomography. Toggle each and section through the edifice.</p>
+          </div>
+          <div class="earth-info-block">
+            <p class="earth-info-heading">Fault Architecture &amp; Seismicity</p>
+            <p>Every major active fault at surface and depth, including the Timpe system — plus 12,000+ INGV earthquakes (2011–2023) as depth-coloured spheres, filterable by magnitude and time.</p>
+          </div>
+          <div class="earth-info-block">
+            <p class="earth-info-heading">Geological Map &amp; Lava Flows</p>
+            <p>Published geological mapping draped over the terrain — formations, volcanic stratigraphy, and historical lava flows classified by eruption period, each unit toggleable.</p>
+          </div>
+          <div class="earth-info-block">
+            <p class="earth-info-heading">High-Resolution Basemap</p>
+            <p>7 m ESRI World Imagery across the full 100 km domain, with switchable hillshade and slope-angle basemaps and real-time adjustable vertical exaggeration.</p>
+          </div>
+          <div class="earth-info-block">
+            <p class="earth-info-heading">Tour Mode &amp; Guided Navigation</p>
+            <p>A structured tour walks you through Etna's key features — summit craters, flank vents, the Timpe escarpment, the Valle del Bove, the deep conduit system — with scientific context at every stop.</p>
+          </div>
+          <div class="earth-info-block">
+            <p class="earth-info-heading">Data Sources</p>
+            <p>All datasets are drawn from published, peer-reviewed sources: INGV seismicity catalogues, national geological survey databases, geodetic inversion models from the primary literature, and ESRI satellite imagery. No installation required.</p>
+          </div>
+        </div>
+
+        <!-- Demo video -->
+        <video controls preload="metadata" playsinline
+          style="width:100%;display:block;max-height:70vh;background:#000;border-top:1px solid rgba(0,225,210,0.15);"
+          aria-label="Earth Explorer — Mount Etna viewer demonstration">
+          <!-- 720p re-encode (~9 MB); the 82 MB original is out of the tree. -->
+          <source src="/assets/opt/etna_demo.webm" type="video/webm">
+        </video>
+
+      </article>
+    </section>
+
+    <!-- ── Everest / ASCENT tile ────────────────────────────────────────────── -->
+    <section class="earth-section" id="everest-ascent" aria-labelledby="ascent-heading">
+
+      <article class="earth-info-tile">
+
+        <div class="earth-info-header">
+          <div>
+            <h3 class="earth-info-title" id="ascent-heading">Climb the Real Mount Everest — ASCENT</h3>
+          </div>
+          <div style="display:flex;align-items:center;gap:0.75rem;flex-shrink:0;">
+            <span class="flagship-live-badge" aria-label="Live game">
+              <span class="flagship-live-dot"></span>LIVE
+            </span>
+            <a class="btn-primary" href="/everest/" style="white-space:nowrap;font-size:0.8rem;padding:0.45rem 1rem;">▶ &nbsp;Climb Everest in 3D</a>
+          </div>
+        </div>
+
+        <div class="earth-info-body" style="padding:0.6rem 2.4rem 1rem;">
+
+          <p class="earth-info-lede" style="font-family:'Public Sans',sans-serif;font-size:0.95rem;line-height:1.7;color:rgba(210,230,240,0.88);margin:0;max-width:78ch;border-left:2px solid rgba(0,225,210,0.3);padding-left:1rem;">
+            A first-person climb of the real Everest: Esri imagery streamed to half a metre per pixel over a live elevation model. The route was not drawn by hand — the terrain was asked for the least-effort line to the summit, and answered with the South Col.
+          </p>
+
+          <div class="earth-info-block">
+            <p class="earth-info-heading">The Real Terrain</p>
+            <p>Imagery at up to 0.53 m per pixel, streamed live — nothing pre-baked, nothing sculpted. The horizon runs 300 km on real relief, and every camp, icefall and col is where it is on Earth.</p>
+          </div>
+          <div class="earth-info-block">
+            <p class="earth-info-heading">The Climb</p>
+            <p>Base Camp through the Khumbu Icefall, Western Cwm, Lhotse Face and Death Zone to the summit — oxygen to manage, weather to respect, crevasses to probe. Instruments track health, stamina, warmth and blood oxygen.</p>
+          </div>
+          <div class="earth-info-block">
+            <p class="earth-info-heading">Navigation</p>
+            <p>A full interactive map — orthophoto, 100 m contours, the route, fast travel to every camp you've reached — while horizon tags name the peaks around you with live distances.</p>
+          </div>
+          <div class="earth-info-block">
+            <p class="earth-info-heading">The Guide</p>
+            <p>Gio, the expedition guide, warns you at each hazard's ground, teaches the first ladder, meets you at every camp, and writes it all into the field journal.</p>
+          </div>
+          <div class="earth-info-block">
+            <p class="earth-info-heading">Data Sources</p>
+            <p>Esri World Imagery (streamed under the Esri Master License Agreement, nothing cached), Mapzen Terrain Tiles on AWS Open Data, and Copernicus Sentinel-2. It is a game, not a route description — but every layer in it is real.</p>
+          </div>
+        </div>
+
+        <!-- In-game capture, placed where the Etna tile carries its demo video. -->
+        <a href="/everest/" aria-label="Climb Mount Everest in 3D with ASCENT" style="display:block;border-top:1px solid rgba(0,225,210,0.15);">
+          <img src="/assets/opt/hero_everest_ascent.webp"
+            alt="ASCENT: a climber at Camp II on the real Everest terrain, with the surrounding peaks named on the horizon and the expedition instruments along the bottom"
+            loading="lazy" decoding="async"
+            style="width:100%;display:block;max-height:70vh;object-fit:cover;background:#000;">
+        </a>
+
+      </article>
+    </section>
+      </div>
+
       <!-- ── Footer ── -->
       <footer class="site-footer">
         <div class="footer-inner">
@@ -1406,7 +1588,6 @@
                 <li><a href="/about/">Overview</a></li>
                 <li><a href="/">GeoHUB</a></li>
                 <li><a href="/dashboard/">Dashboard</a></li>
-                <li><a href="/earth_explorer/">Earth Explorer</a></li>
                 <li><a href="/about_geohub/#worlds">Ten Worlds</a></li>
                 <li><a href="/membership/">Membership</a></li>
                 <li><a href="/get-involved/">Get Involved</a></li>

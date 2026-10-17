@@ -24,7 +24,6 @@
        has no URL of its own worth offering a crawler. -->
 
   <!-- Earth Explorer and the two site models that are live. -->
-  <url><loc>https://geoidinitiative.com/earth_explorer/</loc><lastmod>2026-09-22</lastmod></url>
   <url><loc>https://geoidinitiative.com/earth_explorer/etna/</loc><lastmod>2026-09-22</lastmod></url>
   <url><loc>https://geoidinitiative.com/everest/</loc><lastmod>2026-09-22</lastmod></url>
 

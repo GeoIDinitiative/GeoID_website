@@ -41,7 +41,6 @@ CARDS = {
     "about/index.html":         ("about", "Basalt escarpment at Binevenagh, Northern Ireland"),
     "about_geohub/index.html":  ("geohub", "The GeoHUB globe, world geology painted over 3D terrain"),
     "membership/index.html":    ("membership", "A flooded village from the air"),
-    "earth_explorer/index.html":("earth-explorer", "Lava channels on the snow-covered flank of Mount Etna"),
     "dashboard/index.html":     ("dashboard", "Global cloud and weather imagery over the Earth"),
     "data/index.html":          ("data", "Earthquake hypocentres beneath Mount Etna as a 3D cloud"),
     "updates/index.html":       ("journal", "A notebook and pen on a desk"),

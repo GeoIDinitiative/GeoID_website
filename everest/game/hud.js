@@ -505,9 +505,9 @@ export class Hud {
        placement as every explorer page. */
     this.el.logo = document.createElement("a");
     this.el.logo.id = "top-right-logo-link";
-    this.el.logo.href = "/earth_explorer/";
+    this.el.logo.href = "/about_geohub/#earth-explorers";
     this.el.logo.target = "_top";
-    this.el.logo.setAttribute("aria-label", "Back to Earth Explorer");
+    this.el.logo.setAttribute("aria-label", "Back to GeoHUB");
     this.el.logo.innerHTML = `<img id="top-right-logo" src="/earth_explorer/assets/logo.png?v=geoid-2026" alt="GeoID logo">`;
     document.body.appendChild(this.el.logo);
 
