@@ -313,3 +313,6 @@ id_ed25519.*
 .wrangler/
 .vercel/
 .netlify/
+
+# graphify code graph: local tooling, never published with the site.
+graphify-out/

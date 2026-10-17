@@ -1,0 +1,8 @@
+# Keep the graph to the site's own source. .gitignore already drops the
+# baked data; these are tracked but are not our code, or are frozen copies.
+**/vendor/
+**/node_modules/
+**/*.min.js
+page_backups/
+_design-mockups/
+graphify-out/
