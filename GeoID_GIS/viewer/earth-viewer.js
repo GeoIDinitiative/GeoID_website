@@ -2,13 +2,13 @@ import * as THREE from "./vendor/three.module.js";
 // The polygon-area rule lives in one place, with a test. Stamped by hand
 // once: stamp.py only rewrites a ?v= that already exists.
 import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
-  from "./gis/geo-utils.js?v=20261017-08f6418";
+  from "./gis/geo-utils.js?v=20261017-64859d8";
 import { attachReliefAttributes, followRelief }
-  from "./gis/vector-render.js?v=20261017-08f6418";
+  from "./gis/vector-render.js?v=20261017-64859d8";
 import { rockClass, crustalSetting, rockClassLabel, classificationBasis }
-  from "./gis/rock-class.js?v=20261017-08f6418";
+  from "./gis/rock-class.js?v=20261017-64859d8";
 import { lithologyLabel }
-  from "./gis/lithology-label.js?v=20261017-08f6418";
+  from "./gis/lithology-label.js?v=20261017-64859d8";
 
 /**
  * This module's own cache stamp, read off its own URL.
@@ -14441,6 +14441,111 @@ function fmtProp(value) {
       globe.rotation.y = Math.PI;
       marsGroup.add(globe);
       earthGlobeRef = globe;
+
+      /**
+       * THE AIR, LIT BY THE SUN. The globe was a lit ball under a key light
+       * with nothing above it, so the limb was a hard cut to black on the day
+       * side -- the one thing that makes a photograph of Earth from orbit read
+       * as Earth. Two additive layers, both driven by the same sun direction
+       * the terminator uses (_SUN_DIR, updated each frame in updateSolarModel):
+       *
+       *  - a SHELL drawn from its inside faces: a blue glow hugging
+       *    the limb (~320 km), strongest at the surface and fading outward, warming to a
+       *    sunset orange across the terminator and gone on the night side;
+       *  - a HAZE just above the ground: Rayleigh scattering seen at grazing
+       *    angles, a blue brightening toward the sunlit limb that leaves the
+       *    middle of the disc clear.
+       *
+       * Both fade out as the camera comes down through them (uFade), so the
+       * close-range imagery is never tinted. Not raycastable; hidden with the
+       * cutaway, which shows the interior instead.
+       */
+      const ATMO_SHELL = 1.05;
+      const atmoVert = `
+        varying vec3 vN;
+        varying vec3 vP;
+        void main() {
+          vN = normalize(mat3(modelMatrix) * normal);
+          vec4 wp = modelMatrix * vec4(position, 1.0);
+          vP = wp.xyz;
+          gl_Position = projectionMatrix * viewMatrix * wp;
+        }`;
+      const atmoUniforms = {
+        uSun: { value: _SUN_DIR },
+        uFade: { value: 1 },
+      };
+      const atmoShell = new THREE.Mesh(
+        new THREE.SphereGeometry(3.2 * ATMO_SHELL, 96, 64),
+        new THREE.ShaderMaterial({
+          uniforms: atmoUniforms,
+          vertexShader: atmoVert,
+          fragmentShader: `
+            uniform vec3 uSun;
+            uniform float uFade;
+            varying vec3 vN;
+            varying vec3 vP;
+            void main() {
+              vec3 v = normalize(cameraPosition - vP);
+              // 0 at the shell's own edge, ~0.30 where the line of sight grazes
+              // the ground (sin = 1 / ${ATMO_SHELL}).
+              float f = clamp(-dot(vN, v) / 0.30, 0.0, 1.0);
+              float glow = pow(f, 1.6);
+              float s = dot(vN, uSun);
+              float day = smoothstep(-0.35, 0.15, s);
+              // Sunset red only where the line of sight runs TOWARD the sun
+              // through the terminator (forward scattering): seen from the day
+              // side the limb is the terminator too, and it is blue.
+              float back = smoothstep(0.0, 0.85, dot(-v, uSun));
+              float dusk = back * (1.0 - smoothstep(-0.12, 0.35, s));
+              vec3 col = mix(vec3(0.32, 0.60, 1.00), vec3(1.00, 0.52, 0.26), dusk);
+              gl_FragColor = vec4(col * glow * day * 1.6 * uFade, 1.0);
+            }`,
+          side: THREE.BackSide,
+          blending: THREE.AdditiveBlending,
+          transparent: true,
+          depthWrite: false,
+        }),
+      );
+      const atmoHaze = new THREE.Mesh(
+        new THREE.SphereGeometry(3.2 * 1.004, 128, 96),
+        new THREE.ShaderMaterial({
+          uniforms: atmoUniforms,
+          vertexShader: atmoVert,
+          fragmentShader: `
+            uniform vec3 uSun;
+            uniform float uFade;
+            varying vec3 vN;
+            varying vec3 vP;
+            void main() {
+              vec3 v = normalize(cameraPosition - vP);
+              float rim = pow(1.0 - max(dot(vN, v), 0.0), 3.0);
+              float s = dot(vN, uSun);
+              float day = smoothstep(-0.12, 0.45, s);
+              float back = smoothstep(0.0, 0.85, dot(-v, uSun));
+              float dusk = back * (1.0 - smoothstep(0.0, 0.35, s));
+              vec3 col = mix(vec3(0.30, 0.56, 1.0), vec3(1.0, 0.6, 0.35), dusk);
+              gl_FragColor = vec4(col * (rim * 1.1 + 0.05) * day * uFade, 1.0);
+            }`,
+          side: THREE.FrontSide,
+          blending: THREE.AdditiveBlending,
+          transparent: true,
+          depthWrite: false,
+        }),
+      );
+      [atmoShell, atmoHaze].forEach((mesh) => {
+        mesh.userData.nonInteractive = true;
+        mesh.raycast = () => {};
+        mesh.renderOrder = 2;
+      });
+      // Gone below ~190 km up, whole above ~1,600 km: inside the shell its
+      // back faces would wash the whole view, and close in the haze would sit
+      // over the imagery somebody zoomed in to read.
+      atmoHaze.onBeforeRender = (_r, _s, cam) => {
+        const d = cam.position.length() / 3.2;
+        atmoUniforms.uFade.value = THREE.MathUtils.smoothstep(d, 1.03, 1.25);
+      };
+      marsGroup.add(atmoShell, atmoHaze);
+      globe.userData.atmosphere = [atmoShell, atmoHaze];
       locatorViewState.camera = camera;
       locatorViewState.planetGroup = marsGroup;
       locatorViewState.globe = globe;
@@ -20643,6 +20748,7 @@ uniform float uViewportWidth;`,
         if (cutawayResult.crustRing) cutawayResult.crustRing.visible = showUpperAtmosphereCut;
         // Molecular envelope: only when core active AND atmosphere NOT removed.
         const showMolecular = coreEnabled && !removeAtmosphere;
+        (earthGlobeRef?.userData?.atmosphere || []).forEach((m) => { m.visible = !coreEnabled; });
         if (cutawayResult.molecularEnvelopeMesh) cutawayResult.molecularEnvelopeMesh.visible = showMolecular;
         if (cutawayResult.molecularEnvelopeRing) cutawayResult.molecularEnvelopeRing.visible = showMolecular;
         // molecularBoundaryMesh = outer convex fill for metallic H layer: visible whenever core active.

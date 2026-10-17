@@ -38,7 +38,7 @@
  */
 const SHELF_NAMES = { geoprocess: "Geoprocessing", analysis: "Analysis" };
 
-import { isParked } from "./parked.js?v=20261017-08f6418";
+import { isParked } from "./parked.js?v=20261017-64859d8";
 const PANELS = [
   {
     id: "preprocess",
@@ -1284,23 +1284,10 @@ function buildPanel(spec, group) {
 
   const actions = document.createElement("div");
   actions.className = "brand-toprow-actions";
-  // `#nav-collapse-btn` carries no class -- the sidebar styles it by id -- so
-  // the chevron borrows `.info-btn`, the other button in that row, which is
-  // styled by class and therefore lends itself.
-  const collapse = document.createElement("button");
-  collapse.type = "button";
-  collapse.className = "info-btn";
-  collapse.textContent = "‹";
-  collapse.title = "Collapse";
-  collapse.setAttribute("aria-label", `Collapse ${spec.title}`);
-  collapse.setAttribute("aria-expanded", "true");
-  collapse.addEventListener("click", () => {
-    const collapsed = panel.classList.toggle("is-collapsed");
-    collapse.textContent = collapsed ? "›" : "‹";
-    collapse.setAttribute("aria-expanded", collapsed ? "false" : "true");
-    place();
-  });
-  // Closes the workbench outright, where the chevron only folds it away. The
+  // NO COLLAPSE CHEVRON (removed 2026-10-17, asked for): a workbench is
+  // opened from the rail for a job and closed with the ✕ when it is done, and
+  // a third state -- folded to its header bar -- was one more thing to manage.
+  // Closes the workbench. The
   // Atlas panel's own close (`.atlas-close`) is the house style for this, so it
   // is that mark and that weight: a bare glyph, quiet until hovered, rather
   // than another bordered button competing with the chevron beside it.
@@ -1312,7 +1299,7 @@ function buildPanel(spec, group) {
   dismiss.setAttribute("aria-label", `Close ${spec.title}`);
   dismiss.addEventListener("click", () => setOpen(spec.id, false));
 
-  actions.append(collapse, dismiss);
+  actions.append(dismiss);
   head.append(title, actions);
 
   const body = document.createElement("div");
