@@ -10,18 +10,18 @@
 // everything below. That is the opposite of three.js renderOrder, so the two are
 // inverted when applied.
 
-import { escapeHtml } from "./escape-html.js?v=20261018-fe9f231";
-import { bandOf } from "./draw-order.js?v=20261018-fe9f231";
-import { paintOpacity } from "./layer-opacity.js?v=20261018-fe9f231";
-import { currentBody } from "./bodies.js?v=20261018-fe9f231";
-import { samplerToRaster } from "./raster-analysis.js?v=20261018-fe9f231";
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20261018-fe9f231";
-import { datasetInfoButton } from "./catalogue-list.js?v=20261018-fe9f231";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20261018-fe9f231";
+import { escapeHtml } from "./escape-html.js?v=20261018-7d6fd08";
+import { bandOf } from "./draw-order.js?v=20261018-7d6fd08";
+import { paintOpacity } from "./layer-opacity.js?v=20261018-7d6fd08";
+import { currentBody } from "./bodies.js?v=20261018-7d6fd08";
+import { samplerToRaster } from "./raster-analysis.js?v=20261018-7d6fd08";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20261018-7d6fd08";
+import { datasetInfoButton } from "./catalogue-list.js?v=20261018-7d6fd08";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20261018-7d6fd08";
 import {
   openSymbologyDialog, geometrySummary, geometryKind,
-} from "./symbology-dialog.js?v=20261018-fe9f231";
-import { tagOf, DATA_TYPES, typeSelect, applyTag, descriptionOf, isUserInput } from "./data-tags.js?v=20261018-fe9f231";
+} from "./symbology-dialog.js?v=20261018-7d6fd08";
+import { tagOf, DATA_TYPES, typeSelect, applyTag, descriptionOf, isUserInput } from "./data-tags.js?v=20261018-7d6fd08";
 
 /**
  * The row grew a column and gained a tile, and .layer-row is declared twice --
@@ -1156,6 +1156,31 @@ function setLocationBox(box, on) {
   box.checked = on;
   box.dispatchEvent(new Event("change", { bubbles: true }));
 }
+/**
+ * MOON LABELS GO WITH THE LOCATION LABELS (reported on Saturn: switching
+ * Location labels off left every moon's name, and the moon-viewer's feature
+ * labels, on screen). They have no Locations box of their own -- the Moons row
+ * is the moons themselves and stays on -- and each viewer re-sets their
+ * visibility every frame from the Moons box, so hiding them is done with a
+ * render LAYER instead: a sprite on a layer the camera does not draw is
+ * neither drawn nor picked, whatever its .visible says, and no viewer touches
+ * layers. A moon label is a sprite whose record is a moon (theme "moon") or a
+ * moon's feature (moon_name); its label group's leader lines go with it.
+ */
+const HIDDEN_LAYER = 31;
+function setMoonLabelsHidden(hidden) {
+  const scene = window.GeoIDViewer?.scene;
+  if (!scene) return;
+  const groups = new Set();
+  scene.traverse((n) => {
+    const f = n.isSprite && n.userData?.feature;
+    if (f && (f.theme === "moon" || f.moon_name)) groups.add(n.parent);
+  });
+  groups.forEach((g) => g?.children.forEach((c) => {
+    if (c.isSprite || c.isLine) c.layers.set(hidden ? HIDDEN_LAYER : 0);
+  }));
+}
+
 function locationLabelsRow() {
   const boxes = locationBoxes();
   if (!boxes.length) return null;
@@ -1209,6 +1234,7 @@ function locationLabelsRow() {
       locationsOnBeforeOff = new Set(all.filter((box) => box.checked).map((box) => box.id));
       all.forEach((box) => setLocationBox(box, false));
     }
+    setMoonLabelsHidden(!e.target.checked);
     const master = document.getElementById("locations-master-toggle");
     if (master) master.checked = e.target.checked;
     render();
@@ -1218,6 +1244,8 @@ function locationLabelsRow() {
 if (typeof document !== "undefined" && typeof document.addEventListener === "function") {
   // A tick in Locations is a change to what this row says.
   document.addEventListener("change", (e) => {
+    // The Locations master switch hides the moons' names too, as the row does.
+    if (e.target?.id === "locations-master-toggle") setMoonLabelsHidden(!e.target.checked);
     if (e.target?.closest?.("#locations-section")) queueMicrotask(() => { if (mounted) render(); });
   });
 }
