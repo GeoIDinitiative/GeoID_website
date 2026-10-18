@@ -33,7 +33,7 @@
  */
 
 import * as THREE from "/GeoID_GIS/viewer/vendor/three.module.js";
-import { currentBodyId } from "./bodies.js?v=20261018-d8b0466";
+import { currentBodyId } from "./bodies.js?v=20261018-5f69221";
 
 const PROFILES = {
   mercury: null,
@@ -448,7 +448,34 @@ function watchMoons() {
  * sun goes behind the planet, with a brief flare as it clears the limb.
  * Pointer-events none; reduced-transparency viewers get it at half strength.
  */
+/**
+ * THE SUN AT ITS REAL DISTANCE (asked for, 2026-10-18). Every viewer drew the
+ * same sun -- a 1.8-unit disc 180 units out, about Earth's half-degree -- so
+ * from Pluto it looked as big as from Earth. The disc is scaled to 1 / (the
+ * world's distance in AU), which keeps its true angular size relative to
+ * Earth's (Jupiter 1/5, Pluto 1/40 -- a bright point, as it is). The glare
+ * shrinks more gently, as the square root (a point source still flares), and
+ * dims as the inverse fourth root -- at 40 AU sunlight is 1/1600 as strong,
+ * but a camera pointed at it still stops down to a starburst.
+ */
+const AU = { mercury: 0.387, venus: 0.723, earth: 1, moon: 1, mars: 1.524, jupiter: 5.2,
+  saturn: 9.58, uranus: 19.2, neptune: 30.1, pluto: 39.5 };
+const SUN = { au: 1, size: 1, bright: 1 };
+function sunDistanceFactors() {
+  const au = AU[currentBodyId()] || 1;
+  SUN.au = au;
+  SUN.size = Math.min(1.3, Math.max(0.18, 1 / Math.sqrt(au)));
+  SUN.bright = Math.min(1, Math.max(0.35, 1 / Math.pow(au, 0.25)));
+}
+function scaleSunDisc(mesh) {
+  if (mesh.userData.geoidSunScaled) return;
+  mesh.userData.geoidSunScaled = true;
+  // Never below a few pixels: a sun that vanishes reads as a bug.
+  mesh.scale.multiplyScalar(Math.max(0.06, 1 / SUN.au));
+}
+
 function startGlare() {
+  sunDistanceFactors();
   let canvas = null, ctx = null, light = null, sunMesh = null;
   const v3 = () => new THREE.Vector3();
   const sunPos = v3(), sunDir = v3(), centre = v3(), toC = v3(), proj = v3(), camDir = v3(), camUp = v3(), tmp = v3();
@@ -511,10 +538,23 @@ function startGlare() {
     // light's direction.
     if (!sunMesh || !sunMesh.parent) {
       sunMesh = null;
+      // The sun object specifically: every viewer builds it as an unlit
+      // sphere marked nonInteractive with no feature record. "The first far
+      // unlit sphere" was Charon on Pluto (its moons are unlit spheres far
+      // out), so the glare sat on Charon opposite the real sun (reported).
+      // Of the candidates, the one most aligned with the key light wins.
+      let best = -2;
+      light.getWorldPosition(sunDir);
+      sunDir.normalize();
       viewer.scene.traverse((n) => {
-        if (!sunMesh && n.isMesh && n.geometry?.type === "SphereGeometry" && n.material?.isMeshBasicMaterial
-            && n.getWorldPosition(tmp).length() > 50) sunMesh = n;
+        if (!(n.isMesh && n.geometry?.type === "SphereGeometry" && n.material?.isMeshBasicMaterial)) return;
+        if (!n.userData?.nonInteractive || n.userData?.feature) return;
+        n.getWorldPosition(tmp);
+        if (tmp.length() < 50) return;
+        const al = tmp.normalize().dot(sunDir);
+        if (al > best) { best = al; sunMesh = n; }
       });
+      if (sunMesh) { sunDistanceFactors(); scaleSunDisc(sunMesh); }
     }
     if (sunMesh) sunMesh.getWorldPosition(sunPos);
     else {
@@ -559,10 +599,10 @@ function startGlare() {
     if (vis < 0.01) return;
 
     proj.copy(sunPos).project(cam);
-    const W = canvas.width, H = canvas.height, D = Math.hypot(W, H);
+    const W = canvas.width, H = canvas.height, D = Math.hypot(W, H) * SUN.size;
     const sx = (proj.x * 0.5 + 0.5) * W, sy = (-proj.y * 0.5 + 0.5) * H;
     const cx = W / 2, cy = H / 2;
-    const k = (reduced ? 0.5 : 1) * vis * THREE.MathUtils.smoothstep(facing, 0.05, 0.6);
+    const k = (reduced ? 0.5 : 1) * vis * THREE.MathUtils.smoothstep(facing, 0.05, 0.6) * SUN.bright;
     const onScreen = proj.z < 1 && Math.abs(proj.x) < 1.1 && Math.abs(proj.y) < 1.1;
     ctx.globalCompositeOperation = "lighter";
 
