@@ -1,0 +1,95 @@
+/* ═══════════════════════════════════════════════════════════════════════
+   One type system and one rhythm for the content pages (2026-10-18)
+
+   The Dashboard, Overview and GeoHUB pages were built in three systems --
+   the dashboard's own, the v2 tile pages, and the Earth Explorer sections
+   merged into GeoHUB -- and it showed: running text in Archivo on two pages
+   and Inter on the third, section headings at three sizes and trackings,
+   teal frames on a magenta site, and framed sections stacked 20 px apart.
+
+   This sheet changes NO layout and NO content. It sets every page to the
+   dashboard's type (Archivo headlines, tight tracking; Inter for running
+   text, named "Source Sans 3" by the font remap in v2-site.css and the skin)
+   and gives the tiles the room the dashboard's sections already have.
+   Loaded LAST, after each page's inline <style>, so equal specificity wins.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+:root {
+  --u-body: "Source Sans 3", system-ui, -apple-system, sans-serif;
+  --u-display: "Archivo", system-ui, sans-serif;
+  /* The gap between top-level tiles, and inside a grid of cards. */
+  --u-section-gap: clamp(3.5rem, 7vw, 6.5rem);
+  --u-card-gap: clamp(1.25rem, 2.2vw, 2rem);
+}
+
+/* ── Running text: Inter everywhere ──────────────────────────────────── */
+body :is(p, li, dd, figcaption, blockquote, td):not(nav *):not(.site-nav *),
+.tile-desc, .hero-desc, .hero-sub, .vision-text p,
+.earth-info-body p, .about-explorer-body p {
+  font-family: var(--u-body) !important;
+}
+
+/* ── Section headlines: the dashboard's .sec-title, one size ─────────── */
+.tile-title,
+.about-explorer-title,
+.earth-info-title {
+  font-family: var(--u-display) !important;
+  font-size: clamp(1.9rem, 3.6vw, 3rem) !important;
+  letter-spacing: -0.035em !important;
+  line-height: 1.06 !important;
+  text-wrap: balance;
+}
+/* Card and sub-heads: one step, the same tracking rule. */
+.solution-card h3, .program-content h3, .vision-text h3,
+.earth-info-heading, .about-col-heading, .feature-tile h3 {
+  font-family: var(--u-display) !important;
+  letter-spacing: -0.01em !important;
+}
+/* Small uppercase labels keep the dashboard's eyebrow: Inter, wide tracking. */
+.about-col-heading, .earth-info-heading {
+  font-family: var(--u-body) !important;
+  font-size: 0.72rem !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.18em !important;
+  text-transform: uppercase;
+}
+
+/* GeoHUB's wordmark headline was spaced OUT (+3.6 px) while every other large
+   heading on the site is tightened; large type is tracked in, not out. */
+.hero-mark { letter-spacing: -0.02em !important; }
+
+/* ── One accent: the Earth Explorer frames were a literal teal ───────── */
+.earth-info-tile, .about-explorer-tile,
+.flagship-live-badge, .earth-section .btn-primary {
+  border-color: rgba(var(--accent-rgb), 0.5) !important;
+}
+
+/* ── Breathing room ──────────────────────────────────────────────────── */
+/* Top-level tiles were 1.25 rem apart; the dashboard's sections are ~12 rem.
+   This is the middle of that: enough that each tile reads as its own
+   section, without the page doubling in length. */
+:is(.hero-tile, .cyan-tile, .photo-tile, .cta-tile, .about-explorer-section, .earth-section) {
+  margin-bottom: var(--u-section-gap) !important;
+}
+#earth-explorers { margin-top: var(--u-section-gap); }
+/* Inside a tile: more room around the words, and between cards. */
+.cyan-tile-content { padding: clamp(2.5rem, 5vw, 4.5rem) clamp(1.5rem, 5vw, 4rem) !important; }
+.tile-body, .photo-tile-content { padding: clamp(2rem, 4vw, 3.5rem) clamp(1.5rem, 4vw, 3rem) !important; }
+.tile-title { margin-bottom: 1.25rem !important; }
+:is(.cards-grid-3, .cards-grid-4, .shot-grid, .worlds-grid) {
+  gap: var(--u-card-gap) !important;
+  margin-top: clamp(2rem, 4vw, 3rem) !important;
+}
+/* The six models: two rows of three. Six across left each card a narrow
+   column of wrapped lines once the cards had room around them. */
+.cards-grid-3.models-row { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; }
+@media (max-width: 760px) { .cards-grid-3.models-row { grid-template-columns: 1fr !important; } }
+.cards-grid-3.models-row .solution-card h3 { font-size: 1.1rem !important; }
+.cards-grid-3.models-row .solution-card p { font-size: 0.95rem !important; line-height: 1.65 !important; }
+.solution-card { padding: clamp(1.5rem, 2.4vw, 2.25rem) !important; }
+.tile-desc { line-height: 1.7 !important; }
+.tile-desc p + p { margin-top: 1rem; }
+
+@media (max-width: 700px) {
+  :root { --u-section-gap: 2.75rem; --u-card-gap: 1rem; }
+}

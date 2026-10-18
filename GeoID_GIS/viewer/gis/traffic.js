@@ -23,9 +23,9 @@ import { STLLoader } from "../vendor/STLLoader.js";
 import {
   AIR_SOURCES, AIR_CATEGORIES, SHIP_CATEGORIES, readDigitraffic, foldAisStream, aisStreamSubscription,
   boxAbout, deadReckon, radiusForView, mergeRecords, cardRows, headingBasis, KT_TO_MS,
-} from "./traffic-feeds.js?v=20261018-f70d3c3";
-import { isParked } from "./parked.js?v=20261018-f70d3c3";
-import { followFrame, FOLLOW_PITCH_MAX } from "./satellites.js?v=20261018-f70d3c3";
+} from "./traffic-feeds.js?v=20261018-c65e0e1";
+import { isParked } from "./parked.js?v=20261018-c65e0e1";
+import { followFrame, FOLLOW_PITCH_MAX } from "./satellites.js?v=20261018-c65e0e1";
 
 const KM_TO_UNITS = 3.2 / 6371;
 const M_TO_UNITS = KM_TO_UNITS / 1000;
@@ -1178,7 +1178,7 @@ function wireSpec(spec) {
   document.getElementById(spec.ids.symbology)?.addEventListener("click", async () => {
     const layer = layerOf(spec);
     if (!layer) { say(spec, "Turn the tracker on first — symbology colours the live layer."); return; }
-    const dialog = await import("./symbology-dialog.js?v=20261018-f70d3c3");
+    const dialog = await import("./symbology-dialog.js?v=20261018-c65e0e1");
     dialog.openSymbologyDialog(layer);
   });
   window.GeoIDImportManager?.onChange?.(() => {
