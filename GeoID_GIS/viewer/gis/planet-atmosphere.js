@@ -33,7 +33,7 @@
  */
 
 import * as THREE from "/GeoID_GIS/viewer/vendor/three.module.js";
-import { currentBodyId } from "./bodies.js?v=20261018-3e9bb78";
+import { currentBodyId } from "./bodies.js?v=20261018-f70d3c3";
 
 const PROFILES = {
   mercury: null,
@@ -224,7 +224,12 @@ function attach(viewer) {
     shell.position.copy(shell.parent ? shell.parent.worldToLocal(u.uCentre.value.clone()) : u.uCentre.value);
     R = trueRadius();
     const rel = relief();
-    const ground = R + rel * 0.5;
+    // The air's base sits LOW -- a fifth of the relief up, below most of the
+    // ground. At half the relief (the old value) the brightest line of the
+    // limb floated off any terrain lower than that, with a dark sliver of
+    // space between (reported on Mars). Set low, the peak lands on or inside
+    // the real edge and the haze runs over it, whatever the terrain there.
+    const ground = R + rel * 0.2;
     u.uH.value = R * profile.h;
     u.uGround.value = ground;
     const parentScale = shell.parent ? shell.parent.getWorldScale(new THREE.Vector3()).x || 1 : 1;
