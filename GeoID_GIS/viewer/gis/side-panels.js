@@ -38,7 +38,7 @@
  */
 const SHELF_NAMES = { geoprocess: "Geoprocessing", analysis: "Analysis" };
 
-import { isParked } from "./parked.js?v=20261018-eb3a7d2";
+import { isParked } from "./parked.js?v=20261018-b2e1558";
 const PANELS = [
   {
     id: "preprocess",
@@ -994,6 +994,16 @@ input:not([type=range]):not([type=checkbox]):not([type=radio]),
     -webkit-backdrop-filter: none; backdrop-filter: none;
   }
 }
+
+/* ── The sidebar's scrollbar runs down the box's right edge ──────────────
+ * #ui pads its content 12 px in from the border, and the scroller sat inside
+ * that padding, so its scrollbar floated 12 px in from the edge (reported:
+ * "should be closer to the right hand margin of the box"). The scroller now
+ * reaches into the padding and pads its content back by the same amount, so
+ * every tab keeps its exact width and position (the dock below still lines
+ * up with it) and only the scrollbar moves out to the edge. Every theme. */
+#ui { padding-right: 12px !important; }
+#ui #ui-scroll-body { margin-right: -11px; padding-right: 11px; }
 `;
 
 /**
