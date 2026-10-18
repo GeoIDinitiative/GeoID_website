@@ -14322,6 +14322,15 @@ uniform float uViewportWidth;`,
         ctxStreamer.surroundTexture = stx;
         ctxStreamer.surroundBounds = new THREE.Vector4(0, 0, 0, 0);
       }
+      // FLIGHT: streamed CTX imagery fades in with DESCENT, not with arrival.
+      // From deep space the global map is the view; the streamed layers come in
+      // between FADE_START_KM and FADE_FULL_KM above the ground (reported:
+      // "the tiles start streaming far too soon" -- a hard square of detail
+      // over a planet that filled the screen). Shared by the surround shader
+      // and the focus layer's opacity. Orbit (not flying) is unaffected.
+      const ctxAltFade = { value: 1 };
+      const CTX_FADE_START_KM = 1800;
+      const CTX_FADE_FULL_KM = 600;
       const ctxSurroundMaterial = new THREE.MeshStandardMaterial({
         color: 0xffffff,
         map: ctxStreamer.surroundTexture,
@@ -14338,6 +14347,7 @@ uniform float uViewportWidth;`,
       });
       ctxSurroundMaterial.onBeforeCompile = (shader) => {
         shader.uniforms.uCtxBounds = { value: ctxStreamer.surroundBounds };
+        shader.uniforms.uCtxAltFade = ctxAltFade;
         shader.uniforms.uCtxColorMap = { value: null };
         shader.uniforms.uCtxColorMix = { value: 0 };
         shader.uniforms.uCtxColorLift = { value: 1.0 };
@@ -14346,11 +14356,15 @@ uniform float uViewportWidth;`,
           .replace("#include <common>", "#include <common>\nvarying vec2 vCtxUvRaw;")
           .replace("#include <uv_vertex>", "#include <uv_vertex>\nvCtxUvRaw = uv;");
         shader.fragmentShader = shader.fragmentShader
-          .replace("#include <common>", "#include <common>\nuniform vec4 uCtxBounds;\nuniform sampler2D uCtxColorMap;\nuniform float uCtxColorMix;\nuniform float uCtxColorLift;\nvarying vec2 vCtxUvRaw;")
+          .replace("#include <common>", "#include <common>\nuniform float uCtxAltFade;\nuniform vec4 uCtxBounds;\nuniform sampler2D uCtxColorMap;\nuniform float uCtxColorMix;\nuniform float uCtxColorLift;\nvarying vec2 vCtxUvRaw;")
           .replace("#include <map_fragment>", `#include <map_fragment>
-            float maskX = step(uCtxBounds.x, vCtxUvRaw.x) * (1.0 - step(uCtxBounds.y, vCtxUvRaw.x));
-            float maskY = step(uCtxBounds.z, vCtxUvRaw.y) * (1.0 - step(uCtxBounds.w, vCtxUvRaw.y));
-            diffuseColor.a *= (maskX * maskY);
+            // FEATHERED, not stepped: the window edge fades over a fifth of its
+            // span, so the streamed patch melts into the global map instead of
+            // standing on it as a hard square (reported from orbit).
+            vec2 fw = vec2(uCtxBounds.y - uCtxBounds.x, uCtxBounds.w - uCtxBounds.z) * 0.2;
+            float maskX = smoothstep(uCtxBounds.x, uCtxBounds.x + fw.x, vCtxUvRaw.x) * (1.0 - smoothstep(uCtxBounds.y - fw.x, uCtxBounds.y, vCtxUvRaw.x));
+            float maskY = smoothstep(uCtxBounds.z, uCtxBounds.z + fw.y, vCtxUvRaw.y) * (1.0 - smoothstep(uCtxBounds.w - fw.y, uCtxBounds.w, vCtxUvRaw.y));
+            diffuseColor.a *= (maskX * maskY) * uCtxAltFade;
             if (uCtxColorMix > 0.0) {
               vec3 baseColor = texture2D(uCtxColorMap, vCtxUvRaw).rgb;
               float luma = dot(diffuseColor.rgb, vec3(0.299, 0.587, 0.114));
@@ -21974,8 +21988,15 @@ ${error && error.message ? error.message : error}`;
             // so there is nothing left for a fade to hide: hold it opaque and
             // let the ease only cover the layer's first appearance.
             const flyingFocus = Boolean(window.__flightSim?.active);
+            let altFade = 1;
+            if (flyingFocus) {
+              const altKm = (Number(window.__flightSim.shipAltUnits) || 0) * (MARS_RADIUS_METERS / 3.2) / 1000;
+              const t = clamp((CTX_FADE_START_KM - altKm) / (CTX_FADE_START_KM - CTX_FADE_FULL_KM), 0, 1);
+              altFade = t * t * (3 - 2 * t);
+            }
+            ctxAltFade.value = altFade;
             const targetOpacity = flyingFocus
-              ? (resolved > 0 ? 1 : 0)
+              ? (resolved > 0 ? altFade : 0)
               : clamp((coverage - 0.15) / 0.85, 0, 1);
             ctxStreamer._focusOpacity = Number.isFinite(ctxStreamer._focusOpacity)
               ? ctxStreamer._focusOpacity

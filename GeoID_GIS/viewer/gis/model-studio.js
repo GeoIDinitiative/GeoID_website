@@ -1,19 +1,19 @@
-import { escapeHtml } from "./escape-html.js?v=20261018-2b73dcd";
+import { escapeHtml } from "./escape-html.js?v=20261018-64ee85f";
 import * as THREE from "../vendor/three.module.js";
-import { currentBody, getBody, currentBodyId } from "./bodies.js?v=20261018-2b73dcd";
-import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20261018-2b73dcd";
+import { currentBody, getBody, currentBodyId } from "./bodies.js?v=20261018-64ee85f";
+import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20261018-64ee85f";
 import {
   latticeTetMesh, tetBoundarySurface, qualityStats, elementCounts, toGmsh22,
-} from "./mesh-volume.js?v=20261018-2b73dcd";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20261018-2b73dcd";
-import { downloadText } from "./extraction.js?v=20261018-2b73dcd";
-import { shellPositions, surfacePositions, tinHeightAt, tinToGrid, gridAsTin, tinValueAt } from "./surface-sampling.js?v=20261018-2b73dcd";
-import { rampColour } from "./symbology.js?v=20261018-2b73dcd";
-import { layeredVolumes, facetPositions, tinWith, LAYER_FLAGS } from "./layered-model.js?v=20261018-2b73dcd";
-import { sectionPolygons, sectionPositions, profileHeightAt } from "./section-model.js?v=20261018-2b73dcd";
-import { faceParts, partPositions, studioGmshScript, DEFAULT_FACE_FLAGS } from "./studio-gmsh.js?v=20261018-2b73dcd";
-import { describeField, FIELD_TYPES } from "./mesh-size-fields.js?v=20261018-2b73dcd";
-import { femSpec } from "./model-build.js?v=20261018-2b73dcd";
+} from "./mesh-volume.js?v=20261018-64ee85f";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20261018-64ee85f";
+import { downloadText } from "./extraction.js?v=20261018-64ee85f";
+import { shellPositions, surfacePositions, tinHeightAt, tinToGrid, gridAsTin, tinValueAt } from "./surface-sampling.js?v=20261018-64ee85f";
+import { rampColour } from "./symbology.js?v=20261018-64ee85f";
+import { layeredVolumes, facetPositions, tinWith, LAYER_FLAGS } from "./layered-model.js?v=20261018-64ee85f";
+import { sectionPolygons, sectionPositions, profileHeightAt } from "./section-model.js?v=20261018-64ee85f";
+import { faceParts, partPositions, studioGmshScript, DEFAULT_FACE_FLAGS } from "./studio-gmsh.js?v=20261018-64ee85f";
+import { describeField, FIELD_TYPES } from "./mesh-size-fields.js?v=20261018-64ee85f";
+import { femSpec } from "./model-build.js?v=20261018-64ee85f";
 
 // Meshing Studio, ported from atlas-ai/services/mesh/meshing_studio.
 //
