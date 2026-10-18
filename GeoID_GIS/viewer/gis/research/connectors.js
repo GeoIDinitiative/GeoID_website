@@ -19,7 +19,7 @@
  */
 
 import { createLedger, latestGlaciers, pieceAreaKm2 }
-  from "../glacier-outlines.js?v=20261018-b3108d1";
+  from "../glacier-outlines.js?v=20261018-0e81fb0";
 
 /** N days ago as an ISO date (YYYY-MM-DD). */
 function daysAgoISO(days) {

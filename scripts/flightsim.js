@@ -2560,6 +2560,64 @@
     img.src = url;
   }
 
+
+  /**
+   * IN FLIGHT THE WORLD TURNS AT ITS REAL RATE (asked for, 2026-10-18).
+   * Flight paused the spin outright, and the viewer's own spin is a display
+   * rate (Mars once round in ~10 min, ~150x; Earth's lapse day 720x). Real
+   * rotation is imperceptible from the cockpit -- Mars turns 0.004 deg a
+   * second -- but it is what makes the sun and the terminator creep across
+   * the ground as they really do. Every viewer exposes pause/resume, so the
+   * rate is set from here for all of them: the viewer's display rate is
+   * measured once (a short resume), and from then on the spin is let through
+   * in slivers of viewer time that add up to the body's sidereal rate.
+   * Sidereal periods in hours; negative is retrograde, but the viewer already
+   * turns each body its own way, so only the magnitude is used.
+   */
+  const SIDEREAL_HOURS = {
+    mercury: 1407.6, venus: -5832.5, earth: 23.9345, moon: 655.72, mars: 24.6229,
+    jupiter: 9.925, saturn: 10.656, uranus: -17.24, neptune: 16.11, pluto: -153.29,
+  };
+  const realSpin = { timer: null, owedMs: 0, displayOmega: 0, last: 0 };
+  function startRealSpin() {
+    stopRealSpin();
+    if (!hooks?.resumeSpin || !hooks?.pauseSpin || !hooks?.getSpinDelta) return;
+    const id = String(hooks.bodyId || "mars").replace(/^moon-.*/, "moon");
+    const hours = Math.abs(SIDEREAL_HOURS[id] || SIDEREAL_HOURS.mars);
+    const realOmega = (2 * Math.PI) / (hours * 3600 * 1000);   // rad per ms
+    // Calibrate: 60 ms of the viewer's own spin.
+    const a0 = hooks.getSpinDelta(), t0 = performance.now();
+    hooks.resumeSpin();
+    realSpin.timer = setTimeout(() => {
+      hooks.pauseSpin();
+      const dA = Math.abs(hooks.getSpinDelta() - a0), dT = performance.now() - t0;
+      realSpin.displayOmega = dT > 0 ? dA / dT : 0;
+      realSpin.last = performance.now();
+      realSpin.owedMs = 0;
+      if (!(realSpin.displayOmega > 0)) { realSpin.timer = null; return; }
+      const tick = () => {
+        const now = performance.now();
+        // Viewer-time owed: real angle this interval / the viewer's rate.
+        realSpin.owedMs += (realOmega * (now - realSpin.last)) / realSpin.displayOmega;
+        realSpin.last = now;
+        if (realSpin.owedMs >= 8) {
+          const slice = realSpin.owedMs;
+          realSpin.owedMs = 0;
+          hooks.resumeSpin();
+          realSpin.timer = setTimeout(() => { hooks.pauseSpin(); realSpin.timer = setTimeout(tick, 500); }, slice);
+          return;
+        }
+        realSpin.timer = setTimeout(tick, 500);
+      };
+      realSpin.timer = setTimeout(tick, 500);
+    }, 60);
+  }
+  function stopRealSpin() {
+    if (realSpin.timer) clearTimeout(realSpin.timer);
+    realSpin.timer = null;
+    hooks?.pauseSpin?.();
+  }
+
   function engage(spec) {
     // Announced BEFORE any spawn math: a viewer whose flown body does not sit
     // at the world origin (the Moon orbits an Earth prop) uses this to move
@@ -2620,6 +2678,7 @@
       hooks.syncTerrainReliefState();
     }
     hooks.pauseSpin();
+    startRealSpin();
 
     // 3. Spawn at the LAUNCH SPEC if one was set in pre-flight, otherwise fall
     // back to the sub-camera point (the old implicit behaviour, kept so any
@@ -2690,6 +2749,7 @@
   }
 
   function disengage() {
+    stopRealSpin();
     if (!fs.active) return;
     // FIRST, before any teardown: hand the sticks back. gamepad.js announces
     // "app" synchronously and its axes() read zero from this line on, so the
