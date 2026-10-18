@@ -77,7 +77,7 @@
       "upstream": "https://github.com/mrdoob/three.js/tree/r165/examples/jsm",
       "advisories": "https://github.com/mrdoob/three.js/security/advisories",
       "licence": "MIT",
-      "sha256": "f0bceddde2b351fa",
+      "sha256": "dc6ce31eacd9e3f5",
       "copies": 1,
       "note": "Frontier Pioneer only; keep at the same revision as that page's three.module.js."
     },
@@ -88,7 +88,7 @@
       "upstream": "https://github.com/mrdoob/three.js/tree/r165/examples/jsm",
       "advisories": "https://github.com/mrdoob/three.js/security/advisories",
       "licence": "MIT",
-      "sha256": "3988b47a34c48664",
+      "sha256": "0a52c611b0e2ef7b",
       "copies": 1,
       "note": "Frontier Pioneer only; keep at the same revision as that page's three.module.js."
     }

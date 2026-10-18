@@ -33,7 +33,7 @@
  */
 
 import * as THREE from "/GeoID_GIS/viewer/vendor/three.module.js";
-import { currentBodyId } from "./bodies.js?v=20261018-f7f2faa";
+import { currentBodyId } from "./bodies.js?v=20261018-98c37eb";
 
 const PROFILES = {
   mercury: null,
@@ -456,9 +456,9 @@ function watchMoons() {
 /**
  * THE SUN AT ITS REAL DISTANCE (asked for, 2026-10-18). Every viewer drew the
  * same sun -- a 1.8-unit disc 180 units out, about Earth's half-degree -- so
- * from Pluto it looked as big as from Earth. The disc is scaled to 1 / (the
- * world's distance in AU), which keeps its true angular size relative to
- * Earth's (Jupiter 1/5, Pluto 1/40 -- a bright point, as it is). The glare
+ * from Pluto it looked as big as from Earth. The disc now keeps its true
+ * angular size, 1 / (the world's distance in AU) of Earth's (Jupiter 1/5,
+ * Pluto 1/40 -- a bright point, as it is): see pinSunToSky below. The glare
  * shrinks more gently, as the square root (a point source still flares), and
  * dims as the inverse fourth root -- at 40 AU sunlight is 1/1600 as strong,
  * but a camera pointed at it still stops down to a starburst.
@@ -472,11 +472,46 @@ function sunDistanceFactors() {
   SUN.size = Math.min(1.3, Math.max(0.18, 1 / Math.sqrt(au)));
   SUN.bright = Math.min(1, Math.max(0.35, 1 / Math.pow(au, 0.25)));
 }
-function scaleSunDisc(mesh) {
-  if (mesh.userData.geoidSunScaled) return;
-  mesh.userData.geoidSunScaled = true;
-  // Never below a few pixels: a sun that vanishes reads as a bug.
-  mesh.scale.multiplyScalar(Math.max(0.06, 1 / SUN.au));
+/**
+ * THE SUN AT INFINITY (2026-10-18). Every viewer builds its sun as a small
+ * sphere 180 units from the planet -- closer than Earth's Moon is drawn, and
+ * close enough that zooming out let the camera pan round it (reported: "we
+ * can peak behind the curtain"). The viewer's sun is left where it is (its
+ * direction drives the lighting and every viewer's own sun code), but it is
+ * DRAWN as a star is: just inside the far plane, along its direction from
+ * the camera, at its true angular size for this world -- 0.27 deg at 1 AU,
+ * shrinking as 1 / AU. Distance stops meaning anything: no zoom or orbit
+ * reaches it, it never parallaxes against the planet or the Moon, and
+ * anything in front -- planet, moons, rings -- hides it by depth. A floor of
+ * a pixel and a half keeps the far worlds' sun from vanishing; the glare
+ * carries it there, as a camera's would.
+ */
+const SUN_ANGULAR_RADIUS = 0.004654;   // rad, the Sun's disc seen from 1 AU
+const _skyPos = new THREE.Vector3(), _camPos = new THREE.Vector3();
+function skySunPosition(mesh, cam, out) {
+  // Direction from the scene origin -- where every viewer aims its key light.
+  out.setFromMatrixPosition(mesh.matrixWorld);
+  if (out.lengthSq() < 1e-9) out.set(1, 0, 0);
+  _camPos.setFromMatrixPosition(cam.matrixWorld);
+  return out.normalize().multiplyScalar(cam.far * 0.92).add(_camPos);
+}
+function pinSunToSky(mesh, renderer) {
+  if (mesh.userData.geoidSkySun) return;
+  mesh.userData.geoidSkySun = true;
+  mesh.frustumCulled = false;   // culled at its logical place otherwise
+  mesh.renderOrder = -1;        // the farthest thing: first of the transparents
+  const r0 = mesh.geometry?.parameters?.radius || 1;
+  const saved = new THREE.Matrix4(), q = new THREE.Quaternion(), s = new THREE.Vector3();
+  mesh.onBeforeRender = (_r, _scene, cam) => {
+    saved.copy(mesh.matrixWorld);
+    skySunPosition(mesh, cam, _skyPos);
+    const h = renderer.domElement.height || 1000;
+    const perPx = THREE.MathUtils.degToRad(cam.fov || 45) / h;
+    const ang = Math.max(SUN_ANGULAR_RADIUS / SUN.au, 1.5 * perPx);
+    s.setScalar((cam.far * 0.92 * Math.tan(ang)) / r0);
+    mesh.matrixWorld.compose(_skyPos, q, s);
+  };
+  mesh.onAfterRender = () => { mesh.matrixWorld.copy(saved); };
 }
 
 function startGlare() {
@@ -559,9 +594,9 @@ function startGlare() {
         const al = tmp.normalize().dot(sunDir);
         if (al > best) { best = al; sunMesh = n; }
       });
-      if (sunMesh) { sunDistanceFactors(); scaleSunDisc(sunMesh); }
+      if (sunMesh) { sunDistanceFactors(); pinSunToSky(sunMesh, renderer); }
     }
-    if (sunMesh) sunMesh.getWorldPosition(sunPos);
+    if (sunMesh) { sunMesh.updateWorldMatrix(true, false); skySunPosition(sunMesh, cam, sunPos); }
     else {
       sunPos.copy(light.position);
       if (light.target) sunPos.sub(light.target.position);
