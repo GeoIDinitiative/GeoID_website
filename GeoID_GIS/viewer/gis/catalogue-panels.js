@@ -29,15 +29,15 @@
 
 import {
   HOMES, MIRRORS, grouped, addDataset, layerForDataset, loadLaunchDefaults,
-} from "./global-data.js?v=20261018-c65e0e1";
-import { isParked } from "./parked.js?v=20261018-c65e0e1";
-import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20261018-c65e0e1";
-import { holdLaunch } from "./launch-ready.js?v=20261018-c65e0e1";
-import { mathsFor } from "./equations.js?v=20261018-c65e0e1";
+} from "./global-data.js?v=20261018-eb3a7d2";
+import { isParked } from "./parked.js?v=20261018-eb3a7d2";
+import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20261018-eb3a7d2";
+import { holdLaunch } from "./launch-ready.js?v=20261018-eb3a7d2";
+import { mathsFor } from "./equations.js?v=20261018-eb3a7d2";
 import { bandOf, bandRows, bandSymbology, describeFilter, magOf }
-  from "./seismic-magnitude.js?v=20261018-c65e0e1";
+  from "./seismic-magnitude.js?v=20261018-eb3a7d2";
 import { filterVolcanoes, yearRankOf, yearWords, DEFAULT_YEAR_RANK }
-  from "./volcano-filter.js?v=20261018-c65e0e1";
+  from "./volcano-filter.js?v=20261018-eb3a7d2";
 
 const byId = (id) => document.getElementById(id);
 

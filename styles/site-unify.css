@@ -41,18 +41,12 @@ body :is(p, li, dd, figcaption, blockquote, td):not(nav *):not(.site-nav *),
 }
 /* Card and sub-heads: one step, the same tracking rule. */
 .solution-card h3, .program-content h3, .vision-text h3,
-.earth-info-heading, .about-col-heading, .feature-tile h3 {
+.feature-tile h3 {
   font-family: var(--u-display) !important;
   letter-spacing: -0.01em !important;
 }
-/* Small uppercase labels keep the dashboard's eyebrow: Inter, wide tracking. */
-.about-col-heading, .earth-info-heading {
-  font-family: var(--u-body) !important;
-  font-size: 0.72rem !important;
-  font-weight: 600 !important;
-  letter-spacing: 0.18em !important;
-  text-transform: uppercase;
-}
+/* (Earth Explorer sub-heads are styled in earth-explorers.css, as plain
+   headings like the model cards.) */
 
 /* GeoHUB's wordmark headline was spaced OUT (+3.6 px) while every other large
    heading on the site is tightened; large type is tracked in, not out. */
