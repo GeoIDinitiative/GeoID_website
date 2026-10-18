@@ -322,6 +322,18 @@ NAME_OVERRIDES = {
     "Q163584": "Derry",
 }
 
+# Descriptions GeoID writes itself in place of the Wikipedia summary, keyed by
+# Wikidata id. The source line then credits GeoID, not Wikipedia.
+DESCRIPTION_OVERRIDES = {
+    "Q163584": (
+        'Derry is a cathedral city in Northern Ireland. Located in County Derry, the city covers bo'
+        'th banks of the River Foyle. It was also a hotspot of conflict during the Troubles, most n'
+        'otably Bloody Sunday in 1972, where during a peace protest British forces killed thirteen '
+        'people outright, and 14 others were wounded (with one later dying from his injuries); all '
+        'were Catholic. In recent times, the city is most recognised for the show Derry Girls.'
+    ),
+}
+
 
 def main():
     ap = argparse.ArgumentParser()
@@ -616,6 +628,9 @@ def main():
         if not desc:
             desc = f"{it['type']} named on Natural Earth's 1:10m map."
         src = it["_source"] + (" · Wikipedia (CC BY-SA 4.0)" if text and title else "")
+        if it["_qid"] in DESCRIPTION_OVERRIDES:
+            desc = DESCRIPTION_OVERRIDES[it["_qid"]]
+            src = it["_source"] + " · GeoID"
         # A lake is "Albert" in Natural Earth and "Lake Albert" to everyone
         # else; its article title says which word the name carries.
         if it["category"] in ("lake", "river") and title:
