@@ -33,7 +33,7 @@
  */
 
 import * as THREE from "/GeoID_GIS/viewer/vendor/three.module.js";
-import { currentBodyId } from "./bodies.js?v=20261018-0e81fb0";
+import { currentBodyId } from "./bodies.js?v=20261018-19304b3";
 
 const PROFILES = {
   mercury: null,
@@ -201,6 +201,91 @@ function makeShell(body, profile, sun) {
   return shell;
 }
 
+
+/**
+ * RINGS THAT KNOW WHERE THE SUN IS (asked for, 2026-10-18). Saturn's rings
+ * were a flat texture lit the same everywhere. Three things now come from the
+ * sun direction, in the ring material's own shader:
+ *  - THE PLANET'S SHADOW: where the line to the sun from a point on the rings
+ *    passes through the planet, that part is in night (soft-edged), so the
+ *    shadow sweeps round the rings as the planet turns against the sun;
+ *  - THE UNLIT FACE: with the camera and the sun on opposite sides of the
+ *    ring plane you are looking at the rings' dark side, which is dimmer;
+ *  - FORWARD SCATTER: looking toward the sun through the rings brightens
+ *    them -- a broad glow and a tight streak that moves with the camera, the
+ *    way Cassini's backlit images show them -- strongest on the dark face.
+ * Any ringed world's ring disc (a RingGeometry with a textured standard
+ * material, outside the planet) gets it, so Uranus's too.
+ */
+function dressRings(globe, planetR, sunWorld) {
+  const rings = [];
+  const root = globe.parent || globe;
+  root.traverse((n) => {
+    if (n.isMesh && n.geometry?.type === "RingGeometry" && n.material?.isMeshStandardMaterial
+        && n.material.map && (n.geometry.parameters?.innerRadius || 0) > planetR * 0.9) rings.push(n);
+  });
+  const uni = {
+    uSunW: { value: sunWorld },
+    uPlanetC: { value: new THREE.Vector3() },
+    uPlanetR: { value: planetR },
+    uRingN: { value: new THREE.Vector3(0, 1, 0) },
+  };
+  rings.forEach((ring) => {
+    const m = ring.material;
+    if (m.userData.geoidRingLight) return;
+    m.userData.geoidRingLight = true;
+    const prev = m.onBeforeCompile;
+    const prevKey = m.customProgramCacheKey?.bind(m);
+    m.onBeforeCompile = (shader, renderer) => {
+      if (typeof prev === "function") prev(shader, renderer);
+      Object.assign(shader.uniforms, uni);
+      shader.vertexShader = shader.vertexShader
+        .replace("#include <common>", "#include <common>\nvarying vec3 vGeoidWorld;")
+        .replace("#include <project_vertex>", "#include <project_vertex>\nvGeoidWorld = (modelMatrix * vec4(transformed, 1.0)).xyz;");
+      shader.fragmentShader = shader.fragmentShader
+        .replace("#include <common>", "#include <common>\nvarying vec3 vGeoidWorld;\nuniform vec3 uSunW;\nuniform vec3 uPlanetC;\nuniform float uPlanetR;\nuniform vec3 uRingN;")
+        .replace("#include <dithering_fragment>", `#include <dithering_fragment>
+        {
+          vec3 S = normalize(uSunW);
+          vec3 oc = vGeoidWorld - uPlanetC;
+          float b = dot(oc, S);
+          float h = sqrt(max(dot(oc, oc) - b * b, 0.0));
+          // In the planet's shadow: the sunward ray passes within the planet.
+          float shadow = b < 0.0 ? 1.0 - smoothstep(uPlanetR * 0.96, uPlanetR * 1.04, h) : 0.0;
+          vec3 V = normalize(vGeoidWorld - cameraPosition);
+          float fwd = max(dot(V, S), 0.0);
+          float unlit = dot(cameraPosition - uPlanetC, uRingN) * dot(S, uRingN) < 0.0 ? 1.0 : 0.0;
+          float glint = 0.9 * pow(fwd, 3.0) + 2.4 * pow(fwd, 22.0);
+          vec3 col = gl_FragColor.rgb;
+          col *= mix(1.0, 0.42, unlit);
+          col += col * glint * (1.0 + 1.5 * unlit);
+          // The streak: sunlight mirrored off the ring plane toward the eye.
+          // It sits where the camera meets the mirror angle and slides across
+          // the rings as the camera moves.
+          vec3 Nf = dot(uRingN, S) >= 0.0 ? uRingN : -uRingN;
+          float spec = pow(max(dot(reflect(-S, Nf), -V), 0.0), 28.0);
+          col += col * spec * 3.0 * (1.0 - unlit);
+          col *= mix(1.0, 0.1, shadow);
+          gl_FragColor.rgb = col;
+        }`);
+    };
+    m.customProgramCacheKey = () => `${prevKey ? prevKey() : ""}|geoid-ring-light`;
+    m.needsUpdate = true;
+  });
+  const n = new THREE.Vector3();
+  return {
+    rings,
+    update() {
+      if (!rings.length) return;
+      globe.getWorldPosition(uni.uPlanetC.value);
+      // The ring disc's normal: its local +z after the viewer's -90 deg tilt.
+      rings[0].updateMatrixWorld();
+      n.setFromMatrixColumn(rings[0].matrixWorld, 2).normalize();
+      uni.uRingN.value.copy(n);
+    },
+  };
+}
+
 function attach(viewer) {
   const { scene, globe } = viewer;
   if (!scene || !globe || globe.userData.atmosphere) return false;
@@ -213,6 +298,15 @@ function attach(viewer) {
   const sun = { value: sunWorld };
 
   liftDaySide(THREE, globe.material, sunView, LIFT_FOR[currentBodyId()] ?? DAY_LIFT);
+  const planetWorldR = (Number(globe.geometry?.parameters?.radius) || 3.2) * globe.getWorldScale(new THREE.Vector3()).x;
+  let ringLight = dressRings(globe, planetWorldR, sunWorld);
+  // The ring texture loads asynchronously, so the disc may not exist yet:
+  // look again every 2 s for the first minute.
+  let ringTries = 0;
+  const ringRetry = setInterval(() => {
+    if (ringLight.rings.length || ringTries++ > 30) { clearInterval(ringRetry); return; }
+    ringLight = dressRings(globe, planetWorldR, sunWorld);
+  }, 2000);
 
   const layers = [];
   const shell = profile ? makeShell(globe, profile, sun) : null;
@@ -234,6 +328,7 @@ function attach(viewer) {
     if (sunWorld.lengthSq() < 1e-9) sunWorld.set(1, 0, 0);
     sunWorld.normalize();
     sunView.copy(sunWorld).transformDirection(cam.matrixWorldInverse);
+    ringLight.update();
     if (!shell) return;
     // In the globe's LOCAL units (its geometry radius; displacement is in the
     // same units). The air's base sits a fifth of the relief up: at half, the
