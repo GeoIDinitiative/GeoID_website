@@ -2579,41 +2579,51 @@
     jupiter: 9.925, saturn: 10.656, uranus: -17.24, neptune: 16.11, pluto: -153.29,
   };
   const realSpin = { timer: null, owedMs: 0, displayOmega: 0, last: 0 };
+  fs.realSpin = realSpin;   // inspectable: window.__flightSim.realSpin
   function startRealSpin() {
     stopRealSpin();
     if (!hooks?.resumeSpin || !hooks?.pauseSpin || !hooks?.getSpinDelta) return;
     const id = String(hooks.bodyId || "mars").replace(/^moon-.*/, "moon");
     const hours = Math.abs(SIDEREAL_HOURS[id] || SIDEREAL_HOURS.mars);
     const realOmega = (2 * Math.PI) / (hours * 3600 * 1000);   // rad per ms
-    // Calibrate: 60 ms of the viewer's own spin.
-    const a0 = hooks.getSpinDelta(), t0 = performance.now();
+    // Calibrate on real frames: the spin angle the viewer reaches over
+    // ~400 ms. 60 ms was too short at a low frame rate -- the angle had barely
+    // moved, the rate came out near zero, and every slice owed turned into a
+    // long burst of display-rate spin: Saturn's moons (which share the spin
+    // clock) raced round the sky in flight (reported). A rate that cannot be
+    // measured leaves the spin paused rather than running.
     hooks.resumeSpin();
+    const a0 = hooks.getSpinDelta(), t0 = performance.now();
     realSpin.timer = setTimeout(() => {
-      hooks.pauseSpin();
       const dA = Math.abs(hooks.getSpinDelta() - a0), dT = performance.now() - t0;
-      realSpin.displayOmega = dT > 0 ? dA / dT : 0;
+      hooks.pauseSpin();
+      realSpin.displayOmega = dT > 200 && dA > 1e-5 ? dA / dT : 0;
       realSpin.last = performance.now();
       realSpin.owedMs = 0;
       if (!(realSpin.displayOmega > 0)) { realSpin.timer = null; return; }
-      const tick = () => {
+      // FRAME-DRIVEN, not timer-driven: browsers stretch short timers in
+      // inactive tabs, so a 40 ms resume could run a second and the spin
+      // overshot ~10x. Each frame either lets this frame's time through or
+      // not, and the time that ACTUALLY ran is charged against what is owed.
+      let resumedAt = 0;
+      const frame = () => {
+        if (!realSpin.timer) return;
         const now = performance.now();
-        // Viewer-time owed: real angle this interval / the viewer's rate.
+        if (resumedAt) {
+          hooks.pauseSpin();
+          realSpin.owedMs -= now - resumedAt;
+          resumedAt = 0;
+        }
         realSpin.owedMs += (realOmega * (now - realSpin.last)) / realSpin.displayOmega;
         realSpin.last = now;
-        if (realSpin.owedMs >= 8) {
-          const slice = realSpin.owedMs;
-          realSpin.owedMs = 0;
-          hooks.resumeSpin();
-          realSpin.timer = setTimeout(() => { hooks.pauseSpin(); realSpin.timer = setTimeout(tick, 500); }, slice);
-          return;
-        }
-        realSpin.timer = setTimeout(tick, 500);
+        if (realSpin.owedMs >= 16) { hooks.resumeSpin(); resumedAt = now; }
+        realSpin.timer = requestAnimationFrame(frame);
       };
-      realSpin.timer = setTimeout(tick, 500);
-    }, 60);
+      realSpin.timer = requestAnimationFrame(frame);
+    }, 400);
   }
   function stopRealSpin() {
-    if (realSpin.timer) clearTimeout(realSpin.timer);
+    if (realSpin.timer) { clearTimeout(realSpin.timer); cancelAnimationFrame(realSpin.timer); }
     realSpin.timer = null;
     hooks?.pauseSpin?.();
   }
