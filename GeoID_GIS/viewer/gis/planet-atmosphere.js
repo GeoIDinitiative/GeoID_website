@@ -33,7 +33,7 @@
  */
 
 import * as THREE from "/GeoID_GIS/viewer/vendor/three.module.js";
-import { currentBodyId } from "./bodies.js?v=20261018-be9837d";
+import { currentBodyId } from "./bodies.js?v=20261018-d8b0466";
 
 const PROFILES = {
   mercury: null,
@@ -122,7 +122,7 @@ function findSun(scene) {
 
 /** The sunlit hemisphere lifted; zero on the night side. Chained onto the
  *  globe material's own onBeforeCompile so a viewer's injections survive. */
-function liftDaySide(THREE, material, sunView, lift = DAY_LIFT) {
+function liftDaySide(THREE, material, sunView, lift = DAY_LIFT, night = NIGHT_LEVEL) {
   if (!material || material.userData.geoidDayLift) return;
   material.userData.geoidDayLift = true;
   const previous = material.onBeforeCompile;
@@ -139,11 +139,11 @@ function liftDaySide(THREE, material, sunView, lift = DAY_LIFT) {
           float ndl = dot(normalize(vNormal), uSunView);
           float dayK = smoothstep(-0.08, 0.18, ndl);
           float lambert = pow(max(ndl, 0.0), 0.75);
-          diffuseColor.rgb *= mix(${NIGHT_LEVEL.toFixed(2)}, 1.0, dayK) * (1.0 + ${lift.toFixed(2)} * lambert);
+          diffuseColor.rgb *= mix(${night.toFixed(2)}, 1.0, dayK) * (1.0 + ${lift.toFixed(2)} * lambert);
         }`,
       );
   };
-  material.customProgramCacheKey = () => `${previousKey ? previousKey() : ""}|geoid-day-lift-2`;
+  material.customProgramCacheKey = () => `${previousKey ? previousKey() : ""}|geoid-day-lift-3`;
   material.needsUpdate = true;
 }
 
@@ -358,6 +358,7 @@ const MOON_AIR = {
   Triton: { beta: [0.38, 0.6, 1.0], k: 0.03, h: 0.02, gain: 0.6 },   // thin nitrogen
 };
 const MOON_LIFT = 0.45;
+const MOON_NIGHT = 0.22;
 const moonSun = { light: null, world: new THREE.Vector3(1, 0, 0), view: new THREE.Vector3(1, 0, 0) };
 const seenMoons = new WeakSet();
 
@@ -376,7 +377,10 @@ function isMoonMesh(mesh, globe, globeR) {
 
 function attachMoon(viewer, mesh) {
   seenMoons.add(mesh);
-  liftDaySide(THREE, mesh.material, moonSun.view, MOON_LIFT);
+  // Airless and seen side-on, a moon's night is nearly black: the viewers'
+  // ambient wash otherwise turns a half moon into a full one (seen on Earth's
+  // Moon, which sits under Earth's strong ambient light).
+  liftDaySide(THREE, mesh.material, moonSun.view, MOON_LIFT, MOON_NIGHT);
   const air = MOON_AIR[moonName(mesh)];
   const shell = air ? makeShell(mesh, air, { value: moonSun.world }) : null;
   if (shell) shell.name = `geoid-atmosphere-${moonName(mesh)}`;
@@ -416,7 +420,12 @@ function watchMoons() {
     } catch (error) {
       window.GeoIDAtmosphereError = String(error?.stack || error);
     }
-    if (tries++ < 60) setTimeout(scan, 3000);
+    // Keeps looking for the whole session: Earth builds its Moon only when the
+    // moons are switched on (the moon viewer does it), often long after load,
+    // and a Moon found late was never lit (reported). A traverse every 4 s is
+    // cheap; meshes already handled are skipped.
+    tries++;
+    setTimeout(scan, 4000);
   };
   scan();
 }

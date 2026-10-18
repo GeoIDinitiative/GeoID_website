@@ -16,9 +16,9 @@ import {
   gdacsPoints, resolveColour,
   MARKER_LIFT_MAX, liftForAltitude, dotSizePx, zoomGain, MARKER_MAX_PX, isQuake, publisherOf, restoreActive,
   stormCategory, stormScale, stormLabel, STORM_BASE_CAP, markerHitGeometry, nearestHit,
-} from "./event-sources.js?v=20261018-be9837d";
-import { escapeHtml, safeUrl } from "./escape-html.js?v=20261018-be9837d";
-import { holdLaunch } from "./launch-ready.js?v=20261018-be9837d";
+} from "./event-sources.js?v=20261018-d8b0466";
+import { escapeHtml, safeUrl } from "./escape-html.js?v=20261018-d8b0466";
+import { holdLaunch } from "./launch-ready.js?v=20261018-d8b0466";
 
 const API = "https://eonet.gsfc.nasa.gov/api/v3/events";
 
@@ -1314,6 +1314,10 @@ function trackScale() {
     // back must be hidden in every frame the markers are drawn in, including
     // the ones where the globe's projected size cannot be measured.
     const camera = window.GeoIDViewer?.camera;
+    // In moon-viewer mode the camera faces the Moon: Earth's event markers do
+    // not depth-test, so they floated over the Moon's disc (reported).
+    if (markers) markers.visible = !document.getElementById("moon-viewer-toggle")?.checked
+      && document.documentElement.getAttribute("data-mode") !== "moon";
     if (markers && camera) markers.children.forEach((p) => cullBehindGlobe(p, camera));
     const px = globeRadiusPx();
     if (px > 0 && markers) {
@@ -2711,8 +2715,8 @@ async function showTrace(event) {
   }
 
   const [plot, { spectrogram }] = await Promise.all([
-    import("./seismogram-plot.js?v=20261018-be9837d"),
-    import("./research/dsp.js?v=20261018-be9837d"),
+    import("./seismogram-plot.js?v=20261018-d8b0466"),
+    import("./research/dsp.js?v=20261018-d8b0466"),
   ]);
   if (stale()) return;
 

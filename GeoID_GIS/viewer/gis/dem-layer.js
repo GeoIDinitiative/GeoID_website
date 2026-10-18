@@ -18,22 +18,22 @@
  * the displaced surface, and the raster every terrain tool wants as an input.
  */
 
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20261018-be9837d";
-import { mathsFor } from "./equations.js?v=20261018-be9837d";
-import { featureForModel, may, refusal } from "./membership.js?v=20261018-be9837d";
-import { visibleBounds, viewChangedEnough, onViewSettled } from "./view-extent.js?v=20261018-be9837d";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20261018-d8b0466";
+import { mathsFor } from "./equations.js?v=20261018-d8b0466";
+import { featureForModel, may, refusal } from "./membership.js?v=20261018-d8b0466";
+import { visibleBounds, viewChangedEnough, onViewSettled } from "./view-extent.js?v=20261018-d8b0466";
 import { makeRaster, slope as slopeOf, hillshade as hillshadeOf }
-  from "./raster-analysis.js?v=20261018-be9837d";
-import * as dem from "./dem-tiles.js?v=20261018-be9837d";
-import { rampColour } from "./symbology.js?v=20261018-be9837d";
-import * as climate from "./climate-normals.js?v=20261018-be9837d";
+  from "./raster-analysis.js?v=20261018-d8b0466";
+import * as dem from "./dem-tiles.js?v=20261018-d8b0466";
+import { rampColour } from "./symbology.js?v=20261018-d8b0466";
+import * as climate from "./climate-normals.js?v=20261018-d8b0466";
 import { waterMasks, waterFeatures, floodFromSea, classAreas, edgeSeeds, contextBox, WORLD_BOX,
-  FLOODED, EXPOSED, CUT_OFF, LAKE } from "./water-mask.js?v=20261018-be9837d";
+  FLOODED, EXPOSED, CUT_OFF, LAKE } from "./water-mask.js?v=20261018-d8b0466";
 import { burnRivers, riverZones, zoneAreas, mergeOuterZones, ZONES }
-  from "./river-zones.js?v=20261018-be9837d";
+  from "./river-zones.js?v=20261018-d8b0466";
 import { DEFAULTS as FLOOD_DEFAULTS, sourceFields, inundate, mergeOuterDepth, depthColour,
   floodAreas, DEPTH_CLASSES, selectRiver, riverField, meanFlowFromWidth, flowRatio,
-  stageRise } from "./inundation.js?v=20261018-be9837d";
+  stageRise } from "./inundation.js?v=20261018-d8b0466";
 
 /**
  * Which corridor zones are drawn. State, like the sea level, so the drawer's

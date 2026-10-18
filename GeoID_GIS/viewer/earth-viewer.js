@@ -2,13 +2,13 @@ import * as THREE from "./vendor/three.module.js";
 // The polygon-area rule lives in one place, with a test. Stamped by hand
 // once: stamp.py only rewrites a ?v= that already exists.
 import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
-  from "./gis/geo-utils.js?v=20261018-be9837d";
+  from "./gis/geo-utils.js?v=20261018-d8b0466";
 import { attachReliefAttributes, followRelief }
-  from "./gis/vector-render.js?v=20261018-be9837d";
+  from "./gis/vector-render.js?v=20261018-d8b0466";
 import { rockClass, crustalSetting, rockClassLabel, classificationBasis }
-  from "./gis/rock-class.js?v=20261018-be9837d";
+  from "./gis/rock-class.js?v=20261018-d8b0466";
 import { lithologyLabel }
-  from "./gis/lithology-label.js?v=20261018-be9837d";
+  from "./gis/lithology-label.js?v=20261018-d8b0466";
 
 /**
  * This module's own cache stamp, read off its own URL.
@@ -5358,7 +5358,11 @@ function fmtProp(value) {
 
     function getMoonViewerDistance(feature) {
       const radius = Number(feature?.moon_radius || 0.1);
-      return THREE.MathUtils.clamp(radius * 10, 0.12, 1.2);
+      // The 1.2 cap was set for small moons; Earth's Moon is 0.87 here, so
+      // the cap put the camera 0.33 above its surface -- a screen of grey
+      // regolith and no Moon (reported "moon won't load"). Never closer
+      // than 3.2 radii, so the whole disc is in view.
+      return Math.max(THREE.MathUtils.clamp(radius * 10, 0.12, 1.2), radius * 3.2);
     }
 
     function getMoonViewerMinDistance(feature) {
