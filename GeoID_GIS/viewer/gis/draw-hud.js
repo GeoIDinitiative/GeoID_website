@@ -216,6 +216,11 @@ function hasShape() {
 }
 
 function setShape(next) {
+  // A DIFFERENT shape discards the one not yet kept (Done / Enter keeps it):
+  // the viewers' GeoIDDiscardShape clears it and re-arms the area tool. Only
+  // between real shapes -- setShape("") is the bar re-arming or a mode
+  // button, and switching mode already resets through setMeasureMode.
+  if (next && shape && next !== shape && areaArmed()) window.GeoIDDiscardShape?.();
   shape = next;
   // "" travels as "": the viewer reads an unset property as the old default
   // and an empty one as "waiting", which is the difference that lets a world

@@ -8111,6 +8111,31 @@
         updateMeasureVisualization();
       }
 
+      /**
+       * SWITCHING SHAPE THROWS AWAY THE ONE NOT YET KEPT (2026-10-18). Picking
+       * a triangle while a square was half-drawn -- or drawn but not Done --
+       * left the square on the globe: further taps added to it, and a new
+       * drag could not start because a standing shape switches drawing off.
+       * Done (or Enter) keeps a shape -- it becomes a layer and the globe is
+       * cleared -- so whatever is still here when the shape changes was never
+       * kept, and goes. The area tool stays in hand, armed for the new shape.
+       * Called by draw-hud.js setShape; returns whether anything was removed.
+       */
+      window.GeoIDDiscardShape = () => {
+        if (measureMode !== "area") return false;
+        const had = measurePoints.length > 0 || Boolean(pendingBox || boxDraw || studyDrag);
+        if (!had) return false;
+        resetActiveMeasurement(true);
+        measurePoints = [];
+        studyDrag = null;
+        pendingBox = null;
+        boxDraw = null;
+        measureDrawActive = true;
+        if (typeof hideSizeChip === "function") hideSizeChip();
+        updateMeasureVisualization();
+        return true;
+      };
+
       function studyRectScreenPoint(lat, lon, context) {
         // A point on a moon is where the MOON MESH puts it — the mesh carries
         // the moon's own (tidally locked) rotation, which no group here does.
@@ -8974,6 +8999,72 @@
         return sampleMeasureSurfacePoint(latLon.lat, latLon.lon, lift, context);
       }
 
+      /**
+       * A DRAWN AREA'S FILL LIES ON THE GROUND (2026-10-18). It was one flat
+       * fan from a single apex to the outline: only the outline followed the
+       * terrain, so inside a large shape -- or over relief -- the fill cut
+       * under the surface and the highlight did not cover the area drawn
+       * (reported). Now rings step in from the outline to the centre, each
+       * point placed on the terrain at the outline's own lift, and the outer
+       * band is stitched to the EXACT outline so fill and edge meet.
+       *
+       * Interior points come from a lat/lon round trip, which disagreed with
+       * the boundary's frame on a west-positive world (the Mercury apex that
+       * landed on the far side). So every sampled point is checked against
+       * the direction it was asked for; one that does not come back the same
+       * way takes the outline's mean radius instead -- never the far side.
+       * Spokes are decimated to about 96 so a drag rebuilds cheaply.
+       */
+      function appendTerrainFill(positions, boundary, context) {
+        const n = boundary.length;
+        if (n < 3) return;
+        const lift = getMeasureDisplayLift(context);
+        const meanRadius = boundary.reduce((sum, p) => sum + p.length(), 0) / n;
+        const cDir = boundary.reduce((acc, p) => acc.add(p.clone().normalize()), new THREE.Vector3());
+        if (cDir.lengthSq() < 1e-10) return;
+        cDir.normalize();
+        let maxAngle = 0;
+        boundary.forEach((p) => { maxAngle = Math.max(maxAngle, Math.acos(Math.max(-1, Math.min(1, p.clone().normalize().dot(cDir))))); });
+        const rings = Math.max(2, Math.min(14, Math.ceil((maxAngle * 180 / Math.PI) / 1.2)));
+        const ground = (dir) => {
+          const ll = vectorToLatLon(dir);
+          const p = sampleMeasureSurfacePoint(ll.lat, ll.lon, lift, context);
+          if (!p || !Number.isFinite(p.x)) return dir.clone().multiplyScalar(meanRadius);
+          return p.clone().normalize().dot(dir) > 0.9999 ? p : dir.clone().multiplyScalar(p.length() || meanRadius);
+        };
+        // A round trip that mirrors longitude still returns a valid LENGTH from
+        // the wrong place; on such a world use the outline's mean radius.
+        const probe = ground(cDir);
+        const trustRoundTrip = probe.clone().normalize().dot(cDir) > 0.9999;
+        const place = (dir) => (trustRoundTrip ? ground(dir) : dir.clone().multiplyScalar(meanRadius));
+        const step = Math.max(1, Math.ceil(n / 96));
+        const spokes = [];
+        for (let i = 0; i < n; i += step) spokes.push(i);
+        const m = spokes.length;
+        const centre = place(cDir);
+        // ring[k][j]: k = 1..rings-1, along spoke j from the centre to the outline.
+        const grid = [];
+        for (let k = 1; k < rings; k += 1) {
+          const t = k / rings;
+          grid.push(spokes.map((i) => place(cDir.clone().lerp(boundary[i].clone().normalize(), t).normalize())));
+        }
+        const tri = (a, b, c) => positions.push(a.x, a.y, a.z, b.x, b.y, b.z, c.x, c.y, c.z);
+        for (let j = 0; j < m; j += 1) {
+          const jn = (j + 1) % m;
+          if (grid.length) tri(centre, grid[0][j], grid[0][jn]);
+          for (let k = 0; k < grid.length - 1; k += 1) {
+            tri(grid[k][j], grid[k + 1][j], grid[k + 1][jn]);
+            tri(grid[k][j], grid[k + 1][jn], grid[k][jn]);
+          }
+          // The outer band: the last ring's spoke j to every outline point it covers.
+          const inner = grid.length ? grid[grid.length - 1] : null;
+          const a = inner ? inner[j] : centre, b = inner ? inner[jn] : centre;
+          const i0 = spokes[j], i1 = jn === 0 ? n : spokes[jn];
+          for (let i = i0; i < i1; i += 1) tri(a, boundary[i % n], boundary[(i + 1) % n]);
+          tri(a, boundary[i1 % n], b);
+        }
+      }
+
       function buildAreaFillMesh(points) {
         if (points.length < 3) {
           return null;
@@ -8993,31 +9084,7 @@
             positions.push(a.x, a.y, a.z, b.x, b.y, b.z, c.x, c.y, c.z);
           }
         } else {
-          const centerNormal = points.reduce((acc, point) => (
-            acc.add(getMeasurePointNormal(point, context))
-          ), new THREE.Vector3()).normalize();
-          const center = sampleMeasureSurfacePoint(vectorToLatLon(centerNormal).lat, vectorToLatLon(centerNormal).lon, 0.01, context);
-          const radialSegments = 12;
-          for (let index = 0; index < points.length; index += 1) {
-            const currentPoint = points[index];
-            const nextPoint = points[(index + 1) % points.length];
-            for (let segment = 0; segment < radialSegments; segment += 1) {
-              const t0 = segment / radialSegments;
-              const t1 = (segment + 1) / radialSegments;
-              const a = sampleMeasureSlerpPoint(center, currentPoint, t0, 0.01, context);
-              const b = sampleMeasureSlerpPoint(center, nextPoint, t0, 0.01, context);
-              const c = sampleMeasureSlerpPoint(center, currentPoint, t1, 0.01, context);
-              const d = sampleMeasureSlerpPoint(center, nextPoint, t1, 0.01, context);
-              positions.push(
-                a.x, a.y, a.z,
-                c.x, c.y, c.z,
-                b.x, b.y, b.z,
-                c.x, c.y, c.z,
-                d.x, d.y, d.z,
-                b.x, b.y, b.z,
-              );
-            }
-          }
+          appendTerrainFill(positions, buildMeasureBoundaryPoints(points), context);
         }
         const geometry = new THREE.BufferGeometry();
         geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
@@ -9198,11 +9265,9 @@
           const areaKm2 = sphericalPolygonAreaKm2(measurePoints);
           const body = measurePoints[0].bodyName || "Jupiter";
           measureMetric.innerHTML = `${body} area: ${areaKm2.toFixed(0)} km²`;
-          showMeasurementResultCard(
-            `Area: ${areaKm2.toFixed(0)} km²`,
-            measureMetric.innerHTML,
-            toolRailAreaButton,
-          );
+          // No corner card for an area: the label at its centroid and the Study
+          // Area panel say it, as on Earth (the gas giants kept the old card).
+          hideMeasurementResultCard();
           measureProfileSamples = [];
           profileCanvas.hidden = true;
           hideProfileModal();

@@ -15265,6 +15265,31 @@ uniform float uViewportWidth;`,
         updateMeasureVisualization();
       }
 
+      /**
+       * SWITCHING SHAPE THROWS AWAY THE ONE NOT YET KEPT (2026-10-18). Picking
+       * a triangle while a square was half-drawn -- or drawn but not Done --
+       * left the square on the globe: further taps added to it, and a new
+       * drag could not start because a standing shape switches drawing off.
+       * Done (or Enter) keeps a shape -- it becomes a layer and the globe is
+       * cleared -- so whatever is still here when the shape changes was never
+       * kept, and goes. The area tool stays in hand, armed for the new shape.
+       * Called by draw-hud.js setShape; returns whether anything was removed.
+       */
+      window.GeoIDDiscardShape = () => {
+        if (measureMode !== "area") return false;
+        const had = measurePoints.length > 0 || Boolean(pendingBox || boxDraw || studyDrag);
+        if (!had) return false;
+        resetActiveMeasurement(true);
+        measurePoints = [];
+        studyDrag = null;
+        pendingBox = null;
+        boxDraw = null;
+        measureDrawActive = true;
+        if (typeof hideSizeChip === "function") hideSizeChip();
+        updateMeasureVisualization();
+        return true;
+      };
+
       function studyRectScreenPoint(lat, lon, context) {
         // A point on a moon is where the MOON MESH puts it — the mesh carries
         // the moon's own (tidally locked) rotation, which no group here does.
@@ -16169,6 +16194,72 @@ uniform float uViewportWidth;`,
         return sampleMeasureSurfacePoint(latLon.lat, latLon.lon, lift, context);
       }
 
+      /**
+       * A DRAWN AREA'S FILL LIES ON THE GROUND (2026-10-18). It was one flat
+       * fan from a single apex to the outline: only the outline followed the
+       * terrain, so inside a large shape -- or over relief -- the fill cut
+       * under the surface and the highlight did not cover the area drawn
+       * (reported). Now rings step in from the outline to the centre, each
+       * point placed on the terrain at the outline's own lift, and the outer
+       * band is stitched to the EXACT outline so fill and edge meet.
+       *
+       * Interior points come from a lat/lon round trip, which disagreed with
+       * the boundary's frame on a west-positive world (the Mercury apex that
+       * landed on the far side). So every sampled point is checked against
+       * the direction it was asked for; one that does not come back the same
+       * way takes the outline's mean radius instead -- never the far side.
+       * Spokes are decimated to about 96 so a drag rebuilds cheaply.
+       */
+      function appendTerrainFill(positions, boundary, context) {
+        const n = boundary.length;
+        if (n < 3) return;
+        const lift = getMeasureDisplayLift(context);
+        const meanRadius = boundary.reduce((sum, p) => sum + p.length(), 0) / n;
+        const cDir = boundary.reduce((acc, p) => acc.add(p.clone().normalize()), new THREE.Vector3());
+        if (cDir.lengthSq() < 1e-10) return;
+        cDir.normalize();
+        let maxAngle = 0;
+        boundary.forEach((p) => { maxAngle = Math.max(maxAngle, Math.acos(Math.max(-1, Math.min(1, p.clone().normalize().dot(cDir))))); });
+        const rings = Math.max(2, Math.min(14, Math.ceil((maxAngle * 180 / Math.PI) / 1.2)));
+        const ground = (dir) => {
+          const ll = vectorToLatLon(dir);
+          const p = sampleMeasureSurfacePoint(ll.lat, ll.lon, lift, context);
+          if (!p || !Number.isFinite(p.x)) return dir.clone().multiplyScalar(meanRadius);
+          return p.clone().normalize().dot(dir) > 0.9999 ? p : dir.clone().multiplyScalar(p.length() || meanRadius);
+        };
+        // A round trip that mirrors longitude still returns a valid LENGTH from
+        // the wrong place; on such a world use the outline's mean radius.
+        const probe = ground(cDir);
+        const trustRoundTrip = probe.clone().normalize().dot(cDir) > 0.9999;
+        const place = (dir) => (trustRoundTrip ? ground(dir) : dir.clone().multiplyScalar(meanRadius));
+        const step = Math.max(1, Math.ceil(n / 96));
+        const spokes = [];
+        for (let i = 0; i < n; i += step) spokes.push(i);
+        const m = spokes.length;
+        const centre = place(cDir);
+        // ring[k][j]: k = 1..rings-1, along spoke j from the centre to the outline.
+        const grid = [];
+        for (let k = 1; k < rings; k += 1) {
+          const t = k / rings;
+          grid.push(spokes.map((i) => place(cDir.clone().lerp(boundary[i].clone().normalize(), t).normalize())));
+        }
+        const tri = (a, b, c) => positions.push(a.x, a.y, a.z, b.x, b.y, b.z, c.x, c.y, c.z);
+        for (let j = 0; j < m; j += 1) {
+          const jn = (j + 1) % m;
+          if (grid.length) tri(centre, grid[0][j], grid[0][jn]);
+          for (let k = 0; k < grid.length - 1; k += 1) {
+            tri(grid[k][j], grid[k + 1][j], grid[k + 1][jn]);
+            tri(grid[k][j], grid[k + 1][jn], grid[k][jn]);
+          }
+          // The outer band: the last ring's spoke j to every outline point it covers.
+          const inner = grid.length ? grid[grid.length - 1] : null;
+          const a = inner ? inner[j] : centre, b = inner ? inner[jn] : centre;
+          const i0 = spokes[j], i1 = jn === 0 ? n : spokes[jn];
+          for (let i = i0; i < i1; i += 1) tri(a, boundary[i % n], boundary[(i + 1) % n]);
+          tri(a, boundary[i1 % n], b);
+        }
+      }
+
       function buildAreaFillMesh(points) {
         if (points.length < 3) {
           return null;
@@ -16191,56 +16282,7 @@ uniform float uViewportWidth;`,
             positions.push(a.x, a.y, a.z, b.x, b.y, b.z, c.x, c.y, c.z);
           }
         } else {
-          const fillLift = getMeasureDisplayLift(context);
-          const centerNormal = boundary.reduce((acc, point) => (
-            acc.add(point.clone().normalize())
-          ), new THREE.Vector3()).normalize();
-          if (centerNormal.lengthSq() < 1e-10) {
-            return null;
-          }
-          let center;
-          if (context.kind === "moon") {
-            center = centerNormal.multiplyScalar(context.radiusWorld + fillLift);
-          } else {
-            /**
-             * The apex stays in the BOUNDARY'S OWN FRAME.
-             *
-             * It used to be round-tripped through lat/lon -- vectorToLatLon on
-             * the centroid direction, then sampleMeasureSurfacePoint to turn
-             * that back into a position -- and on a west-positive world those
-             * two do not agree about which way longitude runs. Measured on
-             * Mercury with a three-point polygon: the apex came back at
-             * (2.833, -0.199, -1.476) against a true centroid of
-             * (-2.833, -0.199, -1.475). X negated exactly: the apex lands on
-             * the OPPOSITE SIDE OF THE PLANET, 5.67 units away on a globe of
-             * radius 3.2, while the shape itself spans 0.137.
-             *
-             * The fill is a triangle fan from that apex, so all 121 triangles
-             * ran to the far side and projected as a long spike out of an
-             * otherwise correct outline -- reported as "a trailing kink
-             * outside of the 3 defined points". The outline was never wrong,
-             * because the boundary points are never round-tripped.
-             *
-             * The centroid direction and the boundary are already in one
-             * frame, so the apex is placed along that direction at the mean
-             * boundary radius: no lat/lon, no convention to disagree about,
-             * and it sits on the same terrain the boundary was sampled from.
-             * The moon branch above avoids the round trip for exactly this
-             * reason and says so.
-             */
-            const meanRadius = boundary.reduce((sum, point) => sum + point.length(), 0)
-              / boundary.length;
-            center = centerNormal.clone().multiplyScalar(meanRadius);
-          }
-          for (let index = 0; index < boundary.length; index += 1) {
-            const currentPoint = boundary[index];
-            const nextPoint = boundary[(index + 1) % boundary.length];
-            positions.push(
-              center.x, center.y, center.z,
-              currentPoint.x, currentPoint.y, currentPoint.z,
-              nextPoint.x, nextPoint.y, nextPoint.z,
-            );
-          }
+          appendTerrainFill(positions, boundary, context);
         }
         const geometry = new THREE.BufferGeometry();
         geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
