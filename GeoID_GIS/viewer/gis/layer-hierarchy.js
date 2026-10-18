@@ -10,18 +10,18 @@
 // everything below. That is the opposite of three.js renderOrder, so the two are
 // inverted when applied.
 
-import { escapeHtml } from "./escape-html.js?v=20261018-b2e1558";
-import { bandOf } from "./draw-order.js?v=20261018-b2e1558";
-import { paintOpacity } from "./layer-opacity.js?v=20261018-b2e1558";
-import { currentBody } from "./bodies.js?v=20261018-b2e1558";
-import { samplerToRaster } from "./raster-analysis.js?v=20261018-b2e1558";
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20261018-b2e1558";
-import { datasetInfoButton } from "./catalogue-list.js?v=20261018-b2e1558";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20261018-b2e1558";
+import { escapeHtml } from "./escape-html.js?v=20261018-5b852e0";
+import { bandOf } from "./draw-order.js?v=20261018-5b852e0";
+import { paintOpacity } from "./layer-opacity.js?v=20261018-5b852e0";
+import { currentBody } from "./bodies.js?v=20261018-5b852e0";
+import { samplerToRaster } from "./raster-analysis.js?v=20261018-5b852e0";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20261018-5b852e0";
+import { datasetInfoButton } from "./catalogue-list.js?v=20261018-5b852e0";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20261018-5b852e0";
 import {
   openSymbologyDialog, geometrySummary, geometryKind,
-} from "./symbology-dialog.js?v=20261018-b2e1558";
-import { tagOf, DATA_TYPES, typeSelect, applyTag, descriptionOf, isUserInput } from "./data-tags.js?v=20261018-b2e1558";
+} from "./symbology-dialog.js?v=20261018-5b852e0";
+import { tagOf, DATA_TYPES, typeSelect, applyTag, descriptionOf, isUserInput } from "./data-tags.js?v=20261018-5b852e0";
 
 /**
  * The row grew a column and gained a tile, and .layer-row is declared twice --
@@ -139,13 +139,18 @@ const STYLE = `
 #layer-dock .layer-stack .layer-row {
   border-color: color-mix(in srgb, var(--tag, rgb(var(--nav-accent-rgb))) 70%, transparent) !important;
   border-left-color: var(--tag, rgb(var(--nav-accent-rgb))) !important;
-  box-shadow: inset 3px 0 0 var(--tag, rgb(var(--nav-accent-rgb))) !important;
+  /* THE BOOKMARK IS THE TAB'S: a 2 px edge and a 3 px band, read as one flat
+     5 px bar (section-activity.js draws the lit tab's the same way). The
+     row's own frame shadow follows it -- the tab's ring and glow in themes
+     that have one (--wr-shadow, mirrorTabLook), nothing in themes that don't. */
+  border-left-width: 2px !important;
+  box-shadow: inset 3px 0 0 var(--tag, rgb(var(--nav-accent-rgb))), var(--wr-shadow, 0 0 0 0 transparent) !important;
   transition: border-color 160ms ease, box-shadow 160ms ease;
 }
 @media (hover: hover) and (pointer: fine) {
   #layer-dock .layer-stack .layer-row:hover {
     border-color: var(--tag, rgb(var(--nav-accent-rgb))) !important;
-    box-shadow: inset 3px 0 0 var(--tag, rgb(var(--nav-accent-rgb))),
+    box-shadow: inset 3px 0 0 var(--tag, rgb(var(--nav-accent-rgb))), var(--wr-shadow, 0 0 0 0 transparent),
       0 0 12px color-mix(in srgb, var(--tag, rgb(var(--nav-accent-rgb))) 45%, transparent) !important;
   }
 }
@@ -1920,7 +1925,17 @@ function mirrorTabLook() {
   const size = parseFloat(type.fontSize) || 16;
   const track = type.letterSpacing === "normal" ? "normal" : `${(parseFloat(type.letterSpacing) / size).toFixed(3)}em`;
   const set = (k, v) => dock.style.setProperty(k, v);
-  set("--wr-radius", frame.borderTopLeftRadius);
+  // THE CORNER SCALES WITH THE HEIGHT. A row is ~32 px to a tab's ~46, so the
+  // tab's own radius on a row read as a pill in the round-cornered themes
+  // (Outrun's 8.8 px, reported). Scaled, a row is rounded exactly as much as
+  // a tab, proportionally; square themes stay square.
+  const rowEl = dock.querySelector(".layer-row");
+  const tabH = tab.getBoundingClientRect().height || 1;
+  const rowH = rowEl?.getBoundingClientRect().height || tabH;
+  const r = parseFloat(frame.borderTopLeftRadius) || 0;
+  set("--wr-radius", `${(r * Math.min(1, rowH / tabH)).toFixed(1)}px`);
+  // The tab's frame shadow (Outrun's ring and glow), or none.
+  set("--wr-shadow", frame.boxShadow && frame.boxShadow !== "none" ? frame.boxShadow : "0 0 0 0 transparent");
   set("--wr-bg", frame.backgroundColor);
   set("--wr-bgi", frame.backgroundImage);
   set("--wr-font", type.fontFamily);
