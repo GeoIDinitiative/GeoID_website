@@ -33,7 +33,7 @@
  */
 
 import * as THREE from "/GeoID_GIS/viewer/vendor/three.module.js";
-import { currentBodyId } from "./bodies.js?v=20261018-5f69221";
+import { currentBodyId } from "./bodies.js?v=20261018-09dc7f7";
 
 const PROFILES = {
   mercury: null,
@@ -361,6 +361,10 @@ const MOON_LIFT = 0.45;
 const MOON_NIGHT = 0.22;
 const moonSun = { light: null, world: new THREE.Vector3(1, 0, 0), view: new THREE.Vector3(1, 0, 0) };
 const seenMoons = new WeakSet();
+// The same moons as a list, so the glare's per-frame occlusion test walks a
+// handful of meshes instead of the whole scene (thousands of label objects on
+// Mars, the Moon and Pluto -- it made the transit lag).
+const moonList = [];
 
 function moonName(mesh) {
   const f = mesh.userData?.feature || mesh.userData?.item;
@@ -377,6 +381,7 @@ function isMoonMesh(mesh, globe, globeR) {
 
 function attachMoon(viewer, mesh) {
   seenMoons.add(mesh);
+  moonList.push(mesh);
   // Airless and seen side-on, a moon's night is nearly black: the viewers'
   // ambient wash otherwise turns a half moon into a full one (seen on Earth's
   // Moon, which sits under Earth's strong ambient light).
@@ -425,7 +430,7 @@ function watchMoons() {
     // and a Moon found late was never lit (reported). A traverse every 4 s is
     // cheap; meshes already handled are skipped.
     tries++;
-    setTimeout(scan, 4000);
+    setTimeout(scan, tries < 30 ? 4000 : 15000);   // every 4 s for 2 min, then 15 s
   };
   scan();
 }
@@ -584,18 +589,19 @@ function startGlare() {
     // moon, and THAT body hides the sun as much as the planet does. Every lit
     // moon sphere (seenMoons, from watchMoons) is tested the same way, with
     // the same flare as the sun clears its limb.
-    viewer.scene.traverse((n) => {
-      if (vis < 0.01 || !seenMoons.has(n) || !n.visible) return;
+    for (const n of moonList) {
+      if (vis < 0.01) break;
+      if (!n.visible || !n.parent) continue;
       n.getWorldPosition(tmp);
       const mr = (n.geometry?.parameters?.radius || 0) * n.getWorldScale(toC).x;
       toC.copy(tmp).sub(cam.position);
       const al = toC.dot(sunDir);
-      if (!(al > 0 && al < sunDist) || mr <= 0) return;
+      if (!(al > 0 && al < sunDist) || mr <= 0) continue;
       const mm = Math.sqrt(Math.max(toC.lengthSq() - al * al, 0));
       const mClear = THREE.MathUtils.smoothstep(mm, mr * 0.985, mr * 1.04);
       const mLimb = Math.exp(-Math.pow((mm - mr * 1.008) / (mr * 0.015), 2));
       vis = Math.min(vis, Math.min(1.4, mClear + 0.8 * mLimb));
-    });
+    }
     if (vis < 0.01) return;
 
     proj.copy(sunPos).project(cam);

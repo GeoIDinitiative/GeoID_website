@@ -1,4 +1,4 @@
-import { ready } from "./shell.js?v=20261018-5f69221";
+import { ready } from "./shell.js?v=20261018-09dc7f7";
 
 /**
  * The GIS layer's entry point on a planet page.
@@ -16,6 +16,8 @@ import { ready } from "./shell.js?v=20261018-5f69221";
 const MODULES = [
   // FIRST: it renders the panels every module below looks its controls up in.
   "./panels.js",
+  // A viewer that started inside a hidden transit frame gets sized once shown.
+  "./viewport-guard.js",
   "./settings-panel.js",
   "./gee-live.js",
   "./fos.js",
@@ -114,7 +116,7 @@ const MODULES = [
   "./atlas-assistant.js",
 ];
 
-const VERSION = "?v=20261018-5f69221";
+const VERSION = "?v=20261018-09dc7f7";
 
 async function boot() {
   const shell = await ready;

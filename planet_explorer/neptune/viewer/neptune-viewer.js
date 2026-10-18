@@ -2481,7 +2481,11 @@
     }
 
     function makeCacheKey(latDegrees, lonDegrees) {
-      return `${Number(latDegrees).toFixed(4)}:${Number(lonDegrees).toFixed(4)}`;
+      // A NUMBER, not a formatted string: two toFixed(4) calls and a template per
+      // lookup were the single hottest JS on start-up (~2.8 s of a cold Mars load,
+      // hundreds of thousands of calls). Same 1e-4-degree buckets, exact in a
+      // double: lat and lon offset to non-negative integers and packed.
+      return (Math.round(latDegrees * 1e4) + 900000) * 7200001 + (Math.round(lonDegrees * 1e4) + 3600000);
     }
 
     function getCachedElevationNormalized(cache, sampler, latDegrees, lonDegrees) {
