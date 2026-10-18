@@ -33,7 +33,7 @@
  */
 
 import * as THREE from "/GeoID_GIS/viewer/vendor/three.module.js";
-import { currentBodyId } from "./bodies.js?v=20261018-0065fc8";
+import { currentBodyId } from "./bodies.js?v=20261018-4c697be";
 
 const PROFILES = {
   mercury: null,
@@ -242,6 +242,115 @@ function attach(viewer) {
   return true;
 }
 
+/**
+ * THE MOONS, LIT THE SAME WAY. In moon-viewer mode the moon in front of the
+ * camera was a flat, evenly lit ball with no day or night side, and Titan --
+ * the one moon with a thick atmosphere -- had no air at all (reported: "the
+ * glow on each planet is absent" in moon view). Every moon sphere a viewer
+ * builds (a standard-material sphere tagged with its feature name, smaller
+ * than the planet) gets the planet's sun-angle shading, and the moons that
+ * really have air get the same scattering shell, sized and faded around the
+ * moon. Runs on every world, Earth included, and keeps looking for moons for a
+ * few minutes because a viewer builds its moon layer after its globe.
+ */
+const MOON_AIR = {
+  Titan: { beta: [1.0, 0.52, 0.16], k: 0.32, h: 0.07, gain: 0.75 },  // thick orange-brown haze
+  Triton: { beta: [0.38, 0.6, 1.0], k: 0.03, h: 0.02, gain: 0.6 },   // thin nitrogen
+};
+const MOON_LIFT = 0.45;
+const moonSun = { light: null, world: new THREE.Vector3(1, 0, 0), view: new THREE.Vector3(1, 0, 0) };
+const seenMoons = new WeakSet();
+
+function moonName(mesh) {
+  const f = mesh.userData?.feature || mesh.userData?.item;
+  return (f && f.name) || "";
+}
+
+function isMoonMesh(mesh, globe, globeR) {
+  if (!mesh.isMesh || mesh === globe || !mesh.material?.isMeshStandardMaterial) return false;
+  if (mesh.geometry?.type !== "SphereGeometry") return false;
+  if (!moonName(mesh)) return false;
+  const r = (mesh.geometry.parameters?.radius || 0) * mesh.getWorldScale(new THREE.Vector3()).x;
+  return r > 0 && r < globeR * 0.8;
+}
+
+function attachMoon(viewer, mesh) {
+  seenMoons.add(mesh);
+  liftDaySide(THREE, mesh.material, moonSun.view, MOON_LIFT);
+  const air = MOON_AIR[moonName(mesh)];
+  let shell = null;
+  const fade = { value: 1 };
+  if (air) {
+    shell = new THREE.Mesh(
+      new THREE.SphereGeometry(1, 96, 72),
+      new THREE.ShaderMaterial({
+        uniforms: {
+          uSun: { value: moonSun.world }, uFade: fade,
+          uCentre: { value: new THREE.Vector3() },
+          uGround: { value: 1 }, uH: { value: 0.05 },
+          uK: { value: air.k }, uBeta: { value: new THREE.Vector3(...air.beta) }, uGain: { value: air.gain },
+        },
+        vertexShader: VERT, fragmentShader: FRAG,
+        side: THREE.FrontSide, blending: THREE.AdditiveBlending, transparent: true, depthWrite: false,
+      }),
+    );
+    shell.userData.nonInteractive = true;
+    shell.raycast = () => {};
+    shell.renderOrder = 3;
+    shell.name = `geoid-atmosphere-${moonName(mesh)}`;
+    (mesh.parent || viewer.scene).add(shell);
+  }
+  const before = mesh.onBeforeRender;
+  mesh.onBeforeRender = function (renderer, sc, cam, ...rest) {
+    if (typeof before === "function") before.call(this, renderer, sc, cam, ...rest);
+    const light = moonSun.light;
+    if (light) {
+      moonSun.world.copy(light.position);
+      if (light.target) moonSun.world.sub(light.target.position);
+      if (moonSun.world.lengthSq() < 1e-9) moonSun.world.set(1, 0, 0);
+      moonSun.world.normalize();
+      moonSun.view.copy(moonSun.world).transformDirection(cam.matrixWorldInverse);
+    }
+    if (!shell) return;
+    const cutaway = Boolean(document.getElementById("core-toggle")?.checked);
+    shell.visible = mesh.visible && !cutaway;
+    const u = shell.material.uniforms;
+    mesh.getWorldPosition(u.uCentre.value);
+    shell.position.copy(shell.parent ? shell.parent.worldToLocal(u.uCentre.value.clone()) : u.uCentre.value);
+    const R = (mesh.geometry.parameters?.radius || 1) * mesh.getWorldScale(new THREE.Vector3()).x;
+    u.uGround.value = R;
+    u.uH.value = R * air.h;
+    const parentScale = shell.parent ? shell.parent.getWorldScale(new THREE.Vector3()).x || 1 : 1;
+    shell.scale.setScalar((R + R * air.h * TOP_IN_SCALE_HEIGHTS) / parentScale);
+    const d = cam.position.distanceTo(u.uCentre.value) / R;
+    const t = Math.min(1, Math.max(0, (d - 1.03) / 0.22));
+    fade.value = t * t * (3 - 2 * t);
+  };
+}
+
+function watchMoons() {
+  let tries = 0;
+  const scan = () => {
+    const viewer = window.GeoIDViewer;
+    try {
+      if (viewer?.scene && viewer.globe) {
+        moonSun.light = moonSun.light || findSun(viewer.scene);
+        const g = viewer.globe;
+        const globeR = (g.geometry?.parameters?.radius || 3.2) * g.getWorldScale(new THREE.Vector3()).x;
+        if (moonSun.light) {
+          viewer.scene.traverse((n) => {
+            if (!seenMoons.has(n) && isMoonMesh(n, g, globeR)) attachMoon(viewer, n);
+          });
+        }
+      }
+    } catch (error) {
+      window.GeoIDAtmosphereError = String(error?.stack || error);
+    }
+    if (tries++ < 60) setTimeout(scan, 3000);
+  };
+  scan();
+}
+
 function start() {
   window.GeoIDAtmosphereState = `start:${currentBodyId()}`;
   let tries = 0;
@@ -268,3 +377,4 @@ function start() {
 }
 
 start();
+watchMoons();
