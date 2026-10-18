@@ -22,8 +22,8 @@
  * mode is one array, written to localStorage on change; the DOM is drawn from
  * it. A storage that throws only costs the restore.
  */
-import { frameUrl } from "./google-credentials.js?v=20261018-96f79da";
-import * as store from "./project-store.js?v=20261018-96f79da";
+import { frameUrl } from "./google-credentials.js?v=20261018-bc92c1d";
+import * as store from "./project-store.js?v=20261018-bc92c1d";
 
 const STORAGE_KEY = "geoid-research:gdoc-windows";
 const RECENT_KEY = "geoid-research:gdoc-recent";

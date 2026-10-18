@@ -26,18 +26,18 @@
  * rebuilt or updated without guessing what was done to them.
  */
 
-import { runConnector } from "./research/connectors.js?v=20261018-96f79da";
-import { explainFetchFailure, dataUrl } from "./data-base.js?v=20261018-96f79da";
-import { mathsFor } from "./equations.js?v=20261018-96f79da";
+import { runConnector } from "./research/connectors.js?v=20261018-bc92c1d";
+import { explainFetchFailure, dataUrl } from "./data-base.js?v=20261018-bc92c1d";
+import { mathsFor } from "./equations.js?v=20261018-bc92c1d";
 import {
   riskEdges, RISK_LABELS,
-} from "./cyclone-risk.js?v=20261018-96f79da";
-import { colourRange as volcanicColourRange } from "./volcanic-risk.js?v=20261018-96f79da";
-import { featureForModel, may, refusal } from "./membership.js?v=20261018-96f79da";
-import { colourRange as seismicColourRange } from "./seismic-bands.js?v=20261018-96f79da";
+} from "./cyclone-risk.js?v=20261018-bc92c1d";
+import { colourRange as volcanicColourRange } from "./volcanic-risk.js?v=20261018-bc92c1d";
+import { featureForModel, may, refusal } from "./membership.js?v=20261018-bc92c1d";
+import { colourRange as seismicColourRange } from "./seismic-bands.js?v=20261018-bc92c1d";
 // The cyclone tracks are classed on the same scale the live storm markers
 // band by, so the archive and the feed cut intensity at the same knots.
-import { SAFFIR_SIMPSON_KTS } from "./event-sources.js?v=20261018-96f79da";
+import { SAFFIR_SIMPSON_KTS } from "./event-sources.js?v=20261018-bc92c1d";
 
 /** Order the groups read in, coarse to specific. */
 export const GROUPS = ["Physical", "Hydrology", "Boundaries", "Tectonics",
@@ -276,6 +276,9 @@ export const DATASETS = [
      */
     id: "plate-boundary-symbols",
     home: "geology-tectonics",
+    // NOT CLICKABLE: a "Map symbol" card under the pointer read as a fault
+    // (reported). Only the boundary lines themselves answer a click or hover.
+    groundPick: false,
     featureNoun: "Map symbol",
     group: "Tectonics",
     label: "Plate boundary symbols (map key)",
@@ -1061,7 +1064,7 @@ function drawnBbox() {
 async function viewBbox() {
   try {
     const THREE = await import("../vendor/three.module.js");
-    const { visibleBounds } = await import("./view-extent.js?v=20261018-96f79da");
+    const { visibleBounds } = await import("./view-extent.js?v=20261018-bc92c1d");
     const b = visibleBounds(window.GeoIDViewer, THREE);
     const ok = b && [b.minLon, b.minLat, b.maxLon, b.maxLat].every(Number.isFinite);
     return ok ? { minLon: b.minLon, minLat: b.minLat, maxLon: b.maxLon, maxLat: b.maxLat } : null;
@@ -1298,6 +1301,9 @@ export async function addDataset(id, onStatus = () => {},
    * fallback for a file somebody dropped, which really is just a line.
    */
   if (layer && entry.featureNoun) layer.featureNoun = entry.featureNoun;
+  // A layer that is a KEY, not data (the plate-boundary symbols), opts out of
+  // click and hover picking: feature-popup.js skips groundPick === false.
+  if (layer && entry.groundPick === false) layer.groundPick = false;
   // The colours the layer is WEARING, so the symbology dialog opens on them
   // rather than proposing the generic palette over the top of a published
   // convention. The FIELD travels with them: the dialog has to know that this

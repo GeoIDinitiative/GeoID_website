@@ -33,7 +33,7 @@
  */
 
 import * as THREE from "/GeoID_GIS/viewer/vendor/three.module.js";
-import { currentBodyId } from "./bodies.js?v=20261018-96f79da";
+import { currentBodyId } from "./bodies.js?v=20261018-bc92c1d";
 
 const PROFILES = {
   mercury: null,
@@ -421,6 +421,116 @@ function watchMoons() {
   scan();
 }
 
+
+/**
+ * THE SUN'S GLARE, as it moves (asked for, 2026-10-18: "the dynamic glare of
+ * the sun as we move -- realism -- in all viewers"). A 2D overlay over the
+ * viewer's canvas, drawn each frame from the real sun direction (the same key
+ * light the shading uses): a bloom and a horizontal anamorphic streak at the
+ * sun's place on screen, ghosts strung along the line from the sun through
+ * the centre of the view that swing as the camera turns, and a soft veiling
+ * wash when the sun is near or just off the edge of the frame. It fades out as
+ * the sun passes behind the planet, with a brief brightening as it clears the
+ * limb. Pointer-events none; nothing is drawn when the sun is behind the
+ * camera, and reduced-transparency viewers get it at half strength.
+ */
+function startGlare() {
+  let canvas = null, ctx = null, light = null;
+  const v3 = () => new THREE.Vector3();
+  const sunDir = v3(), centre = v3(), toC = v3(), proj = v3(), camDir = v3();
+  const reduced = (() => { try { return window.matchMedia("(prefers-reduced-transparency: reduce)").matches; } catch { return false; } })();
+  const GHOSTS = [
+    [0.35, 0.10, "255,210,150"], [0.62, 0.05, "150,200,255"], [0.95, 0.16, "255,170,120"],
+    [1.30, 0.035, "190,255,210"], [1.65, 0.08, "160,180,255"],
+  ];
+  const frame = () => {
+    requestAnimationFrame(frame);
+    const viewer = window.GeoIDViewer;
+    const cam = viewer?.camera, renderer = viewer?.renderer, globe = viewer?.globe;
+    if (!cam || !renderer || !globe) return;
+    light = light || findSun(viewer.scene);
+    if (!light) return;
+    const host = renderer.domElement;
+    if (!canvas) {
+      canvas = document.createElement("canvas");
+      canvas.className = "geoid-sun-glare";
+      canvas.setAttribute("aria-hidden", "true");
+      Object.assign(canvas.style, { position: "fixed", pointerEvents: "none", zIndex: "1", mixBlendMode: "screen" });
+      document.body.appendChild(canvas);
+      ctx = canvas.getContext("2d");
+    }
+    const r = host.getBoundingClientRect();
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    if (canvas.width !== Math.round(r.width * dpr) || canvas.height !== Math.round(r.height * dpr)) {
+      canvas.width = Math.round(r.width * dpr); canvas.height = Math.round(r.height * dpr);
+      Object.assign(canvas.style, { left: `${r.left}px`, top: `${r.top}px`, width: `${r.width}px`, height: `${r.height}px` });
+    }
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    if (host.offsetParent === null) return;
+
+    sunDir.copy(light.position);
+    if (light.target) sunDir.sub(light.target.position);
+    if (sunDir.lengthSq() < 1e-9) return;
+    sunDir.normalize();
+    cam.getWorldDirection(camDir);
+    const facing = camDir.dot(sunDir);               // 1 = looking straight at the sun
+    if (facing <= 0.05) return;                      // sun behind the camera
+
+    // Is the planet in the way? Closest approach of the sun ray to its centre.
+    globe.getWorldPosition(centre);
+    const R = (globe.geometry?.parameters?.radius || 3.2) * globe.getWorldScale(v3()).x;
+    toC.copy(centre).sub(cam.position);
+    const along = toC.dot(sunDir);
+    const miss = along > 0 ? Math.sqrt(Math.max(toC.lengthSq() - along * along, 0)) : Infinity;
+    const clear = along > 0 ? THREE.MathUtils.smoothstep(miss, R * 0.985, R * 1.05) : 1;
+    const limb = along > 0 ? Math.exp(-Math.pow((miss - R * 1.01) / (R * 0.02), 2)) : 0;   // just clearing the limb
+    const vis = clear + 0.6 * limb;
+    if (vis < 0.01) return;
+
+    proj.copy(cam.position).addScaledVector(sunDir, 1000).project(cam);
+    const W = canvas.width, H = canvas.height;
+    const sx = (proj.x * 0.5 + 0.5) * W, sy = (-proj.y * 0.5 + 0.5) * H;
+    const onScreen = Math.abs(proj.x) < 1.15 && Math.abs(proj.y) < 1.15;
+    const k = (reduced ? 0.5 : 1) * vis;
+    const D = Math.hypot(W, H);
+
+    // Veiling glare: a wash that rises as the sun nears the view.
+    const veil = Math.pow(Math.max(facing, 0), 8) * 0.1 * k;
+    if (veil > 0.003) {
+      const g = ctx.createRadialGradient(sx, sy, 0, sx, sy, D * 0.9);
+      g.addColorStop(0, `rgba(255,235,205,${veil})`);
+      g.addColorStop(1, "rgba(255,235,205,0)");
+      ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+    }
+    if (!onScreen) return;
+    // Bloom.
+    const bloom = ctx.createRadialGradient(sx, sy, 0, sx, sy, D * 0.11);
+    bloom.addColorStop(0, `rgba(255,252,240,${0.9 * k})`);
+    bloom.addColorStop(0.1, `rgba(255,236,200,${0.32 * k})`);
+    bloom.addColorStop(1, "rgba(255,220,170,0)");
+    ctx.fillStyle = bloom; ctx.fillRect(0, 0, W, H);
+    // Anamorphic streak.
+    const sw = D * 0.42, sh = Math.max(2, D * 0.004);
+    const streak = ctx.createLinearGradient(sx - sw, 0, sx + sw, 0);
+    streak.addColorStop(0, "rgba(170,200,255,0)");
+    streak.addColorStop(0.5, `rgba(220,235,255,${0.45 * k})`);
+    streak.addColorStop(1, "rgba(170,200,255,0)");
+    ctx.fillStyle = streak; ctx.fillRect(sx - sw, sy - sh / 2, sw * 2, sh);
+    // Ghosts along the sun-centre line: they swing as the camera turns.
+    const cx = W / 2, cy = H / 2;
+    GHOSTS.forEach(([t, size, rgb]) => {
+      const gx = sx + (cx - sx) * (1 + t), gy = sy + (cy - sy) * (1 + t);
+      const gr = D * size * 0.5;
+      const g = ctx.createRadialGradient(gx, gy, gr * 0.55, gx, gy, gr);
+      g.addColorStop(0, `rgba(${rgb},0)`);
+      g.addColorStop(0.8, `rgba(${rgb},${0.07 * k})`);
+      g.addColorStop(1, `rgba(${rgb},0)`);
+      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(gx, gy, gr, 0, Math.PI * 2); ctx.fill();
+    });
+  };
+  requestAnimationFrame(frame);
+}
+
 function start() {
   window.GeoIDAtmosphereState = `start:${currentBodyId()}`;
   let tries = 0;
@@ -448,3 +558,4 @@ function start() {
 
 start();
 watchMoons();
+startGlare();
