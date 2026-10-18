@@ -2843,6 +2843,11 @@
         resetActiveMeasurement(true);
         if (measureMode === "area") measureDrawActive = true;
       }
+      // Prev / next land here, and this function hides the card it found --
+      // so every moon after the first came up without its description in the
+      // Saturn-lineage viewers (reported). Open it for the moon now in view,
+      // as the Mars-lineage viewers always did.
+      openFeature(feature, false);
     }
 
     function cycleMoonViewer(direction, camera, controls) {
