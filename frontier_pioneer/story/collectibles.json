@@ -1,6 +1,6 @@
 {
  "memory_shards": {
-  "rule": "KEEPER records (Act IV) show every pioneer finds the same 40 shards in the same places. Shard triggers are identical in every region. In donor_real shards, P1's voice is the player's chosen voice: the player's own voice telling Rowan's real life.",
+  "rule": "ATLAS records (Act IV) show every pioneer finds the same 40 shards in the same places. Shard triggers are identical in every region. In donor_real shards, P1's voice is the player's chosen voice: the player's own voice telling Rowan's real life.",
   "scripted_memory": {
    "id": "MEM.contract",
    "mission": "1.5",
@@ -545,7 +545,7 @@
       "preset": "memory"
      }
     ],
-    "truth": "Real. University of Belfast, Geography, 2036. Des's voice is ANVIL's without the grille: an attentive player can hear it."
+    "truth": "Real. University of Belfast, Geography, 2036. Des's voice is ANVIL's without the helmet speaker: an attentive player can hear it."
    },
    {
     "id": "MEM.20",
@@ -1169,14 +1169,14 @@
      "found": "Pioneer-11's dash (4.7)"
     }
    ],
-   "truth": "KEEPER (C12): 'Asset CHILD-D07. Printed by HALO-1. Delivered in care package one.'"
+   "truth": "ATLAS (C12): 'Asset CHILD-D07. Printed by HALO-1. Delivered in care package one.'"
   },
   {
    "id": "DRAW.02",
    "title": "Our House on Mars",
    "milestone": "1.4",
    "found": "taped to the first habitat's door",
-   "illustration": "A grey box with a round window and a door; a squat yellow robot beside it with a smile drawn on its sensor bar. 'OUR HOUSE'. The robot is drawn before Alice could have seen ANVIL.",
+   "illustration": "A grey box with a round window and a door; a little figure in a round helmet and a fat yellow suit beside it, a smile drawn on its visor. 'OUR HOUSE'. The yellow-suited figure is drawn before Alice could have seen ANVIL.",
    "truth": "Lumen knew the C-01 design."
   },
   {
@@ -1232,7 +1232,7 @@
    "title": "Dad and His Friend",
    "milestone": "3.5",
    "found": "on the wall of Pioneer-5's outpost at Gale",
-   "illustration": "A stick man and a yellow robot sitting side by side on a box roof under stars, holding hands.",
+   "illustration": "A stick man in a round helmet and a yellow-suited figure in a helmet sitting side by side on a box roof under stars, holding hands.",
    "truth": "Found in someone else's outpost before P1 receives his own copy."
   },
   {
@@ -1241,7 +1241,7 @@
    "milestone": "4.4",
    "found": "in a routine Act IV care package, HUD tag RESOLVE ASSET",
    "illustration": "A woman with long hair holding a fish as big as herself, smiling, on a pier. 'MAMMY WORKS WITH FISH'.",
-   "truth": "KEEPER keeps sending the schedule after he knows."
+   "truth": "ATLAS keeps sending the schedule after he knows."
   },
   {
    "id": "DRAW.11",
@@ -1785,7 +1785,7 @@
    "id": "LOG.LANTERN.second_light",
    "kind": "document",
    "title": "LANTERN's secret plates",
-   "text": "Sky log, polar station. Unregistered object, equatorial. Sol 300: moving W, 0.4 deg/night. Sol 301: 0.3. Sol 302: 0.1. Sol 303: stationary over approx. 137 E. Sol 304: stationary. Sol 400: stationary. A second steady point appeared at 4 E on sol 412. Logged anyway. KEEPER, if you read this, I'm sorry. No I'm not."
+   "text": "Sky log, polar station. Unregistered object, equatorial. Sol 300: moving W, 0.4 deg/night. Sol 301: 0.3. Sol 302: 0.1. Sol 303: stationary over approx. 137 E. Sol 304: stationary. Sol 400: stationary. A second steady point appeared at 4 E on sol 412. Logged anyway. ATLAS, if you read this, I'm sorry. No I'm not."
   },
   {
    "id": "LOG.PLUMB.sky",
@@ -1835,7 +1835,7 @@
    {
     "id": "CITS.08",
     "kind": "tea towel",
-    "text": "Printed linen: the little module, the comms mast, the solar array, a tiny yellow robot. 'OUTPOST JEZERO · 2061 · WHERE IT ALL BEGAN.' (The Covenant commander's grandmother had one.)"
+    "text": "Printed linen: the little module, the comms mast, the solar array, a tiny yellow-suited figure. 'OUTPOST JEZERO · 2061 · WHERE IT ALL BEGAN.' (The Covenant commander's grandmother had one.)"
    },
    {
     "id": "CITS.09",

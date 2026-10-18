@@ -1,0 +1,816 @@
+{
+ "id": "C03",
+ "title": "ANVIL",
+ "note": "At the pod. The hatch blows; ANVIL unfolds out of his travelling crouch, a man in a yellow-trimmed suit; the first conversation in coverage (over-the-shoulder pairs); the handshake insert where, for two frames, both gloves are the same bare composite; out wide to the pod, smoking, under the sky.",
+ "stage": {
+  "at": "pod",
+  "face": 180
+ },
+ "world": {
+  "hideUnits": [
+   "ANVIL"
+  ]
+ },
+ "actors": [
+  {
+   "id": "p1",
+   "kind": "pioneer",
+   "at": [
+    1.6,
+    0,
+    11.5
+   ],
+   "yaw": 186,
+   "clip": "walk",
+   "props": [
+    {
+     "prop": "lamp",
+     "socket": "sk_lamp",
+     "intensity": 40
+    }
+   ]
+  },
+  {
+   "id": "anvil",
+   "kind": "caretaker",
+   "look": "ANVIL",
+   "at": [
+    0.05,
+    0,
+    1.55
+   ],
+   "yaw": 0,
+   "clip": "dormant"
+  }
+ ],
+ "lights": [
+  {
+   "id": "beacon",
+   "type": "point",
+   "at": [
+    0,
+    3.4,
+    0
+   ],
+   "color": "#ffb030",
+   "intensity": 40,
+   "dist": 28,
+   "night": 1
+  },
+  {
+   "id": "fill",
+   "type": "point",
+   "at": [
+    -4.5,
+    2.6,
+    6.0
+   ],
+   "color": "#9fb8ff",
+   "intensity": 10,
+   "dist": 16,
+   "night": 1
+  },
+  {
+   "id": "rim",
+   "type": "spot",
+   "at": [
+    2.5,
+    3.5,
+    -2.5
+   ],
+   "target": [
+    0,
+    1.2,
+    2.6
+   ],
+   "color": "#ffd8a8",
+   "intensity": 70,
+   "dist": 18,
+   "angle": 40,
+   "night": 0.85
+  }
+ ],
+ "shots": [
+  {
+   "at": "start",
+   "name": "establish: the pod smoking in its crater, P1 coming in",
+   "dur": 4.6,
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": [
+       -9.5,
+       1.0,
+       9.0
+      ],
+      "look": [
+       0,
+       1.4,
+       1.0
+      ],
+      "lens": 28
+     },
+     {
+      "t": 1,
+      "pos": [
+       -8.0,
+       1.25,
+       7.4
+      ],
+      "look": [
+       0,
+       1.3,
+       1.0
+      ],
+      "lens": 30
+     }
+    ],
+    "handheld": 0.35
+   },
+   "dof": {
+    "focus": {
+     "a": "pod",
+     "o": [
+      0,
+      1.4,
+      0
+     ]
+    },
+    "fstop": 4
+   },
+   "grade": "auto"
+  },
+  {
+   "at": "beat:0+2.4",
+   "name": "the hatch blows",
+   "dur": 2.0,
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": [
+       3.6,
+       0.9,
+       4.6
+      ],
+      "look": [
+       0,
+       1.0,
+       1.0
+      ],
+      "lens": 35
+     },
+     {
+      "t": 1,
+      "pos": [
+       3.3,
+       0.95,
+       4.2
+      ],
+      "look": [
+       0,
+       1.0,
+       1.1
+      ],
+      "lens": 35
+     }
+    ],
+    "handheld": 0.5
+   },
+   "dof": {
+    "focus": {
+     "a": "pod",
+     "o": [
+      0,
+      1.0,
+      1.0
+     ]
+    },
+    "fstop": 3.2
+   },
+   "grade": "auto"
+  },
+  {
+   "at": "beat:0+3.4",
+   "name": "ANVIL unfolds (low, the sky behind him)",
+   "dur": 5.2,
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": [
+       1.7,
+       0.45,
+       4.1
+      ],
+      "look": {
+       "actor": "anvil",
+       "bone": "chest"
+      },
+      "lens": 32
+     },
+     {
+      "t": 1,
+      "pos": [
+       1.35,
+       0.55,
+       3.7
+      ],
+      "look": {
+       "actor": "anvil",
+       "bone": "head"
+      },
+      "lens": 35
+     }
+    ],
+    "ease": "out",
+    "handheld": 0.25
+   },
+   "dof": {
+    "focus": "anvil",
+    "fstop": 2.8
+   },
+   "grade": "auto"
+  },
+  {
+   "at": "C03.01+3.0",
+   "name": "ANVIL turns to him: Where's the canteen?",
+   "dur": 2.6,
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": {
+       "actor": "p1",
+       "bone": "head",
+       "o": [
+        1.389,
+        0.2,
+        -2.844
+       ]
+      },
+      "look": {
+       "actor": "anvil",
+       "bone": "head"
+      },
+      "lens": 45.4
+     },
+     {
+      "t": 1,
+      "pos": {
+       "actor": "p1",
+       "bone": "head",
+       "o": [
+        1.299,
+        0.2,
+        -2.616
+       ]
+      },
+      "look": {
+       "actor": "anvil",
+       "bone": "head"
+      },
+      "lens": 43.0
+     }
+    ],
+    "handheld": 0.3
+   },
+   "dof": {
+    "focus": "anvil",
+    "fstop": 2.0
+   },
+   "grade": "auto"
+  },
+  {
+   "at": "C03.02",
+   "name": "reverse: P1 over ANVIL's shoulder",
+   "dur": 4.2,
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": {
+       "actor": "anvil",
+       "bone": "head",
+       "o": [
+        -1.389,
+        0.18,
+        -2.844
+       ]
+      },
+      "look": {
+       "actor": "p1",
+       "bone": "head"
+      },
+      "lens": 45.4
+     },
+     {
+      "t": 1,
+      "pos": {
+       "actor": "anvil",
+       "bone": "head",
+       "o": [
+        -1.299,
+        0.18,
+        -2.548
+       ]
+      },
+      "look": {
+       "actor": "p1",
+       "bone": "head"
+      },
+      "lens": 43.6
+     }
+    ],
+    "handheld": 0.3
+   },
+   "dof": {
+    "focus": "p1",
+    "fstop": 2.0
+   },
+   "grade": "auto"
+  },
+  {
+   "at": "C03.03",
+   "name": "ANVIL: Then I'll build you one",
+   "dur": 6.4,
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": {
+       "actor": "p1",
+       "bone": "head",
+       "o": [
+        1.478,
+        0.2,
+        -3.072
+       ]
+      },
+      "look": {
+       "actor": "anvil",
+       "bone": "head",
+       "o": [
+        0,
+        -0.15,
+        0
+       ]
+      },
+      "lens": 43.0
+     },
+     {
+      "t": 1,
+      "pos": {
+       "actor": "p1",
+       "bone": "head",
+       "o": [
+        1.299,
+        0.18,
+        -2.616
+       ]
+      },
+      "look": {
+       "actor": "anvil",
+       "bone": "head"
+      },
+      "lens": 44.5
+     }
+    ],
+    "handheld": 0.25
+   },
+   "dof": {
+    "focus": "anvil",
+    "fstop": 2.0
+   },
+   "grade": "auto"
+  },
+  {
+   "at": "beat:7",
+   "name": "two-shot in profile: the hand offered",
+   "dur": 2.5,
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": [
+       -3.6,
+       1.25,
+       2.6
+      ],
+      "look": [
+       0,
+       1.15,
+       2.6
+      ],
+      "lens": 35
+     },
+     {
+      "t": 1,
+      "pos": [
+       -3.2,
+       1.2,
+       2.6
+      ],
+      "look": [
+       0,
+       1.12,
+       2.6
+      ],
+      "lens": 38
+     }
+    ],
+    "handheld": 0.2
+   },
+   "dof": {
+    "focus": {
+     "a": "pod",
+     "o": [
+      0,
+      1.1,
+      2.6
+     ]
+    },
+    "fstop": 2.8
+   },
+   "grade": "auto"
+  },
+  {
+   "at": "beat:8",
+   "name": "insert: the two gloves",
+   "dur": 2.4,
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": [
+       -1.05,
+       1.08,
+       2.7
+      ],
+      "look": [
+       0,
+       1.06,
+       2.62
+      ],
+      "lens": 85
+     },
+     {
+      "t": 1,
+      "pos": [
+       -0.98,
+       1.08,
+       2.7
+      ],
+      "look": [
+       0,
+       1.06,
+       2.62
+      ],
+      "lens": 90
+     }
+    ],
+    "handheld": 0.15
+   },
+   "dof": {
+    "focus": {
+     "a": "pod",
+     "o": [
+      0,
+      1.06,
+      2.62
+     ]
+    },
+    "fstop": 1.8
+   },
+   "grade": "auto"
+  },
+  {
+   "at": "C03.04+1.4",
+   "name": "P1: Bit grim",
+   "dur": 2.4,
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": {
+       "actor": "anvil",
+       "bone": "head",
+       "o": [
+        -0.6,
+        0.0,
+        -0.4
+       ]
+      },
+      "look": {
+       "actor": "p1",
+       "bone": "head"
+      },
+      "lens": 60
+     },
+     {
+      "t": 1,
+      "pos": {
+       "actor": "anvil",
+       "bone": "head",
+       "o": [
+        -0.58,
+        0.0,
+        -0.36
+       ]
+      },
+      "look": {
+       "actor": "p1",
+       "bone": "head"
+      },
+      "lens": 62
+     }
+    ],
+    "handheld": 0.25
+   },
+   "dof": {
+    "focus": "p1",
+    "fstop": 2.0
+   },
+   "grade": "auto"
+  },
+  {
+   "at": "C03.05",
+   "name": "ANVIL: That'll do. Out wide: the two of them, the pod, the sky",
+   "dur": 5.4,
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": [
+       2.8,
+       1.5,
+       5.6
+      ],
+      "look": [
+       0,
+       1.3,
+       2.4
+      ],
+      "lens": 40
+     },
+     {
+      "t": 0.35,
+      "pos": [
+       3.4,
+       1.8,
+       6.6
+      ],
+      "look": [
+       0,
+       1.3,
+       2.2
+      ],
+      "lens": 35
+     },
+     {
+      "t": 1,
+      "pos": [
+       7.5,
+       4.2,
+       12.5
+      ],
+      "look": [
+       0,
+       1.4,
+       1.6
+      ],
+      "lens": 26
+     }
+    ],
+    "ease": "inout",
+    "handheld": 0.2
+   },
+   "dof": {
+    "keys": [
+     {
+      "t": 0,
+      "focus": "anvil"
+     },
+     {
+      "t": 1,
+      "focus": {
+       "a": "pod",
+       "o": [
+        0,
+        1.4,
+        1.5
+       ]
+      }
+     }
+    ],
+    "fstop": 4
+   },
+   "grade": "auto"
+  }
+ ],
+ "track": [
+  {
+   "at": "start",
+   "fx": "smoke",
+   "where": [
+    0,
+    1.2,
+    0
+   ],
+   "n": 30,
+   "life": 9,
+   "over": 6,
+   "spread": 0.5,
+   "up": 0.5,
+   "size": 2.4
+  },
+  {
+   "at": "start",
+   "actor": "p1",
+   "walk": [
+    [
+     1.2,
+     0,
+     7.0
+    ],
+    [
+     0.15,
+     0,
+     3.3
+    ]
+   ],
+   "speed": 1.15,
+   "then": "idle"
+  },
+  {
+   "at": "start",
+   "actor": "p1",
+   "lookAt": {
+    "a": "pod",
+    "o": [
+     0,
+     1.4,
+     0
+    ]
+   },
+   "weight": 0.8
+  },
+  {
+   "at": "beat:0+2.5",
+   "anim": {
+    "obj": "pod-hatch",
+    "prop": "rotation.y",
+    "to": -1.9,
+    "dur": 0.25
+   }
+  },
+  {
+   "at": "beat:0+2.5",
+   "fx": "dust",
+   "where": [
+    0,
+    0.4,
+    1.6
+   ],
+   "n": 30,
+   "spread": 2.4,
+   "up": 0.6,
+   "size": 1.4,
+   "life": 3
+  },
+  {
+   "at": "beat:0+2.5",
+   "fx": "sparks",
+   "where": [
+    -0.4,
+    1.2,
+    1.1
+   ],
+   "n": 30
+  },
+  {
+   "at": "beat:0+2.5",
+   "shake": 0.8,
+   "dur": 0.7
+  },
+  {
+   "at": "beat:0+3.4",
+   "actor": "anvil",
+   "play": "unfold",
+   "fade": 0.1
+  },
+  {
+   "at": "beat:0+3.4",
+   "actor": "p1",
+   "lookAt": "anvil",
+   "weight": 0.9
+  },
+  {
+   "at": "C03.01+2.8",
+   "actor": "anvil",
+   "face": [
+    0.15,
+    0,
+    3.3
+   ],
+   "dur": 0.9
+  },
+  {
+   "at": "C03.01+3.2",
+   "actor": "anvil",
+   "lookAt": "p1"
+  },
+  {
+   "at": "C03.01+3.4",
+   "actor": "anvil",
+   "walk": [
+    0.05,
+    0,
+    2.0
+   ],
+   "speed": 0.6,
+   "then": "gesture_anvil"
+  },
+  {
+   "at": "C03.02",
+   "actor": "p1",
+   "play": "gesture_talk",
+   "fade": 0.4
+  },
+  {
+   "at": "C03.03",
+   "actor": "p1",
+   "play": "idle",
+   "fade": 0.6
+  },
+  {
+   "at": "beat:7",
+   "actor": "anvil",
+   "play": "handshake",
+   "fade": 0.3
+  },
+  {
+   "at": "beat:7+0.35",
+   "actor": "p1",
+   "play": "handshake",
+   "fade": 0.3
+  },
+  {
+   "at": "beat:9",
+   "actor": "anvil",
+   "unfiltered": true
+  },
+  {
+   "at": "beat:9",
+   "actor": "p1",
+   "unfiltered": true
+  },
+  {
+   "at": "beat:9+0.09",
+   "actor": "anvil",
+   "unfiltered": false
+  },
+  {
+   "at": "beat:9+0.09",
+   "actor": "p1",
+   "unfiltered": false
+  },
+  {
+   "at": "C03.04",
+   "actor": "p1",
+   "play": "shrug",
+   "fade": 0.3
+  },
+  {
+   "at": "C03.05",
+   "actor": "anvil",
+   "play": "nod",
+   "fade": 0.3
+  },
+  {
+   "at": "C03.05+1.6",
+   "actor": "anvil",
+   "play": "gesture_anvil",
+   "fade": 0.5
+  },
+  {
+   "at": "C03.05+1.2",
+   "actor": "anvil",
+   "lookAt": {
+    "sky": [
+     0.3,
+     0.25,
+     -1
+    ]
+   },
+   "weight": 0.7
+  }
+ ],
+ "handoff": [
+  {
+   "actor": "anvil",
+   "unit": "ANVIL"
+  }
+ ]
+}

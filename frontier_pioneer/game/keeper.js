@@ -19,8 +19,8 @@
  * The terminal is reached at a base (or the lander, before there is one): J on the keyboard, or "KEEPER
  * terminal" in the pause menu. The game holds while it is open.
  */
-import { getSystem } from "./systems.js?v=b8cfe8e-efa5b7b7";
-import { loadStory, speech, evalCond, esc, ensureStoryStyles } from "./storydata.js?v=b8cfe8e-efa5b7b7";
+import { getSystem } from "./systems.js?v=6d37c9c-9b39e129";
+import { loadStory, speech, evalCond, esc, ensureStoryStyles } from "./storydata.js?v=6d37c9c-9b39e129";
 
 /* ── the forgiving normaliser ────────────────────────────────────────────── */
 
@@ -130,7 +130,7 @@ function pickStage(D, a, ctx) {
   if (a.default) return a.default;
   return anchorKeys.length ? a[anchorKeys[0]] : null;
 }
-const lineObj = (D, x) => (typeof x === "string" ? Object.assign({ line: x }, D.line(x) ? { speaker: D.line(x).speaker, text: D.line(x).text } : { speaker: "KEEPER", text: x }) : x);
+const lineObj = (D, x) => (typeof x === "string" ? Object.assign({ line: x }, D.line(x) ? { speaker: D.line(x).speaker, text: D.line(x).text } : { speaker: "ATLAS", text: x }) : x);
 /** The lines of an answer, as line objects, for the story's present. */
 export function resolve(D, q, ctx, answer = q.answer, slot = null) {
   if (answer == null) return [];
@@ -144,11 +144,11 @@ export function resolve(D, q, ctx, answer = q.answer, slot = null) {
     if (answer.voiced) {
       const k = Object.keys(answer.voiced).filter((x) => stageIndex(D, x) <= stageIndex(D, ctx.stage)).sort((a, b) => stageIndex(D, b) - stageIndex(D, a))[0];
       if (k && (!ctx.sleptAnchor || ctx.sleptAnchor === k)) return [answer.voiced[k]];
-      return [{ speaker: "KEEPER", text: answer.template.replace("{n}", String(ctx.sleptSols || 0)) }];
+      return [{ speaker: "ATLAS", text: answer.template.replace("{n}", String(ctx.sleptSols || 0)) }];
     }
     const u = ctx.callsign ? ctx.callsign(slot) : null;
-    if (!u) return [{ line: "KEEPER.deflect.not_held", speaker: "KEEPER", text: "That information is not held." }];
-    return [{ speaker: "KEEPER", text: answer.template.replace(/\{(\w+)\}/g, (m, k) => (u[k] != null ? u[k] : m)) }];
+    if (!u) return [{ line: "KEEPER.deflect.not_held", speaker: "ATLAS", text: "That information is not held." }];
+    return [{ speaker: "ATLAS", text: answer.template.replace(/\{(\w+)\}/g, (m, k) => (u[k] != null ? u[k] : m)) }];
   }
   return resolve(D, q, ctx, pickStage(D, answer, ctx), slot);
 }
@@ -162,9 +162,9 @@ export class Terminal {
     const el = this.el = document.createElement("section");
     el.id = "screen-keeper"; el.className = "screen modal keeper"; el.hidden = true; el.setAttribute("data-pad-closable", "");
     el.innerHTML = `<div class="card wide kt-card">
-      <div class="kt-head"><div><div class="eyebrow">HALO-1 · logistics</div><h2>KEEPER</h2></div><p class="kt-stat"></p></div>
+      <div class="kt-head"><div><div class="eyebrow">HALO-1 · logistics</div><h2>ATLAS</h2></div><p class="kt-stat"></p></div>
       <div class="kt-log" role="log" aria-live="polite"></div>
-      <form class="kt-ask" autocomplete="off"><label class="kt-prompt" for="k-input">&gt;</label><input id="k-input" type="text" maxlength="160" spellcheck="false" placeholder="Type a question for KEEPER"><button type="submit" class="btn">Ask</button></form>
+      <form class="kt-ask" autocomplete="off"><label class="kt-prompt" for="k-input">&gt;</label><input id="k-input" type="text" maxlength="160" spellcheck="false" placeholder="Type a question for ATLAS"><button type="submit" class="btn">Ask</button></form>
       <div class="eyebrow kt-menu-h">Records you can ask for</div>
       <div class="kt-menu"></div>
       <div class="row"><button type="button" class="btn primary" data-pad-close data-k="close">Close the terminal</button></div></div>`;
@@ -186,7 +186,7 @@ export class Terminal {
     this.renderMenu(D);
     const ctx = this.story.keeperCtx();
     this.stat.textContent = `Mission sol ${ctx.missionSol} · link nominal`;
-    if (!this.log.childElementCount) this._line("KEEPER", "Link established. Query.", "kt-keeper");
+    if (!this.log.childElementCount) this._line("ATLAS", "Link established. Query.", "kt-keeper");
     const P = window.GeoIDPad;
     if (P && P.connected) setTimeout(() => P.focus.first(this.el), 60); else setTimeout(() => this.input.focus(), 30);
     this.story.notify("open_panel", { panel: "keeper" });
@@ -217,7 +217,7 @@ export class Terminal {
       if (m && m.kind !== "follow" && m.kind !== "near" && !available(D, m.q, ctx)) m = null;          // not a record the story has opened: it does not match a record
       if (!m) {
         const d = deflection(D, text);
-        this._line("KEEPER", d.text, "kt-keeper");
+        this._line("ATLAS", d.text, "kt-keeper");
         await sp.say(d, { style: "radio" });
         this.story.notify("keeper_deflect", { text });
         return { id: null, kind: "deflect", lines: [d] };
@@ -227,7 +227,7 @@ export class Terminal {
       // a cutscene plays instead of the plain answer (C12, C13), when the story says so
       const cs = this.story.keeperCutscene(q.id, m);
       if (cs) {
-        this._line("KEEPER", "[archive playback]", "kt-keeper");
+        this._line("ATLAS", "[archive playback]", "kt-keeper");
         this.close();
         this.last = q.id;
         this.story.notify("ask_keeper", { id: q.id, kind: m.kind, cutscene: cs });
@@ -237,7 +237,7 @@ export class Terminal {
       for (const l of lines) {
         const filtered = /\[FILTERED\]/.test(l.text || "") && this.story.filterScrubs();
         const shown = filtered ? l.text.replace(/\[FILTERED\]/g, "▓▓▓▓") : (l.text || "").replace(/\[FILTERED\]/g, "");
-        this._line(l.speaker === "P1" ? "YOU" : l.speaker || "KEEPER", shown, l.speaker === "P1" ? "kt-you" : "kt-keeper");
+        this._line(l.speaker === "P1" ? "YOU" : l.speaker || "ATLAS", shown, l.speaker === "P1" ? "kt-you" : "kt-keeper");
         await sp.say(l);
         if (filtered) {
           const A = getSystem("audio"); if (A && A.api) A.api.filterGlitch(0.8, 0.8);

@@ -33,9 +33,9 @@
  * While this system runs it marks state.objectives as managed (state.js then
  * leaves it alone) and supplies the HUD's target and text.
  */
-import { registerSystem, getSystem } from "./systems.js?v=b8cfe8e-efa5b7b7";
-import { MARS, ATMOSPHERE } from "./config.js?v=b8cfe8e-efa5b7b7";
-import { clockText, solsBetween } from "./state.js?v=b8cfe8e-efa5b7b7";
+import { registerSystem, getSystem } from "./systems.js?v=6d37c9c-9b39e129";
+import { MARS, ATMOSPHERE } from "./config.js?v=6d37c9c-9b39e129";
+import { clockText, solsBetween } from "./state.js?v=6d37c9c-9b39e129";
 
 const H = 3600;
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));

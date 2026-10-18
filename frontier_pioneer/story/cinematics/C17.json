@@ -1,0 +1,1160 @@
+{
+ "id": "C17",
+ "title": "Manifest",
+ "note": "A colonist's new flat: Cara Kerr, late sixties, grey hair tied back, kneeling at a crate of rock hammers and field notebooks (a person in the present: matte, backlit by a Mars window, her face never more than a shape); P1 in the doorway with a recall tag. She does almost all the talking; the camera stays with her and cuts to him only to see him take it. Each answer has its own shots; the door closes between them.",
+ "world": {
+  "hideAvatar": false,
+  "focus": false
+ },
+ "sets": [
+  {
+   "id": "flat",
+   "kind": "apartment"
+  }
+ ],
+ "actors": [
+  {
+   "id": "cara",
+   "kind": "human",
+   "set": "flat",
+   "look": {
+    "hair": "tied",
+    "material": "cloth",
+    "cloth": "#4f6470",
+    "skin": "#a08070",
+    "hairColour": "#b8b4ac"
+   },
+   "at": [
+    -0.55,
+    0,
+    0.25
+   ],
+   "yaw": 180,
+   "clip": "kneel_unpack"
+  },
+  {
+   "id": "p1",
+   "kind": "pioneer",
+   "set": "flat",
+   "at": [
+    1.4,
+    0,
+    2.05
+   ],
+   "yaw": 180,
+   "clip": "idle",
+   "props": [
+    {
+     "prop": "recall_tag",
+     "socket": "sk_chest"
+    }
+   ]
+  }
+ ],
+ "lights": [
+  {
+   "id": "fill",
+   "type": "point",
+   "set": "flat",
+   "at": [
+    0.6,
+    2.2,
+    -1.2
+   ],
+   "color": "#ffe0c0",
+   "intensity": 4,
+   "dist": 5
+  }
+ ],
+ "shots": [
+  {
+   "at": "start",
+   "name": "a bare new apartment: a woman at an open crate; in the doorway behind her, a suited figure",
+   "set": "flat",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": [
+       -1.9,
+       1.25,
+       -1.6
+      ],
+      "look": [
+       0.6,
+       1.0,
+       1.4
+      ],
+      "lens": 24
+     },
+     {
+      "t": 1,
+      "pos": [
+       -1.75,
+       1.25,
+       -1.45
+      ],
+      "look": [
+       0.7,
+       1.1,
+       1.5
+      ],
+      "lens": 24
+     }
+    ],
+    "ease": "linear",
+    "handheld": 0.1
+   },
+   "dof": {
+    "focus": "cara",
+    "fstop": 2.8
+   },
+   "grade": "interior_warm"
+  },
+  {
+   "at": "C17.01",
+   "name": "she turns: you're one of the caretakers",
+   "set": "flat",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": {
+       "actor": "cara",
+       "bone": "head",
+       "o": [
+        0.72,
+        0.33,
+        -1.575
+       ]
+      },
+      "look": {
+       "actor": "p1",
+       "bone": "head"
+      },
+      "lens": 40
+     },
+     {
+      "t": 1,
+      "pos": {
+       "actor": "cara",
+       "bone": "head",
+       "o": [
+        0.672,
+        0.33,
+        -1.435
+       ]
+      },
+      "look": {
+       "actor": "p1",
+       "bone": "head"
+      },
+      "lens": 45
+     }
+    ],
+    "handheld": 0.12,
+    "ease": "linear"
+   },
+   "dof": {
+    "focus": "p1",
+    "fstop": 2.2
+   },
+   "grade": "interior_warm"
+  },
+  {
+   "at": "C17.02",
+   "name": "P1 in the doorway: if only you could see what I see (he can't help it)",
+   "set": "flat",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": [
+       1.0,
+       1.35,
+       0.6
+      ],
+      "look": {
+       "actor": "p1",
+       "bone": "head"
+      },
+      "lens": 55
+     },
+     {
+      "t": 1,
+      "pos": [
+       1.05,
+       1.35,
+       0.75
+      ],
+      "look": {
+       "actor": "p1",
+       "bone": "head"
+      },
+      "lens": 60
+     }
+    ],
+    "ease": "linear"
+   },
+   "dof": {
+    "focus": "p1",
+    "fstop": 2.0
+   },
+   "grade": "interior_warm"
+  },
+  {
+   "at": "C17.03",
+   "name": "...shimmers of eternity (her profile against the window)",
+   "set": "flat",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": {
+       "actor": "cara",
+       "bone": "head",
+       "o": [
+        -0.75,
+        0.05,
+        0.35
+       ]
+      },
+      "look": {
+       "actor": "cara",
+       "bone": "head"
+      },
+      "lens": 26.5
+     },
+     {
+      "t": 1,
+      "pos": {
+       "actor": "cara",
+       "bone": "head",
+       "o": [
+        -0.6900000000000001,
+        0.05,
+        0.315
+       ]
+      },
+      "look": {
+       "actor": "cara",
+       "bone": "head"
+      },
+      "lens": 24.3
+     }
+    ],
+    "handheld": 0.12,
+    "ease": "linear"
+   },
+   "dof": {
+    "focus": "cara",
+    "fstop": 1.8
+   },
+   "grade": "interior_warm"
+  },
+  {
+   "at": "C17.04",
+   "name": "that old advert: back to the crate, her hands",
+   "set": "flat",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": [
+       -1.65,
+       1.15,
+       0.95
+      ],
+      "look": [
+       -0.6,
+       0.62,
+       -0.2
+      ],
+      "lens": 36
+     },
+     {
+      "t": 1,
+      "pos": [
+       -1.6,
+       1.1,
+       0.85
+      ],
+      "look": [
+       -0.6,
+       0.62,
+       -0.2
+      ],
+      "lens": 40
+     }
+    ],
+    "ease": "linear"
+   },
+   "dof": {
+    "focus": "cara",
+    "fstop": 2.0
+   },
+   "grade": "interior_warm"
+  },
+  {
+   "at": "C17.05",
+   "name": "Is that why you came?",
+   "set": "flat",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": {
+       "actor": "cara",
+       "bone": "head",
+       "o": [
+        0.809,
+        0.28,
+        -1.6
+       ]
+      },
+      "look": {
+       "actor": "p1",
+       "bone": "head"
+      },
+      "lens": 32.4
+     },
+     {
+      "t": 1,
+      "pos": {
+       "actor": "cara",
+       "bone": "head",
+       "o": [
+        0.739,
+        0.28,
+        -1.6
+       ]
+      },
+      "look": {
+       "actor": "p1",
+       "bone": "head"
+      },
+      "lens": 43.7
+     }
+    ],
+    "ease": "linear"
+   },
+   "dof": {
+    "focus": "p1",
+    "fstop": 2.0
+   },
+   "grade": "interior_warm"
+  },
+  {
+   "at": "C17.06",
+   "name": "a man who used to write to me about Mars (slow push)",
+   "set": "flat",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": [
+       0.4,
+       0.95,
+       -1.6
+      ],
+      "look": {
+       "actor": "cara",
+       "bone": "head"
+      },
+      "lens": 45
+     },
+     {
+      "t": 1,
+      "pos": [
+       0.2,
+       0.9,
+       -1.25
+      ],
+      "look": {
+       "actor": "cara",
+       "bone": "head"
+      },
+      "lens": 60
+     }
+    ],
+    "ease": "linear"
+   },
+   "dof": {
+    "focus": "cara",
+    "fstop": 1.8
+   },
+   "grade": "interior_warm"
+  },
+  {
+   "at": "C17.07",
+   "name": "he never even went (her hands on a notebook)",
+   "set": "flat",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": [
+       -1.0,
+       1.3,
+       -0.95
+      ],
+      "look": {
+       "actor": "cara",
+       "bone": "hand_R"
+      },
+      "lens": 45
+     },
+     {
+      "t": 1,
+      "pos": [
+       -0.95,
+       1.28,
+       -0.9
+      ],
+      "look": {
+       "actor": "cara",
+       "bone": "hand_R"
+      },
+      "lens": 50
+     }
+    ],
+    "ease": "linear"
+   },
+   "dof": {
+    "focus": {
+     "actor": "cara",
+     "bone": "hand_R"
+    },
+    "fstop": 1.6
+   },
+   "grade": "interior_warm"
+  },
+  {
+   "at": "C17.07+5.0",
+   "name": "P1 hears it, very still",
+   "set": "flat",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": {
+       "actor": "p1",
+       "bone": "head",
+       "o": [
+        0.462,
+        0.08,
+        1.6
+       ]
+      },
+      "look": {
+       "actor": "p1",
+       "bone": "head"
+      },
+      "lens": 49.2
+     },
+     {
+      "t": 1,
+      "pos": {
+       "actor": "p1",
+       "bone": "head",
+       "o": [
+        0.442,
+        0.08,
+        1.496
+       ]
+      },
+      "look": {
+       "actor": "p1",
+       "bone": "head"
+      },
+      "lens": 50.0
+     }
+    ],
+    "handheld": 0.12,
+    "ease": "linear"
+   },
+   "dof": {
+    "focus": "p1",
+    "fstop": 1.6
+   },
+   "grade": "interior_warm"
+  },
+  {
+   "at": "C17.07+10.0",
+   "name": "...over every person who ever loved him (wide: the crate, her, him in the door)",
+   "set": "flat",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": [
+       -2.2,
+       1.6,
+       -1.9
+      ],
+      "look": [
+       0.4,
+       0.9,
+       1.0
+      ],
+      "lens": 24
+     },
+     {
+      "t": 1,
+      "pos": [
+       -2.15,
+       1.6,
+       -1.85
+      ],
+      "look": [
+       0.4,
+       0.9,
+       1.0
+      ],
+      "lens": 24
+     }
+    ],
+    "ease": "linear"
+   },
+   "dof": {
+    "focus": 3.2,
+    "fstop": 4
+   },
+   "grade": "interior_warm"
+  },
+  {
+   "at": "beat:10",
+   "name": "she turns back to the crate",
+   "set": "flat",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": [
+       1.2,
+       1.35,
+       0.9
+      ],
+      "look": {
+       "actor": "cara",
+       "bone": "chest"
+      },
+      "lens": 34
+     },
+     {
+      "t": 1,
+      "pos": [
+       1.1,
+       1.3,
+       0.8
+      ],
+      "look": {
+       "actor": "cara",
+       "bone": "chest"
+      },
+      "lens": 36
+     }
+    ],
+    "ease": "linear"
+   },
+   "dof": {
+    "focus": "cara",
+    "fstop": 2.2
+   },
+   "grade": "interior_warm"
+  },
+  {
+   "at": "C17.08",
+   "name": "Same rock. Same choices.",
+   "set": "flat",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": {
+       "actor": "cara",
+       "bone": "head",
+       "o": [
+        -0.96,
+        0.18,
+        1.05
+       ]
+      },
+      "look": {
+       "actor": "cara",
+       "bone": "head"
+      },
+      "lens": 45.9
+     },
+     {
+      "t": 1,
+      "pos": {
+       "actor": "cara",
+       "bone": "head",
+       "o": [
+        -0.883,
+        0.18,
+        0.945
+       ]
+      },
+      "look": {
+       "actor": "cara",
+       "bone": "head"
+      },
+      "lens": 41.8
+     }
+    ],
+    "handheld": 0.12,
+    "ease": "linear"
+   },
+   "dof": {
+    "focus": "cara",
+    "fstop": 1.8
+   },
+   "grade": "interior_warm"
+  },
+  {
+   "at": "C17.09",
+   "name": "don't stand in my doorway quoting adverts at me (him, small, framed in it)",
+   "set": "flat",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": [
+       -1.3,
+       1.0,
+       -1.2
+      ],
+      "look": {
+       "actor": "p1",
+       "bone": "head"
+      },
+      "lens": 50
+     },
+     {
+      "t": 1,
+      "pos": [
+       -1.25,
+       1.0,
+       -1.15
+      ],
+      "look": {
+       "actor": "p1",
+       "bone": "head"
+      },
+      "lens": 55
+     }
+    ],
+    "ease": "linear"
+   },
+   "dof": {
+    "focus": "p1",
+    "fstop": 2.4
+   },
+   "grade": "interior_warm"
+  },
+  {
+   "at": "beat:13",
+   "name": "the choice, held on him",
+   "set": "flat",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": {
+       "actor": "p1",
+       "bone": "head",
+       "o": [
+        0.462,
+        0.08,
+        1.6
+       ]
+      },
+      "look": {
+       "actor": "p1",
+       "bone": "head"
+      },
+      "lens": 49.2
+     },
+     {
+      "t": 1,
+      "pos": {
+       "actor": "p1",
+       "bone": "head",
+       "o": [
+        0.442,
+        0.08,
+        1.496
+       ]
+      },
+      "look": {
+       "actor": "p1",
+       "bone": "head"
+      },
+      "lens": 50.0
+     }
+    ],
+    "handheld": 0.12,
+    "ease": "linear"
+   },
+   "dof": {
+    "focus": "p1",
+    "fstop": 1.6
+   },
+   "grade": "interior_warm"
+  },
+  {
+   "at": "C17.10",
+   "name": "I've got his memories",
+   "set": "flat",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": {
+       "actor": "p1",
+       "bone": "head",
+       "o": [
+        0.585,
+        0.08,
+        1.6
+       ]
+      },
+      "look": {
+       "actor": "p1",
+       "bone": "head"
+      },
+      "lens": 45.9
+     },
+     {
+      "t": 1,
+      "pos": {
+       "actor": "p1",
+       "bone": "head",
+       "o": [
+        0.589,
+        0.08,
+        1.575
+       ]
+      },
+      "look": {
+       "actor": "p1",
+       "bone": "head"
+      },
+      "lens": 48.8
+     }
+    ],
+    "handheld": 0.12,
+    "ease": "linear"
+   },
+   "dof": {
+    "focus": "p1",
+    "fstop": 1.8
+   },
+   "grade": "interior_warm"
+  },
+  {
+   "at": "opt:c17_manifest:tell_truth:1",
+   "name": "she looks at the suit for a long time",
+   "set": "flat",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": {
+       "actor": "p1",
+       "bone": "head",
+       "o": [
+        -0.735,
+        0.23,
+        -1.6
+       ]
+      },
+      "look": {
+       "actor": "cara",
+       "bone": "head"
+      },
+      "lens": 28.5
+     },
+     {
+      "t": 1,
+      "pos": {
+       "actor": "p1",
+       "bone": "head",
+       "o": [
+        -0.809,
+        0.23,
+        -1.6
+       ]
+      },
+      "look": {
+       "actor": "cara",
+       "bone": "head"
+      },
+      "lens": 32.4
+     }
+    ],
+    "ease": "linear"
+   },
+   "dof": {
+    "focus": "cara",
+    "fstop": 1.8
+   },
+   "grade": "interior_warm"
+  },
+  {
+   "at": "C17.11",
+   "name": "Then he's still not here, is he.",
+   "set": "flat",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": {
+       "actor": "cara",
+       "bone": "head",
+       "o": [
+        0.56,
+        0.13,
+        1.488
+       ]
+      },
+      "look": {
+       "actor": "cara",
+       "bone": "head"
+      },
+      "lens": 48.8
+     },
+     {
+      "t": 1,
+      "pos": {
+       "actor": "cara",
+       "bone": "head",
+       "o": [
+        0.515,
+        0.13,
+        1.339
+       ]
+      },
+      "look": {
+       "actor": "cara",
+       "bone": "head"
+      },
+      "lens": 46.1
+     }
+    ],
+    "handheld": 0.12,
+    "ease": "linear"
+   },
+   "dof": {
+    "focus": "cara",
+    "fstop": 1.6
+   },
+   "grade": "interior_warm"
+  },
+  {
+   "at": "C17.12",
+   "name": "He was sorry",
+   "set": "flat",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": {
+       "actor": "p1",
+       "bone": "head",
+       "o": [
+        0.585,
+        0.08,
+        1.6
+       ]
+      },
+      "look": {
+       "actor": "p1",
+       "bone": "head"
+      },
+      "lens": 45.9
+     },
+     {
+      "t": 1,
+      "pos": {
+       "actor": "p1",
+       "bone": "head",
+       "o": [
+        0.589,
+        0.08,
+        1.575
+       ]
+      },
+      "look": {
+       "actor": "p1",
+       "bone": "head"
+      },
+      "lens": 48.8
+     }
+    ],
+    "handheld": 0.12,
+    "ease": "linear"
+   },
+   "dof": {
+    "focus": "p1",
+    "fstop": 1.8
+   },
+   "grade": "interior_warm"
+  },
+  {
+   "at": "C17.13",
+   "name": "Was he.",
+   "set": "flat",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": {
+       "actor": "cara",
+       "bone": "head",
+       "o": [
+        0.56,
+        0.13,
+        1.488
+       ]
+      },
+      "look": {
+       "actor": "cara",
+       "bone": "head"
+      },
+      "lens": 48.8
+     },
+     {
+      "t": 1,
+      "pos": {
+       "actor": "cara",
+       "bone": "head",
+       "o": [
+        0.515,
+        0.13,
+        1.339
+       ]
+      },
+      "look": {
+       "actor": "cara",
+       "bone": "head"
+      },
+      "lens": 46.1
+     }
+    ],
+    "handheld": 0.12,
+    "ease": "linear"
+   },
+   "dof": {
+    "focus": "cara",
+    "fstop": 1.6
+   },
+   "grade": "interior_warm"
+  },
+  {
+   "at": "opt:c17_manifest:leave:0",
+   "name": "he says nothing; she goes back to the notebooks; he steps back",
+   "set": "flat",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": [
+       -1.6,
+       1.1,
+       -1.4
+      ],
+      "look": [
+       1.4,
+       1.2,
+       2.0
+      ],
+      "lens": 40
+     },
+     {
+      "t": 1,
+      "pos": [
+       -1.55,
+       1.1,
+       -1.35
+      ],
+      "look": [
+       1.4,
+       1.2,
+       2.0
+      ],
+      "lens": 42
+     }
+    ],
+    "ease": "linear"
+   },
+   "dof": {
+    "focus": "p1",
+    "fstop": 2.8
+   },
+   "grade": "interior_warm"
+  },
+  {
+   "at": "beat:15",
+   "name": "the door slides shut between them",
+   "set": "flat",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": [
+       -0.8,
+       1.3,
+       -0.9
+      ],
+      "look": [
+       1.4,
+       1.25,
+       2.1
+      ],
+      "lens": 45
+     },
+     {
+      "t": 1,
+      "pos": [
+       -0.75,
+       1.3,
+       -0.85
+      ],
+      "look": [
+       1.4,
+       1.25,
+       2.1
+      ],
+      "lens": 45
+     }
+    ]
+   },
+   "dof": {
+    "focus": 3.4,
+    "fstop": 2.8
+   },
+   "grade": "interior_warm"
+  }
+ ],
+ "track": [
+  {
+   "at": "start",
+   "actor": "cara",
+   "play": "kneel_unpack"
+  },
+  {
+   "at": "C17.01",
+   "actor": "cara",
+   "play": "kneel_look_back",
+   "fade": 0.4
+  },
+  {
+   "at": "C17.01",
+   "actor": "cara",
+   "lookAt": "p1",
+   "weight": 0.9
+  },
+  {
+   "at": "C17.01",
+   "actor": "p1",
+   "lookAt": "cara",
+   "weight": 0.9
+  },
+  {
+   "at": "C17.04",
+   "actor": "cara",
+   "play": "kneel_unpack",
+   "fade": 0.8
+  },
+  {
+   "at": "C17.04",
+   "actor": "cara",
+   "lookAt": null
+  },
+  {
+   "at": "C17.06",
+   "actor": "cara",
+   "play": "kneel_look_back",
+   "fade": 0.8
+  },
+  {
+   "at": "C17.06",
+   "actor": "cara",
+   "lookAt": "p1",
+   "weight": 0.6
+  },
+  {
+   "at": "C17.07+4.0",
+   "actor": "cara",
+   "lookAt": null
+  },
+  {
+   "at": "beat:10",
+   "actor": "cara",
+   "play": "kneel_unpack",
+   "fade": 0.8
+  },
+  {
+   "at": "C17.09",
+   "actor": "cara",
+   "play": "kneel_look_back",
+   "fade": 0.6
+  },
+  {
+   "at": "C17.09",
+   "actor": "cara",
+   "lookAt": "p1",
+   "weight": 0.8
+  },
+  {
+   "at": "C17.10",
+   "actor": "p1",
+   "play": "hand_chest",
+   "fade": 0.5
+  },
+  {
+   "at": "opt:c17_manifest:tell_truth:1",
+   "actor": "cara",
+   "lookAt": {
+    "actor": "p1",
+    "bone": "chest"
+   },
+   "weight": 1
+  },
+  {
+   "at": "C17.12",
+   "actor": "p1",
+   "play": "look_down",
+   "fade": 0.6
+  },
+  {
+   "at": "opt:c17_manifest:leave:0",
+   "actor": "cara",
+   "play": "kneel_unpack",
+   "fade": 0.8
+  },
+  {
+   "at": "opt:c17_manifest:leave:0+1.5",
+   "actor": "p1",
+   "walk": [
+    1.4,
+    0,
+    2.9
+   ],
+   "speed": 0.5,
+   "then": "idle"
+  },
+  {
+   "at": "beat:15",
+   "anim": {
+    "obj": "apt-door",
+    "prop": "position.x",
+    "to": 1.4,
+    "dur": 1.6
+   }
+  }
+ ]
+}

@@ -23,11 +23,12 @@
  * canvas, dressed by the same functions (cosmetics.js) that dress the live
  * astronaut and rover, so what turns here is what you get.
  */
-import * as THREE from "../vendor/three.module.js?v=b8cfe8e-efa5b7b7";
-import { Assets } from "./entities.js?v=b8cfe8e-efa5b7b7";
-import { UPGRADES, UPGRADE, DESIGNS, DESIGN, PALETTE, VISORS, PATCHES, DECALS, NAMES, LIMITS, COLOUR } from "./progress_data.js?v=b8cfe8e-efa5b7b7";
-import { VEHICLES } from "./vehicle.js?v=b8cfe8e-efa5b7b7";
-import { dressAstronaut, dressRover, kitParts, prepareSuitModel, drawPatch } from "./cosmetics.js?v=b8cfe8e-efa5b7b7";
+import * as THREE from "../vendor/three.module.js?v=6d37c9c-9b39e129";
+import { Assets } from "./entities.js?v=6d37c9c-9b39e129";
+import { UPGRADES, UPGRADE, DESIGNS, DESIGN, PALETTE, VISORS, PATCHES, DECALS, NAMES, LIMITS, COLOUR } from "./progress_data.js?v=6d37c9c-9b39e129";
+import { VEHICLES } from "./vehicle.js?v=6d37c9c-9b39e129";
+import { dressAstronaut, dressRover, kitParts, prepareSuitModel, prepareSuitRig, drawPatch } from "./cosmetics.js?v=6d37c9c-9b39e129";
+import { loadCharacters, Character } from "./charrig.js?v=6d37c9c-9b39e129";
 
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 const TABS = [["suit", "Suit"], ["appearance", "Appearance"], ["rover", "Rover"], ["designs", "Designs"]];
@@ -84,6 +85,15 @@ class Preview {
   async _load(what) {
     try {
       if (what.kind === "astronaut") {
+        // the same rigged suit as the walker (charrig.js), held in its idle pose; the old six-part kit model if the rig is not there
+        let lib = null;
+        try { lib = await loadCharacters(); } catch { lib = null; }
+        if (lib) {
+          const ch = new Character(lib, { kind: "pioneer", name: "workshop" });
+          prepareSuitRig(ch); ch.pose("idle", 1.2); ch.update(0); ch.life = 0;
+          const root = new THREE.Group(); root.add(ch.root);
+          return { kind: "astronaut", root, body: ch.root, rig: ch, parts: { torso: ch.bones.get("chest"), head: ch.bones.get("head") } };
+        }
         const m = await this.assets.load("astronaut");
         const root = new THREE.Group(), body = new THREE.Group();
         if (!m || !m.getObjectByName("torso")) return null;

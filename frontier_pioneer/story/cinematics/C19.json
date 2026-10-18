@@ -1,0 +1,628 @@
+{
+ "id": "C19",
+ "title": "Recalled",
+ "note": "The hideout: a lava tube ledge at night, the suit stripped, a stolen battery humming. White lamps at the mouth; four RECALL suits come in and do not hurry. The decommissioning order, read politely. If he gave anyone back their name, their names are scratched into the rock behind him and a lamp finds them. I built your house. I know. Thank you.",
+ "world": {
+  "hideAvatar": false,
+  "focus": false
+ },
+ "sets": [
+  {
+   "id": "h",
+   "kind": "hideout",
+   "names": "@names"
+  }
+ ],
+ "actors": [
+  {
+   "id": "p1",
+   "kind": "kestrel",
+   "set": "h",
+   "at": [
+    -1.6,
+    0,
+    -2.1
+   ],
+   "yaw": 90,
+   "clip": "crouch_wall"
+  },
+  {
+   "id": "r1",
+   "kind": "recall",
+   "set": "h",
+   "at": [
+    0.2,
+    0,
+    6.0
+   ],
+   "yaw": 180,
+   "clip": "walk_lamp",
+   "kit": [],
+   "props": [
+    {
+     "prop": "spotlamp",
+     "socket": "sk_grip_R",
+     "intensity": 55
+    }
+   ]
+  },
+  {
+   "id": "r2",
+   "kind": "recall",
+   "set": "h",
+   "at": [
+    -0.8,
+    0,
+    6.4
+   ],
+   "yaw": 180,
+   "clip": "walk_lamp",
+   "kit": [],
+   "props": [
+    {
+     "prop": "spotlamp",
+     "socket": "sk_grip_R",
+     "intensity": 55
+    }
+   ]
+  },
+  {
+   "id": "r3",
+   "kind": "recall",
+   "set": "h",
+   "at": [
+    1.0,
+    0,
+    6.8
+   ],
+   "yaw": 180,
+   "clip": "walk_lamp",
+   "kit": [],
+   "props": [
+    {
+     "prop": "spotlamp",
+     "socket": "sk_grip_R",
+     "intensity": 55
+    }
+   ]
+  },
+  {
+   "id": "r4",
+   "kind": "recall",
+   "set": "h",
+   "at": [
+    -1.4,
+    0,
+    7.0
+   ],
+   "yaw": 180,
+   "clip": "walk_lamp",
+   "kit": [],
+   "props": [
+    {
+     "prop": "spotlamp",
+     "socket": "sk_grip_R",
+     "intensity": 55
+    }
+   ]
+  }
+ ],
+ "lights": [
+  {
+   "id": "mouth",
+   "type": "spot",
+   "set": "h",
+   "at": [
+    0,
+    2.2,
+    7.5
+   ],
+   "target": [
+    -1.0,
+    1.0,
+    -1.0
+   ],
+   "color": "#eef4ff",
+   "intensity": 160,
+   "dist": 20,
+   "angle": 28
+  }
+ ],
+ "shots": [
+  {
+   "at": "start",
+   "name": "the hideout: a lava tube ledge at night; stripped panels on the suit, a stolen battery humming",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": [
+       0.9,
+       1.9,
+       5.0
+      ],
+      "look": [
+       -1.0,
+       0.8,
+       -2.2
+      ],
+      "lens": 22
+     },
+     {
+      "t": 1,
+      "pos": [
+       0.8,
+       1.8,
+       4.4
+      ],
+      "look": [
+       -1.1,
+       0.8,
+       -2.2
+      ],
+      "lens": 24
+     }
+    ],
+    "ease": "linear",
+    "handheld": 0.1
+   },
+   "grade": {
+    "base": "tube",
+    "exposureAbs": 4.16
+   },
+   "dof": {
+    "focus": "p1",
+    "fstop": 2.4
+   },
+   "set": "h"
+  },
+  {
+   "at": "C19.01",
+   "name": "white light at the mouth of the tube: Thermal on the ledge. That's him.",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": [
+       0,
+       1.4,
+       -3
+      ],
+      "look": [
+       0,
+       1.5,
+       5.5
+      ],
+      "lens": 50
+     },
+     {
+      "t": 1,
+      "pos": [
+       0,
+       1.4,
+       -2.5
+      ],
+      "look": [
+       0,
+       1.5,
+       5.5
+      ],
+      "lens": 55
+     }
+    ],
+    "ease": "linear",
+    "handheld": 0.15
+   },
+   "grade": {
+    "base": "tube",
+    "exposureAbs": 3.64,
+    "bloom": 1.8
+   },
+   "dof": {
+    "focus": 7,
+    "fstop": 2.8
+   },
+   "set": "h"
+  },
+  {
+   "at": "beat:3",
+   "name": "four white suits with Meridian-blue trim come in with lamps; they do not hurry",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": [
+       -1.5,
+       0.6,
+       -2.6
+      ],
+      "look": {
+       "actor": "r1",
+       "bone": "chest"
+      },
+      "lens": 28
+     },
+     {
+      "t": 1,
+      "pos": [
+       -1.4,
+       0.6,
+       -2.4
+      ],
+      "look": {
+       "actor": "r1",
+       "bone": "chest"
+      },
+      "lens": 30
+     }
+    ],
+    "ease": "linear",
+    "handheld": 0.2
+   },
+   "grade": {
+    "base": "tube",
+    "exposureAbs": 3.38,
+    "bloom": 1.8
+   },
+   "dof": {
+    "focus": "r1",
+    "fstop": 2.8
+   },
+   "set": "h"
+  },
+  {
+   "at": "C19.03",
+   "name": "Unit PIONEER-1. Hold still. It won't hurt.",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": {
+       "actor": "p1",
+       "bone": "head",
+       "o": [
+        0.45,
+        0.3,
+        -0.4
+       ]
+      },
+      "look": {
+       "actor": "r1",
+       "bone": "head"
+      },
+      "lens": 45
+     },
+     {
+      "t": 1,
+      "pos": {
+       "actor": "p1",
+       "bone": "head",
+       "o": [
+        0.42,
+        0.3,
+        -0.35
+       ]
+      },
+      "look": {
+       "actor": "r1",
+       "bone": "head"
+      },
+      "lens": 41.2
+     }
+    ],
+    "ease": "linear",
+    "handheld": 0.15
+   },
+   "grade": {
+    "base": "tube",
+    "exposureAbs": 3.38,
+    "bloom": 1.8
+   },
+   "dof": {
+    "focus": "r1",
+    "fstop": 2.0
+   },
+   "set": "h"
+  },
+  {
+   "at": "beat:6",
+   "name": "RECALL-4's lamp crosses the wall behind him: names, scratched into the rock with a drill bit",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": [
+       -0.6,
+       1.4,
+       -0.9
+      ],
+      "look": [
+       -2.4,
+       1.4,
+       -2.2
+      ],
+      "lens": 35
+     },
+     {
+      "t": 1,
+      "pos": [
+       -0.8,
+       1.45,
+       -1.4
+      ],
+      "look": [
+       -2.4,
+       1.5,
+       -2.8
+      ],
+      "lens": 40
+     }
+    ],
+    "ease": "linear",
+    "handheld": 0.15
+   },
+   "grade": {
+    "base": "tube",
+    "exposureAbs": 3.38
+   },
+   "dof": {
+    "focus": 1.8,
+    "fstop": 2.4
+   },
+   "set": "h"
+  },
+  {
+   "at": "C19.06",
+   "name": "I built your house.",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": {
+       "actor": "p1",
+       "bone": "head",
+       "o": [
+        0.64,
+        0.33,
+        1.575
+       ]
+      },
+      "look": {
+       "actor": "p1",
+       "bone": "head"
+      },
+      "lens": 45.0
+     },
+     {
+      "t": 1,
+      "pos": {
+       "actor": "p1",
+       "bone": "head",
+       "o": [
+        0.589,
+        0.33,
+        1.417
+       ]
+      },
+      "look": {
+       "actor": "p1",
+       "bone": "head"
+      },
+      "lens": 46.2
+     }
+    ],
+    "handheld": 0.12,
+    "ease": "linear"
+   },
+   "grade": {
+    "base": "tube",
+    "exposureAbs": 3.64
+   },
+   "dof": {
+    "focus": "p1",
+    "fstop": 1.8
+   },
+   "set": "h"
+  },
+  {
+   "at": "C19.07",
+   "name": "I know. Thank you. (and he means it, which is worse)",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": {
+       "actor": "r1",
+       "bone": "head",
+       "o": [
+        -0.64,
+        0.13,
+        1.575
+       ]
+      },
+      "look": {
+       "actor": "r1",
+       "bone": "head"
+      },
+      "lens": 46.2
+     },
+     {
+      "t": 1,
+      "pos": {
+       "actor": "r1",
+       "bone": "head",
+       "o": [
+        -0.589,
+        0.13,
+        1.417
+       ]
+      },
+      "look": {
+       "actor": "r1",
+       "bone": "head"
+      },
+      "lens": 47.5
+     }
+    ],
+    "handheld": 0.12,
+    "ease": "linear"
+   },
+   "grade": {
+    "base": "tube",
+    "exposureAbs": 3.38
+   },
+   "dof": {
+    "focus": "r1",
+    "fstop": 1.8
+   },
+   "set": "h"
+  },
+  {
+   "at": "beat:11",
+   "name": "the wand: a rising whine, a click",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": [
+       1.6,
+       0.9,
+       0.4
+      ],
+      "look": {
+       "actor": "p1",
+       "bone": "chest"
+      },
+      "lens": 35
+     },
+     {
+      "t": 1,
+      "pos": [
+       1.5,
+       0.9,
+       0.3
+      ],
+      "look": {
+       "actor": "p1",
+       "bone": "chest"
+      },
+      "lens": 38
+     }
+    ],
+    "ease": "linear",
+    "handheld": 0.1
+   },
+   "grade": {
+    "base": "tube",
+    "exposureAbs": 3.38,
+    "bloom": 1.8
+   },
+   "dof": {
+    "focus": "p1",
+    "fstop": 2.4
+   },
+   "set": "h"
+  }
+ ],
+ "track": [
+  {
+   "at": "start",
+   "actor": "r1",
+   "walk": [
+    0.4,
+    0,
+    3.0
+   ],
+   "speed": 0.6,
+   "gait": "walk_lamp",
+   "then": "guard"
+  },
+  {
+   "at": "start+0.8",
+   "actor": "r3",
+   "walk": [
+    1.2,
+    0,
+    3.8
+   ],
+   "speed": 0.6,
+   "gait": "walk_lamp",
+   "then": "guard"
+  },
+  {
+   "at": "beat:3",
+   "actor": "r1",
+   "walk": [
+    0.4,
+    0,
+    1.2
+   ],
+   "speed": 0.5,
+   "gait": "walk_lamp",
+   "then": "raise_wand"
+  },
+  {
+   "at": "beat:3+0.6",
+   "actor": "r2",
+   "walk": [
+    -0.6,
+    0,
+    2.0
+   ],
+   "speed": 0.5,
+   "gait": "walk_lamp",
+   "then": "guard"
+  },
+  {
+   "at": "beat:3+1.2",
+   "actor": "r4",
+   "walk": [
+    -1.2,
+    0,
+    1.0
+   ],
+   "speed": 0.5,
+   "gait": "walk_lamp",
+   "then": "idle"
+  },
+  {
+   "at": "beat:3",
+   "actor": "p1",
+   "lookAt": "r1",
+   "weight": 0.8
+  },
+  {
+   "at": "C19.04",
+   "actor": "r4",
+   "lookAt": [
+    -2.4,
+    1.4,
+    -2.2
+   ],
+   "weight": 1
+  },
+  {
+   "at": "C19.06",
+   "actor": "p1",
+   "lookAt": "r1",
+   "weight": 1
+  },
+  {
+   "at": "beat:11",
+   "fx": "sparks",
+   "set": "h",
+   "where": [
+    -1.6,
+    1.0,
+    -2.0
+   ],
+   "n": 20
+  },
+  {
+   "at": "beat:11",
+   "actor": "p1",
+   "play": "collapse",
+   "fade": 0.15
+  }
+ ]
+}

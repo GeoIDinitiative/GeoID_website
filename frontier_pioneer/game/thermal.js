@@ -32,7 +32,7 @@
  *
  * Hazards "Off": the pack stays warm, the heaters cost nothing, nothing wears.
  */
-import { registerSystem, getSystem } from "./systems.js?v=b8cfe8e-efa5b7b7";
+import { registerSystem, getSystem } from "./systems.js?v=6d37c9c-9b39e129";
 
 export const THERMAL = {
   setpointK: 283,

@@ -22,7 +22,7 @@
  * sinkage (deeper ruts are darker). It fades with distance driven and with
  * time. Tracks are not saved.
  */
-import * as THREE from "../vendor/three.module.js?v=b8cfe8e-efa5b7b7";
+import * as THREE from "../vendor/three.module.js?v=6d37c9c-9b39e129";
 
 const STEP = 0.5;            // metres between cross-sections
 

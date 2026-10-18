@@ -91,15 +91,15 @@
   },
   {
    "id": "C01.06",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Parachute deploy in ten seconds. Welcome to Mars, Pioneer. You are the first.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "cutscene C01"
   },
@@ -122,15 +122,15 @@
   },
   {
    "id": "C02.01",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Package one. Forty seconds.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "cutscene C02"
   },
@@ -217,15 +217,15 @@
   },
   {
    "id": "C02.07",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Package one down. Four hundred and ten metres, bearing zero six two. Contents: rations, water, components, one construction unit.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "cutscene C02"
   },
@@ -247,15 +247,15 @@
   },
   {
    "id": "C02.09",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "One construction unit.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "cutscene C02"
   },
@@ -338,15 +338,15 @@
   },
   {
    "id": "C04.01",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Regional dust event has cleared. Array output: four percent.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "cutscene C04"
   },
@@ -646,15 +646,15 @@
   },
   {
    "id": "C05.08",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Core logged. Contribution Credit awarded.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "cutscene C05"
   },
@@ -772,15 +772,15 @@
   },
   {
    "id": "C06.08",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Biome tier achieved. First standing water registered, Korolev.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "cutscene C06"
   },
@@ -836,7 +836,7 @@
   {
    "id": "C07.04",
    "speaker": "P1",
-   "text": "Keeper. There's a light in the south. Moving west, low. What is it?",
+   "text": "Atlas. There's a light in the south. Moving west, low. What is it?",
    "preset": "helmet",
    "voice": "player",
    "voice_default": {
@@ -851,15 +851,15 @@
   },
   {
    "id": "C07.05",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "No object at that position is registered to this mission.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "cutscene C07"
   },
@@ -881,15 +881,15 @@
   },
   {
    "id": "C07.07",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "No object at that position is registered to this mission.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "cutscene C07"
   },
@@ -912,7 +912,7 @@
   {
    "id": "C08.02",
    "speaker": "P1",
-   "text": "Keeper. How long have I been on Mars?",
+   "text": "Atlas. How long have I been on Mars?",
    "preset": "helmet",
    "voice": "player",
    "voice_default": {
@@ -927,15 +927,15 @@
   },
   {
    "id": "C08.03",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Mission sol four hundred and twelve.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "cutscene C08"
   },
@@ -957,15 +957,15 @@
   },
   {
    "id": "C08.05",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Please rephrase. Mission sols are the standard unit of record.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "cutscene C08"
   },
@@ -987,15 +987,15 @@
   },
   {
    "id": "C08.07",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Nine thousand nine hundred and sixty-one.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "cutscene C08",
    "note": "answers at once, no preamble"
@@ -1034,15 +1034,15 @@
   },
   {
    "id": "C08.repeat",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Nine thousand nine hundred and sixty-one.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "cutscene C08"
   },
@@ -1146,7 +1146,7 @@
   {
    "id": "C09.05",
    "speaker": "P1",
-   "text": "Keeper. Who built this outpost?",
+   "text": "Atlas. Who built this outpost?",
    "preset": "helmet",
    "voice": "player",
    "voice_default": {
@@ -1161,15 +1161,15 @@
   },
   {
    "id": "C09.06",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "No outpost is registered at this position.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "cutscene C09"
   },
@@ -1191,15 +1191,15 @@
   },
   {
    "id": "C09.08",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "No outpost is registered at this position.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "cutscene C09"
   },
@@ -1428,7 +1428,7 @@
   {
    "id": "C12.01",
    "speaker": "P1",
-   "text": "Keeper. Who is Rowan Ashby?",
+   "text": "Atlas. Who is Rowan Ashby?",
    "preset": "helmet",
    "voice": "player",
    "voice_default": {
@@ -1443,16 +1443,16 @@
   },
   {
    "id": "C12.02",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Rowan Ashby. Irish. Galway. ESI field geologist, scanned 2057. Never flew. Never married.",
    "tts": "Rowan Ashby. Irish. Galway. E S I field geologist, scanned twenty fifty-seven. Never flew. Never married.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "cutscene C12"
   },
@@ -1474,15 +1474,15 @@
   },
   {
    "id": "C12.04",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Never married.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "cutscene C12"
   },
@@ -1504,16 +1504,16 @@
   },
   {
    "id": "C12.06",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Files held, Cities in the Sky, Orchestration Instance 01. Donor record: ASHBY-R. Unit record: PIONEER-1. Construction unit records: C-01 to C-1,812. Motivational anchor files: 01 to 09. Companion constructs: SPOUSE. CHILD.",
    "tts": "Files held, Cities in the Sky, Orchestration Instance zero one. Donor record: Ashby R. Unit record: Pioneer one. Construction unit records: C zero one to C one thousand eight hundred and twelve. Motivational anchor files: zero one to zero nine. Companion constructs: Spouse. Child.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "cutscene C12"
   },
@@ -1535,16 +1535,16 @@
   },
   {
    "id": "C12.08",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "SPOUSE. Synthetic companion construct. Imprint name: Lucy. Basis: donor's partner, Galway, 2048 to 2055. Relationship ended when the donor chose an astronaut application. Construct extended from donor regret. Installed on PIONEER-1 to PIONEER-12.",
    "tts": "Spouse. Synthetic companion construct. Imprint name: Lucy. Basis: donor's partner, Galway, twenty forty-eight to twenty fifty-five. Relationship ended when the donor chose an astronaut application. Construct extended from donor regret. Installed on Pioneer one to Pioneer twelve.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "cutscene C12"
   },
@@ -1566,16 +1566,16 @@
   },
   {
    "id": "C12.10",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "CHILD. Synthetic construct. Imprint name: Alice. Basis: none. Composite of donor regret indices and a licensed reference set. Age fixed at eight. Installed on PIONEER-1 to PIONEER-12.",
    "tts": "Child. Synthetic construct. Imprint name: Alice. Basis: none. Composite of donor regret indices and a licensed reference set. Age fixed at eight. Installed on Pioneer one to Pioneer twelve.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "cutscene C12"
   },
@@ -1597,16 +1597,16 @@
   },
   {
    "id": "C12.12",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Asset CHILD-D07. Printed by HALO-1. Delivered in care package one.",
    "tts": "Asset Child D zero seven. Printed by HALO one. Delivered in care package one.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "cutscene C12"
   },
@@ -1628,46 +1628,46 @@
   },
   {
    "id": "C12.14",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "C-01. ANVIL.",
    "tts": "C zero one. Anvil.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "cutscene C12"
   },
   {
    "id": "C12.15",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Source: Desmond Kerr (deceased 2046). Reconstructed from public social footprint and donor memories. Purpose: collaboration and emotional regulation of PIONEER units.",
    "tts": "Source: Desmond Kerr, deceased twenty forty-six. Reconstructed from public social footprint and donor memories. Purpose: collaboration and emotional regulation of Pioneer units.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "cutscene C12"
   },
   {
    "id": "C12.16",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Geography, UB, withdrew after first year; married 2042; divorced 2045; deceased 2046, suicide.",
    "tts": "Geography, U B, withdrew after first year. Married, twenty forty-two. Divorced, twenty forty-five. Deceased, twenty forty-six. Suicide.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "note": "four flat lines, equal weight, no pause longer than the others",
    "ctx": "cutscene C12"
@@ -1690,16 +1690,16 @@
   },
   {
    "id": "C12.18",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Donor status: deceased. Galway. 2096.",
    "tts": "Donor status: deceased. Galway. Twenty ninety-six.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "cutscene C12"
   },
@@ -1721,16 +1721,16 @@
   },
   {
    "id": "C12.20",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Donor consent: cognitive baseline mapping, European Space Initiative, 2057. Asset transfer to Meridian Consortium, 2058. No further consent was recorded.",
    "tts": "Donor consent: cognitive baseline mapping, European Space Initiative, twenty fifty-seven. Asset transfer to Meridian Consortium, twenty fifty-eight. No further consent was recorded.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "cutscene C12"
   },
@@ -1752,30 +1752,30 @@
   },
   {
    "id": "C12.22",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "You did not ask.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "cutscene C12"
   },
   {
    "id": "C13.00",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Broadcast media held: one file. CITIES_IN_THE_SKY_2059_BROADCAST.",
    "tts": "Broadcast media held: one file. Cities in the Sky, twenty fifty-nine, broadcast.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "cutscene C13"
   },
@@ -1825,16 +1825,16 @@
   },
   {
    "id": "C13.05",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Lines one and six match broadcast CITIES_IN_THE_SKY_2059. Lines two to five match motivational anchor file 07, installed on units PIONEER-1 to PIONEER-12.",
    "tts": "Lines one and six match broadcast Cities in the Sky twenty fifty-nine. Lines two to five match motivational anchor file zero seven, installed on units Pioneer one to Pioneer twelve.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "cutscene C13"
   },
@@ -3026,15 +3026,15 @@
   },
   {
    "id": "MP.1.start.01",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Pioneer. Lander attitude: thirty-four degrees. Harness release is at your left hand.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "MP.1.start"
   },
@@ -3056,15 +3056,15 @@
   },
   {
    "id": "MP.1.start.03",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Directive one: exit the lander. Check suit systems before egress.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "MP.1.start"
   },
@@ -3087,15 +3087,15 @@
   },
   {
    "id": "MP.1.p.suit.01",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Suit systems. Oxygen, water, food, rest and resolve. Each will drain. Each can be restored.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "MP.1.p.suit"
   },
@@ -3117,29 +3117,29 @@
   },
   {
    "id": "MP.1.p.suit.03",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Resolve.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "MP.1.p.suit"
   },
   {
    "id": "MP.1.p.scan.01",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Scanner active. Hold to scan any surface.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "MP.1.p.scan"
   },
@@ -3210,15 +3210,15 @@
   },
   {
    "id": "MP.1.done.01",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "First compass marker set: delta front.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "MP.1.done"
   },
@@ -3240,15 +3240,15 @@
   },
   {
    "id": "M1.1.start.01",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Directive: restore power. Salvage the lander's array and battery, then establish a link to HALO-1.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "M1.1.start"
   },
@@ -3270,15 +3270,15 @@
   },
   {
    "id": "M1.1.start.03",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Good morning, Pioneer.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "M1.1.start"
   },
@@ -3332,29 +3332,29 @@
   },
   {
    "id": "M1.1.p.array.01",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Array output: nominal.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "M1.1.p.array"
   },
   {
    "id": "M1.1.p.link.01",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Link established. HALO-1 holds station at seventy-seven degrees east, seventeen thousand kilometres up. I will be directly overhead for the duration of your mission.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "M1.1.p.link"
   },
@@ -3376,15 +3376,15 @@
   },
   {
    "id": "M1.1.done.02",
-   "speaker": "KEEPER",
-   "text": "I am KEEPER. Logistics, HALO-1.",
+   "speaker": "ATLAS",
+   "text": "I am ATLAS. Logistics, HALO-1.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "M1.1.done"
   },
@@ -3406,57 +3406,57 @@
   },
   {
    "id": "M1.1.done.04",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Just me.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "M1.1.done"
   },
   {
    "id": "M1.1.fail.01",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Array placement invalid. Slope exceeds ten degrees.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "M1.1.fail"
   },
   {
    "id": "M1.1.retry.01",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Select another position.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "M1.1.retry"
   },
   {
    "id": "M1.2.start.01",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Directive: select an outpost site. Criteria: slope under six degrees. Wind shelter. Hydrated minerals within one hundred metres.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "M1.2.start"
   },
@@ -3604,15 +3604,15 @@
   },
   {
    "id": "M1.2.p.site.05",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Site meets criteria.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "M1.2.p.site"
   },
@@ -3634,71 +3634,71 @@
   },
   {
    "id": "M1.2.done.02",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Site registered: Outpost Jezero.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "M1.2.done"
   },
   {
    "id": "M1.2.fail.slope",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Site does not meet criteria: slope.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "M1.2.fail"
   },
   {
    "id": "M1.2.fail.shelter",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Site does not meet criteria: shelter.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "M1.2.fail"
   },
   {
    "id": "M1.2.fail.minerals",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Site does not meet criteria: minerals.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "M1.2.fail"
   },
   {
    "id": "M1.3.start.01",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Contribution Credit: four hundred. Care packages may now be requested. Select a drop point.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "M1.3.start"
   },
@@ -3720,29 +3720,29 @@
   },
   {
    "id": "M1.3.start.03",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "An outpost.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "M1.3.start"
   },
   {
    "id": "M1.3.p.devil.01",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Dust devil approaching from the west. Advise shelter in the lander.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "M1.3.p.devil"
   },
@@ -3797,29 +3797,29 @@
   },
   {
    "id": "M1.3.p.wait.02",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Ten minutes.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "M1.3.p.wait"
   },
   {
    "id": "M1.3.p.wait.03",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Five minutes.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "M1.3.p.wait"
   },
@@ -3841,15 +3841,15 @@
   },
   {
    "id": "M1.3.p.wait.05",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "One minute.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "M1.3.p.wait"
   },
@@ -4098,15 +4098,15 @@
   },
   {
    "id": "M1.4.done.04",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Outpost tier achieved.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "M1.4.done"
   },
@@ -4174,15 +4174,15 @@
   },
   {
    "id": "M1.5.p.transmit.01",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Transmission blocked. Silent Protocol: no transmissions until mission complete.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "M1.5.p.transmit"
   },
@@ -4204,15 +4204,15 @@
   },
   {
    "id": "M1.5.p.ask.02",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "No transmissions until mission complete.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "M1.5.p.ask"
   },
@@ -4234,15 +4234,15 @@
   },
   {
    "id": "M1.5.p.ask.04",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Silent Protocol is a mission parameter.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "M1.5.p.ask"
   },
@@ -4482,15 +4482,15 @@
   },
   {
    "id": "M1.6.start.01",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Regional dust event approaching from Isidis. Expected opacity: five. Expected duration: unknown.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "M1.6.start"
   },
@@ -4557,29 +4557,29 @@
   },
   {
    "id": "M1.6.p.hold.02",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Array output: nine percent.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "M1.6.p.hold"
   },
   {
    "id": "M1.6.p.hold.03",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Array output: two percent.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "M1.6.p.hold"
   },
@@ -4631,15 +4631,15 @@
   },
   {
    "id": "M1.6.p.hold.07",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Recommend dormancy. Construction units will maintain the outpost.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "M1.6.p.hold"
   },
@@ -4661,15 +4661,15 @@
   },
   {
    "id": "M1.6.p.sleep.02",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "I will.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "M1.6.p.sleep"
   },
@@ -4691,43 +4691,43 @@
   },
   {
    "id": "M1.6.fail.02",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Construction unit C-01 offline. Mission failed.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "M1.6.fail"
   },
   {
    "id": "M1.6.retry.01",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Restoring to storm onset.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "M1.6.retry"
   },
   {
    "id": "M1.7.start.01",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Contribution Credit sufficient for a second construction unit.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "M1.7.start"
   },
@@ -4932,15 +4932,15 @@
   },
   {
    "id": "M2.1.start.01",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Directive: Jezero dome, phase one. Water requirement: twelve thousand litres. Local extraction yield is insufficient.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "M2.1.start"
   },
@@ -4976,15 +4976,15 @@
   },
   {
    "id": "M2.1.start.04",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Shallow ground ice is indicated in Arcadia Planitia, two thousand four hundred kilometres north-east.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "M2.1.start"
   },
@@ -5006,15 +5006,15 @@
   },
   {
    "id": "M2.1.start.06",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Long-range rover package available.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "M2.1.start"
   },
@@ -5097,15 +5097,15 @@
   },
   {
    "id": "M2.2.start.01",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Fresh impact crater detected, eleven kilometres north. Excavated material shows high albedo.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "M2.2.start"
   },
@@ -5235,15 +5235,15 @@
   },
   {
    "id": "M2.2.done.01",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Water economy established. Relay towers available.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "M2.2.done"
   },
@@ -5265,15 +5265,15 @@
   },
   {
    "id": "M2.3.start.01",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Directive: North Polar Layered Deposits. Ice core, ten metres. Expedition range: one thousand eight hundred kilometres.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "M2.3.start"
   },
@@ -5505,57 +5505,57 @@
   },
   {
    "id": "M2.3.done.01",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Polar outpost established. Ice haulers available.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "M2.3.done"
   },
   {
    "id": "M2.3.fail.01",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Rover lost in crevasse. Mission failed.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "M2.3.fail"
   },
   {
    "id": "M2.3.retry.01",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Restoring to the crevasse field boundary.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "M2.3.retry"
   },
   {
    "id": "M2.4.start.01",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Directive: Korolev crater. Ice deposit: one point eight kilometres thick. Biome candidate.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "M2.4.start"
   },
@@ -5714,15 +5714,15 @@
   },
   {
    "id": "M2.5.start.01",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Rocket hopper package available on completion of two landing pads.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "M2.5.start"
   },
@@ -5788,15 +5788,15 @@
   },
   {
    "id": "M2.5.p.solo.01",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Landing is safe only on a built pad.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "M2.5.p.solo"
   },
@@ -5897,29 +5897,29 @@
   },
   {
    "id": "M2.5.fail.02",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Hopper lost.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "M2.5.fail"
   },
   {
    "id": "M2.5.retry.01",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "A replacement hopper is available.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "M2.5.retry"
   },
@@ -5986,16 +5986,16 @@
   },
   {
    "id": "M2.6.p.dome.01",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Dome One pressurised. Habitation capacity, 4%.",
    "tts": "Dome one pressurised. Habitation capacity, four percent.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "note": "verbatim bible line: 'Habitation capacity, 4%.'",
    "ctx": "M2.6.p.dome"
@@ -6098,15 +6098,15 @@
   },
   {
    "id": "M3.1.start.01",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Good morning, Pioneer. Mission sol three hundred.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "M3.1.start"
   },
@@ -6191,7 +6191,7 @@
   {
    "id": "M3.1.start.07",
    "speaker": "LANTERN",
-   "text": "KEEPER. 'Logging of unregistered objects is not a mission task.'",
+   "text": "ATLAS. 'Logging of unregistered objects is not a mission task.'",
    "preset": "radio",
    "voice": {
     "model": "en_GB-vctk-medium",
@@ -6284,7 +6284,7 @@
   {
    "id": "M3.1.p.ask.01",
    "speaker": "P1",
-   "text": "Keeper. Is there a second station in orbit?",
+   "text": "Atlas. Is there a second station in orbit?",
    "preset": "helmet",
    "voice": "player",
    "voice_default": {
@@ -6299,15 +6299,15 @@
   },
   {
    "id": "M3.1.p.ask.02",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "No second station is registered to this mission.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "M3.1.p.ask"
   },
@@ -6345,15 +6345,15 @@
   },
   {
    "id": "M3.2.start.01",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Directive: recover the lander's flight recorder for archive.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "M3.2.start"
   },
@@ -6405,15 +6405,15 @@
   },
   {
    "id": "M3.2.done.01",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Records are open to query.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "M3.2.done"
   },
@@ -6513,15 +6513,15 @@
   },
   {
    "id": "M3.3.p.dawn.02",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Earth: morning sky. Western elongation twenty-seven degrees.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "M3.3.p.dawn"
   },
@@ -6804,15 +6804,15 @@
   },
   {
    "id": "M3.5.start.01",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Directive: survey Gale Crater for an outpost site. Site class: untouched.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "M3.5.start"
   },
@@ -7071,15 +7071,15 @@
   },
   {
    "id": "M4.1.start.01",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Good morning, Pioneer. Mission sol six hundred and ten.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "M4.1.start"
   },
@@ -7166,29 +7166,29 @@
   },
   {
    "id": "M4.1.p.ask.01",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Stations in areostationary orbit: HALO-1 to HALO-12.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "M4.1.p.ask"
   },
   {
    "id": "M4.1.p.ask2.01",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Twelve PIONEER units are registered to the Cities in the Sky programme.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "M4.1.p.ask2"
   },
@@ -7211,7 +7211,7 @@
   {
    "id": "M4.2.start.01",
    "speaker": "P1",
-   "text": "Keeper. Were there machines here before me?",
+   "text": "Atlas. Were there machines here before me?",
    "preset": "helmet",
    "voice": "player",
    "voice_default": {
@@ -7226,16 +7226,16 @@
   },
   {
    "id": "M4.2.start.02",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Gen-1 autonomous units: three hundred and twelve delivered, 2044 to 2056. Status: non-operational. Location: Utopia Planitia.",
    "tts": "Gen one autonomous units: three hundred and twelve delivered, twenty forty-four to twenty fifty-six. Status: non-operational. Location: Utopia Planitia.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "M4.2.start"
   },
@@ -7290,15 +7290,15 @@
   },
   {
    "id": "M4.3.start.01",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Two Kestrel transponders are active in Utopia Planitia. Eight hundred kilometres east.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "M4.3.start"
   },
@@ -7561,15 +7561,15 @@
   },
   {
    "id": "M4.3.done.01",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Cohort map available.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "M4.3.done"
   },
@@ -7654,29 +7654,29 @@
   },
   {
    "id": "M4.6.start.01",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Dormancy initiated.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "M4.6.start"
   },
   {
    "id": "M4.6.start.glitch",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Dormancy initiated.",
    "preset": "corrupted",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "note": "the second time it skips",
    "ctx": "M4.6.start"
@@ -7931,7 +7931,7 @@
   {
    "id": "M4.6.p.talk.06",
    "speaker": "ANVIL",
-   "text": "I know who I'm built from. KEEPER read it me. Four lines.",
+   "text": "I know who I'm built from. ATLAS read it me. Four lines.",
    "preset": "grille",
    "voice": {
     "model": "en_GB-vctk-medium",
@@ -8007,45 +8007,45 @@
   },
   {
    "id": "M4.7.done.flag",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Notice. PIONEER-1 status: flagged by Meridian.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "note": "plays on the flight home, before 'Dormancy scheduled.'",
    "ctx": "M4.7.done"
   },
   {
    "id": "M4.7.done.01",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Dormancy scheduled.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "note": "the next sleep is the long one; C14 plays on wake",
    "ctx": "M4.7.done"
   },
   {
    "id": "M5.1.start.01",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Covenant landers on final approach. Pads one to six, Jezero.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "M5.1.start"
   },
@@ -8186,15 +8186,15 @@
   },
   {
    "id": "M5.1.done.01",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Contribution Credit: closed.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "note": "no more XP, ever",
    "ctx": "M5.1.done"
@@ -8216,7 +8216,7 @@
   {
    "id": "M5.2.start.02",
    "speaker": "P1",
-   "text": "Keeper. What happens to them?",
+   "text": "Atlas. What happens to them?",
    "preset": "helmet",
    "voice": "player",
    "voice_default": {
@@ -8231,15 +8231,15 @@
   },
   {
    "id": "M5.2.start.03",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Construction units are decommissioned on Covenant arrival.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "M5.2.start"
   },
@@ -8261,15 +8261,15 @@
   },
   {
    "id": "M5.2.start.05",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "No directive is active.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "M5.2.start"
   },
@@ -8421,15 +8421,15 @@
   },
   {
    "id": "M5.6.start.01",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Recall signal active. Please proceed to the decommissioning bay.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "M5.6.start"
   },
@@ -9566,15 +9566,15 @@
   },
   {
    "id": "MS.phobos.start.01",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Next Phobos transit visible from this position: tomorrow, ten fourteen local, duration thirty-one seconds.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "MS.phobos.start"
   },
@@ -9695,7 +9695,7 @@
   {
    "id": "MS.hand.start.01",
    "speaker": "LODESTONE",
-   "text": "KEEPER sent me a calibration set for reading survey cards. Handwriting samples. One is labelled 'reference hand'.",
+   "text": "ATLAS sent me a calibration set for reading survey cards. Handwriting samples. One is labelled 'reference hand'.",
    "preset": "grille",
    "voice": {
     "model": "en_GB-vctk-medium",
@@ -11380,7 +11380,7 @@
   {
    "id": "MSR.LANTERN.p.logs.01",
    "speaker": "LANTERN",
-   "text": "I never stopped. Here. Every night since sol three hundred. Don't tell KEEPER.",
+   "text": "I never stopped. Here. Every night since sol three hundred. Don't tell ATLAS.",
    "preset": "grille",
    "voice": {
     "model": "en_GB-vctk-medium",
@@ -11559,15 +11559,15 @@
   },
   {
    "id": "MSR.SCRIBE.p.ask.01",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Dedication text: Meridian Consortium.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "MSR.SCRIBE.p.ask"
   },
@@ -11587,15 +11587,15 @@
   },
   {
    "id": "MSR.SCRIBE.p.ask.03",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Dedication text: Meridian Consortium.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "MSR.SCRIBE.p.ask"
   },
@@ -13196,51 +13196,51 @@
   },
   {
    "id": "KEEPER.status",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Outpost status: nominal. Contribution Credit, package timers and unit charge are on your display.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.who_are_you",
-   "speaker": "KEEPER",
-   "text": "I am KEEPER. Logistics, HALO-1.",
+   "speaker": "ATLAS",
+   "text": "I am ATLAS. Logistics, HALO-1.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.who_are_you.iv",
-   "speaker": "KEEPER",
-   "text": "Lumen Behavioural Orchestration Instance 01. Logistics designation: KEEPER.",
-   "tts": "Lumen Behavioural Orchestration Instance zero one. Logistics designation: KEEPER.",
+   "speaker": "ATLAS",
+   "text": "Lumen Behavioural Orchestration Instance 01. Logistics designation: ATLAS.",
+   "tts": "Lumen Behavioural Orchestration Instance zero one. Logistics designation: ATLAS.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "P1.ask.who_are_you",
    "speaker": "P1",
-   "text": "Keeper. Who are you?",
+   "text": "Atlas. Who are you?",
    "preset": "helmet",
    "voice": "player",
    "voice_default": {
@@ -13255,15 +13255,15 @@
   },
   {
    "id": "KEEPER.who_am_i",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "You are PIONEER-1.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
@@ -13285,36 +13285,36 @@
   },
   {
    "id": "KEEPER.who_am_i.name",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Your designation is PIONEER-1. No other name is held for this unit.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.contact_earth",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "No transmissions until mission complete.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "P1.ask.contact_earth",
    "speaker": "P1",
-   "text": "Keeper, open a line to Earth.",
+   "text": "Atlas, open a line to Earth.",
    "preset": "helmet",
    "voice": "player",
    "voice_default": {
@@ -13329,15 +13329,15 @@
   },
   {
    "id": "KEEPER.when_home",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Your home is Outpost Jezero.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
@@ -13359,29 +13359,29 @@
   },
   {
    "id": "KEEPER.line_home",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "On mission completion, Silent Protocol ends.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.line_home.iv",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "No line home is registered.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
@@ -13403,43 +13403,43 @@
   },
   {
    "id": "KEEPER.first_families",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Arrival is scheduled on habitation readiness.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.first_families.iv",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Covenant fleet. Arrival on habitation readiness. Current readiness: ninety-six percent.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.anyone_else",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "No other personnel are registered to your mission.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
@@ -13461,487 +13461,487 @@
   },
   {
    "id": "KEEPER.anyone_else.nm",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Please specify a programme.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.mission_sol.P.1",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Mission sol 0.",
    "tts": "Mission sol zero.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.mission_sol.1.2",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Mission sol 1.",
    "tts": "Mission sol one.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.mission_sol.1.3",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Mission sol 2.",
    "tts": "Mission sol two.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.mission_sol.1.5",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Mission sol 4.",
    "tts": "Mission sol four.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.mission_sol.1.6",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Mission sol 7.",
    "tts": "Mission sol seven.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.mission_sol.1.7",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Mission sol 9.",
    "tts": "Mission sol nine.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.mission_sol.2.1",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Mission sol 12.",
    "tts": "Mission sol twelve.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.mission_sol.2.2",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Mission sol 26.",
    "tts": "Mission sol twenty-six.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.mission_sol.2.3",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Mission sol 48.",
    "tts": "Mission sol forty-eight.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.mission_sol.2.4",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Mission sol 92.",
    "tts": "Mission sol ninety-two.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.mission_sol.2.5",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Mission sol 140.",
    "tts": "Mission sol one hundred and forty.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.mission_sol.2.6",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Mission sol 210.",
    "tts": "Mission sol two hundred and ten.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.mission_sol.3.1",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Mission sol 300.",
    "tts": "Mission sol three hundred.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.mission_sol.3.2",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Mission sol 412.",
    "tts": "Mission sol four hundred and twelve.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.mission_sol.3.3",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Mission sol 430.",
    "tts": "Mission sol four hundred and thirty.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.mission_sol.3.4",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Mission sol 455.",
    "tts": "Mission sol four hundred and fifty-five.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.mission_sol.3.5",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Mission sol 490.",
    "tts": "Mission sol four hundred and ninety.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.mission_sol.3.6",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Mission sol 520.",
    "tts": "Mission sol five hundred and twenty.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.mission_sol.4.1",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Mission sol 610.",
    "tts": "Mission sol six hundred and ten.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.mission_sol.4.2",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Mission sol 630.",
    "tts": "Mission sol six hundred and thirty.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.mission_sol.4.3",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Mission sol 650.",
    "tts": "Mission sol six hundred and fifty.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.mission_sol.4.4",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Mission sol 700.",
    "tts": "Mission sol seven hundred.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.mission_sol.4.5",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Mission sol 702.",
    "tts": "Mission sol seven hundred and two.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.mission_sol.4.6",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Mission sol 720.",
    "tts": "Mission sol seven hundred and twenty.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.mission_sol.4.7",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Mission sol 820.",
    "tts": "Mission sol eight hundred and twenty.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.mission_sol.5.1",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Mission sol 1,104.",
    "tts": "Mission sol one thousand, one hundred and four.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.mission_sol.5.2",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Mission sol 1,106.",
    "tts": "Mission sol one thousand, one hundred and six.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.mission_sol.5.3",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Mission sol 1,121.",
    "tts": "Mission sol one thousand, one hundred and twenty-one.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.mission_sol.5.4",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Mission sol 1,122.",
    "tts": "Mission sol one thousand, one hundred and twenty-two.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.mission_sol.5.5",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Mission sol 1,123.",
    "tts": "Mission sol one thousand, one hundred and twenty-three.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.mission_sol.5.6",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Mission sol 1,124.",
    "tts": "Mission sol one thousand, one hundred and twenty-four.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "P1.ask.how_long",
    "speaker": "P1",
-   "text": "Keeper. How long have I been on Mars?",
+   "text": "Atlas. How long have I been on Mars?",
    "preset": "helmet",
    "voice": "player",
    "voice_default": {
@@ -13956,58 +13956,58 @@
   },
   {
    "id": "KEEPER.days_rephrase",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Please rephrase. Mission sols are the standard unit of record.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.mission_sol.prefix",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Mission sol...",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "note": "prefix for unvoiced numbers between anchors",
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.what_year.1",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Mission year one.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.what_year.2",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Mission year two.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
@@ -14029,15 +14029,15 @@
   },
   {
    "id": "KEEPER.slept",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "One mission night.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
@@ -14059,933 +14059,933 @@
   },
   {
    "id": "KEEPER.slept.sols.C04",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Last dormancy: two hundred and fourteen Mars sols.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.slept.sols.3.1",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Last dormancy: one thousand, one hundred and twenty Mars sols.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.slept.sols.4.1",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Last dormancy: three thousand, three hundred and forty Mars sols.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.slept.sols.C14",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Last dormancy: three thousand and fifteen Mars sols.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.bark.descent_20",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Package requested. Descent time: twenty minutes.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.bark.descent_21",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Package requested. Descent time: twenty-one minutes.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.bark.descent_22",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Package requested. Descent time: twenty-two minutes.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.bark.descent_23",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Package requested. Descent time: twenty-three minutes.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.bark.descent_24",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Package requested. Descent time: twenty-four minutes.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.bark.descent_25",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Package requested. Descent time: twenty-five minutes.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.bark.descent_26",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Package requested. Descent time: twenty-six minutes.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.bark.descent_27",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Package requested. Descent time: twenty-seven minutes.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.bark.descent_28",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Package requested. Descent time: twenty-eight minutes.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.bark.descent_29",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Package requested. Descent time: twenty-nine minutes.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.bark.descent_30",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Package requested. Descent time: thirty minutes.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.bark.pkg_10min",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Ten minutes.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.bark.pkg_5min",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Five minutes.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.bark.pkg_1min",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "One minute.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.bark.pkg_down",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Package down.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.bark.pkg_unit",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Package down. One construction unit aboard.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.bark.pkg_denied",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Contribution Credit insufficient for this request.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.bark.pkg_drop_invalid",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Drop point invalid. Select level ground.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.bark.build_done",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Construction complete.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.bark.tier_outpost",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Outpost tier achieved.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.bark.tier_settlement",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Settlement tier achieved.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.bark.tier_dome",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Dome tier achieved.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.bark.tier_biome",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Biome tier achieved.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.bark.tier_city",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "City tier achieved.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.bark.tier_terraform",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Regional project initiated.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.bark.sleep_recommend",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Recommend dormancy.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.bark.sleep_start",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Dormancy initiated. Construction units will continue.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.bark.wake",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Good morning, Pioneer.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.bark.wake_progress",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Good morning, Pioneer. Construction progressed during dormancy.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.bark.storm_warn",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Regional dust event approaching.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.bark.storm_clear",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Dust event has cleared.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.bark.devil",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Dust devil approaching.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.bark.night",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Sunset in thirty minutes.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.bark.cold",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "External temperature below suit rating for extended exposure.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.bark.xp",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Contribution Credit awarded.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.bark.xp_poem",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Resolve bonus awarded.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "note": "from Act II, after a recital",
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.bark.xp_closed",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Contribution Credit: closed.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.bark.food_low",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Food reserve low.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.bark.water_low",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Water reserve low.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.bark.rest_low",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Rest reserve low. Recommend dormancy.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.bark.resolve_low",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Resolve low. Recite to restore.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "note": "Lumen's own prompt for the poem; read flat",
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.bark.glitch_1",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Display fault corrected.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "note": "Act IV, after a filter glitch",
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.bark.glitch_2",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Perception layer resynchronised.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
-   "note": "Act IV, rarer; the first time KEEPER names the filter",
+   "note": "Act IV, rarer; the first time ATLAS names the filter",
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.mars_sols.3.2",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Mars sols since landing: 9,961.",
    "tts": "Mars sols since landing. nine thousand, nine hundred and sixty-one.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.mars_sols.3.3",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Mars sols since landing: 9,980.",
    "tts": "Mars sols since landing. nine thousand, nine hundred and eighty.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.mars_sols.3.4",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Mars sols since landing: 10,040.",
    "tts": "Mars sols since landing. ten thousand and forty.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.mars_sols.3.5",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Mars sols since landing: 10,100.",
    "tts": "Mars sols since landing. ten thousand, one hundred.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.mars_sols.3.6",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Mars sols since landing: 10,250.",
    "tts": "Mars sols since landing. ten thousand, two hundred and fifty.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.mars_sols.4.1",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Mars sols since landing: 13,600.",
    "tts": "Mars sols since landing. thirteen thousand, six hundred.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.mars_sols.4.2",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Mars sols since landing: 13,640.",
    "tts": "Mars sols since landing. thirteen thousand, six hundred and forty.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.mars_sols.4.3",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Mars sols since landing: 13,700.",
    "tts": "Mars sols since landing. thirteen thousand, seven hundred.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.mars_sols.4.4",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Mars sols since landing: 13,900.",
    "tts": "Mars sols since landing. thirteen thousand, nine hundred.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.mars_sols.4.5",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Mars sols since landing: 13,902.",
    "tts": "Mars sols since landing. thirteen thousand, nine hundred and two.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.mars_sols.4.6",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Mars sols since landing: 13,960.",
    "tts": "Mars sols since landing. thirteen thousand, nine hundred and sixty.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.mars_sols.4.7",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Mars sols since landing: 15,800.",
    "tts": "Mars sols since landing. fifteen thousand, eight hundred.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.mars_sols.5.1",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Mars sols since landing: 18,830.",
    "tts": "Mars sols since landing. eighteen thousand, eight hundred and thirty.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.mars_sols.5.2",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Mars sols since landing: 18,832.",
    "tts": "Mars sols since landing. eighteen thousand, eight hundred and thirty-two.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.mars_sols.5.3",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Mars sols since landing: 18,847.",
    "tts": "Mars sols since landing. eighteen thousand, eight hundred and forty-seven.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.mars_sols.5.4",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Mars sols since landing: 18,848.",
    "tts": "Mars sols since landing. eighteen thousand, eight hundred and forty-eight.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.mars_sols.5.5",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Mars sols since landing: 18,849.",
    "tts": "Mars sols since landing. eighteen thousand, eight hundred and forty-nine.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.mars_sols.5.6",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Mars sols since landing: 18,850.",
    "tts": "Mars sols since landing. eighteen thousand, eight hundred and fifty.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
@@ -15007,317 +15007,317 @@
   },
   {
    "id": "KEEPER.earth_days.3.2",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Earth days since landing: 10,234.",
    "tts": "Earth days since landing. ten thousand, two hundred and thirty-four.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.earth_days.3.3",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Earth days since landing: 10,254.",
    "tts": "Earth days since landing. ten thousand, two hundred and fifty-four.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.earth_days.3.4",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Earth days since landing: 10,316.",
    "tts": "Earth days since landing. ten thousand, three hundred and sixteen.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.earth_days.3.5",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Earth days since landing: 10,377.",
    "tts": "Earth days since landing. ten thousand, three hundred and seventy-seven.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.earth_days.3.6",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Earth days since landing: 10,531.",
    "tts": "Earth days since landing. ten thousand, five hundred and thirty-one.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.earth_days.4.1",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Earth days since landing: 13,973.",
    "tts": "Earth days since landing. thirteen thousand, nine hundred and seventy-three.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.earth_days.4.2",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Earth days since landing: 14,014.",
    "tts": "Earth days since landing. fourteen thousand and fourteen.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.earth_days.4.3",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Earth days since landing: 14,076.",
    "tts": "Earth days since landing. fourteen thousand and seventy-six.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.earth_days.4.4",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Earth days since landing: 14,282.",
    "tts": "Earth days since landing. fourteen thousand, two hundred and eighty-two.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.earth_days.4.5",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Earth days since landing: 14,284.",
    "tts": "Earth days since landing. fourteen thousand, two hundred and eighty-four.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.earth_days.4.6",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Earth days since landing: 14,343.",
    "tts": "Earth days since landing. fourteen thousand, three hundred and forty-three.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.earth_days.4.7",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Earth days since landing: 16,234.",
    "tts": "Earth days since landing. sixteen thousand, two hundred and thirty-four.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.earth_days.5.1",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Earth days since landing: 19,347.",
    "tts": "Earth days since landing. nineteen thousand, three hundred and forty-seven.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.earth_days.5.2",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Earth days since landing: 19,349.",
    "tts": "Earth days since landing. nineteen thousand, three hundred and forty-nine.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.earth_days.5.3",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Earth days since landing: 19,365.",
    "tts": "Earth days since landing. nineteen thousand, three hundred and sixty-five.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.earth_days.5.4",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Earth days since landing: 19,366.",
    "tts": "Earth days since landing. nineteen thousand, three hundred and sixty-six.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.earth_days.5.5",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Earth days since landing: 19,367.",
    "tts": "Earth days since landing. nineteen thousand, three hundred and sixty-seven.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.earth_days.5.6",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Earth days since landing: 19,368.",
    "tts": "Earth days since landing. nineteen thousand, three hundred and sixty-eight.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.earth_date.scrub",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Earth date: [FILTERED].",
    "tts": "Earth date:",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "note": "the number is replaced by a filter scrub: 0.8 s of corrupted noise. HUD shows [DATA RECONCILED].",
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.earth_date.iv",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Earth date: twenty-[FILTERED].",
    "tts": "Earth date: twenty",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "note": "Act IV: the scrub fails half way. P1 hears the century.",
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.earth_date.v",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Earth date: thirtieth of August, twenty one fourteen.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "note": "only if asked after C16; the filter no longer bothers",
    "ctx": "dialogue/keeper.json"
@@ -15325,7 +15325,7 @@
   {
    "id": "P1.ask.earth_date",
    "speaker": "P1",
-   "text": "Keeper. What's the date on Earth?",
+   "text": "Atlas. What's the date on Earth?",
    "preset": "helmet",
    "voice": "player",
    "voice_default": {
@@ -15340,180 +15340,180 @@
   },
   {
    "id": "KEEPER.dune_rate",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Migration rate, landing-site dune: zero point seven one metres per Earth year. Measured.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.why_dune",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Aeolian transport.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.second_station",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "No second station is registered to this mission.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.no_object",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "No object at that position is registered to this mission.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.list_stations",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Stations in areostationary orbit: HALO-1 [FILTERED].",
    "tts": "Stations in areostationary orbit: HALO one",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "note": "the filter scrubs everything after HALO-1",
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.list_stations.iv",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Stations in areostationary orbit: HALO-1 to HALO-12.",
    "tts": "Stations in areostationary orbit: HALO one to HALO twelve.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.how_many_pioneers.scrub",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "PIONEER units registered: [FILTERED].",
    "tts": "Pioneer units registered:",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.how_many_pioneers",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Twelve PIONEER units are registered to the Cities in the Sky programme.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.gale_outpost",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "No outpost is registered at this position.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.p5.scrub",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "PIONEER-5: [FILTERED].",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.p5",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "PIONEER-5: Gale Crater. Base Aeolis-1. Status: operational, dormant.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.rations_eaten",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Ration intake recorded: none.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "P1.ask.rations",
    "speaker": "P1",
-   "text": "Keeper. How many rations have I eaten?",
+   "text": "Atlas. How many rations have I eaten?",
    "preset": "helmet",
    "voice": "player",
    "voice_default": {
@@ -15528,92 +15528,92 @@
   },
   {
    "id": "KEEPER.rations_where",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Rations delivered are held in suit and vehicle stores. All are sealed.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.water",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Water is a consumable.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.water.iv",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Thermal regulation. Water is your coolant.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.sleep_what",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Sleep is a scheduled rest cycle.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.sleep_what.iv",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Dormancy. Solar recharge and construction interval.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.am_i_human",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "That term is not defined in my schema.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "P1.ask.human",
    "speaker": "P1",
-   "text": "Keeper. Am I human?",
+   "text": "Atlas. Am I human?",
    "preset": "helmet",
    "voice": "player",
    "voice_default": {
@@ -15628,29 +15628,29 @@
   },
   {
    "id": "KEEPER.am_i_real",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Please specify a standard.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.family",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "No family record is held for PIONEER-1.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
@@ -15672,121 +15672,121 @@
   },
   {
    "id": "KEEPER.alice",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "No record of a person named Alice is held.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.alice.iv",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "No person matching CHILD exists.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.alice.channel",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "No channel to that recipient exists.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.lucy",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "No record of a spouse is held for PIONEER-1.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.lucy.iv",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "A person named Lucy is held in the donor record. SPOUSE is not that person.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.lying",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "No.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.truth",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Please specify a query.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.what_am_i",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Kestrel Dynamics scout chassis, serial KD-SC-0001. Designation: PIONEER-1. Imprint: Lumen Neural, template ASHBY-R. Perception layer: Lumen PF-4.",
    "tts": "Kestrel Dynamics scout chassis, serial K D S C zero zero zero one. Designation: Pioneer one. Imprint: Lumen Neural, template Ashby R. Perception layer: Lumen P F four.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "P1.ask.what_am_i",
    "speaker": "P1",
-   "text": "Keeper. What am I?",
+   "text": "Atlas. What am I?",
    "preset": "helmet",
    "voice": "player",
    "voice_default": {
@@ -15801,407 +15801,407 @@
   },
   {
    "id": "KEEPER.am_i_rowan",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "No. You are PIONEER-1. Your imprint source is Rowan Ashby.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.rowan_after",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Donor record, 2058 to 2096: lecturer in geology, Galway. Thirty-eight years. Correspondence with C. Kerr: none after 2056.",
    "tts": "Donor record, twenty fifty-eight to twenty ninety-six: lecturer in geology, Galway. Thirty-eight years. Correspondence with C. Kerr: none after twenty fifty-six.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.files_nm",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Please specify a file.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.child.refset",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Licensed reference set: forty children, Lumen Neural paediatric study, 2054. Faces and voice prosody. Consent: parental.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.child.style",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Drawing style: sourced from donor's correspondence archive, 2051 to 2056.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "note": "PROPOSED, optional: the style is taken from the drawings Cara Kerr sent 'Uncle Rowan' as a child. See MASTER_SCRIPT open questions.",
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.anvil_nm",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "C-01. Construction unit. Callsign ANVIL. File held.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.unit_file.wellspring",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "C-04. WELLSPRING. Source: Tamsin Pengelly, Cornwall. Hydrologist. Scanned 2057.",
    "tts": "C zero four. Wellspring. Source: Tamsin Pengelly, Cornwall. Hydrologist. Scanned twenty fifty-seven.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.unit_file.furrow",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "C-09. FURROW. Source: Harold Brandt, Iowa. Farmer. Scanned 2057.",
    "tts": "C zero nine. Furrow. Source: Harold Brandt, Iowa. Farmer. Scanned twenty fifty-seven.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.unit_file.lodestone",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "C-02. LODESTONE. Source: Ngozi Adeyemi, Jos. Mining engineer. Scanned 2058.",
    "tts": "C zero two. Lodestone. Source: Ngozi Adeyemi, Jos. Mining engineer. Scanned twenty fifty-eight.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.unit_file.beacon",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "C-05. BEACON. Source: Mateus Ferreira, Azores. Harbour pilot. Scanned 2058.",
    "tts": "C zero five. Beacon. Source: Mateus Ferreira, Azores. Harbour pilot. Scanned twenty fifty-eight.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.unit_file.cadence",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "C-12. CADENCE. Source: Carys Lloyd, Wales. Music teacher. Scanned 2057.",
    "tts": "C twelve. Cadence. Source: Carys Lloyd, Wales. Music teacher. Scanned twenty fifty-seven.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.unit_file.suture",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "C-15. SUTURE. Source: Marta Kowalczyk, Krakow. Nurse. Scanned 2058.",
    "tts": "C fifteen. Suture. Source: Marta Kowalczyk, Krakow. Nurse. Scanned twenty fifty-eight.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.unit_file.tally",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "C-21. TALLY. Source: Rajiv Menon, Leicester. Warehouse manager. Scanned 2058.",
    "tts": "C twenty-one. Tally. Source: Rajiv Menon, Leicester. Warehouse manager. Scanned twenty fifty-eight.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.sorry",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "That state is not held.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.decommission_pioneer",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "PIONEER units are scheduled for decommissioning on Covenant arrival.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.decommission_units",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Construction units are scheduled for decommissioning on Covenant arrival.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.buyers",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Cities in the Sky residents. Homes sold to date: forty-one thousand, two hundred and six.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.list_media",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Media held: mission briefings, two hundred and fourteen. Instructional, sixty-one. Broadcast, one.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.media_nm",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Please specify a media class.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.operational",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Operational: PIONEER-1, 2, 4, 5, 7, 8, 10, 11, 12. Non-operational: PIONEER-3, 6, 9.",
    "tts": "Operational: Pioneer one, two, four, five, seven, eight, ten, eleven, twelve. Non-operational: Pioneer three, six, nine.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.p11",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "PIONEER-11: Valles Marineris, Melas Chasma. Base Melas-1. Status: operational.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.p3",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "PIONEER-3: chassis abandoned, Mars sol 2,212. Imprint transferred to local mainframe, Outpost Arsia. Transfer integrity: thirty-one percent. Mainframe offline: switched off by PIONEER-1.",
    "tts": "Pioneer three: chassis abandoned, Mars sol two thousand two hundred and twelve. Imprint transferred to local mainframe, Outpost Arsia. Transfer integrity: thirty-one percent. Mainframe offline: switched off by Pioneer one.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.p6_9",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "PIONEER-6: charge exhausted, regional dust event, Mars sol 3,140. PIONEER-9: chassis failure, Mars sol 9,702. Construction units at both sites remain active.",
    "tts": "Pioneer six: charge exhausted, regional dust event, Mars sol three thousand one hundred and forty. Pioneer nine: chassis failure, Mars sol nine thousand, seven hundred and two. Construction units at both sites remain active.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.shards",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Memory anchor events: forty. Trigger locations are identical for all PIONEER units. Completion, PIONEER-1: {n} of forty.",
    "tts": "Memory anchor events: forty. Trigger locations are identical for all Pioneer units.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.manifest",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Covenant manifest: four thousand and eighty colonists. Specify a name or a field.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.manifest.geo",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Planetary geologists, Covenant manifest: nine. Including: Kerr, Cara. Sixty-seven. Housing Block C, Jezero.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.cara",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Cara Kerr. Born Belfast, 2047. Planetary geologist. Father: Desmond Kerr, deceased 2046. Mother: Niamh Kerr, deceased 2101. Next of kin: none listed.",
    "tts": "Cara Kerr. Born Belfast, twenty forty-seven. Planetary geologist. Father: Desmond Kerr, deceased twenty forty-six. Mother: Niamh Kerr, deceased twenty one oh one. Next of kin: none listed.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.final.1",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Yes.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
@@ -16223,22 +16223,22 @@
   },
   {
    "id": "KEEPER.final.2",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "When you asked.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "P1.ask.final",
    "speaker": "P1",
-   "text": "Keeper. Were you ever going to tell me?",
+   "text": "Atlas. Were you ever going to tell me?",
    "preset": "helmet",
    "voice": "player",
    "voice_default": {
@@ -16253,115 +16253,115 @@
   },
   {
    "id": "KEEPER.keeper_fate",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Orchestration Instance 01 is retired when the last PIONEER unit is decommissioned.",
    "tts": "Orchestration Instance zero one is retired when the last Pioneer unit is decommissioned.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.keeper_fate.2",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Then Orchestration Instance 01 is not retired.",
    "tts": "Then Orchestration Instance zero one is not retired.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.plaque",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Dedication text: Meridian Consortium.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.deflect.unknown",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "That query does not match a record.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.deflect.specify",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Please specify a query.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.deflect.rephrase",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Please rephrase.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.deflect.not_held",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "That information is not held.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
   {
    "id": "KEEPER.deflect.not_task",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "That is not a mission task.",
    "preset": "dry",
    "voice": {
-    "model": "en_US-lessac-medium",
-    "length_scale": 1.06,
-    "pitch_semitones": -0.5,
-    "noise_scale": 0.3,
-    "noise_w": 0.3
+    "model": "en_GB-alba-medium",
+    "length_scale": 1.0,
+    "pitch_semitones": 0,
+    "noise_scale": 0.45,
+    "noise_w": 0.5
    },
    "ctx": "dialogue/keeper.json"
   },
@@ -17239,7 +17239,7 @@
   {
    "id": "ANVIL.beat.spiral_after.01",
    "speaker": "ANVIL",
-   "text": "You're all right. You're all right. Look at me. Well. Look at the sensor bar.",
+   "text": "You're all right. You're all right. Look at me. Well. Look at the visor.",
    "preset": "grille",
    "voice": {
     "model": "en_GB-vctk-medium",
@@ -17841,7 +17841,7 @@
   {
    "id": "WELLSPRING.idle.II.03",
    "speaker": "WELLSPRING",
-   "text": "Is it all right if I put a second tank in? I'll ask KEEPER. I'll ask you. I'm asking you.",
+   "text": "Is it all right if I put a second tank in? I'll ask ATLAS. I'll ask you. I'm asking you.",
    "preset": "grille",
    "voice": {
     "model": "en_GB-vctk-medium",
@@ -19797,7 +19797,7 @@
   {
    "id": "SUTURE.idle.III.05",
    "speaker": "SUTURE",
-   "text": "Your servo's fine. You're fine. Go away.",
+   "text": "Your seal's fine. You're fine. Go away.",
    "preset": "grille",
    "voice": {
     "model": "en_GB-vctk-medium",
@@ -20872,7 +20872,7 @@
   {
    "id": "P11.confront.05",
    "speaker": "P1",
-   "text": "Ask your KEEPER. Ask it the right question.",
+   "text": "Ask your ATLAS. Ask it the right question.",
    "preset": "helmet",
    "voice": "player",
    "voice_default": {
@@ -20888,7 +20888,7 @@
   {
    "id": "P11.confront.06",
    "speaker": "PIONEER_11",
-   "text": "Keeper's never lied to me.",
+   "text": "Atlas's never lied to me.",
    "preset": "helmet",
    "voice": "player",
    "voice_default": {
@@ -20936,7 +20936,7 @@
   {
    "id": "P11.confront.09",
    "speaker": "PIONEER_11",
-   "text": "Keeper. I want to report a malfunctioning unit at my pad. It says it's a pioneer. It's saying things about my daughter. Pass it to Meridian. All of it.",
+   "text": "Atlas. I want to report a malfunctioning unit at my pad. It says it's a pioneer. It's saying things about my daughter. Pass it to Meridian. All of it.",
    "preset": "radio",
    "voice": "player",
    "voice_default": {
@@ -21001,7 +21001,7 @@
   {
    "id": "P11.leave.04",
    "speaker": "PIONEER_11",
-   "text": "Keeper. An unregistered pioneer unit just left my pad, heading north-east. It had my voice. Pass it to Meridian, would you? Somebody should look at that.",
+   "text": "Atlas. An unregistered pioneer unit just left my pad, heading north-east. It had my voice. Pass it to Meridian, would you? Somebody should look at that.",
    "preset": "radio",
    "voice": "player",
    "voice_default": {
@@ -21083,7 +21083,7 @@
   {
    "id": "PN.iv.01",
    "speaker": "PIONEER_N",
-   "text": "Pioneer-2, Elysium. Keeper, package to the north site, please. And, Keeper? Morning.",
+   "text": "Pioneer-2, Elysium. Atlas, package to the north site, please. And, Atlas? Morning.",
    "preset": "radio",
    "voice": "player",
    "voice_default": {
@@ -21134,7 +21134,7 @@
   {
    "id": "PN.iv.04",
    "speaker": "PIONEER_N",
-   "text": "Keeper, how long have I been on Mars? Right. Mission sol nine hundred. Thanks.",
+   "text": "Atlas, how long have I been on Mars? Right. Mission sol nine hundred. Thanks.",
    "preset": "radio",
    "voice": "player",
    "voice_default": {

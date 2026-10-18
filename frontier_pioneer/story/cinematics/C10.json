@@ -1,0 +1,1279 @@
+{
+ "id": "C10",
+ "title": "The First Man",
+ "note": "The Arsia skylight, the tube, Pioneer-3's room. Down the line into a shaft of dusty light; two stripped frames in the drift (bare Kestrel composite: what the caretakers and he are); the stencil over the airlock; a slow dolly through a room of sealed rations and dozens of the same drawing; the rack waking with his own voice; the long hold on the breaker; the window, the frame in the sand, the light on its chest going out.",
+ "world": {
+  "hideAvatar": true,
+  "focus": false
+ },
+ "sets": [
+  {
+   "id": "tube",
+   "kind": "tube"
+  }
+ ],
+ "actors": [
+  {
+   "id": "p1",
+   "kind": "pioneer",
+   "set": "tube",
+   "at": [
+    1.6,
+    10.6,
+    -10.78
+   ],
+   "yaw": 180,
+   "clip": "climb_down"
+  },
+  {
+   "id": "frame",
+   "kind": "kestrel",
+   "set": "tube",
+   "at": [
+    0.4,
+    0.28,
+    -10.25
+   ],
+   "yaw": 40,
+   "clip": "dead_folded"
+  },
+  {
+   "id": "frame2",
+   "kind": "kestrel",
+   "set": "tube",
+   "at": [
+    -1.7,
+    0.22,
+    -7.3
+   ],
+   "yaw": -70,
+   "clip": "collapsed"
+  },
+  {
+   "id": "suit3",
+   "kind": "caretaker",
+   "set": "tube",
+   "look": {
+    "suit": "#e6e0d4",
+    "trim": "#7a7a7a",
+    "visor": "#30343a",
+    "callsign": "PIONEER-3",
+    "props": []
+   },
+   "at": [
+    -2.25,
+    0.32,
+    8.7
+   ],
+   "yaw": 90,
+   "clip": "recalled"
+  }
+ ],
+ "lights": [
+  {
+   "id": "chest",
+   "type": "point",
+   "set": "tube",
+   "at": [
+    0.45,
+    0.62,
+    -10.05
+   ],
+   "color": "#40ff80",
+   "intensity": 0.35,
+   "dist": 1.2,
+   "glow": 0.05,
+   "glowK": 3
+  },
+  {
+   "id": "rim",
+   "type": "point",
+   "set": "tube",
+   "at": [
+    -1.5,
+    2.0,
+    7.6
+   ],
+   "color": "#ffd8b0",
+   "intensity": 3,
+   "dist": 5
+  }
+ ],
+ "shots": [
+  {
+   "at": "start",
+   "name": "from the skylight's rim, straight down the shaft: a figure on the line",
+   "set": "tube",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": [
+       3.4,
+       13.2,
+       -14.6
+      ],
+      "look": [
+       0.6,
+       3.0,
+       -10.4
+      ],
+      "lens": 21
+     },
+     {
+      "t": 1,
+      "pos": [
+       3.0,
+       12.6,
+       -14.0
+      ],
+      "look": [
+       0.5,
+       0.6,
+       -10.2
+      ],
+      "lens": 21
+     }
+    ],
+    "ease": "inout",
+    "handheld": 0.25
+   },
+   "dof": {
+    "focus": "p1",
+    "fstop": 5.6
+   },
+   "grade": "tube"
+  },
+  {
+   "at": "beat:0+3.6",
+   "name": "down in the drift, low: the frame in the sand, he steps past it",
+   "set": "tube",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": [
+       1.9,
+       0.45,
+       -8.1
+      ],
+      "look": [
+       0.5,
+       0.5,
+       -10.4
+      ],
+      "lens": 28
+     },
+     {
+      "t": 1,
+      "pos": [
+       2.2,
+       0.55,
+       -7.5
+      ],
+      "look": [
+       0.6,
+       0.9,
+       -9.4
+      ],
+      "lens": 28
+     }
+    ],
+    "handheld": 0.3
+   },
+   "dof": {
+    "focus": "frame",
+    "fstop": 2.8
+   },
+   "grade": "tube"
+  },
+  {
+   "at": "beat:3",
+   "name": "the airlock in the tube wall; the stencil",
+   "set": "tube",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": [
+       -1.4,
+       1.2,
+       -4.0
+      ],
+      "look": [
+       0,
+       2.3,
+       2.2
+      ],
+      "lens": 32
+     },
+     {
+      "t": 1,
+      "pos": [
+       -1.1,
+       1.3,
+       -2.6
+      ],
+      "look": [
+       0,
+       2.45,
+       2.2
+      ],
+      "lens": 35
+     }
+    ],
+    "handheld": 0.2
+   },
+   "dof": {
+    "focus": 4.6,
+    "fstop": 4
+   },
+   "grade": "tube"
+  },
+  {
+   "at": "C10.01",
+   "name": "his face up to it: that's my landing year",
+   "set": "tube",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": [
+       0.95,
+       1.55,
+       1.75
+      ],
+      "look": {
+       "actor": "p1",
+       "bone": "head"
+      },
+      "lens": 45
+     },
+     {
+      "t": 1,
+      "pos": [
+       0.85,
+       1.55,
+       1.7
+      ],
+      "look": {
+       "actor": "p1",
+       "bone": "head"
+      },
+      "lens": 50
+     }
+    ],
+    "handheld": 0.2
+   },
+   "dof": {
+    "focus": "p1",
+    "fstop": 2.2
+   },
+   "grade": "tube"
+  },
+  {
+   "at": "beat:6",
+   "name": "inside: the table set for one",
+   "set": "tube",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": [
+       1.9,
+       1.6,
+       5.7
+      ],
+      "look": [
+       -1.2,
+       0.85,
+       4.45
+      ],
+      "lens": 28
+     },
+     {
+      "t": 1,
+      "pos": [
+       1.8,
+       1.55,
+       5.5
+      ],
+      "look": [
+       -1.2,
+       0.85,
+       4.45
+      ],
+      "lens": 31
+     }
+    ],
+    "ease": "linear",
+    "handheld": 0.15
+   },
+   "dof": {
+    "focus": 2.0,
+    "fstop": 2.8
+   },
+   "grade": "interior_warm"
+  },
+  {
+   "at": "beat:6+3.4",
+   "name": "the walls: the same drawing, dozens of times; the suit on its hook",
+   "set": "tube",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": [
+       1.8,
+       1.7,
+       3.6
+      ],
+      "look": [
+       -2.48,
+       1.4,
+       4.8
+      ],
+      "lens": 26
+     },
+     {
+      "t": 1,
+      "pos": [
+       1.7,
+       1.65,
+       3.8
+      ],
+      "look": [
+       -2.48,
+       1.4,
+       4.8
+      ],
+      "lens": 29
+     }
+    ],
+    "ease": "linear",
+    "handheld": 0.15
+   },
+   "dof": {
+    "focus": 2.6,
+    "fstop": 2.8
+   },
+   "grade": "interior_warm"
+  },
+  {
+   "at": "beat:9",
+   "name": "at the back, the rack; cables across the floor; P1 turns to it",
+   "set": "tube",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": [
+       1.6,
+       1.4,
+       5.3
+      ],
+      "look": [
+       -0.2,
+       1.2,
+       8.9
+      ],
+      "lens": 30
+     },
+     {
+      "t": 1,
+      "pos": [
+       1.3,
+       1.35,
+       5.8
+      ],
+      "look": [
+       -0.2,
+       1.3,
+       9.0
+      ],
+      "lens": 32
+     }
+    ],
+    "handheld": 0.15
+   },
+   "dof": {
+    "focus": "p1",
+    "fstop": 2.8
+   },
+   "grade": "interior_warm"
+  },
+  {
+   "at": "C10.02",
+   "name": "the screen wakes: his own voice, skipping",
+   "set": "tube",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": {
+       "actor": "p1",
+       "bone": "head",
+       "o": [
+        0.75,
+        0.25,
+        -1.6
+       ]
+      },
+      "look": [
+       -0.2,
+       1.72,
+       9.05
+      ],
+      "lens": 32
+     },
+     {
+      "t": 1,
+      "pos": {
+       "actor": "p1",
+       "bone": "head",
+       "o": [
+        0.75,
+        0.25,
+        -1.5
+       ]
+      },
+      "look": [
+       -0.2,
+       1.74,
+       9.05
+      ],
+      "lens": 34
+     }
+    ],
+    "handheld": 0.2
+   },
+   "dof": {
+    "focus": {
+     "set": "tube",
+     "o": [
+      -0.2,
+      1.74,
+      9.05
+     ]
+    },
+    "fstop": 2.0
+   },
+   "grade": "interior_cold"
+  },
+  {
+   "at": "C10.03",
+   "name": "P1: who's there? (the screen's light on him)",
+   "set": "tube",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": [
+       -1.4,
+       1.65,
+       9.4
+      ],
+      "look": {
+       "actor": "p1",
+       "bone": "head"
+      },
+      "lens": 32
+     },
+     {
+      "t": 1,
+      "pos": [
+       -1.35,
+       1.62,
+       9.35
+      ],
+      "look": {
+       "actor": "p1",
+       "bone": "head"
+      },
+      "lens": 35
+     }
+    ],
+    "handheld": 0.2
+   },
+   "dof": {
+    "focus": "p1",
+    "fstop": 2.0
+   },
+   "grade": "interior_cold"
+  },
+  {
+   "at": "C10.04",
+   "name": "the screen: My name is. Rowan. Rowan Ashby.",
+   "set": "tube",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": [
+       0.8,
+       1.85,
+       7.4
+      ],
+      "look": [
+       -0.2,
+       1.74,
+       9.05
+      ],
+      "lens": 40
+     },
+     {
+      "t": 1,
+      "pos": [
+       0.75,
+       1.85,
+       7.55
+      ],
+      "look": [
+       -0.2,
+       1.74,
+       9.05
+      ],
+      "lens": 43
+     }
+    ],
+    "ease": "linear"
+   },
+   "dof": {
+    "focus": {
+     "set": "tube",
+     "o": [
+      -0.2,
+      1.74,
+      9.05
+     ]
+    },
+    "fstop": 2.0
+   },
+   "grade": "interior_cold"
+  },
+  {
+   "at": "C10.04+6.0",
+   "name": "P1 listening, very still (profile, slow push)",
+   "set": "tube",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": [
+       1.95,
+       1.6,
+       8.4
+      ],
+      "look": {
+       "actor": "p1",
+       "bone": "head"
+      },
+      "lens": 38
+     },
+     {
+      "t": 1,
+      "pos": [
+       1.85,
+       1.6,
+       8.35
+      ],
+      "look": {
+       "actor": "p1",
+       "bone": "head"
+      },
+      "lens": 41
+     }
+    ],
+    "ease": "linear"
+   },
+   "dof": {
+    "focus": "p1",
+    "fstop": 1.8
+   },
+   "grade": "interior_cold"
+  },
+  {
+   "at": "C10.04+10.5",
+   "name": "insert: She draws me. She draws me.",
+   "set": "tube",
+   "dur": 3.0,
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": [
+       -1.6,
+       1.6,
+       6.5
+      ],
+      "look": [
+       -2.48,
+       1.6,
+       6.1
+      ],
+      "lens": 60
+     },
+     {
+      "t": 1,
+      "pos": [
+       -1.7,
+       1.55,
+       6.9
+      ],
+      "look": [
+       -2.48,
+       1.5,
+       6.9
+      ],
+      "lens": 65
+     }
+    ],
+    "ease": "linear"
+   },
+   "dof": {
+    "focus": 0.9,
+    "fstop": 1.8
+   },
+   "grade": "interior_warm"
+  },
+  {
+   "at": "beat:15",
+   "name": "the screen cycles the drawings, faster, a strobe",
+   "set": "tube",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": [
+       0.75,
+       1.8,
+       7.6
+      ],
+      "look": [
+       -0.2,
+       1.74,
+       9.05
+      ],
+      "lens": 45
+     },
+     {
+      "t": 1,
+      "pos": [
+       0.7,
+       1.8,
+       7.7
+      ],
+      "look": [
+       -0.2,
+       1.74,
+       9.05
+      ],
+      "lens": 48
+     }
+    ],
+    "ease": "in",
+    "shake": 0.2
+   },
+   "dof": {
+    "focus": {
+     "set": "tube",
+     "o": [
+      -0.2,
+      1.74,
+      9.05
+     ]
+    },
+    "fstop": 1.8
+   },
+   "grade": {
+    "base": "interior_cold",
+    "ca": 0.003
+   }
+  },
+  {
+   "at": "C10.05",
+   "name": "That's my. That's...",
+   "set": "tube",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": [
+       -1.35,
+       1.6,
+       9.4
+      ],
+      "look": {
+       "actor": "p1",
+       "bone": "head"
+      },
+      "lens": 35
+     },
+     {
+      "t": 1,
+      "pos": [
+       -1.3,
+       1.6,
+       9.35
+      ],
+      "look": {
+       "actor": "p1",
+       "bone": "head"
+      },
+      "lens": 38
+     }
+    ],
+    "handheld": 0.25
+   },
+   "dof": {
+    "focus": "p1",
+    "fstop": 1.6
+   },
+   "grade": "interior_cold"
+  },
+  {
+   "at": "C10.06",
+   "name": "You are Rowan Ashby: pull back, the room of drawings, him small in it",
+   "set": "tube",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": [
+       0.9,
+       1.6,
+       7.0
+      ],
+      "look": {
+       "actor": "p1",
+       "bone": "chest"
+      },
+      "lens": 32
+     },
+     {
+      "t": 1,
+      "pos": [
+       1.5,
+       1.95,
+       3.2
+      ],
+      "look": {
+       "actor": "p1",
+       "bone": "chest"
+      },
+      "lens": 24
+     }
+    ],
+    "ease": "linear"
+   },
+   "dof": {
+    "focus": "p1",
+    "fstop": 4
+   },
+   "grade": "interior_warm"
+  },
+  {
+   "at": "C10.07",
+   "name": "If only you could see what I see: the visor, the screen in it",
+   "set": "tube",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": {
+       "actor": "p1",
+       "bone": "head",
+       "o": [
+        -1.15,
+        0.15,
+        0.5
+       ]
+      },
+      "look": {
+       "actor": "p1",
+       "bone": "head",
+       "o": [
+        0,
+        0.13,
+        0.1
+       ]
+      },
+      "lens": 35
+     },
+     {
+      "t": 1,
+      "pos": {
+       "actor": "p1",
+       "bone": "head",
+       "o": [
+        -1.15,
+        0.15,
+        0.5
+       ]
+      },
+      "look": {
+       "actor": "p1",
+       "bone": "head",
+       "o": [
+        0,
+        0.13,
+        0.1
+       ]
+      },
+      "lens": 38
+     }
+    ],
+    "ease": "linear"
+   },
+   "dof": {
+    "focus": {
+     "actor": "p1",
+     "bone": "head",
+     "o": [
+      0,
+      0.13,
+      0.17
+     ]
+    },
+    "fstop": 1.8
+   },
+   "grade": "interior_cold"
+  },
+  {
+   "at": "beat:20",
+   "name": "from the doorway: the loop starts again; it will run forever",
+   "set": "tube",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": [
+       0.0,
+       1.55,
+       3.0
+      ],
+      "look": [
+       -0.1,
+       1.3,
+       8.8
+      ],
+      "lens": 28
+     },
+     {
+      "t": 1,
+      "pos": [
+       0.05,
+       1.55,
+       3.3
+      ],
+      "look": [
+       -0.1,
+       1.3,
+       8.8
+      ],
+      "lens": 28
+     }
+    ],
+    "ease": "linear"
+   },
+   "dof": {
+    "focus": "p1",
+    "fstop": 4
+   },
+   "grade": "interior_cold"
+  },
+  {
+   "at": "beat:22",
+   "name": "he finds the breaker",
+   "set": "tube",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": [
+       1.25,
+       1.5,
+       7.9
+      ],
+      "look": [
+       0.15,
+       1.4,
+       8.9
+      ],
+      "lens": 40
+     },
+     {
+      "t": 1,
+      "pos": [
+       1.1,
+       1.5,
+       8.05
+      ],
+      "look": [
+       0.15,
+       1.4,
+       8.9
+      ],
+      "lens": 45
+     }
+    ]
+   },
+   "dof": {
+    "focus": "p1",
+    "fstop": 2.4
+   },
+   "grade": "interior_cold"
+  },
+  {
+   "at": "beat:23",
+   "name": "insert: the glove on the breaker, a long moment",
+   "set": "tube",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": [
+       0.78,
+       1.42,
+       8.35
+      ],
+      "look": [
+       0.18,
+       1.38,
+       8.88
+      ],
+      "lens": 85
+     },
+     {
+      "t": 1,
+      "pos": [
+       0.74,
+       1.42,
+       8.4
+      ],
+      "look": [
+       0.18,
+       1.38,
+       8.88
+      ],
+      "lens": 90
+     }
+    ],
+    "ease": "linear"
+   },
+   "dof": {
+    "focus": {
+     "set": "tube",
+     "o": [
+      0.18,
+      1.38,
+      8.88
+     ]
+    },
+    "fstop": 1.6
+   },
+   "grade": "interior_cold"
+  },
+  {
+   "at": "beat:25",
+   "name": "he pulls it: the screen dies mid-word, the hum winds down",
+   "set": "tube",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": [
+       1.7,
+       1.3,
+       6.4
+      ],
+      "look": [
+       0.0,
+       1.3,
+       8.9
+      ],
+      "lens": 30
+     },
+     {
+      "t": 1,
+      "pos": [
+       1.75,
+       1.3,
+       6.3
+      ],
+      "look": [
+       0.0,
+       1.25,
+       8.9
+      ],
+      "lens": 30
+     }
+    ]
+   },
+   "dof": {
+    "focus": "p1",
+    "fstop": 3.2
+   },
+   "grade": {
+    "base": "interior_night",
+    "exposureAbs": 1.3
+   }
+  },
+  {
+   "at": "beat:27",
+   "name": "through the airlock window: the frame in the sand, the cable, the light on its chest",
+   "set": "tube",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": [
+       0.32,
+       1.55,
+       1.85
+      ],
+      "look": [
+       0.42,
+       0.55,
+       -10.1
+      ],
+      "lens": 50
+     },
+     {
+      "t": 1,
+      "pos": [
+       0.32,
+       1.52,
+       1.75
+      ],
+      "look": [
+       0.42,
+       0.55,
+       -10.1
+      ],
+      "lens": 60
+     }
+    ],
+    "ease": "linear"
+   },
+   "dof": {
+    "focus": {
+     "set": "tube",
+     "o": [
+      0.42,
+      0.55,
+      -10.1
+     ]
+    },
+    "fstop": 2.8
+   },
+   "grade": "tube"
+  }
+ ],
+ "track": [
+  {
+   "at": "start",
+   "actor": "p1",
+   "move": [
+    1.6,
+    0.0,
+    -10.78
+   ],
+   "dur": 5.2
+  },
+  {
+   "at": "beat:0+5.2",
+   "actor": "p1",
+   "play": "idle",
+   "fade": 0.3
+  },
+  {
+   "at": "beat:0+5.6",
+   "actor": "p1",
+   "walk": [
+    [
+     1.0,
+     0,
+     -9.2
+    ],
+    [
+     0.45,
+     0,
+     -7.0
+    ],
+    [
+     0.2,
+     0,
+     -4.0
+    ]
+   ],
+   "speed": 1.0,
+   "then": "idle"
+  },
+  {
+   "at": "beat:3",
+   "actor": "p1",
+   "walk": [
+    0.1,
+    0,
+    0.8
+   ],
+   "speed": 1.05,
+   "then": "idle"
+  },
+  {
+   "at": "beat:4",
+   "actor": "p1",
+   "lookAt": [
+    0,
+    2.55,
+    2.2
+   ],
+   "weight": 1
+  },
+  {
+   "at": "beat:6",
+   "actor": "p1",
+   "pos": [
+    0.1,
+    0,
+    3.4
+   ],
+   "yaw": 0
+  },
+  {
+   "at": "beat:6",
+   "actor": "p1",
+   "lookAt": [
+    -1.2,
+    0.8,
+    4.4
+   ],
+   "weight": 0.8
+  },
+  {
+   "at": "beat:6",
+   "actor": "p1",
+   "walk": [
+    [
+     0.4,
+     0,
+     4.4
+    ],
+    [
+     0.6,
+     0,
+     6.2
+    ]
+   ],
+   "speed": 0.55,
+   "then": "look_around"
+  },
+  {
+   "at": "beat:6+3.4",
+   "actor": "p1",
+   "lookAt": [
+    -2.4,
+    1.4,
+    6.0
+   ],
+   "weight": 0.9
+  },
+  {
+   "at": "beat:9",
+   "actor": "p1",
+   "lookAt": [
+    -0.2,
+    1.6,
+    9.0
+   ],
+   "weight": 1
+  },
+  {
+   "at": "beat:9+0.4",
+   "actor": "p1",
+   "walk": [
+    0.15,
+    0,
+    8.25
+   ],
+   "speed": 0.6,
+   "then": "idle"
+  },
+  {
+   "at": "beat:10",
+   "light": "rim",
+   "intensity": 1.0,
+   "dur": 0.6
+  },
+  {
+   "at": "C10.04+6",
+   "actor": "p1",
+   "play": "look_down",
+   "fade": 0.8
+  },
+  {
+   "at": "beat:15",
+   "setp": "tube",
+   "key": "strobe",
+   "value": true
+  },
+  {
+   "at": "C10.05",
+   "setp": "tube",
+   "key": "strobe",
+   "value": false
+  },
+  {
+   "at": "C10.05",
+   "actor": "p1",
+   "play": "idle",
+   "fade": 0.6
+  },
+  {
+   "at": "C10.06",
+   "actor": "p1",
+   "lookAt": [
+    -0.2,
+    1.74,
+    9.05
+   ],
+   "weight": 1
+  },
+  {
+   "at": "beat:22",
+   "actor": "p1",
+   "play": "pull_lever",
+   "speed": 0.55,
+   "fade": 0.4,
+   "hold": true
+  },
+  {
+   "at": "beat:25",
+   "setp": "tube",
+   "key": "screenOn",
+   "value": false
+  },
+  {
+   "at": "beat:25",
+   "anim": {
+    "obj": "lever",
+    "prop": "rotation.x",
+    "to": 2.4,
+    "dur": 0.25
+   }
+  },
+  {
+   "at": "beat:26+2.0",
+   "actor": "p1",
+   "face": 180,
+   "dur": 1.6
+  },
+  {
+   "at": "beat:27+3.2",
+   "light": "chest",
+   "intensity": 0,
+   "dur": 0.4
+  }
+ ]
+}

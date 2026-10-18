@@ -18,9 +18,9 @@
  * second WebGL context. If the mosaic cannot be fetched it falls back to a
  * plain graticule.
  */
-import { campaignSummary } from "./missions.js?v=b8cfe8e-efa5b7b7";
-import { hasSave } from "./state.js?v=b8cfe8e-efa5b7b7";
-import { ensureStyles } from "./avatar.js?v=b8cfe8e-efa5b7b7";
+import { campaignSummary } from "./missions.js?v=6d37c9c-9b39e129";
+import { hasSave } from "./state.js?v=6d37c9c-9b39e129";
+import { ensureStyles } from "./avatar.js?v=6d37c9c-9b39e129";
 
 // equirectangular, longitude -180..180: the site's global Mars mosaic (the live viewer's
 // mars_color.jpg from data.geoidinitiative.com), kept beside the game so the 2D canvas can

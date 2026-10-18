@@ -894,7 +894,7 @@
    "role_affinity": [
     "night_maintenance"
    ],
-   "voice_note": "HUSH's imprint came out signing-first; no speech module is instantiated (KEEPER file). Never rendered."
+   "voice_note": "HUSH's imprint came out signing-first; no speech module is instantiated (ATLAS file). Never rendered."
   },
   {
    "id": "T25",
@@ -1830,7 +1830,7 @@
   },
   {
    "id": "keeper_doubter",
-   "label": "Doubts KEEPER",
+   "label": "Doubts ATLAS",
    "earned_by": "witnessed a filter glitch (Act III+)",
    "effects": {
     "recall_response": "resist"

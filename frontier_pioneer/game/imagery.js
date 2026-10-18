@@ -17,9 +17,9 @@
  * The sensors are single-band. The colour on screen is a tint the terrain
  * shader applies; it is not data.
  */
-import * as THREE from "../vendor/three.module.js?v=b8cfe8e-efa5b7b7";
-import { IMAGERY_WINDOW_TILES } from "./config.js?v=b8cfe8e-efa5b7b7";
-import { fetchTile, pixels } from "./tiles.js?v=b8cfe8e-efa5b7b7";
+import * as THREE from "../vendor/three.module.js?v=6d37c9c-9b39e129";
+import { IMAGERY_WINDOW_TILES } from "./config.js?v=6d37c9c-9b39e129";
+import { fetchTile, pixels } from "./tiles.js?v=6d37c9c-9b39e129";
 
 export class Imagery {
   constructor(site, renderer) {

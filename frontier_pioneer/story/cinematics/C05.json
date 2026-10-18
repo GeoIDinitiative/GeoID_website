@@ -1,0 +1,789 @@
+{
+ "id": "C05",
+ "title": "Core",
+ "note": "The North Polar Layered Deposits: a scarp of banded ice the height of a cathedral, the sun skimming the horizon. BEACON at the drill rig ANVIL built; the core held up to the low sun, the light through it in bands; LODESTONE correcting him (tens of thousands of years, not a few hundred); a memory of Lucy on a pier; he stops counting and just looks. The scarp and the rig are dressing on whatever ground the site gives.",
+ "stage": {
+  "at": "player",
+  "face": 0
+ },
+ "world": {
+  "hour": 17.2,
+  "hideAvatar": true,
+  "hideUnits": "all",
+  "focus": true
+ },
+ "sets": [
+  {
+   "id": "ice",
+   "kind": "ice_scarp",
+   "at": [
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "id": "rig",
+   "kind": "drill_rig",
+   "at": [
+    1.0,
+    0,
+    2.6
+   ]
+  },
+  {
+   "id": "pier",
+   "kind": "pier"
+  }
+ ],
+ "actors": [
+  {
+   "id": "p1",
+   "kind": "pioneer",
+   "at": [
+    0.1,
+    0,
+    2.0
+   ],
+   "yaw": 30,
+   "clip": "idle"
+  },
+  {
+   "id": "beacon",
+   "kind": "caretaker",
+   "look": "BEACON",
+   "kit": [
+    "radio"
+   ],
+   "at": [
+    2.0,
+    0,
+    3.3
+   ],
+   "yaw": -100,
+   "clip": "weld"
+  },
+  {
+   "id": "lode",
+   "kind": "caretaker",
+   "look": "LODESTONE",
+   "at": [
+    -3.8,
+    0,
+    5.8
+   ],
+   "yaw": 150,
+   "clip": "idle"
+  },
+  {
+   "id": "lucy",
+   "kind": "human",
+   "set": "pier",
+   "look": {
+    "hair": "long",
+    "memory": {
+     "color": "#ffb07a",
+     "rim": "#fff0d8"
+    }
+   },
+   "at": [
+    1.15,
+    0.03,
+    -6
+   ],
+   "yaw": 90,
+   "clip": "lean_rail"
+  }
+ ],
+ "shots": [
+  {
+   "at": "start",
+   "name": "the scarp: ice the height of a cathedral, striped like a cut cake; the sun lying flat on the horizon; the rig at its foot",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": [
+       3,
+       0.8,
+       -6
+      ],
+      "look": [
+       0,
+       6,
+       40
+      ],
+      "lens": 21
+     },
+     {
+      "t": 1,
+      "pos": [
+       6,
+       4,
+       -14
+      ],
+      "look": [
+       0,
+       40,
+       60
+      ],
+      "lens": 21
+     }
+    ],
+    "ease": "inout",
+    "handheld": 0.1
+   },
+   "grade": "polar",
+   "dof": {
+    "focus": 40,
+    "fstop": 5.6
+   }
+  },
+  {
+   "at": "C05.01",
+   "name": "BEACON at the rig: easy, easy, like bringing a boat alongside",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": {
+       "actor": "p1",
+       "bone": "head",
+       "o": [
+        1.232,
+        0.2,
+        -3.185
+       ]
+      },
+      "look": {
+       "actor": "beacon",
+       "bone": "head"
+      },
+      "lens": 41.5
+     },
+     {
+      "t": 1,
+      "pos": {
+       "actor": "p1",
+       "bone": "head",
+       "o": [
+        1.15,
+        0.2,
+        -2.912
+       ]
+      },
+      "look": {
+       "actor": "beacon",
+       "bone": "head"
+      },
+      "lens": 42.7
+     }
+    ],
+    "ease": "linear",
+    "handheld": 0.15
+   },
+   "grade": "polar",
+   "dof": {
+    "focus": "beacon",
+    "fstop": 2.4
+   }
+  },
+  {
+   "at": "beat:4",
+   "name": "the core barrel rises out of the ice; he slides the core free",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": [
+       -2.2,
+       1.1,
+       4.6
+      ],
+      "look": [
+       1.0,
+       1.0,
+       2.6
+      ],
+      "lens": 35
+     },
+     {
+      "t": 1,
+      "pos": [
+       -2.0,
+       1.15,
+       4.3
+      ],
+      "look": [
+       1.0,
+       1.1,
+       2.6
+      ],
+      "lens": 38
+     }
+    ],
+    "ease": "linear",
+    "handheld": 0.15
+   },
+   "grade": "polar",
+   "dof": {
+    "focus": "p1",
+    "fstop": 2.8
+   }
+  },
+  {
+   "at": "beat:5",
+   "name": "insert: the core held up to the low sun, the light through it in bands",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": {
+       "actor": "p1",
+       "bone": "head",
+       "o": [
+        0.96,
+        0.08,
+        2.45
+       ]
+      },
+      "look": {
+       "actor": "p1",
+       "bone": "hand_L",
+       "o": [
+        0,
+        0.05,
+        0
+       ]
+      },
+      "lens": 85
+     },
+     {
+      "t": 1,
+      "pos": {
+       "actor": "p1",
+       "bone": "head",
+       "o": [
+        0.88,
+        0.08,
+        2.275
+       ]
+      },
+      "look": {
+       "actor": "p1",
+       "bone": "hand_L",
+       "o": [
+        0,
+        0.05,
+        0
+       ]
+      },
+      "lens": 90
+     }
+    ],
+    "ease": "linear",
+    "handheld": 0.08
+   },
+   "grade": {
+    "base": "polar",
+    "bloom": 3
+   },
+   "dof": {
+    "focus": {
+     "actor": "p1",
+     "bone": "hand_L"
+    },
+    "fstop": 2.0
+   }
+  },
+  {
+   "at": "C05.03",
+   "name": "Ten metres. A few hundred years of weather.",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": {
+       "actor": "p1",
+       "bone": "head",
+       "o": [
+        1.55,
+        0.12,
+        2.7
+       ]
+      },
+      "look": {
+       "actor": "p1",
+       "bone": "head"
+      },
+      "lens": 48
+     },
+     {
+      "t": 1,
+      "pos": {
+       "actor": "p1",
+       "bone": "head",
+       "o": [
+        1.47,
+        0.12,
+        2.5500000000000003
+       ]
+      },
+      "look": {
+       "actor": "p1",
+       "bone": "head"
+      },
+      "lens": 52
+     }
+    ],
+    "handheld": 0.12,
+    "ease": "linear"
+   },
+   "grade": "polar",
+   "dof": {
+    "focus": "p1",
+    "fstop": 2.0
+   }
+  },
+  {
+   "at": "C05.04",
+   "name": "LODESTONE: Don't call them years.",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": {
+       "actor": "p1",
+       "bone": "head",
+       "o": [
+        -1.9,
+        0.2,
+        -2.958
+       ]
+      },
+      "look": {
+       "actor": "lode",
+       "bone": "head"
+      },
+      "lens": 43.0
+     },
+     {
+      "t": 1,
+      "pos": {
+       "actor": "p1",
+       "bone": "head",
+       "o": [
+        -1.9,
+        0.2,
+        -2.684
+       ]
+      },
+      "look": {
+       "actor": "lode",
+       "bone": "head"
+      },
+      "lens": 44.2
+     }
+    ],
+    "ease": "linear",
+    "handheld": 0.15
+   },
+   "grade": "polar",
+   "dof": {
+    "focus": "lode",
+    "fstop": 2.2
+   }
+  },
+  {
+   "at": "C05.04+5.5",
+   "name": "You're holding a climate, not a calendar (him, the core)",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": {
+       "actor": "lode",
+       "bone": "head",
+       "o": [
+        1.9,
+        0.2,
+        -2.958
+       ]
+      },
+      "look": {
+       "actor": "p1",
+       "bone": "head"
+      },
+      "lens": 44.5
+     },
+     {
+      "t": 1,
+      "pos": {
+       "actor": "lode",
+       "bone": "head",
+       "o": [
+        1.9,
+        0.2,
+        -2.684
+       ]
+      },
+      "look": {
+       "actor": "p1",
+       "bone": "head"
+      },
+      "lens": 45.7
+     }
+    ],
+    "ease": "linear",
+    "handheld": 0.15
+   },
+   "grade": "polar",
+   "dof": {
+    "focus": "p1",
+    "fstop": 2.2
+   }
+  },
+  {
+   "at": "C05.05",
+   "name": "You've been reading my field notes.",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": {
+       "actor": "p1",
+       "bone": "head",
+       "o": [
+        1.55,
+        0.12,
+        2.7
+       ]
+      },
+      "look": {
+       "actor": "p1",
+       "bone": "head"
+      },
+      "lens": 48
+     },
+     {
+      "t": 1,
+      "pos": {
+       "actor": "p1",
+       "bone": "head",
+       "o": [
+        1.47,
+        0.12,
+        2.5500000000000003
+       ]
+      },
+      "look": {
+       "actor": "p1",
+       "bone": "head"
+      },
+      "lens": 52
+     }
+    ],
+    "handheld": 0.12,
+    "ease": "linear"
+   },
+   "grade": "polar",
+   "dof": {
+    "focus": "p1",
+    "fstop": 2.0
+   }
+  },
+  {
+   "at": "C05.06",
+   "name": "Somebody has to correct them.",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": {
+       "actor": "lode",
+       "bone": "head",
+       "o": [
+        -0.72,
+        0.13,
+        1.925
+       ]
+      },
+      "look": {
+       "actor": "lode",
+       "bone": "head"
+      },
+      "lens": 65
+     },
+     {
+      "t": 1,
+      "pos": {
+       "actor": "lode",
+       "bone": "head",
+       "o": [
+        -0.662,
+        0.13,
+        1.733
+       ]
+      },
+      "look": {
+       "actor": "lode",
+       "bone": "head"
+      },
+      "lens": 59.5
+     }
+    ],
+    "handheld": 0.12,
+    "ease": "linear"
+   },
+   "grade": "polar",
+   "dof": {
+    "focus": "lode",
+    "fstop": 2.0
+   }
+  },
+  {
+   "at": "C05.07",
+   "name": "memory: a pier, wind; Lucy: you never just look at them",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": [
+       -0.6,
+       1.5,
+       -3.0
+      ],
+      "look": [
+       1.15,
+       1.3,
+       -6.0
+      ],
+      "lens": 40
+     },
+     {
+      "t": 1,
+      "pos": [
+       -0.5,
+       1.5,
+       -3.3
+      ],
+      "look": [
+       1.15,
+       1.3,
+       -6.0
+      ],
+      "lens": 45
+     }
+    ],
+    "ease": "linear",
+    "handheld": 0.15
+   },
+   "grade": "memory",
+   "dof": {
+    "focus": "lucy",
+    "fstop": 2.0
+   },
+   "set": "pier"
+  },
+  {
+   "at": "beat:13",
+   "name": "he stops counting; he just looks",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": {
+       "actor": "p1",
+       "bone": "head",
+       "o": [
+        1.55,
+        0.12,
+        2.7
+       ]
+      },
+      "look": {
+       "actor": "p1",
+       "bone": "head"
+      },
+      "lens": 48
+     },
+     {
+      "t": 1,
+      "pos": {
+       "actor": "p1",
+       "bone": "head",
+       "o": [
+        1.47,
+        0.12,
+        2.5500000000000003
+       ]
+      },
+      "look": {
+       "actor": "p1",
+       "bone": "head"
+      },
+      "lens": 52
+     }
+    ],
+    "handheld": 0.12,
+    "ease": "linear"
+   },
+   "grade": "polar",
+   "dof": {
+    "focus": "p1",
+    "fstop": 1.8
+   }
+  },
+  {
+   "at": "C05.08",
+   "name": "core logged: out wide, three small figures under the wall of ice",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": [
+       3,
+       2.2,
+       -7
+      ],
+      "look": [
+       0,
+       6,
+       30
+      ],
+      "lens": 28
+     },
+     {
+      "t": 1,
+      "pos": [
+       12,
+       7,
+       -26
+      ],
+      "look": [
+       0,
+       14,
+       45
+      ],
+      "lens": 21
+     }
+    ],
+    "ease": "inout",
+    "handheld": 0.05
+   },
+   "grade": "polar",
+   "dof": {
+    "focus": 20,
+    "fstop": 5.6
+   }
+  }
+ ],
+ "track": [
+  {
+   "at": "start",
+   "actor": "beacon",
+   "play": "weld"
+  },
+  {
+   "at": "start",
+   "actor": "p1",
+   "lookAt": {
+    "a": "player",
+    "o": [
+     1.2,
+     1.0,
+     3.0
+    ]
+   },
+   "weight": 0.7
+  },
+  {
+   "at": "beat:4",
+   "actor": "p1",
+   "play": "interact",
+   "fade": 0.3
+  },
+  {
+   "at": "beat:4+1.0",
+   "actor": "p1",
+   "attach": {
+    "prop": "core",
+    "socket": "sk_grip_L",
+    "pos": [
+     0.12,
+     0,
+     0.05
+    ],
+    "rot": [
+     0,
+     90,
+     0
+    ]
+   }
+  },
+  {
+   "at": "beat:4+1.4",
+   "actor": "p1",
+   "face": {
+    "sky": "sun"
+   },
+   "dur": 1.4
+  },
+  {
+   "at": "beat:4+1.4",
+   "actor": "p1",
+   "play": "lift_inspect",
+   "fade": 0.4
+  },
+  {
+   "at": "C05.04",
+   "actor": "lode",
+   "walk": [
+    -1.6,
+    0,
+    3.6
+   ],
+   "speed": 0.9,
+   "then": "gesture_talk"
+  },
+  {
+   "at": "C05.04",
+   "actor": "lode",
+   "lookAt": "p1",
+   "weight": 0.9
+  },
+  {
+   "at": "C05.04+3",
+   "actor": "p1",
+   "lookAt": "lode",
+   "weight": 0.7
+  },
+  {
+   "at": "C05.05",
+   "actor": "p1",
+   "play": "hold_up",
+   "fade": 0.5
+  },
+  {
+   "at": "beat:13",
+   "actor": "p1",
+   "lookAt": {
+    "actor": "p1",
+    "bone": "hand_L"
+   },
+   "weight": 1
+  },
+  {
+   "at": "beat:13",
+   "actor": "lode",
+   "play": "idle",
+   "fade": 0.8
+  },
+  {
+   "at": "beat:13",
+   "actor": "beacon",
+   "play": "unit_idle_check",
+   "fade": 0.8
+  }
+ ]
+}

@@ -25,8 +25,8 @@
  * is a pure function of `cell`, which is what lets a clipmap level compute
  * exactly what its parent draws (terrain.js).
  */
-import { CLIPMAP, HEIGHT_RADIUS } from "./config.js?v=b8cfe8e-efa5b7b7";
-import { fetchTile, pixels } from "./tiles.js?v=b8cfe8e-efa5b7b7";
+import { CLIPMAP, HEIGHT_RADIUS } from "./config.js?v=6d37c9c-9b39e129";
+import { fetchTile, pixels } from "./tiles.js?v=6d37c9c-9b39e129";
 
 export const PROV = { none: 0, interpolated: 1, ctx: 2, hirise: 3 };
 

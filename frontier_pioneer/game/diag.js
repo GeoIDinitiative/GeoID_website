@@ -12,7 +12,7 @@
  * every draw call: counts, uniforms and textures all look right and the only
  * symptom is black pixels (the Everest README has the long version).
  */
-import * as tiles from "./tiles.js?v=b8cfe8e-efa5b7b7";
+import * as tiles from "./tiles.js?v=6d37c9c-9b39e129";
 
 export function install(game, ui) {
   const stats = () => {

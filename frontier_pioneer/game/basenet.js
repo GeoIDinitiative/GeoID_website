@@ -118,6 +118,41 @@ export const MODULES = {
 };
 export const MODULE_IDS = Object.keys(MODULES);
 
+/* ── the campaign's supply chain: a module's `plan` ─────────────────────────
+ *   "draft"      a blueprint laid out in build mode (no materials, no picture but the blueprint)
+ *   "ordered"    sent to HALO-1: its components are in the package's descent (m.pkg)
+ *   "delivered"  the package is down: its components (m.crates of them) sit at the pod; m.got have reached the site
+ *   "site"       every component is on the site: construction runs (with a crew, through `crewGate`)
+ *   absent       free roam's direct building (and anything placed before this existed): construction runs
+ * Construction never advances a module whose components are not on the site. */
+export const PLAN_STATES = ["draft", "ordered", "delivered", "site"];
+export const waitingForParts = (m) => !!m && (m.plan === "draft" || m.plan === "ordered" || m.plan === "delivered");
+/** The order caretakers build in: power first, then life support, habitats, the connections, then the rest. */
+export function buildPriority(type) {
+  const B = MODULES[type] || {};
+  if (B.solar || B.battery_wh) return 0;
+  if (B.cat === "life" || type === "water_tank" || type === "oxygen_tank") return 1;
+  if (B.cat === "habitat") return 2;
+  if (B.cat === "connect") return 3;
+  return 4;
+}
+/** Component crates a module arrives as (one caretaker trip each). */
+export const cratesFor = (type) => Math.max(1, Math.ceil(((MODULES[type] || {}).cost || 40) / 70));
+/**
+ * What a plan of these module types brings down: components (crates), supplies for the stores, and how many
+ * caretakers it calls for (one per three modules, at least one; the story decides who).
+ */
+export function planManifest(types) {
+  const n = types.length, count = {};
+  let crates = 0, crew = 0, hull = 0, cost = 0;
+  for (const t of types) { count[t] = (count[t] || 0) + 1; crates += cratesFor(t); const B = MODULES[t] || {}; crew += B.crew || 0; if (B.pressurised) hull++; cost += B.cost || 0; }
+  return {
+    modules: n, count, crates, crewPlaces: crew, footprint: Math.round(cost / 2),
+    caretakers: n ? Math.max(1, Math.ceil(n / 3)) : 0,
+    supplies: n ? { food: 20 + 10 * crew, water: 100 + 40 * crew, o2: 20 + 6 * hull, spares: Math.ceil(n / 2) } : { food: 0, water: 0, o2: 0, spares: 0 },
+  };
+}
+
 /** Geometry of each module from catalog.json (footprint, ports, bounds). Filled by defineKit(). */
 export const KIT = {};
 export function defineKit(items) {
@@ -211,6 +246,8 @@ export class BaseNet {
     this.dock = null;             // { moduleId, want_W } set by the rover each step; delivered_W comes back
     this.dockDelivered_W = 0;
     this.materialsRate = 0;
+    this.crewGate = null;         // (module) -> rate multiplier, 0 = nobody at it: the campaign's caretakers (caretakers.js); null in free roam
+    this.onHand = {};             // components on hand by module type (the lander's salvage): a blueprint of one is a site at once
   }
   on(name, fn) { (this.listeners[name] = this.listeners[name] || []).push(fn); return () => { const l = this.listeners[name], i = l.indexOf(fn); if (i >= 0) l.splice(i, 1); }; }
   emit(name, detail) { for (const f of (this.listeners[name] || []).slice()) { try { f(detail); } catch (e) { console.error("[base] listener", name, e); } } }
@@ -218,6 +255,8 @@ export class BaseNet {
   /* structure */
   addBase(b) {
     const base = Object.assign({ id: "base-" + (this.bases.size + 1) + "-" + Math.random().toString(36).slice(2, 6), name: "", x: 0, z: 0, yaw: 0, y: 0, o2: RULES.lander.o2, water: RULES.lander.water, food: RULES.lander.food, live: null }, b);
+    base.crated = Object.assign({ o2: 0, water: 0, food: 0 }, b.crated || {});      // supplies landed but not yet in the stores (no room): they go in as room appears
+    base.spares = b.spares || 0;
     if (!base.name) base.name = BASE_NAMES[this.bases.size % BASE_NAMES.length];
     this.bases.set(base.id, base);
     return base;
@@ -354,16 +393,27 @@ export class BaseNet {
     const queue = [...this.modules.values()].filter((m) => !isBuilt(m)).sort((a, b) => a.seq - b.seq);
     let crews = RULES.crews;
     for (const m of queue) {
-      m.queued = crews <= 0;
-      if (crews <= 0 && !this.sandbox) continue;
-      crews--;
-      m.progress = this.sandbox ? 1 : Math.min(1, m.progress + h / Math.max(0.05, MODULES[m.type].build_h));
+      if (waitingForParts(m)) { m.queued = false; continue; }          // a blueprint, or components not on the site yet
+      if (this.crewGate) {
+        // the campaign: whoever is at the site builds it (caretakers, the pioneer helping); more hands, faster
+        let k = 1;
+        if (!this.sandbox) { try { k = +this.crewGate(m) || 0; } catch { k = 0; } }
+        m.queued = !(k > 0);
+        if (m.queued) continue;
+        m.progress = this.sandbox ? 1 : Math.min(1, m.progress + h * k / Math.max(0.05, MODULES[m.type].build_h));
+      } else {
+        m.queued = crews <= 0;
+        if (crews <= 0 && !this.sandbox) continue;
+        crews--;
+        m.progress = this.sandbox ? 1 : Math.min(1, m.progress + h / Math.max(0.05, MODULES[m.type].build_h));
+      }
       if (isBuilt(m)) this._commission(m);
     }
   }
   _commission(m) {
     const B = MODULES[m.type];
     m.queued = false;
+    delete m.plan; m.pkg = null;                 // built: out of the supply chain
     m.st.reserve = (B.reserve_h || 0) * -Math.min(0, B.power_w);
     if (B.battery_wh) m.st.wh = Math.max(m.st.wh, 0.5 * B.battery_wh);      // a bank arrives half charged
     m.st.on = true; m.st.pf = 1;
@@ -378,7 +428,8 @@ export class BaseNet {
     const G = Math.max(0, env.G || 0), night = !(env.sinEl > 0.02);
     const live = { gen: 0, load: 0, stored: 0, cap: 0, need12: 0, t1: 0, t2: 0, t3: 0, f2: 1, f3: 1, off: 0, onReserve: 0, cutOff: 0, building: 0, built: 0,
       o2: 0, water: 0, food: 0, mat: 0, crew: 0, crewCap: 0, capO2: RULES.lander.o2, capWater: RULES.lander.water, capFood: RULES.lander.food, dust: 0, arrays: 0, avgGen: 0, night };
-    for (const m of T.mods) { if (isBuilt(m)) live.built++; else live.building++; }
+    live.planned = 0; live.inbound = 0; live.atPod = 0;
+    for (const m of T.mods) { if (isBuilt(m)) live.built++; else if (m.plan === "draft") live.planned++; else if (m.plan === "ordered") live.inbound++; else if (m.plan === "delivered") live.atPod++; else live.building++; }
 
     T.networks.forEach((ids, ni) => {
       const mods = ids.map((id) => this.modules.get(id));
@@ -454,6 +505,9 @@ export class BaseNet {
     if (b.water <= 0 && dW < 0) { for (const id of mainIds) { const m = this.modules.get(id), B = MODULES[m.type]; if ((B.water || 0) < 0 && ((B.o2 || 0) > 0 || (B.food || 0) > 0) && m.st.on) { dO2 -= B.o2 * m.st.pf; dF -= (B.food || 0) * m.st.pf; } } }
     live.o2 = dO2; live.water = dW; live.food = dF; live.mat = dM;
     b.o2 = clamp(b.o2 + dO2 * sol, 0, live.capO2); b.water = clamp(b.water + dW * sol, 0, live.capWater); b.food = clamp(b.food + dF * sol, 0, live.capFood);
+    // crated supplies (a package's food, water and oxygen) go into the stores as room appears
+    const cr = b.crated;
+    if (cr) for (const [k, cap] of [["o2", live.capO2], ["water", live.capWater], ["food", live.capFood]]) { const room = Math.max(0, cap - b[k]), d = Math.min(room, cr[k] || 0); if (d > 0) { b[k] += d; cr[k] -= d; } }
 
     // air: a pressure volume leaks as one when any part of it is breached
     const breachedVol = new Set();
@@ -498,7 +552,8 @@ export class BaseNet {
     if (!b.live) this._stepBase(b, 1e-6, 1e-9, {});
     const L = b.live;
     return {
-      id: b.id, name: b.name, modules: L.built + L.building, built: L.built, building: L.building,
+      id: b.id, name: b.name, modules: L.built + L.building + (L.planned || 0) + (L.inbound || 0) + (L.atPod || 0), built: L.built, building: L.building,
+      planned: L.planned || 0, inbound: L.inbound || 0, atPod: L.atPod || 0, crated: Object.assign({ o2: 0, water: 0, food: 0 }, b.crated || {}), spares: b.spares || 0,
       power: { gen_W: L.gen, load_W: L.load, net_W: L.net, stored_Wh: L.stored, capacity_Wh: L.cap, fraction: L.frac, reserve_h: L.reserve_h, reserveNight_h: L.reserveNight_h,
         nightLeft_h: L.nightLeft_h, nightLen_h: L.nightLen_h, comfort: L.f2, industry: L.f3, nightLoad_W: L.need12, off: L.off, onReserve: L.onReserve },
       o2: { kg: b.o2, cap: L.capO2, perSol: L.o2 }, water: { l: b.water, cap: L.capWater, perSol: L.water }, food: { kg: b.food, cap: L.capFood, perSol: L.food },
@@ -581,8 +636,8 @@ export class BaseNet {
   /* ── persistence: stocks and frames (the modules themselves are entities) ── */
   toJSON() {
     const bases = {};
-    for (const b of this.bases.values()) bases[b.id] = { name: b.name, x: b.x, z: b.z, yaw: b.yaw, o2: b.o2, water: b.water, food: b.food, site: b.site || null };
-    return { v: 1, materials: this.materials, seq: this.seq, bases };
+    for (const b of this.bases.values()) bases[b.id] = { name: b.name, x: b.x, z: b.z, yaw: b.yaw, o2: b.o2, water: b.water, food: b.food, site: b.site || null, crated: b.crated || null, spares: b.spares || 0 };
+    return { v: 1, materials: this.materials, seq: this.seq, bases, onHand: this.onHand };
   }
 }
 

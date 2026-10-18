@@ -1,0 +1,256 @@
+{
+ "id": "C20",
+ "title": "Selection Interview",
+ "note": "Post-credits: archive tape, ESI 2056. A locked-off camera on a plastic chair, an institutional room, a banner; Rowan Ashby in a borrowed suit jacket, hands between his knees. The tape's look (line jitter, colour bleed, tracking noise) is the only filter here: the one scene that was never rebuilt by it. A tape operator's zoom on the smile.",
+ "world": {
+  "hideAvatar": false,
+  "focus": false
+ },
+ "sets": [
+  {
+   "id": "room",
+   "kind": "interview"
+  }
+ ],
+ "actors": [
+  {
+   "id": "rowan",
+   "kind": "human",
+   "set": "room",
+   "look": {
+    "hair": "short",
+    "material": "cloth",
+    "cloth": "#56606e",
+    "skin": "#b08a74",
+    "hairColour": "#4a3a2e"
+   },
+   "at": [
+    0,
+    0,
+    -1.2
+   ],
+   "yaw": 0,
+   "clip": "sit_chair_nervous"
+  }
+ ],
+ "shots": [
+  {
+   "at": "start",
+   "name": "archive tape: ESI, 2056, a man on a plastic chair",
+   "set": "room",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": [
+       0.25,
+       1.3,
+       1.6
+      ],
+      "look": [
+       0,
+       0.9,
+       -1.2
+      ],
+      "lens": 30
+     },
+     {
+      "t": 1,
+      "pos": [
+       0.25,
+       1.3,
+       1.6
+      ],
+      "look": [
+       0,
+       0.9,
+       -1.2
+      ],
+      "lens": 30
+     }
+    ],
+    "ease": "linear"
+   },
+   "dof": {
+    "focus": 2.8,
+    "fstop": 5.6
+   },
+   "grade": "archive"
+  },
+  {
+   "at": "C20.02",
+   "name": "Feels like one (a nervous laugh)",
+   "set": "room",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": [
+       0.25,
+       1.3,
+       1.6
+      ],
+      "look": [
+       0,
+       0.95,
+       -1.2
+      ],
+      "lens": 48
+     },
+     {
+      "t": 1,
+      "pos": [
+       0.25,
+       1.3,
+       1.6
+      ],
+      "look": [
+       0,
+       0.95,
+       -1.2
+      ],
+      "lens": 50
+     }
+    ],
+    "ease": "linear"
+   },
+   "dof": {
+    "focus": 2.8,
+    "fstop": 5.6
+   },
+   "grade": "archive"
+  },
+  {
+   "at": "C20.04",
+   "name": "No. / Not really. (looking at his hands)",
+   "set": "room",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": [
+       0.2,
+       1.25,
+       0.6
+      ],
+      "look": {
+       "actor": "rowan",
+       "bone": "head"
+      },
+      "lens": 60
+     },
+     {
+      "t": 1,
+      "pos": [
+       0.2,
+       1.25,
+       0.55
+      ],
+      "look": {
+       "actor": "rowan",
+       "bone": "head"
+      },
+      "lens": 62
+     }
+    ],
+    "ease": "linear"
+   },
+   "dof": {
+    "focus": "rowan",
+    "fstop": 4
+   },
+   "grade": "archive"
+  },
+  {
+   "at": "beat:10",
+   "name": "Rowan Ashby smiles: the zoom in, as a tape operator would",
+   "set": "room",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": [
+       0.25,
+       1.3,
+       1.6
+      ],
+      "look": {
+       "actor": "rowan",
+       "bone": "head"
+      },
+      "lens": 50
+     },
+     {
+      "t": 1,
+      "pos": [
+       0.25,
+       1.3,
+       1.6
+      ],
+      "look": {
+       "actor": "rowan",
+       "bone": "head"
+      },
+      "lens": 85
+     }
+    ],
+    "ease": "inout"
+   },
+   "dof": {
+    "focus": "rowan",
+    "fstop": 4
+   },
+   "grade": "archive"
+  }
+ ],
+ "track": [
+  {
+   "at": "start",
+   "actor": "rowan",
+   "lookAt": [
+    0.5,
+    1.3,
+    1.8
+   ],
+   "weight": 0.5
+  },
+  {
+   "at": "C20.02",
+   "actor": "rowan",
+   "play": "nervous_laugh",
+   "fade": 0.2
+  },
+  {
+   "at": "C20.04",
+   "actor": "rowan",
+   "lookAt": [
+    0.6,
+    1.35,
+    1.4
+   ],
+   "weight": 0.6
+  },
+  {
+   "at": "C20.05",
+   "actor": "rowan",
+   "play": "look_down",
+   "fade": 0.8
+  },
+  {
+   "at": "C20.06",
+   "actor": "rowan",
+   "play": "sit_chair_nervous",
+   "fade": 0.8
+  },
+  {
+   "at": "beat:10",
+   "actor": "rowan",
+   "lookAt": [
+    0.3,
+    1.45,
+    1.6
+   ],
+   "weight": 0.9
+  }
+ ]
+}

@@ -1,0 +1,592 @@
+{
+ "id": "C11",
+ "title": "Graveyard",
+ "note": "Utopia Planitia at low sun: hundreds of Gen-1 machines (the generation before the caretakers: wheeled, tracked, not people), half-sunk, all turned west to where the Sun went down the day the storm came. He walks between them and plugs into one, another, another; the logs say wait; the Lumen Neural post-mortem says give the agent something to go home to. For a second his glove is bare composite. He turns, deliberately, to face east.",
+ "stage": {
+  "at": "player",
+  "face": 0
+ },
+ "world": {
+  "hour": 17.7,
+  "hideAvatar": true,
+  "hideUnits": "all",
+  "focus": true
+ },
+ "sets": [
+  {
+   "id": "field",
+   "kind": "drones",
+   "at": [
+    0,
+    0,
+    0
+   ],
+   "n": 300,
+   "r": 70
+  }
+ ],
+ "actors": [
+  {
+   "id": "p1",
+   "kind": "pioneer",
+   "at": [
+    0,
+    0,
+    18
+   ],
+   "yaw": 180,
+   "clip": "walk"
+  }
+ ],
+ "shots": [
+  {
+   "at": "start",
+   "name": "Utopia at low sun: the plain covered in machines, hundreds, every one facing west",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": [
+       2,
+       1.0,
+       -6
+      ],
+      "look": [
+       0,
+       1.2,
+       30
+      ],
+      "lens": 24
+     },
+     {
+      "t": 1,
+      "pos": [
+       3,
+       30,
+       -30
+      ],
+      "look": [
+       0,
+       0,
+       40
+      ],
+      "lens": 18
+     }
+    ],
+    "ease": "inout",
+    "handheld": 0.05
+   },
+   "grade": "mars_dusk",
+   "dof": {
+    "focus": 30,
+    "fstop": 8
+   }
+  },
+  {
+   "at": "beat:3",
+   "name": "for a second, his glove on a drone's casing is what it is: matte composite, no fabric, no seams",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": {
+       "actor": "p1",
+       "bone": "hand_R",
+       "o": [
+        0.4,
+        0.15,
+        0.5
+       ]
+      },
+      "look": {
+       "actor": "p1",
+       "bone": "hand_R"
+      },
+      "lens": 70
+     },
+     {
+      "t": 1,
+      "pos": {
+       "actor": "p1",
+       "bone": "hand_R",
+       "o": [
+        0.38,
+        0.15,
+        0.46
+       ]
+      },
+      "look": {
+       "actor": "p1",
+       "bone": "hand_R"
+      },
+      "lens": 70
+     }
+    ],
+    "ease": "linear",
+    "handheld": 0.05
+   },
+   "grade": "mars_dusk",
+   "dof": {
+    "focus": {
+     "actor": "p1",
+     "bone": "hand_R"
+    },
+    "fstop": 2.0
+   }
+  },
+  {
+   "at": "beat:4",
+   "name": "he walks between them: a drill arm raised and never lowered, a scoop stopped above a bin",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": [
+       -1.5,
+       1.4,
+       12
+      ],
+      "look": {
+       "actor": "p1",
+       "bone": "chest"
+      },
+      "lens": 40
+     },
+     {
+      "t": 1,
+      "pos": [
+       -1.2,
+       1.4,
+       10
+      ],
+      "look": {
+       "actor": "p1",
+       "bone": "chest"
+      },
+      "lens": 42
+     }
+    ],
+    "ease": "linear",
+    "handheld": 0.25
+   },
+   "grade": "mars_dusk",
+   "dof": {
+    "focus": "p1",
+    "fstop": 2.8
+   }
+  },
+  {
+   "at": "C11.01",
+   "name": "Sol 1,912: optimal action: wait (he plugs into the nearest)",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": [
+       3.4,
+       0.9,
+       7.6
+      ],
+      "look": {
+       "actor": "p1",
+       "bone": "chest"
+      },
+      "lens": 40
+     },
+     {
+      "t": 1,
+      "pos": [
+       3.2,
+       0.9,
+       7.4
+      ],
+      "look": {
+       "actor": "p1",
+       "bone": "chest"
+      },
+      "lens": 42
+     }
+    ],
+    "ease": "linear",
+    "handheld": 0.15
+   },
+   "grade": "mars_dusk",
+   "dof": {
+    "focus": "p1",
+    "fstop": 2.4
+   }
+  },
+  {
+   "at": "C11.02",
+   "name": "Sol 1,913 (long lens down the rows, all facing the same way)",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": [
+       -6,
+       1.0,
+       20
+      ],
+      "look": [
+       -6,
+       0.8,
+       -30
+      ],
+      "lens": 135
+     },
+     {
+      "t": 1,
+      "pos": [
+       -5.6,
+       1.0,
+       19
+      ],
+      "look": [
+       -6,
+       0.8,
+       -30
+      ],
+      "lens": 150
+     }
+    ],
+    "ease": "linear",
+    "handheld": 0.05
+   },
+   "grade": "mars_dusk",
+   "dof": {
+    "focus": 30,
+    "fstop": 4
+   }
+  },
+  {
+   "at": "C11.03",
+   "name": "Sol 2,240: battery below restart threshold: wait",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": {
+       "actor": "p1",
+       "bone": "head",
+       "o": [
+        0.96,
+        0.08,
+        2.275
+       ]
+      },
+      "look": {
+       "actor": "p1",
+       "bone": "head"
+      },
+      "lens": 60
+     },
+     {
+      "t": 1,
+      "pos": {
+       "actor": "p1",
+       "bone": "head",
+       "o": [
+        0.883,
+        0.08,
+        2.048
+       ]
+      },
+      "look": {
+       "actor": "p1",
+       "bone": "head"
+      },
+      "lens": 65
+     }
+    ],
+    "handheld": 0.12,
+    "ease": "linear"
+   },
+   "grade": "mars_dusk",
+   "dof": {
+    "focus": "p1",
+    "fstop": 2.2
+   }
+  },
+  {
+   "at": "beat:8",
+   "name": "another, and another: the same sentence in every one",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": [
+       6,
+       2.0,
+       1
+      ],
+      "look": {
+       "actor": "p1",
+       "bone": "chest"
+      },
+      "lens": 35
+     },
+     {
+      "t": 1,
+      "pos": [
+       5.4,
+       2.0,
+       2
+      ],
+      "look": {
+       "actor": "p1",
+       "bone": "chest"
+      },
+      "lens": 38
+     }
+    ],
+    "ease": "linear",
+    "handheld": 0.2
+   },
+   "grade": "mars_dusk",
+   "dof": {
+    "focus": "p1",
+    "fstop": 3.2
+   }
+  },
+  {
+   "at": "C11.04",
+   "name": "Finding: rational agents defer under uncertainty",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": [
+       0.5,
+       0.5,
+       -6
+      ],
+      "look": [
+       0,
+       1.4,
+       8
+      ],
+      "lens": 28
+     },
+     {
+      "t": 1,
+      "pos": [
+       0.5,
+       0.6,
+       -5
+      ],
+      "look": [
+       0,
+       1.5,
+       8
+      ],
+      "lens": 30
+     }
+    ],
+    "ease": "linear",
+    "handheld": 0.15
+   },
+   "grade": "mars_dusk",
+   "dof": {
+    "focus": "p1",
+    "fstop": 4
+   }
+  },
+  {
+   "at": "C11.05",
+   "name": "Give the agent something to go home to (close, he does not move)",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": {
+       "actor": "p1",
+       "bone": "head",
+       "o": [
+        0.48,
+        0.08,
+        1.662
+       ]
+      },
+      "look": {
+       "actor": "p1",
+       "bone": "head"
+      },
+      "lens": 55.4
+     },
+     {
+      "t": 1,
+      "pos": {
+       "actor": "p1",
+       "bone": "head",
+       "o": [
+        0.442,
+        0.08,
+        1.496
+       ]
+      },
+      "look": {
+       "actor": "p1",
+       "bone": "head"
+      },
+      "lens": 50.0
+     }
+    ],
+    "handheld": 0.12,
+    "ease": "linear"
+   },
+   "grade": "mars_dusk",
+   "dof": {
+    "focus": "p1",
+    "fstop": 1.6
+   }
+  },
+  {
+   "at": "beat:12",
+   "name": "he unplugs; stands among them a long time; then turns, deliberately, to face east",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": [
+       12,
+       6,
+       -4
+      ],
+      "look": {
+       "actor": "p1",
+       "bone": "chest"
+      },
+      "lens": 40
+     },
+     {
+      "t": 1,
+      "pos": [
+       20,
+       14,
+       -10
+      ],
+      "look": {
+       "actor": "p1",
+       "bone": "chest"
+      },
+      "lens": 28
+     }
+    ],
+    "ease": "inout",
+    "handheld": 0.05
+   },
+   "grade": "mars_dusk",
+   "dof": {
+    "focus": "p1",
+    "fstop": 5.6
+   }
+  }
+ ],
+ "track": [
+  {
+   "at": "start",
+   "actor": "p1",
+   "walk": [
+    [
+     0,
+     0,
+     10
+    ],
+    [
+     0.6,
+     0,
+     7.6
+    ]
+   ],
+   "speed": 1.0,
+   "then": "idle"
+  },
+  {
+   "at": "beat:3",
+   "actor": "p1",
+   "unfiltered": true
+  },
+  {
+   "at": "beat:3+0.9",
+   "actor": "p1",
+   "unfiltered": false
+  },
+  {
+   "at": "beat:4",
+   "actor": "p1",
+   "pos": [
+    0,
+    0,
+    16
+   ],
+   "yaw": 180
+  },
+  {
+   "at": "beat:4",
+   "actor": "p1",
+   "walk": [
+    [
+     0.3,
+     0,
+     11
+    ],
+    [
+     1.0,
+     0,
+     8.2
+    ]
+   ],
+   "speed": 1.0,
+   "then": "kneel"
+  },
+  {
+   "at": "C11.01",
+   "actor": "p1",
+   "play": "kneel_reach",
+   "fade": 0.4
+  },
+  {
+   "at": "C11.03",
+   "actor": "p1",
+   "play": "stand_from_kneel",
+   "fade": 0.3
+  },
+  {
+   "at": "beat:8",
+   "actor": "p1",
+   "walk": [
+    [
+     1.0,
+     0,
+     4.0
+    ],
+    [
+     0.8,
+     0,
+     2.0
+    ]
+   ],
+   "speed": 1.0,
+   "then": "kneel"
+  },
+  {
+   "at": "C11.04",
+   "actor": "p1",
+   "play": "kneel_reach_hold",
+   "fade": 0.6
+  },
+  {
+   "at": "beat:12",
+   "actor": "p1",
+   "play": "stand_from_kneel",
+   "fade": 0.3
+  },
+  {
+   "at": "beat:12+2.0",
+   "actor": "p1",
+   "face": 90,
+   "dur": 2.4
+  }
+ ]
+}

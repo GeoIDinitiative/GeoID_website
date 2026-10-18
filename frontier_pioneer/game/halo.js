@@ -9,11 +9,19 @@
  *   light in the sky (brighter at night), tagged "HALO-1" on the story layer when it matters, and is a
  *   marker on the corner map and the compass.
  *
- *   A REQUEST (the uplink: U on the keyboard, "HALO-1 uplink" in the pause menu, or the story asking)
- *   picks a kind and a drop point on a relief map of the ground around you (click, or the D-pad and
- *   Cross). Materials are unlimited (HALO-1's stock); Contribution Credit is the only limit: open
- *   requests and the footprint of every base draw against a capacity of 400 + lifetime XP, and the
- *   progression tier caps how many requests may be open at once (progress.api.limits()).
+ *   THE PLAN. Build mode is a planning table (builder.js): the pioneer lays the settlement out as blueprints
+ *   from the rover, then sends the plan (G in build mode, its HALO-1 tab, or here). The package carries every
+ *   blueprint's components, food, water, oxygen and spares for the stores, and the caretakers who will build
+ *   it (one per three modules; the story says who: ANVIL rides the first). It drops beside the plan unless
+ *   the uplink moves it. On landing the pod opens, the supplies go into the base's stores, the components
+ *   are crates beside the pod (caretakers.js carries them to the blueprints and builds), the units step out.
+ *   Materials are unlimited (HALO-1's stock); Contribution Credit is the only limit: the footprint of every
+ *   module, planned or built, and the dispatch of each open package draw against 400 + lifetime XP, and the
+ *   progression tier caps the base size and the packages open at once (progress.api.limits()).
+ *
+ *   THE UPLINK (U on the keyboard, "HALO-1 uplink" in the pause menu, or the story asking) sends the plan, or
+ *   a resupply (food and water only), or what a mission asks for (a named unit, the rover, a hopper...), to a
+ *   drop point on a relief map of the ground around you (click, or the D-pad and Cross).
  *
  *   THE DESCENT takes 20 to 30 game minutes (KEEPER says which: KEEPER.bark.descent_20..30), counted down
  *   on the map, the compass and a tag at the drop point, with KEEPER at ten, five and one minute. The
@@ -22,24 +30,26 @@
  *   beacon blinking amber. Every package brings food, water and components, and construction units
  *   (a named founder when the story says so; a generated caretaker while the act's population allows).
  *
- *   getSystem("halo").api = { request(kind, {x, z, unit, item, story}), packages(), get(id), cc(), kinds,
+ *   getSystem("halo").api = { requestPlan({ids, x, z, unit, id, free}), planDrop(ids), crates(), request(kind, {x, z, unit, item, story}), packages(), get(id), cc(), kinds,
  *     stationDir(), openUplink({kind, unit, drop}), closeUplink(), advance(simSeconds), landNow(id), enabled }
  *   events on the game: "halo:request" {pkg}, "halo:countdown" {id, minutes}, "halo:final" {id},
  *     "halo:landed" {pkg}, "halo:denied" {reason}
  */
-import * as THREE from "../vendor/three.module.js?v=b8cfe8e-efa5b7b7";
-import { registerSystem, getSystem } from "./systems.js?v=b8cfe8e-efa5b7b7";
-import { loadStory, speech, esc, ensureStoryStyles } from "./storydata.js?v=b8cfe8e-efa5b7b7";
+import * as THREE from "../vendor/three.module.js?v=6d37c9c-9b39e129";
+import { registerSystem, getSystem } from "./systems.js?v=6d37c9c-9b39e129";
+import { loadStory, speech, esc, ensureStoryStyles } from "./storydata.js?v=6d37c9c-9b39e129";
+import { MODULES, planManifest, cratesFor } from "./basenet.js?v=6d37c9c-9b39e129";
 
 export const STATION = { lonDeg: 77.0, radiusKm: 20428, marsKm: 3389.5 };
 const D2R = Math.PI / 180;
 const FINAL_S = 18;                 // the last stretch, in real seconds: entry streak, chute, retro
 /** What can be asked for. cost: Contribution Credit held while the request is open. */
 export const KINDS = {
-  starter: { name: "Starter package", cost: 180, note: "rations, water, outpost components and one construction unit", food: 40, water: 150, materials: 400, units: 1, story: true },
-  supplies_package: { name: "Supplies", cost: 20, note: "rations and water", food: 40, water: 200 },
-  components_small: { name: "Components", cost: 40, note: "base components (materials)", materials: 250 },
-  construction_unit: { name: "Construction unit", cost: 120, note: "one caretaker unit, with its own supplies", units: 1, food: 10, water: 40, materials: 60 },
+  plan: { name: "The settlement plan", cost: 0, note: "the blueprints' components, supplies for the stores, and the caretakers who build it", plan: true },
+  starter: { name: "Starter package", cost: 180, note: "rations, water, outpost components and one construction unit", food: 40, water: 150, materials: 400, units: 1, story: true, needsPlan: true },
+  supplies_package: { name: "Resupply", cost: 20, note: "food and water only, for the stores", food: 40, water: 200 },
+  components_small: { name: "Components", cost: 40, note: "base components (materials)", materials: 250, story: true },
+  construction_unit: { name: "Construction unit", cost: 120, note: "one caretaker unit, with its own supplies", units: 1, food: 10, water: 40, materials: 60, story: true },
   long_range_rover: { name: "Long-range rover", cost: 150, note: "a pressurised long-range rover kit", materials: 120, item: "long_range_rover", story: true },
   hopper: { name: "Hopper", cost: 200, note: "a rocket hopper for pad-to-pad flights", item: "hopper", story: true },
   pad_kit: { name: "Pad kit", cost: 80, note: "a landing pad for hopper flights", item: "pad_kit", materials: 100, story: true },
@@ -72,6 +82,12 @@ function podMesh() {
   add(new THREE.Mesh(new THREE.CylinderGeometry(1.35, 1.2, 0.35, 20), scorch), 0.32);
   for (let k = 0; k < 4; k++) { const a = k * Math.PI / 2 + 0.4, leg = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 1.0, 6), dark); leg.position.set(Math.cos(a) * 1.35, 0.4, Math.sin(a) * 1.35); leg.rotation.z = 0.4 * Math.cos(a); leg.rotation.x = -0.4 * Math.sin(a); g.add(leg); }
   const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.12, 10, 8), new THREE.MeshBasicMaterial({ color: 0xffb000 })); lamp.position.y = 3.3; lamp.name = "pod-lamp"; g.add(lamp);
+  // the hatch: a curved door on the +z side, hinged at its left edge; it swings open when the crew steps out
+  const hinge = new THREE.Group(); hinge.name = "pod-hatch"; hinge.position.set(-0.62, 0.55, 0.78); g.add(hinge);
+  const door = new THREE.Mesh(new THREE.CylinderGeometry(1.02, 1.12, 1.55, 10, 1, true, -0.6, 1.2), new THREE.MeshStandardMaterial({ color: 0xc9c4ba, roughness: 0.6, metalness: 0.3, side: THREE.DoubleSide }));
+  door.position.set(0.62, 0.78, -0.78); hinge.add(door);
+  const inner = new THREE.Mesh(new THREE.CylinderGeometry(0.9, 0.98, 1.5, 10, 1, true, -0.55, 1.1), new THREE.MeshBasicMaterial({ color: 0x0d0f12, side: THREE.BackSide }));
+  inner.position.y = 1.33; inner.name = "pod-inside"; g.add(inner);
   const flame = new THREE.Mesh(new THREE.ConeGeometry(0.9, 4.5, 16, 1, true), new THREE.MeshBasicMaterial({ color: 0xffc27a, transparent: true, opacity: 0.75, depthWrite: false, blending: THREE.AdditiveBlending }));
   flame.name = "pod-retro"; flame.rotation.x = Math.PI; flame.position.y = -2.2; flame.visible = false; g.add(flame);
   // the parachute: a canopy and its lines, packed until the chute phase
@@ -93,11 +109,25 @@ function podMesh() {
   return g;
 }
 
+/** A component crate: a pallet-crate in the kit's colours, a stripe by what it is for. */
+const _crateGeo = { box: null, strap: null }, _crateMat = new Map();
+const CAT_COLOUR = { habitat: 0xe6dccb, connect: 0x9ba5b0, power: 0x4f83e6, life: 0x5cc489, storage: 0xd8b055, vehicles: 0xc07a44, utility: 0x8a7f78 };
+function crateMesh(type) {
+  if (!_crateGeo.box) { _crateGeo.box = new THREE.BoxGeometry(1.1, 0.75, 0.8); _crateGeo.strap = new THREE.BoxGeometry(1.14, 0.12, 0.84); _crateGeo.pallet = new THREE.BoxGeometry(1.16, 0.1, 0.86); }
+  const c = (MODULES[type] || {}).cat || "utility", key = c;
+  if (!_crateMat.has(key)) _crateMat.set(key, { body: new THREE.MeshStandardMaterial({ color: 0xbdb6a8, roughness: 0.8, metalness: 0.1 }), strap: new THREE.MeshStandardMaterial({ color: CAT_COLOUR[c] || 0x8a7f78, roughness: 0.6 }), pallet: new THREE.MeshStandardMaterial({ color: 0x3a3f45, roughness: 0.8 }) });
+  const M = _crateMat.get(key), g = new THREE.Group(); g.name = "crate:" + type;
+  const b = new THREE.Mesh(_crateGeo.box, M.body); b.position.y = 0.48; g.add(b);
+  const s1 = new THREE.Mesh(_crateGeo.strap, M.strap); s1.position.y = 0.62; g.add(s1);
+  const p = new THREE.Mesh(_crateGeo.pallet, M.pallet); p.position.y = 0.05; g.add(p);
+  return g;
+}
+
 /* ── the system ─────────────────────────────────────────────────────────── */
 
 class Halo {
   constructor(game) {
-    this.game = game; this.pk = []; this.seq = 0; this.meshes = new Map(); this.puffs = []; this.enabled = false;
+    this.game = game; this.pk = []; this.seq = 0; this.meshes = new Map(); this.puffs = []; this.enabled = false; this.crateMeshes = new Map();
     this.dir = [0, 0.93, 0.37];
     const mat = new THREE.MeshBasicMaterial({ color: 0xbff4ff, transparent: true, opacity: 0.9, depthTest: false, depthWrite: false });
     this.star = new THREE.Mesh(new THREE.SphereGeometry(1, 10, 8), mat); this.star.renderOrder = -999; this.star.frustumCulled = false; this.star.visible = false; this.star.name = "halo-1";
@@ -140,7 +170,7 @@ class Halo {
     if (cost > C.free) return this._deny(`Contribution Credit: ${cost} needed, ${Math.max(0, C.free)} free`);
     const v = this.validDrop(o.x, o.z);
     if (!v.ok) return this._deny(v.reason, "KEEPER.bark.pkg_drop_invalid");
-    const id = o.id || "pkg_" + String(++this.seq).padStart(3, "0");
+    const id = this._newId(o.id);
     const minutes = o.minutes || 20 + Math.floor(Math.random() * 11);
     const pkg = { id, kind, unit: o.unit || null, item: o.item || K.item || null, extra: o.extra || null, x: o.x, z: o.z, cost, minutes, total: minutes * 60, left: minutes * 60,
       phase: "descent", story: !!o.story, mission: o.mission || null, said: {}, sol: g.state.clock.sol };
@@ -150,8 +180,66 @@ class Halo {
     this._markers();
     return { ok: true, pkg };
   }
+  _newId(want) {
+    if (want && !this.get(want)) { const n = +String(want).replace(/^pkg_/, ""); if (Number.isFinite(n)) this.seq = Math.max(this.seq, n); return want; }
+    let id; do id = "pkg_" + String(++this.seq).padStart(3, "0"); while (this.get(id));
+    return id;
+  }
+  /** Is the link up? In a campaign HALO-1 answers once the lander's mast has linked (1.1). */
+  linked() {
+    const st = this.story, S = st && st.state ? st.state() : null;
+    return !S || !S.campaign || !!(S.vars["halo.linked"] || S.done["1.1"]);
+  }
+  /** Where the plan's package lands by default: beside the blueprints, on clear level ground. */
+  planDrop(ids) {
+    const b = getSystem("base"), mods = b && b.api ? (ids || []).map((id) => b.api.module(id)).filter(Boolean) : [];
+    if (!mods.length) { const f = this.game.focus || this.game.vehicle.p; return { x: f.x + 30, z: f.z + 20 }; }
+    let cx = 0, cz = 0; for (const m of mods) { cx += m.x; cz += m.z; } cx /= mods.length; cz /= mods.length;
+    const all = b.api.modules();
+    let R = 0; for (const m of mods) R = Math.max(R, Math.hypot(m.x - cx, m.z - cz));
+    for (let ring = 0; ring < 4; ring++) for (let k = 0; k < 12; k++) {
+      const a = k / 12 * Math.PI * 2 + 0.35, d = R + 13 + ring * 7, x = cx + Math.cos(a) * d, z = cz + Math.sin(a) * d;
+      if (!this.validDrop(x, z).ok) continue;
+      if (all.some((m) => Math.hypot(m.x - x, m.z - z) < 9)) continue;
+      return { x, z };
+    }
+    return { x: cx + R + 14, z: cz };
+  }
+  /** Send the plan: the blueprints' components, their supplies and their caretakers, in one package. o: {ids, x, z, unit, id, free, mission} */
+  requestPlan(o = {}) {
+    const g = this.game, b = getSystem("base"), C = this.cc();
+    if (!this.enabled) return this._deny("HALO-1 does not answer");
+    if (!this.linked()) return this._deny("no link to HALO-1 yet: link the lander's mast first", null);
+    const ids = (o.ids || (b && b.api ? b.api.drafts().map((d) => d.id) : [])).filter((id) => { const m = b && b.api.module(id); return m && m.plan === "draft"; });
+    if (!ids.length) return this._deny("nothing planned: lay out blueprints in build mode first", null);
+    if (C.open >= C.maxOpen) return this._deny(`open requests: ${C.open} of ${C.maxOpen} at tier ${C.tier}`);
+    const types = ids.map((id) => b.api.module(id).type), M = planManifest(types);
+    const st = getSystem("story"), want = st && st.story && st.story._uplinkWant ? st.story._uplinkWant() : null;
+    const cost = o.free ? 0 : 20 + 10 * M.caretakers;                     // the dispatch (crew and supplies), held while the package is open
+    if (C.free < 0) return this._deny(`Contribution Credit: the plan's footprint is ${-C.free} over`);
+    if (cost > C.free) return this._deny(`Contribution Credit: ${cost} needed for the dispatch, ${Math.max(0, C.free)} free`);
+    const at = o.x != null ? { x: o.x, z: o.z } : this.planDrop(ids);
+    const v = this.validDrop(at.x, at.z);
+    if (!v.ok) return this._deny(v.reason, "KEEPER.bark.pkg_drop_invalid");
+    const id = this._newId(o.id || (want && want.id));
+    const minutes = o.minutes || 20 + Math.floor(Math.random() * 11);
+    // who rides down: the story's unit, or ANVIL with the first plan of a campaign
+    const C2 = getSystem("caretakers"), S = st && st.api ? st.api.state() : null;
+    let unit = o.unit || (want && want.unit) || null;
+    if (!unit && S && S.campaign && S.act !== "fugitive" && !(C2 && C2.api.get("ANVIL")) && !this.pk.some((p) => p.unit === "ANVIL")) unit = "ANVIL";
+    const pkg = { id, kind: "plan", unit, item: (want && want.item) || null, extra: (want && want.extra) || null, x: at.x, z: at.z, cost, minutes, total: minutes * 60, left: minutes * 60,
+      phase: "descent", story: true, mission: o.mission || (want && want.mission) || null, said: {}, sol: g.state.clock.sol, modules: ids, manifest: M, base: b.api.module(ids[0]).base, wantKind: want ? want.kind : null };
+    for (const mid of ids) b.api.setPlan(mid, "ordered", { pkg: id });
+    this.pk.push(pkg);
+    speech(g).say("KEEPER.bark.descent_" + minutes, { style: "radio" });
+    g.hud.toast(`HALO-1: plan received<small>package ${id.replace("pkg_", "")}: ${ids.length} module${ids.length > 1 ? "s" : ""}, ${M.crates} crates, supplies${unit ? ", " + unit : M.caretakers ? ", caretakers" : ""} \u00b7 descent ${minutes} minutes</small>`, 6);
+    g.emit("halo:request", { pkg });
+    this._markers();
+    try { g.save(); } catch { /* not ready */ }
+    return { ok: true, pkg };
+  }
   _deny(reason, line = "KEEPER.bark.pkg_denied") {
-    speech(this.game).say(line, { style: "radio" });
+    if (line) speech(this.game).say(line, { style: "radio" });
     this.game.hud.toast(`HALO-1: request refused<small>${esc(reason)}</small>`, 4.5);
     this.game.emit("halo:denied", { reason });
     return { ok: false, reason };
@@ -230,7 +318,18 @@ class Halo {
     }
     // landed pods: blink, and the dust rings
     const now = performance.now();
-    for (const p of this.pk) { if (p.phase !== "landed") continue; const m = this.meshes.get(p.id); const l = m && m.getObjectByName("pod-lamp"); if (l) l.visible = (now % 1600) < 350; }
+    const C = getSystem("caretakers"), units = C && C.api ? C.api.list() : [];
+    for (const p of this.pk) {
+      if (p.phase !== "landed") continue;
+      const m = this.meshes.get(p.id); if (!m) continue;
+      const l = m.getObjectByName("pod-lamp"); if (l) l.visible = (now % 1600) < 350;
+      // the hatch opens once whoever rode down is out (ANVIL stays in until C03: he knocks from the inside)
+      const shut = units.some((u) => u.pkg === p.id && u.state === "dormant") || (p.kind !== "plan" && !p.unit && !kindOf(p.kind).units);
+      const h = m.getObjectByName("pod-hatch");
+      if (h) { const want = shut ? 0 : -1.9; h.rotation.y += (want - h.rotation.y) * Math.min(1, (dt || 0) * 1.5); }
+      if (p.pending) { const b = getSystem("base"); try { const bs = b && b.api ? b.api.bases() : []; if (bs.length) { const near = bs.sort((a, c) => Math.hypot(a.x - p.x, a.z - p.z) - Math.hypot(c.x - p.x, c.z - p.z))[0]; p.stowed = b.api.stow(near.id, p.pending); p.base = near.id; p.pending = null; } } catch { /* later */ } }
+    }
+    this._drawCrates(dt || 0);
     this._dust(dt || 0);
   }
   _land(p, m) {
@@ -240,20 +339,57 @@ class Halo {
     for (const n of ["pod-trail", "pod-sheath", "pod-chute", "pod-retro"]) { const o = m.getObjectByName(n); if (o) o.visible = false; }
     this._puff(p.x, p.z);
     try { const A = getSystem("audio"); if (A && A.snd) A.snd.fx("impact", "world"); } catch { /* no sound */ }
-    // the supplies go to the nearest base's stores; components to the build stock
+    // the supplies go into the base's stores (crated beside them when there is no room); a plan's components are crates at the pod
     const K = kindOf(p.kind), b = getSystem("base");
     try {
       if (b && b.api) {
         if (K.materials) b.api.addMaterials(K.materials);
         const net = b.api.net, bases = net ? [...net.bases.values()] : [];
-        const base = bases.sort((a, c) => Math.hypot(a.x - p.x, a.z - p.z) - Math.hypot(c.x - p.x, c.z - p.z))[0];
-        if (base) { base.food = (base.food || 0) + (K.food || 0); base.water = (base.water || 0) + (K.water || 0); }
+        const base = (p.base && net.bases.get(p.base)) || bases.sort((a, c) => Math.hypot(a.x - p.x, a.z - p.z) - Math.hypot(c.x - p.x, c.z - p.z))[0];
+        const sup = p.kind === "plan" ? p.manifest.supplies : { food: K.food || 0, water: K.water || 0, o2: 0, spares: 0 };
+        if (base) { p.stowed = b.api.stow(base.id, sup); p.base = base.id; }
+        else p.pending = sup;                                          // nothing to stow into yet: it waits in the pod
+        if (p.kind === "plan") this._crates(p, b);
       }
     } catch (e) { console.warn("[halo] stores", e); }
-    speech(g).say(K.units ? "KEEPER.bark.pkg_unit" : "KEEPER.bark.pkg_down", { style: "radio", bark: true });
+    speech(g).say(K.units || p.unit || p.kind === "plan" ? "KEEPER.bark.pkg_unit" : "KEEPER.bark.pkg_down", { style: "radio", bark: true });
     g.emit("halo:landed", { pkg: p, kind: K });
     this._markers();
     try { g.save(); } catch { /* not ready */ }
+  }
+  /** A plan's components: crates in rows beside the pod, one per caretaker trip; the blueprints wait for them. */
+  _crates(p, b) {
+    p.crates = [];
+    const ids = (p.modules || []).filter((id) => { const m = b.api.module(id); return m && !m.built; });
+    let k = 0;
+    const away = Math.atan2((b.api.module(ids[0]) || p).z - p.z, (b.api.module(ids[0]) || p).x - p.x);
+    for (const id of ids) {
+      const m = b.api.module(id), n = cratesFor(m.type);
+      for (let i = 0; i < n; i++, k++) {
+        const row = Math.floor(k / 6), col = k % 6, a = away + Math.PI * 0.5 + (col - 2.5) * 0.32, r = 4.2 + row * 1.5;
+        const x = p.x + Math.cos(a) * r, z = p.z + Math.sin(a) * r;
+        p.crates.push({ id: `${p.id}:${k}`, module: id, type: m.type, x, z, hx: x, hz: z, yaw: a, state: "pod", by: null });
+      }
+      b.api.setPlan(id, "delivered", { got: 0 });
+    }
+  }
+  /** Every crate of every package (live records: caretakers.js moves them). */
+  crates() { const out = []; for (const p of this.pk) for (const c of p.crates || []) out.push(c); return out; }
+  _drawCrates(dt) {
+    const g = this.game, b = getSystem("base"), seen = new Set();
+    for (const p of this.pk) for (const c of p.crates || []) {
+      const m = b && b.net ? b.net.modules.get(c.module) : null;
+      const gone = !m || m.progress >= 1 || (c.state === "site" && m.progress > 0.25) || c.state === "used";
+      if (gone) { if (c.state !== "used") c.state = "used"; continue; }
+      seen.add(c.id);
+      let o = this.crateMeshes.get(c.id);
+      if (!o) { o = crateMesh(c.type); this.game.scene.add(o); this.crateMeshes.set(c.id, o); }
+      const y = c.state === "carried" && c.y != null ? c.y : g.surface.height(c.x, c.z);
+      o.position.set(c.x, y, c.z); o.rotation.y = c.yaw || 0;
+      o.scale.setScalar(c.state === "carried" ? 0.78 : 1);
+    }
+    for (const [id, o] of this.crateMeshes) if (!seen.has(id)) { this.game.scene.remove(o); this.crateMeshes.delete(id); }
+    void dt;
   }
   _puff(x, z) {
     const g = this.game, y = g.surface.height(x, z), grp = new THREE.Group();
@@ -328,8 +464,10 @@ class Halo {
     const f = g.focus || g.vehicle.p;
     this.c = { x: f.x, z: f.z }; this.R = 1200;
     const mk = o.drop && this.story ? this.story.place(o.drop.marker || o.drop.poi) : null;
-    const d0 = mk ? { x: mk.x + 25, z: mk.z + 25 } : { x: f.x + 60, z: f.z - 40 };
-    this.kind = o.kind || "supplies_package";
+    const drafts = this._drafts();
+    this.kind = drafts.length ? "plan" : o.kind && !KINDS[o.kind]?.needsPlan ? o.kind : o.kind === "starter" ? "plan" : "supplies_package";
+    const d0 = this.kind === "plan" && drafts.length ? this.planDrop(drafts) : mk ? { x: mk.x + 25, z: mk.z + 25 } : { x: f.x + 60, z: f.z - 40 };
+    if (this.kind === "plan" && drafts.length) { let cx = 0, cz = 0; const b = getSystem("base"); for (const id of drafts) { const m = b.api.module(id); cx += m.x; cz += m.z; } this.c = { x: cx / drafts.length, z: cz / drafts.length }; this.R = 280; }
     this.uplinkOpen = true; this._resume = g.live; if (g.live) g.pause(true);
     const menu = document.getElementById("screen-menu"); this._fromMenu = menu && !menu.hidden; if (menu) menu.hidden = true;
     this.el.hidden = false;
@@ -347,12 +485,24 @@ class Halo {
     if (this._fromMenu) { const menu = document.getElementById("screen-menu"); if (menu) menu.hidden = false; }
     else if (this._resume && this.game.mode === "menu") this.game.pause(false);
   }
+  _drafts() { const b = getSystem("base"); try { return b && b.api ? b.api.drafts().map((d) => d.id) : []; } catch { return []; } }
   _kinds() {
-    const C = this.cc(), box = this.el.querySelector(".h-kinds"), want = this.want || {};
-    const list = Object.entries(KINDS).filter(([k, K]) => !K.story || k === want.kind || (this.story && this.story.hasItem && this.story.hasItem(k)));
-    box.innerHTML = list.map(([k, K]) => `<label class="h-kind${k === this.kind ? " on" : ""}"><input type="radio" name="h-kind" value="${k}"${k === this.kind ? " checked" : ""}><b>${esc(K.name)}${k === want.kind && want.unit ? " · " + esc(want.unit) : ""}</b><span>${esc(K.note)}</span><em>${K.cost} CC</em></label>`).join("");
-    box.querySelectorAll("input").forEach((i) => i.addEventListener("change", () => { this.kind = i.value; this._kinds(); }));
+    const C = this.cc(), box = this.el.querySelector(".h-kinds"), want = this.want || {}, drafts = this._drafts();
+    const list = Object.entries(KINDS).filter(([k, K]) => k === "plan" || (!K.needsPlan && (!K.story || k === want.kind || (this.story && this.story.hasItem && this.story.hasItem(k)))));
+    const M = drafts.length ? planManifest(drafts.map((id) => getSystem("base").api.module(id).type)) : null;
+    box.innerHTML = list.map(([k, K]) => {
+      if (k === "plan") {
+        const C2 = getSystem("caretakers"), fc = M && C2 && C2.api && C2.api.forecast ? C2.api.forecast(M) : null;
+        const note = M ? `${M.modules} module${M.modules > 1 ? "s" : ""}, ${M.crates} crates · food ${M.supplies.food} kg, water ${M.supplies.water} L · ${fc ? esc(fc.text) : M.caretakers + " caretaker" + (M.caretakers > 1 ? "s" : "")}`
+          : want.kind === "starter" ? "nothing planned yet: plan the outpost in build mode first (from the rover: B, or hold Cross)" : "nothing planned yet: lay out blueprints in build mode first";
+        return `<label class="h-kind${k === this.kind ? " on" : ""}${M ? "" : " off"}"><input type="radio" name="h-kind" value="plan"${k === this.kind ? " checked" : ""}${M ? "" : " disabled"}><b>${esc(K.name)}</b><span>${note}</span><em>${M ? 20 + 10 * M.caretakers + " CC" : ""}</em></label>`;
+      }
+      return `<label class="h-kind${k === this.kind ? " on" : ""}"><input type="radio" name="h-kind" value="${k}"${k === this.kind ? " checked" : ""}><b>${esc(K.name)}${k === want.kind && want.unit ? " · " + esc(want.unit) : ""}</b><span>${esc(K.note)}</span><em>${K.cost} CC</em></label>`;
+    }).join("");
+    box.querySelectorAll("input").forEach((i) => i.addEventListener("change", () => { this.kind = i.value; if (i.value === "plan" && drafts.length) this._setDrop(...Object.values(this.planDrop(drafts))); this._kinds(); }));
     this.el.querySelector(".h-cc").textContent = `Contribution Credit ${C.free} free of ${C.capacity} · requests open ${C.open} / ${C.maxOpen}`;
+    const go = this.el.querySelector('[data-h="go"]'); go.textContent = this.kind === "plan" ? "Send the plan" : "Request the drop";
+    if (this.kind === "plan" && !M) go.disabled = true;
   }
   _setDrop(x, z) {
     this.drop = { x, z };
@@ -383,6 +533,7 @@ class Halo {
     const b = getSystem("base");
     try { for (const base of (b && b.api ? b.api.bases() : [])) { const [x, y] = P(base.x, base.z); c.strokeStyle = data; c.strokeRect(x - 5, y - 5, 10, 10); } } catch { /* none */ }
     for (const p of this.pk) { const [x, y] = P(p.x, p.z); c.fillStyle = data; c.beginPath(); c.arc(x, y, 3, 0, 7); c.fill(); }
+    try { for (const m of (b && b.api ? b.api.modules() : [])) { if (!m.plan) continue; const [x, y] = P(m.x, m.z); c.strokeStyle = m.plan === "draft" ? "#5fd4ff" : data; c.setLineDash([3, 2]); c.strokeRect(x - 3, y - 3, 6, 6); c.setLineDash([]); } } catch { /* none */ }
     const f = g.focus || g.vehicle.p, [fx, fy] = P(f.x, f.z);
     c.fillStyle = ink; c.beginPath(); c.arc(fx, fy, 4, 0, 7); c.fill();
     const [dx, dy] = P(this.drop.x, this.drop.z);
@@ -390,7 +541,9 @@ class Halo {
     c.fillStyle = ink; c.font = "11px sans-serif"; c.fillText("N", W / 2 - 3, 12); c.fillText(`${(R * 2 / 1000).toFixed(1)} km`, 6, W - 6);
   }
   _confirm() {
-    const w = this.want || {}, r = this.request(this.kind, { x: this.drop.x, z: this.drop.z, unit: this.kind === w.kind ? w.unit : null, item: this.kind === w.kind ? w.item : null, extra: w.extra, story: !!w.story, mission: w.mission, id: this.kind === w.kind ? w.id : undefined });
+    const w = this.want || {};
+    if (this.kind === "plan") { const r = this.requestPlan({ x: this.drop.x, z: this.drop.z, mission: w.mission }); if (r.ok) this.closeUplink(); else this._kinds(); return r; }
+    const r = this.request(this.kind, { x: this.drop.x, z: this.drop.z, unit: this.kind === w.kind ? w.unit : null, item: this.kind === w.kind ? w.item : null, extra: w.extra, story: !!w.story, mission: w.mission, id: this.kind === w.kind ? w.id : undefined });
     if (r.ok) this.closeUplink(); else this._kinds();
     return r;
   }
@@ -399,10 +552,14 @@ class Halo {
   fromJSON(s) {
     for (const m of this.meshes.values()) this.game.scene.remove(m);
     this.meshes.clear();
+    for (const o of this.crateMeshes.values()) this.game.scene.remove(o);
+    this.crateMeshes.clear();
     this.pk = (s && s.pk) || []; this.seq = (s && s.seq) || 0;
     for (const p of this.pk) {
-      if (p.phase === "final") { p.phase = "landed"; p.landedSol = this.game.state.clock.sol; }
+      if (p.phase === "final") { p.phase = "descent"; p.left = 2; }                            // saved in the last stretch: it comes down again on load
+      for (const c of p.crates || []) if (c.state === "carried") { c.state = "pod"; c.x = c.hx; c.z = c.hz; c.by = null; c.y = null; }   // a crate in someone's arms goes back on the pile
       if (p.phase === "landed") { const m = podMesh(); m.position.set(p.x, this.game.surface.height(p.x, p.z), p.z); for (const n of ["pod-trail", "pod-sheath", "pod-chute", "pod-retro"]) m.getObjectByName(n).visible = false; this.game.scene.add(m); this.meshes.set(p.id, m); }
+      if (p.phase === "descent" && p.kind === "plan") { const b = getSystem("base"); for (const id of p.modules || []) { const mm = b && b.api && b.api.module(id); if (mm && !mm.plan) b.api.setPlan(id, "ordered", { pkg: p.id }); } }
     }
     this._markers();
   }
@@ -417,6 +574,10 @@ const sys = {
     get enabled() { return !!(H && H.enabled); },
     setEnabled: (on) => { if (H) { H.enabled = !!on; H._markers(); } },
     request: (kind, o) => (H ? H.request(kind, o) : { ok: false, reason: "no HALO" }),
+    requestPlan: (o) => (H ? H.requestPlan(o) : { ok: false, reason: "no HALO" }),
+    planDrop: (ids) => (H ? H.planDrop(ids) : null),
+    crates: () => (H ? H.crates() : []),
+    linked: () => !!(H && H.linked()),
     packages: () => (H ? H.pk.slice() : []),
     get: (id) => (H ? H.get(id) : null),
     cc: () => (H ? H.cc() : null),

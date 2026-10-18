@@ -23,16 +23,22 @@
  * consumables are per SIMULATED second (state.clock.scale per real one), so
  * the suit and the Sun agree about how long an EVA is.
  *
- * THE PICTURE. assets/models/astronaut.glb has no skeleton: six rigid parts
- * (torso > head, arm_l, arm_r, leg_l, leg_r) pivoted at neck, shoulders and
- * hips. The gait is built for rigid legs: see Avatar._pose.
+ * THE PICTURE. The NASA suit rigged on the Kestrel skeleton (game/charrig.js,
+ * assets/models/characters.glb, built in Blender by tools/assets/build_characters.py)
+ * and its authored clips: idle, walk, lope and sprint blended by speed and
+ * phase-locked to the ground speed (no foot sliding), the hop in three parts
+ * (dip, a 1.4 s float, the landing), crouch, slip, a scramble on steep ground,
+ * turning on the spot, and the EVA poses (coring, scanning, setting down). The
+ * feet are re-planted on uneven ground by two-bone IK. See Avatar._animate.
  */
-import * as THREE from "../vendor/three.module.js?v=b8cfe8e-efa5b7b7";
-import { MARS, CAMERA } from "./config.js?v=b8cfe8e-efa5b7b7";
-import { registerSystem, getSystem } from "./systems.js?v=b8cfe8e-efa5b7b7";
-import { advanceClock } from "./state.js?v=b8cfe8e-efa5b7b7";
-import { DRIVING_HELP } from "./input.js?v=b8cfe8e-efa5b7b7";
-import { setRing, ringLevel, ringHTML } from "./hud.js?v=b8cfe8e-efa5b7b7";
+import * as THREE from "../vendor/three.module.js?v=6d37c9c-9b39e129";
+import { MARS, CAMERA } from "./config.js?v=6d37c9c-9b39e129";
+import { registerSystem, getSystem } from "./systems.js?v=6d37c9c-9b39e129";
+import { advanceClock } from "./state.js?v=6d37c9c-9b39e129";
+import { DRIVING_HELP } from "./input.js?v=6d37c9c-9b39e129";
+import { setRing, ringLevel, ringHTML } from "./hud.js?v=6d37c9c-9b39e129";
+import { loadCharacters, Character } from "./charrig.js?v=6d37c9c-9b39e129";
+import { prepareSuitRig } from "./cosmetics.js?v=6d37c9c-9b39e129";
 
 /** Suit upgrades and mods (game/progress.js) scale a few numbers below through these factors (1 = the stock suit). They are
  *  read by getters in WALK and SUIT, so every use of WALK.x / SUIT.x sees them; the suit's own code is unchanged. */
@@ -158,37 +164,38 @@ export class Avatar {
 
   async build() {
     const g = this.game;
-    let model = null;
-    try { model = await g.assets.load("astronaut"); } catch { model = null; }
-    const body = new THREE.Group(); body.name = "astronaut-body";
-    this.body = body; this.group.add(body);
-    if (model && model.getObjectByName("torso")) {
-      body.add(model);
-      const P = (n) => model.getObjectByName(n);
-      this.parts = { torso: P("torso"), head: P("head"), armL: P("arm_l"), armR: P("arm_r"), legL: P("leg_l"), legR: P("leg_r") };
-      this.source = "glb:astronaut.glb";
-      // the kit's suit is close to white and burns out under this Sun: take the clone's own materials down to a dusty off-white
-      const seen = new Set();
-      model.traverse((o) => { for (const m of o.isMesh ? [].concat(o.material) : []) { if (seen.has(m)) continue; seen.add(m); } });
-      model.traverse((o) => { if (!o.isMesh) return; o.material = Array.isArray(o.material) ? o.material.map((m) => m.clone()) : o.material.clone();
-        for (const m of [].concat(o.material)) { m.color.multiplyScalar(0.62); m.roughness = Math.max(m.roughness ?? 0.8, 0.85); m.metalness = 0; } });
+    let lib = null;
+    try { lib = await loadCharacters(); } catch (e) { console.warn("[avatar] characters.glb did not load: primitives instead", e); lib = null; }
+    if (lib) {
+      const ch = this.rig = new Character(lib, { kind: "pioneer", name: "pioneer" });
+      prepareSuitRig(ch);                                  // the kit's suit is close to white and burns out under this Sun
+      this.body = ch.root; this.group.add(ch.root);
+      const B = ch.bones;
+      this.parts = { torso: B.get("chest"), head: B.get("head"), armL: B.get("upperarm_L"), armR: B.get("upperarm_R"), legL: B.get("thigh_L"), legR: B.get("thigh_R") };
+      this.source = "glb:characters.glb";
+      ch.play("idle", { fade: 0 });
     } else {
+      const body = new THREE.Group(); body.name = "astronaut-body";
+      this.body = body; this.group.add(body);
       this.parts = this._primitive(body);
       this.source = "primitive";
     }
     const p = this.parts;
-    this.rest = { torso: p.torso.position.clone(), armLz: p.armL.rotation.z, armRz: p.armR.rotation.z };
     const mat = (c, o = {}) => new THREE.MeshStandardMaterial(Object.assign({ color: c, roughness: 0.6, metalness: 0.1 }, o));
     // the corer and the scanner live in the right hand (the arm's own frame: it points along -X from the shoulder)
     const drill = new THREE.Group();
     const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.34, 10), mat(0x8d949c, { metalness: 0.6, roughness: 0.35 }));
     const bit = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.3, 8), mat(0x2b2f35, { metalness: 0.8, roughness: 0.3 }));
-    bit.position.y = 0.3; drill.add(barrel, bit); drill.rotation.z = Math.PI / 2; drill.position.set(-0.72, 0, 0.02); drill.visible = false;
-    p.armR.add(drill); this.drill = drill; this.bit = bit;
+    bit.position.y = 0.3; drill.add(barrel, bit); drill.visible = false;
+    if (this.rig) { drill.rotation.x = Math.PI / 2; drill.position.set(0, -0.02, 0.06); this.rig.attach("sk_grip_R", drill); }
+    else { drill.rotation.z = Math.PI / 2; drill.position.set(-0.72, 0, 0.02); p.armR.add(drill); }
+    this.drill = drill; this.bit = bit;
     const scanner = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.07, 0.1), mat(0x30363d));
     const eye = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.05, 0.08), new THREE.MeshBasicMaterial({ color: 0xffb347 }));
-    eye.position.x = -0.085; scanner.add(eye); scanner.position.set(-0.66, 0, 0.02); scanner.visible = false;
-    p.armR.add(scanner); this.scanner = scanner;
+    scanner.visible = false;
+    if (this.rig) { scanner.rotation.y = Math.PI / 2; eye.position.x = -0.085; scanner.add(eye); scanner.position.set(0, 0, 0.07); this.rig.attach("sk_grip_R", scanner); }
+    else { eye.position.x = -0.085; scanner.add(eye); scanner.position.set(-0.66, 0, 0.02); p.armR.add(scanner); }
+    this.scanner = scanner;
     this.reticle = new THREE.Mesh(new THREE.RingGeometry(0.42, 0.5, 40), new THREE.MeshBasicMaterial({ color: 0xffb347, transparent: true, opacity: 0.9, depthWrite: false, side: THREE.DoubleSide }));
     this.reticle.rotation.x = -Math.PI / 2; this.reticle.visible = false;
 
@@ -209,7 +216,7 @@ export class Avatar {
     g.scene.add(this.group, this.fx);
   }
 
-  /** The same six parts from boxes, if the kit's model is not there. */
+  /** Six boxes, if characters.glb is not there (no animation: the game still plays). */
   _primitive(body) {
     const m = new THREE.MeshStandardMaterial({ color: 0xd9d6cf, roughness: 0.7 });
     const box = (w, h, d, x, y, z, parent) => { const g = new THREE.Group(); g.position.set(x, y, z); const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m); g.add(b); parent.add(g); return [g, b]; };
@@ -438,6 +445,7 @@ export class Avatar {
         I.jump = false;
         v.y = WALK.jumpV0 * (this.crouch ? 0.8 : 1); this.grounded = false; this.airT = 0; this.takeoff = Math.hypot(v.x, v.z);
         this.stats.hops++; this._pulse = (this._pulse || 0) + 8000;                         // joules of effort, spent over the next moments
+        this._hopped = performance.now();
         this.emit("hop", {});
       }
     } else {
@@ -473,6 +481,7 @@ export class Avatar {
         const hard = impact > WALK.fallSafe;
         v.x *= hard ? 0.3 : 0.72; v.z *= hard ? 0.3 : 0.72;
         this.gait.land = Math.min(1, impact / 3.2);
+        this._landT = 0.25 + 0.4 * this.gait.land;
         if (hard) {
           const lost = (impact - WALK.fallSafe) * WALK.fallDamage;
           this.suit.integrity = Math.max(0, this.suit.integrity - lost); this.stun = 0.6; this.stats.falls++; this.cam.shake = 0.5;
@@ -572,112 +581,78 @@ export class Avatar {
   /* ── animation ───────────────────────────────────────────────────────── */
 
   /**
-   * RIGID LEGS. A leg is a stick of length L from the hip. While a foot is on
-   * the ground its leg angle follows asin of a linear ramp, so the sole stays
-   * exactly where it was put while the body passes over it (an inverted
-   * pendulum: the hip rises to L at mid-stance and sinks to L cos A at the
-   * exchange), and the cadence is whatever makes that true at the present
-   * speed. The swinging leg eases, so it is always more inclined than the
-   * planted one and its sole clears the ground. Walking has no double support
-   * (two rigid legs at different angles cannot both reach flat ground);
-   * above a walk the stance shortens and the gaps are flight, which on Mars
-   * is the lope. On a slope both legs swing about the slope's normal rather
-   * than the vertical, which is the one adjustment rigid legs have: the
-   * leading sole meets rising ground and the hip height is continuous at the
-   * exchange.
+   * The clips, chosen from what the body is doing: the EVA poses (eva.js sets this.pose), in the air (the
+   * hop: a float timed to this hop's real flight, or a fall), the landing (its impact scaled by the speed it
+   * landed at), sliding, crouched, a scramble on steep ground, turning on the spot, or the gaits blended by
+   * speed. The gaits are phase-locked to the ground speed, so footprints land where the soles do.
    */
-  _pose(dt) {
-    const p = this.parts, gt = this.gait, t = this.t, S = this.game.surface, c = this.cam;
-    const sp = t.speed, moving = this.grounded && sp > 0.12;
-    gt.move = damp(gt.move, moving ? 1 : 0, 9, dt);
-    gt.air = damp(gt.air, this.grounded ? 0 : 1, this.grounded ? 12 : 9, dt);
-    gt.land = Math.max(0, gt.land - dt / 0.38);
-    const run = smooth(1.7, 3.0, sp);
-    const A = clamp(0.36 + 0.075 * sp, 0.3, 0.72) * (this.in.aim ? 0.7 : 1);
-    const duty = lerp(0.5, 0.3, run);
-    const stride = 2 * L_LEG * Math.sin(A) / duty;                         // metres per full cycle
-    const u0 = gt.u;
-    if (moving) gt.u = (gt.u + sp / stride * dt) % 1;
-    else if (gt.move > 0.02) { const tgt = gt.u < 0.5 ? 0.25 : 0.75; gt.u += (tgt - gt.u) * Math.min(1, 6 * dt); }     // settle with the feet together
-    // the slope along the way it faces
-    const fx = Math.sin(this.yaw), fz = -Math.cos(this.yaw);
-    const along = Math.atan2(S.height(this.p.x + fx * 0.45, this.p.z + fz * 0.45) - S.height(this.p.x - fx * 0.45, this.p.z - fz * 0.45), 0.9);
-    gt.slope = damp(gt.slope, clamp(along, -0.5, 0.5), 7, dt);
-    const sA = Math.sin(A);
-    const leg = (u) => {                                                   // -> forward angle about the slope normal, and whether it is planted
-      if (u < duty) return [Math.asin(lerp(sA, -sA, u / duty)), true];
-      const k = (u - duty) / (1 - duty);
-      return [-A * Math.cos(Math.PI * k), false];
-    };
-    const [aL, sL] = leg(gt.u), [aR, sR] = leg((gt.u + 0.5) % 1);
-    let thL = aL * gt.move, thR = aR * gt.move;
-    // crouch and landing: rigid legs lower the hips only by splitting fore and aft
-    const split = Math.max(this.crouch ? 0.6 : 0, gt.land * 0.42) * (1 - gt.move * 0.6);
-    thL = thL + split; thR = thR - split;
-    // a hop: one leg leads, one trails
-    thL = lerp(thL, 0.34, gt.air); thR = lerp(thR, -0.22, gt.air);
-    const tilt = gt.slope * (1 - gt.air);
-    const wL = thL + tilt, wR = thR + tilt;                                // world forward angles from the vertical
-    // hip height: the planted sole decides; in flight, an arc
-    const footY = (side, w) => { const d = HIP_Z + L_LEG * Math.sin(w), lx = side * HIP_X; return S.height(this.p.x + fx * d + fz * lx, this.p.z + fz * d - fx * lx); };   // left of facing (fx, fz) is (fz, -fx)
-    let hip;
-    if (!this.grounded) hip = this.p.y + L_LEG * Math.cos(0.3);
-    else {
-      const hL = footY(1, wL) + L_LEG * Math.cos(wL), hR = footY(-1, wR) + L_LEG * Math.cos(wR);
-      const flight = !sL && !sR && gt.move > 0.5;
-      if (flight) { const k = ((gt.u % 0.5) - duty) / (0.5 - duty); hip = this.p.y + L_LEG * Math.cos(A + Math.abs(tilt)) + (0.05 + 0.09 * run) * Math.sin(Math.PI * clamp(k, 0, 1)); }
-      else if (gt.move > 0.5) hip = sL ? hL : hR;
-      else hip = Math.max(hL, hR);
-    }
-    hip -= gt.land * 0.02;
-    gt.hip = this.grounded ? damp(gt.hip, hip - this.p.y, 38, dt) : damp(gt.hip, hip - this.p.y, 14, dt);
-    // footfalls: dust and a print where a sole comes down
-    if (moving) {
-      if (u0 > gt.u) this._footfall(1, wL);                                 // left: phase wrapped through 0
-      if (u0 < 0.5 && gt.u >= 0.5) this._footfall(-1, wR);
-    }
-    // torso: lean with speed and effort, waddle over the planted foot, twist with the stride
-    const cyc = gt.u * TAU;
-    const lean = (0.035 + 0.036 * sp + (this.in.sprint ? 0.03 : 0)) * (1 - gt.air) + gt.land * 0.22 + (this.crouch ? 0.32 : 0) - gt.air * 0.04 + clamp(gt.slope, -0.3, 0.3) * 0.35;
-    gt.lean = damp(gt.lean, lean, 8, dt);
-    const idle = 1 - gt.move, now = performance.now() / 1000;
-    let pitch = gt.lean + idle * 0.012 * Math.sin(now * 1.5), roll = -0.065 * Math.sin(cyc) * gt.move * (1 - 0.4 * run) + idle * 0.012 * Math.sin(now * 0.55) - clamp(gt.turn, -4, 4) * 0.02 * Math.min(1, sp / 2);
-    let twist = -0.085 * Math.cos(cyc) * gt.move;
-    let armL = -(0.5 + 0.35 * run) * aL * gt.move + 0.06 + 0.1 * run, armR = -(0.5 + 0.35 * run) * aR * gt.move + 0.06 + 0.1 * run;
-    let outL = 0.05 + 0.03 * idle * Math.sin(now * 0.9), outR = outL, headP = 0, drill = false, scan = false;
-    armL = lerp(armL, 0.55, gt.air); armR = lerp(armR, 0.4, gt.air); outL += gt.air * 0.3 + gt.land * 0.25; outR += gt.air * 0.3 + gt.land * 0.25;
-    if (this.crouch) { armL += 0.3; armR += 0.3; }
-    if (this.pose) {
-      const k = clamp(this.pose.k ?? 1, 0, 1), e = smooth(0, 0.25, k);
-      if (this.pose.kind === "drill") { pitch += 0.5 * e; armR = lerp(armR, 0.75, e); armL = lerp(armL, 0.35, e); headP = 0.35 * e; drill = true; armR += 0.02 * Math.sin(now * 38) * e; }
-      else if (this.pose.kind === "scan") { armR = lerp(armR, 1.15, e); headP = 0.2 * e; pitch += 0.08 * e; scan = true; }
-      else { pitch += 0.42 * e * Math.sin(Math.PI * k); armR = lerp(armR, 0.9, e); armL = lerp(armL, 0.9, e); headP = 0.3 * e; }
-    }
-    if (this.emergency) { pitch += 0.12; roll += 0.03 * Math.sin(now * 2.2); }
-    p.torso.position.set(this.rest.torso.x + 0.028 * Math.sin(cyc) * gt.move, gt.hip, this.rest.torso.z);
-    p.torso.rotation.set(pitch, twist, roll, "YXZ");
-    // legs are children of the torso: take its pitch and roll back out so their angles are the world's
-    const abL = !sL && gt.move > 0.5 ? 0.05 : 0, abR = !sR && gt.move > 0.5 ? 0.05 : 0;
-    p.legL.rotation.set(-wL - pitch, 0, -roll + 0.035 + abL + gt.air * 0.08);
-    p.legR.rotation.set(-wR - pitch, 0, -roll - 0.035 - abR - gt.air * 0.08);
-    p.armL.rotation.set(-armL - pitch * 0.45, 0, this.rest.armLz + outL);
-    p.armR.rotation.set(-armR - pitch * 0.45, 0, this.rest.armRz - outR);
-    // head: look where the camera looks, as far as a helmet turns
-    const rel = wrap(c.yaw - this.yaw);
-    this._headYaw = damp(this._headYaw || 0, clamp(-rel, -0.9, 0.9) * (c.mode === "first" ? 0 : 0.75), 8, dt);
-    this._headPitch = damp(this._headPitch || 0, clamp(c.mode === "first" ? 0 : c.pitch * 0.35 - 0.05, -0.3, 0.45) + headP, 8, dt);
-    p.head.rotation.set(this._headPitch - pitch * 0.6, this._headYaw - twist, -roll * 0.7, "YXZ");
-    this.drill.visible = drill; this.scanner.visible = scan;
-    if (drill) this.bit.rotation.y += dt * 40;
+  _animate(dt) {
+    const ch = this.rig, t = this.t, gt = this.gait, I = this.in;
     this.group.position.copy(this.p);
     this.group.rotation.y = Math.PI - this.yaw;
+    if (!ch) return;
+    const sp = t.speed;
+    gt.move = damp(gt.move, this.grounded && sp > 0.12 ? 1 : 0, 9, dt);
+    // which way is uphill along the facing, and how steep
+    const S = this.game.surface, fx = Math.sin(this.yaw), fz = -Math.cos(this.yaw);
+    const along = Math.atan2(S.height(this.p.x + fx * 0.45, this.p.z + fz * 0.45) - S.height(this.p.x - fx * 0.45, this.p.z - fz * 0.45), 0.9);
+    gt.slope = damp(gt.slope, along, 7, dt);
+    if (this._landT > 0) this._landT -= dt;
+    let mode = "loco";
+    if (this.pose) mode = "pose:" + this.pose.kind;
+    else if (!this.grounded) mode = "air";
+    else if (this._landT > 0 && sp < 2.2) mode = "land";
+    else if (t.slipping) mode = "slip";
+    else if (this.crouch) mode = sp > 0.15 ? "crouchwalk" : "crouch";
+    else if (gt.slope > 0.3 && sp > 0.12) mode = "climb";
+    else if (sp < 0.15 && Math.abs(gt.turn) > 1.2) mode = "turn";
+    if (mode !== this._mode) {
+      const prev = this._mode; this._mode = mode;
+      if (mode === "air") {
+        // a hop is timed to its own flight (2 v0 / g); walking off an edge starts the float part-way
+        const hop = this._hopped && performance.now() - this._hopped < 400;
+        const T = 2 * WALK.jumpV0 / MARS.gravity;
+        ch.play("hop_air", { fade: 0.08, speed: hop ? 1.4 / T : 1, from: hop ? 0 : 0.5, hold: true });
+      } else if (mode === "land") ch.play("hop_land", { fade: 0.05, speed: 0.8 + 0.4 * gt.land, hold: true });
+      else if (mode === "slip") ch.play("slip", { fade: 0.2 });
+      else if (mode === "crouch") ch.play("crouch_idle", { fade: 0.3 });
+      else if (mode === "crouchwalk") ch.play("crouch_walk", { fade: 0.3 });
+      else if (mode === "climb") ch.play("climb", { fade: 0.35 });
+      else if (mode === "turn") ch.play("turn_step", { fade: 0.2 });
+      else if (mode === "pose:drill") ch.play("drill", { fade: 0.3 });
+      else if (mode === "pose:scan") ch.play("scan", { fade: 0.25 });
+      else if (mode === "pose:place") ch.play("place", { fade: 0.2, hold: true });
+      void prev;
+    }
+    const u0 = ch.phase;
+    if (mode === "loco") ch.locomote(sp, { walk: "walk", lope: "lope", sprint: "sprint", idle: "idle" });
+    else ch.speed = sp;
+    // the head follows the camera (the visor is where you look), as far as a helmet turns
+    const c = this.cam;
+    if (c.mode === "first" || this.pose) ch.lookAt(null);
+    else {
+      this._lookP = this._lookP || new THREE.Vector3();
+      this._lookP.set(this.p.x + Math.sin(c.yaw) * 30, this.p.y + 1.6 + Math.sin(clamp(c.pitch * 0.4 - 0.05, -0.3, 0.45)) * -30, this.p.z - Math.cos(c.yaw) * 30);
+      ch.lookAt(this._lookP, 0.75);
+    }
+    ch.ground = this._groundFn || (this._groundFn = (x, z) => this.game.surface.height(x, z));
+    ch.ikOn = this.grounded && mode !== "air";
+    ch.update(dt);
+    // footfalls: the left heel strikes at phase 0, the right at 0.5
+    if (this.grounded && sp > 0.12 && (mode === "loco" || mode === "crouchwalk" || mode === "climb")) {
+      if (u0 > ch.phase + 0.5) this._footfall(1);
+      if (u0 < 0.5 && ch.phase >= 0.5) this._footfall(-1);
+    }
+    this.drill.visible = mode === "pose:drill"; this.scanner.visible = mode === "pose:scan";
+    if (this.drill.visible) this.bit.rotation.y += dt * 40;
   }
 
-  _footfall(side, w) {
-    const fx = Math.sin(this.yaw), fz = -Math.cos(this.yaw), d = HIP_Z + L_LEG * Math.sin(w) * this.gait.move;
-    // model +X is the astronaut's left: world left of facing (fx, fz) is (fz, -fx)
-    const x = this.p.x + fx * d + fz * HIP_X * side, z = this.p.z + fz * d - fx * HIP_X * side;
-    const S = this.game.surface, y = S.height(x, z), sand = this.t.sand;
+  _footfall(side) {
+    const S = this.game.surface, sand = this.t.sand, f = this.rig && this.rig.bones.get(side > 0 ? "foot_L" : "foot_R");
+    let x, z;
+    if (f) { f.getWorldPosition(_v); x = _v.x + Math.sin(this.yaw) * 0.07; z = _v.z - Math.cos(this.yaw) * 0.07; }
+    else { const fx = Math.sin(this.yaw), fz = -Math.cos(this.yaw); x = this.p.x + fx * 0.2 + fz * 0.17 * side; z = this.p.z + fz * 0.2 - fx * 0.17 * side; }
+    const y = S.height(x, z);
     this.gait.foot = side;
     this._puff(x, y, z, 0.22 + 0.2 * Math.min(1, this.t.speed / 3) + 0.25 * sand);
     this._print(x, y, z, this.yaw + side * 0.1, 0.25 + 0.6 * sand);
@@ -736,11 +711,12 @@ export class Avatar {
     c.shake = Math.max(0, c.shake - (dt || 0) * 1.6);
     const sy = Math.sin(c.yaw), cy = Math.cos(c.yaw), cp = Math.cos(c.pitch), spt = Math.sin(c.pitch);
     const now = performance.now() / 1000, jx = Math.sin(now * 31) * c.shake * 0.03, jy = Math.cos(now * 27) * c.shake * 0.03;
-    this.parts.head.visible = c.mode !== "first";
+    if (this.rig) { if (this.rig.parts.helmet) this.rig.parts.helmet.visible = c.mode !== "first"; }
+    else this.parts.head.visible = c.mode !== "first";
     if (c.mode === "first") {
       this.group.updateMatrixWorld(true);
       this.parts.head.getWorldPosition(_v);
-      _v.y += 0.13; _v.x += sy * 0.1; _v.z -= cy * 0.1;
+      _v.y += this.rig ? 0.15 : 0.13; _v.x += sy * 0.1; _v.z -= cy * 0.1;
       cam.position.set(_v.x + jx, _v.y + jy, _v.z);
       _e.set(-c.pitch, -c.yaw, Math.sin(this.gait.u * TAU) * 0.006 * this.gait.move);
       cam.quaternion.setFromEuler(_e);
@@ -771,7 +747,7 @@ export class Avatar {
 
   /** Every rendered frame while on foot. */
   frame(dt) {
-    this._pose(dt);
+    this._animate(dt);
     this._fx(dt);
     this._camera(dt);
     const g = this.game;

@@ -67,8 +67,8 @@
  * the CTX image. The conditioning is a heuristic and is not a measurement
  * of grain size.
  */
-import * as THREE from "../vendor/three.module.js?v=b8cfe8e-efa5b7b7";
-import { installStyle } from "./detailstyle.js?v=b8cfe8e-efa5b7b7";
+import * as THREE from "../vendor/three.module.js?v=6d37c9c-9b39e129";
+import { installStyle } from "./detailstyle.js?v=6d37c9c-9b39e129";
 
 const SEED = 0x4d415253;       // "MARS"
 const TAU = Math.PI * 2;

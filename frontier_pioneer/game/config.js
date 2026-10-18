@@ -28,10 +28,10 @@ export const TIME_WARP = 600;    // the D-pad "time warp" quick slot
 
 /** Geometry clipmap. `cells` must be a multiple of 4 (see terrain.js). */
 export const QUALITY = {
-  low:    { name: "low",    cells: 64,  baseCell: 0.25,  rocks: 500,  rockRange: 45, bloom: false, renderScale: 0.75, aniso: 2, microNormal: 0.6, shadowRes: 256 },
-  medium: { name: "medium", cells: 96,  baseCell: 0.25,  rocks: 1200, rockRange: 60, bloom: false, renderScale: 1.0,  aniso: 4, microNormal: 1.0, shadowRes: 384 },
-  high:   { name: "high",   cells: 128, baseCell: 0.125, rocks: 2200, rockRange: 75, bloom: true,  renderScale: 1.0,  aniso: 8, microNormal: 1.0, shadowRes: 512 },
-  ultra:  { name: "ultra",  cells: 160, baseCell: 0.125, rocks: 3600, rockRange: 95, bloom: true,  renderScale: 1.0,  aniso: 16, microNormal: 1.0, shadowRes: 768 },
+  low:    { name: "low",    cells: 64,  baseCell: 0.25,  rocks: 500,  rockRange: 45, bloom: false, renderScale: 0.75, aniso: 2, microNormal: 0.6, shadowRes: 256, dof: 0 },
+  medium: { name: "medium", cells: 96,  baseCell: 0.25,  rocks: 1200, rockRange: 60, bloom: false, renderScale: 1.0,  aniso: 4, microNormal: 1.0, shadowRes: 384, dof: 1 },
+  high:   { name: "high",   cells: 128, baseCell: 0.125, rocks: 2200, rockRange: 75, bloom: true,  renderScale: 1.0,  aniso: 8, microNormal: 1.0, shadowRes: 512, dof: 2 },
+  ultra:  { name: "ultra",  cells: 160, baseCell: 0.125, rocks: 3600, rockRange: 95, bloom: true,  renderScale: 1.0,  aniso: 16, microNormal: 1.0, shadowRes: 768, dof: 3 },
 };
 export const DEFAULT_QUALITY = "high";
 

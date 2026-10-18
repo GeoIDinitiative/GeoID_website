@@ -22,10 +22,10 @@
  * follow: moving markers; memory_spiral: rooms and a guide voice; evade: RECALL hunters). Distances
  * that cannot fit a 20 km site (drive 1,800 km, evade 40 km) are scaled and say so.
  */
-import { getSystem } from "./systems.js?v=b8cfe8e-efa5b7b7";
-import { MARS } from "./config.js?v=b8cfe8e-efa5b7b7";
-import { speech, esc, humanise, evalCond } from "./storydata.js?v=b8cfe8e-efa5b7b7";
-import { plannedName, PLANNED } from "./tiers.js?v=b8cfe8e-efa5b7b7";
+import { getSystem } from "./systems.js?v=6d37c9c-9b39e129";
+import { MARS } from "./config.js?v=6d37c9c-9b39e129";
+import { speech, esc, humanise, evalCond } from "./storydata.js?v=6d37c9c-9b39e129";
+import { plannedName, PLANNED } from "./tiers.js?v=6d37c9c-9b39e129";
 
 export const ACTION_HOLD = 0.6;
 const fmtM = (m) => (m < 1000 ? Math.round(m) + " m" : (m / 1000).toFixed(2) + " km");
@@ -274,11 +274,25 @@ export function makeObjectives(st) {
       }
       return built(ob) >= (ob.count || 1);
     },
-    target(ob) { if (ob.planned_module) { const T = sys("tiers"), s = T && T.structures().find((x) => x.type === ob.module && x.progress < 1); return s ? { x: s.x, z: s.z, name: plannedName(ob.module) } : null; } return null; },
     meta(ob) {
       if (ob.remote) return "built by a Steward's crew";
       if (ob.planned_module) { const T = sys("tiers"), s = T && T.structures().find((x) => x.type === ob.module); return s ? `${Math.round(s.progress * 100)}%${s.waiting ? " · waiting for a crew" : " · the caretakers are on it"}` : ""; }
-      return `${Math.min(built(ob), ob.count || 1)} / ${ob.count || 1} built · build mode: hold Cross, or B`;
+      // the campaign's loop: planned in build mode, sent to HALO-1, built by the caretakers
+      const b = st.base(); let mods = [];
+      try { const re = ob.match ? new RegExp(ob.match) : null; mods = b ? b.modules().filter((x) => !x.built && (x.type === ob.module || (re && re.test(x.type)))) : []; } catch { mods = []; }
+      const n = `${Math.min(built(ob), ob.count || 1)} / ${ob.count || 1} built`;
+      const m = mods.find((x) => !x.plan || x.plan === "site") || mods.find((x) => x.plan === "delivered") || mods.find((x) => x.plan === "ordered") || mods[0];
+      if (!m) return `${n} · plan it in build mode (hold Cross, or B), then send it to HALO-1`;
+      if (m.plan === "draft") return `${n} · planned: send the plan to HALO-1 (G in build mode)`;
+      if (m.plan === "ordered") { const H = sys("halo"), pk = H && H.get(m.pkg), l = pk ? Math.max(0, pk.left) : 0; return `${n} · components in descent T-${Math.floor(l / 60)}:${String(Math.floor(l % 60)).padStart(2, "0")}`; }
+      if (m.plan === "delivered") return `${n} · components at the pod: ${m.got || 0} / ${m.crates || 1} carried`;
+      const C = sys("caretakers"), who = C && C.builders ? C.builders(m.id) : [];
+      return `${n} · ${Math.floor(m.progress * 100)}% · ${who.length ? who.join(" + ") + " building (stay close to help)" : "waiting for a caretaker"}`;
+    },
+    target(ob) {
+      if (ob.planned_module) { const T = sys("tiers"), s = T && T.structures().find((x) => x.type === ob.module && x.progress < 1); return s ? { x: s.x, z: s.z, name: plannedName(ob.module) } : null; }
+      const b = st.base(); try { const re = ob.match ? new RegExp(ob.match) : null; const m = b && b.modules().find((x) => !x.built && x.plan !== "draft" && (x.type === ob.module || (re && re.test(x.type)))); if (m) return { x: m.x, z: m.z, name: m.name }; } catch { /* none */ }
+      return null;
     },
     force(ob) { if (ob.planned_module) { const T = sys("tiers"); if (T) T.finish(ob.module); } },
   };
@@ -290,6 +304,9 @@ export function makeObjectives(st) {
       const at = ob.source ? st.place(ob.source) : /lander/.test(ob.target) ? st.place("lander") : (() => { const b = st.base(); try { const mm = b && b.modules().find((x) => x.built && (Array.isArray(ob.target) ? ob.target.includes(x.type) : x.type === ob.target)); if (mm) return mm; } catch { /* none */ } return st.place(Array.isArray(ob.target) ? ob.target[0] : ob.target); })();
       return { at, r: st.onFoot() ? 8 : 25, text: `Salvage ${/lander/.test(ob.target) ? "the lander's " : ""}${humanise(part)} (${i + 1} of ${ob.count || parts.length})`, run: async () => {
         P.n = i + 1;
+        // the lander's array and battery are components on hand: planned in build mode, they are built at once, no package needed
+        const kit = { array: "solar_array", battery: "battery_bank" }[part], b = st.base();
+        if (kit && b && b.addOnHand) { b.addOnHand(kit, 1); toast(`${esc(humanise(part))} salvaged<small>components on hand: place it in build mode and build it yourself</small>`, 3.5); }
         const l = lines(m, ob.id)[i]; if (l) await say([l]);
         if (P.n >= (ob.count || parts.length)) st.objectiveDone(m, ob, { linesPlayed: true });
       } };
@@ -328,7 +345,7 @@ export function makeObjectives(st) {
         for (let i = 0; i < want.length; i++) {
           const opts = want.slice().sort((a, b) => (a + i).localeCompare(b + i));
           const k = ui && ui.choose ? await ui.choose({ prompt: `Priority ${i + 1} of ${want.length}: what stays powered ${i === 0 ? "first" : "next"}?`, options: opts.map((x) => humanise(x)), style: "radio" }) : want.indexOf(want[i]);
-          if (opts[k] !== want[i]) { await say([{ speaker: "KEEPER", text: "Priority order rejected. Life support first." }], { style: "radio" }); return; }
+          if (opts[k] !== want[i]) { await say([{ speaker: "ATLAS", text: "Priority order rejected. Life support first." }], { style: "radio" }); return; }
         }
         st.objectiveDone(m, ob);
       } };
@@ -376,14 +393,39 @@ export function makeObjectives(st) {
   };
 
   /* ── HALO-1 ── */
+  /** Does this package answer the request? A plan answers the starter (the outpost) and carries the story's unit or item with it. */
+  const answers = (d, ob) => d && (d.kind === ob.kind || (d.kind === "plan" && (ob.kind === "starter" || (ob.unit && d.unit === ob.unit) || (ob.item && d.item === ob.item) || d.wantKind === ob.kind)) || (ob.unit && d.unit === ob.unit));
   O.request_package = {
-    enter(ob) { const H = sys("halo"); if (H && !H.enabled && st.S.act !== "fugitive") H.setEnabled(true); },
-    on(ev, d, ob, P) { if (ev !== "package_requested" || !d) return false; if (d.kind !== ob.kind && !(ob.unit && d.unit === ob.unit)) return false; P.pkg = d.id; return true; },
-    action(ob) { return { at: null, r: 0, text: "Open the HALO-1 uplink", run: () => st.openUplink(true) }; },
-    meta(ob) { const H = sys("halo"), c = H && H.cc(); return `U, or the menu: HALO-1 uplink${c ? ` · ${c.free} CC free` : ""}`; },
-    force(ob, P, run, m) {
+    enter(ob, P, run, m) {
+      const H = sys("halo"); if (H && !H.enabled && st.S.act !== "fugitive") H.setEnabled(true);
+      // a plan sent before this mission began (from build mode, a little early) is this one's package
+      if (H && ob.kind === "starter") { const p = H.packages().find((x) => x.kind === "plan" && !x.mission); if (p) { p.mission = m.id; P.pkg = p.id; P.early = true; } }
+    },
+    poll(ob, P, run, m) { if (!P.early) return false; const H = sys("halo"), p = H && H.get(P.pkg); if (p) { st.notify("package_requested", p); } return !!p; },
+    on(ev, d, ob, P, run, m) { if (ev !== "package_requested" || !answers(d, ob)) return false; P.pkg = d.id; if (!d.mission) d.mission = m.id; return true; },
+    action(ob) {
+      const B = getSystem("builder"), plan = B && B.manifest ? B.manifest() : null;
+      if (ob.kind === "starter" && plan && !plan.modules) return { at: null, r: 0, text: "Plan the outpost (build mode)", run: () => { if (!B.enter()) { toast("Plan it from the rover<small>stop the rover, then B or hold Cross</small>", 4); st.openUplink(true); } } };
+      return { at: null, r: 0, text: plan && plan.modules ? "Send the plan to HALO-1" : "Open the HALO-1 uplink", run: () => st.openUplink(true) };
+    },
+    meta(ob) {
+      const H = sys("halo"), c = H && H.cc(), B = getSystem("builder"), plan = B && B.manifest ? B.manifest() : null;
+      const cc = c ? ` · ${c.free} CC free` : "";
+      if (ob.kind === "starter") return plan && plan.modules ? `${plan.modules} blueprints planned: send the plan (G in build mode, or U)${cc}` : `plan the outpost in build mode (hold Cross, or B), then send it to HALO-1${cc}`;
+      return `U, or the menu: HALO-1 uplink${ob.unit ? ` (${ob.unit} rides with a plan too)` : ""}${cc}`;
+    },
+    async force(ob, P, run, m) {
       const H = sys("halo"); if (!H) return;
       const want = st._uplinkWant() || {}, drop = (ob.drop && ob.drop.marker && st.place(ob.drop.marker)) || st.playerPos();
+      // the dev skip plans the outpost the next mission asks for and sends it; anything else is requested as before
+      const B = getSystem("builder");
+      if (ob.kind === "starter" && B && B.autoPlan && st.D) {
+        const next = st.D.missions.find((x) => x.trigger && x.trigger.on === "mission_complete" && x.trigger.id === m.id);
+        const types = next ? next.objectives.filter((o) => o.type === "build" && !o.planned_module && !o.remote).map((o) => o.module) : ["hab_small", "airlock"];
+        if (B.manifest().modules === 0) await B.autoPlan(["solar_array", "battery_bank"].filter((t) => !types.includes(t)).concat(types).filter((t, i, a) => a.indexOf(t) === i), drop.x + 30, drop.z + 20, { story: true, quiet: true });
+        const r = H.requestPlan({ free: true, mission: m.id, id: want.id });
+        if (r.ok) { P.pkg = r.pkg.id; return; }
+      }
       const r = H.request(want.kind || ob.kind, { x: drop.x + 30, z: drop.z + 20, unit: ob.unit, story: true, mission: m.id, id: want.id, free: true });
       if (r.ok) P.pkg = r.pkg.id;
     },
@@ -393,7 +435,7 @@ export function makeObjectives(st) {
     on(ev, d, ob, P, run, m) { if (ev !== "package_landed" || !d) return false; const p = O.await_package.pkg(ob, run, m); return !!p && p.id === d.id; },
     poll(ob, P, run, m) { const p = O.await_package.pkg(ob, run, m); return !!p && p.phase === "landed"; },
     target(ob, P, run, m) { const p = O.await_package.pkg(ob, run, m); return p ? { x: p.x, z: p.z, name: "the drop point" } : null; },
-    meta(ob, P, run, m) { const p = O.await_package.pkg(ob, run, m); if (!p) return "request it first"; if (p.phase === "final") return "inbound: look east"; const l = Math.max(0, p.left); return `descent T-${Math.floor(l / 60)}:${String(Math.floor(l % 60)).padStart(2, "0")} (game minutes)`; },
+    meta(ob, P, run, m) { const p = O.await_package.pkg(ob, run, m); if (!p) return "request it first"; if (p.phase === "final") return "inbound: look east"; const l = Math.max(0, p.left); return `descent T-${Math.floor(l / 60)}:${String(Math.floor(l % 60)).padStart(2, "0")} (game minutes) · time warp or sleep shortens it`; },
     force(ob, P, run, m) { const p = O.await_package.pkg(ob, run, m), H = sys("halo"); if (p && H) H.landNow(p.id); },
     /** KEEPER (or the mission's own waiting lines) at ten, five and one minute. */
     countdown(d) {
@@ -407,7 +449,7 @@ export function makeObjectives(st) {
       speech(g).say({ 10: "KEEPER.bark.pkg_10min", 5: "KEEPER.bark.pkg_5min", 1: "KEEPER.bark.pkg_1min" }[d.minutes], { style: "radio", bark: true });
     },
   };
-  O.stow_supplies = simple((ob) => st.place(ob.package) || st.home(), "Stow the supplies", { r: 8 });
+  O.stow_supplies = simple((ob) => st.place(ob.package) || st.home(), "Stow the rations", { r: 8, more: { meta() { return "the package's supplies are in the base stores; the rations go in your suit port · E at the pod"; } } });
   O.link_station = simple(() => { const b = st.base(); try { const mm = b && b.modules().find((x) => x.built && /comms/.test(x.type)); if (mm) return mm; } catch { /* none */ } return st.place("lander"); }, "Link to HALO-1", {
     step() { const b = st.base(); let power = false; try { power = !!b && b.modules().some((x) => x.built && /solar|battery/.test(x.type)); } catch { power = false; } if (!power) { toast("No power for the antenna<small>deploy the solar array first</small>", 3.5); return false; } const H = sys("halo"); if (H) H.setEnabled(true); st.S.vars["halo.linked"] = true; return true; },
   });
@@ -427,11 +469,17 @@ export function makeObjectives(st) {
     action(ob, P, run, m) {
       const at = unitPlace(ob.unit, ob), name = ob.callsign || String(ob.unit).replace(/_/g, " ");
       return { at, r: st.onFoot() ? 6 : 16, text: `Talk to ${name}`, run: async () => {
-        // after the archive opens he may use the donor's name (never ANVIL's: C15 does that)
-        const D = st.D, F = D.founders[ob.unit] || D.second[ob.unit];
-        await st.offerName(ob.unit);
+        const D = st.D;
         const cs = ob.cutscene || (D.cut.cutscenes.find((c) => !st.S.seen[c.id] && c.trigger.on === "talk" && c.trigger.unit === ob.unit && (!c.trigger.mission || st.S.active[c.trigger.mission])) || {}).id;
-        if (cs && !st.S.seen[cs]) { await st.playCutscene(cs); st.objectiveDone(m, ob, { linesPlayed: true }); return; }
+        if (cs && !st.S.seen[cs]) { await st.offerName(ob.unit); await st.playCutscene(cs); st.objectiveDone(m, ob, { linesPlayed: true }); return; }
+        // a caretaker: the dialogue panel, the mission's conversation first (then their other topics)
+        const C = sys("caretakers"), u = C && C.get(ob.unit);
+        if (u && C.talk) {
+          const ok = await C.talk(ob.unit, { autoplay: true, story: { label: ob.text, run: async (sayLine) => { for (const l of talkLines(ob, m)) { if (!st.S.vars || !l.if || evalCond(l.if, st.S.vars)) await sayLine(l); } st.objectiveDone(m, ob, { linesPlayed: true }); } } });
+          if (ok) return;
+        }
+        // anyone else (a pioneer, a voice on the channel): the lines, and the name offered once the archive has it
+        await st.offerName(ob.unit);
         await say(talkLines(ob, m));
         st.objectiveDone(m, ob, { linesPlayed: true });
       } };
@@ -516,8 +564,8 @@ export function makeObjectives(st) {
       if (ob.cutscene && !st.S.seen[ob.cutscene] && !d.viaCutscene) { st.playCutscene(ob.cutscene).then(() => st.objectiveDone(m, ob)); return false; }
       return true;
     },
-    action() { return { at: null, r: 0, text: "Open the KEEPER terminal", run: () => st.openKeeper(true) }; },
-    meta() { return "J at a base, or the menu: KEEPER terminal · ask it exactly"; },
+    action() { return { at: null, r: 0, text: "Open the ATLAS terminal", run: () => st.openKeeper(true) }; },
+    meta() { return "J at a base, or the menu: ATLAS terminal · ask it exactly"; },
     relaxed: true,
   };
   O.interact = {

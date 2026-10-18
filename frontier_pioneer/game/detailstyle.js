@@ -43,7 +43,7 @@
  * The honesty view hatches all of it magenta (it is all displacement), and
  * the HUD's detail line names the style.
  */
-import * as THREE from "../vendor/three.module.js?v=b8cfe8e-efa5b7b7";
+import * as THREE from "../vendor/three.module.js?v=6d37c9c-9b39e129";
 
 const MAXF = 8;
 const TYPES = { crater: 1, pit: 2, calm: 3 };

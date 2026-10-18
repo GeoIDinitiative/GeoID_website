@@ -37,7 +37,7 @@
   },
   "knows.*": {
    "set_by": "various",
-   "effect": "Knowledge flags that open KEEPER questions (knows.mars_sols, knows.name_rowan_ashby, knows.ashby_file, knows.pioneer_5, knows.cara...)."
+   "effect": "Knowledge flags that open ATLAS questions (knows.mars_sols, knows.name_rowan_ashby, knows.ashby_file, knows.pioneer_5, knows.cara...)."
   },
   "recall_alert": {
    "set_by": "Mission 4.7 (always)",
@@ -196,7 +196,7 @@
     {
      "kind": "line",
      "line": "C01.06",
-     "speaker": "KEEPER",
+     "speaker": "ATLAS",
      "text": "Parachute deploy in ten seconds. Welcome to Mars, Pioneer. You are the first.",
      "verbatim": true,
      "duration_hint": 5.6,
@@ -321,7 +321,7 @@
     {
      "kind": "line",
      "line": "C02.01",
-     "speaker": "KEEPER",
+     "speaker": "ATLAS",
      "text": "Package one. Forty seconds.",
      "duration_hint": 2.1,
      "t": 4.0
@@ -403,7 +403,7 @@
     {
      "kind": "line",
      "line": "C02.07",
-     "speaker": "KEEPER",
+     "speaker": "ATLAS",
      "text": "Package one down. Four hundred and ten metres, bearing zero six two. Contents: rations, water, components, one construction unit.",
      "duration_hint": 7.9,
      "t": 24.2
@@ -419,7 +419,7 @@
     {
      "kind": "line",
      "line": "C02.09",
-     "speaker": "KEEPER",
+     "speaker": "ATLAS",
      "text": "One construction unit.",
      "duration_hint": 1.8,
      "t": 33.5
@@ -463,10 +463,12 @@
    "beats": [
     {
      "kind": "direction",
-     "text": "The pod sits smoking in a crater of its own making. A hatch blows. A squat yellow construction unit unfolds, servos whining, and turns its sensor bar toward the horizon.",
-     "verbatim": true,
+     "text": "The pod sits smoking in a crater of its own making. A hatch blows. A construction unit unfolds out of its travelling crouch, a figure in an off-white EVA suit with chipped yellow plates, and turns its helmet toward the horizon.",
+     "verbatim": false,
      "duration_hint": 5.0,
-     "t": 0.0
+     "t": 0.0,
+     "bible_text": "The pod sits smoking in a crater of its own making. A hatch blows. A squat yellow construction unit unfolds, servos whining, and turns its sensor bar toward the horizon.",
+     "deviation": "Owner canon change: caretakers appear through the filter as suited astronauts, not robots (supersedes bible)."
     },
     {
      "kind": "camera",
@@ -484,7 +486,7 @@
     },
     {
      "kind": "still",
-     "panel": "A scorched cone-shaped pod in a small fresh crater; hatch blown open; a boxy yellow machine unfolding out of it like a folding chair, a horizontal sensor bar for a face.",
+     "panel": "A scorched cone-shaped pod in a small fresh crater; hatch blown open; a figure in an off-white EVA suit unfolding out of it from a crouch, chipped yellow plates at chest and shoulders, C-01 ANVIL stencilled on the chest, a smoked-gold visor and a lamp at the brow of the helmet.",
      "parallel": true,
      "duration_hint": 0,
      "t": 5.0
@@ -492,7 +494,7 @@
     {
      "kind": "sfx",
      "sfx": "sfx_servo_unfold",
-     "desc": "Hatch pyro, then a long sequence of servo whines and latches.",
+     "desc": "Hatch pyro, then a long sequence of suit creaks, clicks and latches as he unfolds.",
      "parallel": true,
      "duration_hint": 0,
      "t": 5.0
@@ -526,10 +528,12 @@
     },
     {
      "kind": "direction",
-     "text": "It offers a gloved manipulator. P1 shakes it. For a frame, the two gloves look identical.",
-     "verbatim": true,
+     "text": "It offers a gloved hand, a heavy work glove with a yellow cuff. P1 shakes it. For a frame, the two gloves look identical.",
+     "verbatim": false,
      "duration_hint": 3.0,
-     "t": 19.1
+     "t": 19.1,
+     "bible_text": "It offers a gloved manipulator. P1 shakes it. For a frame, the two gloves look identical.",
+     "deviation": "Owner canon change: caretakers appear through the filter as suited astronauts, not robots (supersedes bible)."
     },
     {
      "kind": "camera",
@@ -537,7 +541,7 @@
       "mode": "static",
       "target": "handshake",
       "lens_mm": 85,
-      "note": "close two-shot on the gloves; ONE frame (42 ms) renders ANVIL's manipulator as a Kestrel glove, same seam pattern, then back",
+      "note": "close two-shot on the gloves; for two frames both gloves render as the same bare grey composite hand, then back to his yellow-cuffed work glove and P1's Kestrel glove (matches cinematics/C03)",
       "duration_s": 3
      },
      "parallel": true,
@@ -546,7 +550,7 @@
     },
     {
      "kind": "glitch",
-     "desc": "Single-frame substitution: ANVIL's industrial claw rendered as a Kestrel suit glove identical to P1's. No sound cue. Deniable.",
+     "desc": "Two-frame substitution: both gloves rendered as the same bare grey composite hand. No sound cue. Deniable.",
      "intensity": 0.15,
      "duration_hint": 0.1,
      "t": 22.1
@@ -622,7 +626,7 @@
     {
      "kind": "line",
      "line": "C04.01",
-     "speaker": "KEEPER",
+     "speaker": "ATLAS",
      "text": "Regional dust event has cleared. Array output: four percent.",
      "duration_hint": 4.1,
      "t": 8.0
@@ -648,7 +652,7 @@
     },
     {
      "kind": "still",
-     "panel": "Morning after a storm: a row of solar panels half-drowned in rust-coloured dust, drifts piled like snow against their edges. A yellow robot on top with a home-made broom.",
+     "panel": "Morning after a storm: a row of solar panels half-drowned in rust-coloured dust, drifts piled like snow against their edges. A suited figure with chipped yellow shoulder plates up on the frame with a home-made broom.",
      "parallel": true,
      "duration_hint": 0,
      "t": 16.6
@@ -771,7 +775,7 @@
     },
     {
      "kind": "still",
-     "panel": "Two figures, a man in a suit and a squat robot, sitting side by side on the roof of a lone module under a sky thick with stars. Overhead, one bright point.",
+     "panel": "Two suited figures, one with yellow-trimmed plates, sitting side by side on the roof of a lone module under a sky thick with stars. Overhead, one bright point.",
      "parallel": true,
      "duration_hint": 0,
      "t": 58.6
@@ -967,7 +971,7 @@
     {
      "kind": "line",
      "line": "C05.08",
-     "speaker": "KEEPER",
+     "speaker": "ATLAS",
      "text": "Core logged. Contribution Credit awarded.",
      "duration_hint": 2.5,
      "t": 49.7
@@ -1018,7 +1022,7 @@
     },
     {
      "kind": "still",
-     "panel": "Inside a translucent dome on a field of ice: a shallow pool filling for the first time, the dome's lights reflected in it, three figures at the edge: a suited man, a slow farm robot, a thin nervous robot with a clipboard.",
+     "panel": "Inside a translucent dome on a field of ice: a shallow pool filling for the first time, the dome's lights reflected in it, three figures at the edge: a suited man; a lanky suited farmer leaning on a soil probe like a walking stick; a thin, nervous suited figure with a ledger and a sample flask on her belt.",
      "parallel": true,
      "duration_hint": 0,
      "t": 5.0
@@ -1094,7 +1098,7 @@
     {
      "kind": "line",
      "line": "C06.08",
-     "speaker": "KEEPER",
+     "speaker": "ATLAS",
      "text": "Biome tier achieved. First standing water registered, Korolev.",
      "duration_hint": 3.7,
      "t": 33.3
@@ -1126,7 +1130,7 @@
    "clues": [
     "5"
    ],
-   "verbatim_source": "bible p.15 (KEEPER's line)",
+   "verbatim_source": "bible p.15 (ATLAS's line)",
    "beats": [
     {
      "kind": "direction",
@@ -1216,14 +1220,14 @@
      "kind": "line",
      "line": "C07.04",
      "speaker": "P1",
-     "text": "Keeper. There's a light in the south. Moving west, low. What is it?",
+     "text": "Atlas. There's a light in the south. Moving west, low. What is it?",
      "duration_hint": 5.6,
      "t": 22.8
     },
     {
      "kind": "line",
      "line": "C07.05",
-     "speaker": "KEEPER",
+     "speaker": "ATLAS",
      "text": "No object at that position is registered to this mission.",
      "verbatim": true,
      "duration_hint": 3.3,
@@ -1240,7 +1244,7 @@
     {
      "kind": "line",
      "line": "C07.07",
-     "speaker": "KEEPER",
+     "speaker": "ATLAS",
      "text": "No object at that position is registered to this mission.",
      "duration_hint": 3.3,
      "t": 33.8
@@ -1338,7 +1342,7 @@
      "kind": "line",
      "line": "C08.02",
      "speaker": "P1",
-     "text": "Keeper. How long have I been on Mars?",
+     "text": "Atlas. How long have I been on Mars?",
      "verbatim": true,
      "duration_hint": 3.7,
      "t": 12.4
@@ -1346,7 +1350,7 @@
     {
      "kind": "line",
      "line": "C08.03",
-     "speaker": "KEEPER",
+     "speaker": "ATLAS",
      "text": "Mission sol four hundred and twelve.",
      "verbatim": true,
      "duration_hint": 2.9,
@@ -1364,7 +1368,7 @@
     {
      "kind": "line",
      "line": "C08.05",
-     "speaker": "KEEPER",
+     "speaker": "ATLAS",
      "text": "Please rephrase. Mission sols are the standard unit of record.",
      "verbatim": true,
      "duration_hint": 4.4,
@@ -1372,7 +1376,7 @@
     },
     {
      "kind": "direction",
-     "text": "P1 looks back at the dune. Dialogue choices: [Ask for Mars sols since landing] / [Let it go] / [Recite the poem]. Asked for Mars sols since landing, KEEPER answers at once: \"Nine thousand nine hundred and sixty-one.\"",
+     "text": "P1 looks back at the dune. Dialogue choices: [Ask for Mars sols since landing] / [Let it go] / [Recite the poem]. Asked for Mars sols since landing, ATLAS answers at once: \"Nine thousand nine hundred and sixty-one.\"",
      "verbatim": true,
      "duration_hint": 1.0,
      "t": 28.2
@@ -1401,7 +1405,7 @@
         {
          "kind": "line",
          "line": "C08.07",
-         "speaker": "KEEPER",
+         "speaker": "ATLAS",
          "text": "Nine thousand nine hundred and sixty-one.",
          "duration_hint": 4.4,
          "t": 2.9,
@@ -1432,7 +1436,7 @@
         {
          "kind": "line",
          "line": "C08.repeat",
-         "speaker": "KEEPER",
+         "speaker": "ATLAS",
          "text": "Nine thousand nine hundred and sixty-one.",
          "duration_hint": 4.4,
          "t": 13.9
@@ -1699,14 +1703,14 @@
      "kind": "line",
      "line": "C09.05",
      "speaker": "P1",
-     "text": "Keeper. Who built this outpost?",
+     "text": "Atlas. Who built this outpost?",
      "duration_hint": 2.5,
      "t": 42.9
     },
     {
      "kind": "line",
      "line": "C09.06",
-     "speaker": "KEEPER",
+     "speaker": "ATLAS",
      "text": "No outpost is registered at this position.",
      "duration_hint": 3.3,
      "t": 45.4
@@ -1722,7 +1726,7 @@
     {
      "kind": "line",
      "line": "C09.08",
-     "speaker": "KEEPER",
+     "speaker": "ATLAS",
      "text": "No outpost is registered at this position.",
      "duration_hint": 3.3,
      "t": 50.8
@@ -1760,10 +1764,12 @@
    "beats": [
     {
      "kind": "direction",
-     "text": "Arsia Mons. A collapsed skylight into a lava tube. P1 climbs down. At the bottom, half-buried in drifted sand, lies a dead robot: a stripped skeletal frame, limbs folded, optics dark. P1 steps over it without a second look. Another dead machine.",
-     "verbatim": true,
+     "text": "Arsia Mons. A collapsed skylight into a lava tube. P1 climbs down. At the bottom, half-buried in drifted sand, lies a dead caretaker: a suited figure curled on its side, knees drawn up, its suit gone dark, visor black, fabric dull with dust. P1 steps over it without a second look. Another dead machine.",
+     "verbatim": false,
      "duration_hint": 7.0,
-     "t": 0.0
+     "t": 0.0,
+     "bible_text": "Arsia Mons. A collapsed skylight into a lava tube. P1 climbs down. At the bottom, half-buried in drifted sand, lies a dead robot: a stripped skeletal frame, limbs folded, optics dark. P1 steps over it without a second look. Another dead machine.",
+     "deviation": "Owner canon change: caretakers appear through the filter as suited astronauts, not robots (supersedes bible)."
     },
     {
      "kind": "camera",
@@ -1780,7 +1786,7 @@
     },
     {
      "kind": "still",
-     "panel": "Looking down a round collapsed skylight into a lava tube: a shaft of dusty light falls onto a sand drift, and in it a stripped, folded robot skeleton.",
+     "panel": "Looking down a round collapsed skylight into a lava tube: a shaft of dusty light falls onto a sand drift, and in it a dead suited figure curled on its side, suit lights out, visor black.",
      "parallel": true,
      "duration_hint": 0,
      "t": 7.0
@@ -1991,10 +1997,12 @@
     },
     {
      "kind": "direction",
-     "text": "P1 turns to the airlock window. Outside, the dead robot lies in the sand, its cables running in through the door, all the way to the rack. The status light on its chest, which he never noticed, goes dark.",
-     "verbatim": true,
+     "text": "P1 turns to the airlock window. Outside, the dead suited figure lies in the sand, cables running from its chest pack in through the door, all the way to the rack. The status light on its chest, which he never noticed, goes dark.",
+     "verbatim": false,
      "duration_hint": 6.0,
-     "t": 101.5
+     "t": 101.5,
+     "bible_text": "P1 turns to the airlock window. Outside, the dead robot lies in the sand, its cables running in through the door, all the way to the rack. The status light on its chest, which he never noticed, goes dark.",
+     "deviation": "Owner canon change: caretakers appear through the filter as suited astronauts, not robots (supersedes bible)."
     },
     {
      "kind": "camera",
@@ -2011,7 +2019,7 @@
     },
     {
      "kind": "still",
-     "panel": "Through a small airlock window: the robot skeleton in the sand, a cable from its chest snaking to the door; a tiny green light on its chest, then the same panel with the light out.",
+     "panel": "Through a small airlock window: the dead suited figure in the sand, a cable from its chest pack snaking to the door; a tiny green light on its chest, then the same panel with the light out.",
      "parallel": true,
      "duration_hint": 0,
      "t": 107.5
@@ -2083,7 +2091,7 @@
     },
     {
      "kind": "direction",
-     "text": "P1 walks between them. A drill arm raised and never lowered. A sample scoop stopped above a bin. He plugs into the nearest one. Its log plays in a voice flatter than KEEPER's.",
+     "text": "P1 walks between them. A drill arm raised and never lowered. A sample scoop stopped above a bin. He plugs into the nearest one. Its log plays in a voice flatter than ATLAS's.",
      "duration_hint": 5.0,
      "t": 7.0
     },
@@ -2167,7 +2175,7 @@
     "mission": "4.4"
    },
    "site": "jezero",
-   "notes": "Each KEEPER line here is also an entry in dialogue/keeper.json; the cutscene is the scripted order. If the player asks in a different order outside the cutscene, the tree answers individually.",
+   "notes": "Each ATLAS line here is also an entry in dialogue/keeper.json; the cutscene is the scripted order. If the player asks in a different order outside the cutscene, the tree answers individually.",
    "beats": [
     {
      "kind": "direction",
@@ -2198,14 +2206,14 @@
      "kind": "line",
      "line": "C12.01",
      "speaker": "P1",
-     "text": "Keeper. Who is Rowan Ashby?",
+     "text": "Atlas. Who is Rowan Ashby?",
      "duration_hint": 2.5,
      "t": 6.0
     },
     {
      "kind": "line",
      "line": "C12.02",
-     "speaker": "KEEPER",
+     "speaker": "ATLAS",
      "text": "Rowan Ashby. Irish. Galway. ESI field geologist, scanned 2057. Never flew. Never married.",
      "duration_hint": 5.6,
      "t": 8.5
@@ -2221,7 +2229,7 @@
     {
      "kind": "line",
      "line": "C12.04",
-     "speaker": "KEEPER",
+     "speaker": "ATLAS",
      "text": "Never married.",
      "duration_hint": 1.4,
      "t": 15.5
@@ -2237,7 +2245,7 @@
     {
      "kind": "line",
      "line": "C12.06",
-     "speaker": "KEEPER",
+     "speaker": "ATLAS",
      "text": "Files held, Cities in the Sky, Orchestration Instance 01. Donor record: ASHBY-R. Unit record: PIONEER-1. Construction unit records: C-01 to C-1,812. Motivational anchor files: 01 to 09. Companion constructs: SPOUSE. CHILD.",
      "duration_hint": 12.5,
      "t": 18.3
@@ -2253,7 +2261,7 @@
     {
      "kind": "line",
      "line": "C12.08",
-     "speaker": "KEEPER",
+     "speaker": "ATLAS",
      "text": "SPOUSE. Synthetic companion construct. Imprint name: Lucy. Basis: donor's partner, Galway, 2048 to 2055. Relationship ended when the donor chose an astronaut application. Construct extended from donor regret. Installed on PIONEER-1 to PIONEER-12.",
      "duration_hint": 11.0,
      "t": 32.2
@@ -2269,7 +2277,7 @@
     {
      "kind": "line",
      "line": "C12.10",
-     "speaker": "KEEPER",
+     "speaker": "ATLAS",
      "text": "CHILD. Synthetic construct. Imprint name: Alice. Basis: none. Composite of donor regret indices and a licensed reference set. Age fixed at eight. Installed on PIONEER-1 to PIONEER-12.",
      "duration_hint": 11.0,
      "t": 44.6
@@ -2303,7 +2311,7 @@
     {
      "kind": "line",
      "line": "C12.12",
-     "speaker": "KEEPER",
+     "speaker": "ATLAS",
      "text": "Asset CHILD-D07. Printed by HALO-1. Delivered in care package one.",
      "duration_hint": 4.4,
      "t": 61.4
@@ -2325,7 +2333,7 @@
     {
      "kind": "line",
      "line": "C12.14",
-     "speaker": "KEEPER",
+     "speaker": "ATLAS",
      "text": "C-01. ANVIL.",
      "duration_hint": 1.4,
      "t": 71.1
@@ -2333,7 +2341,7 @@
     {
      "kind": "line",
      "line": "C12.15",
-     "speaker": "KEEPER",
+     "speaker": "ATLAS",
      "text": "Source: Desmond Kerr (deceased 2046). Reconstructed from public social footprint and donor memories. Purpose: collaboration and emotional regulation of PIONEER units.",
      "verbatim": true,
      "duration_hint": 8.7,
@@ -2342,7 +2350,7 @@
     {
      "kind": "line",
      "line": "C12.16",
-     "speaker": "KEEPER",
+     "speaker": "ATLAS",
      "text": "Geography, UB, withdrew after first year; married 2042; divorced 2045; deceased 2046, suicide.",
      "delivery": "four flat lines, equal weight, no pause longer than the others",
      "verbatim": true,
@@ -2366,7 +2374,7 @@
     {
      "kind": "line",
      "line": "C12.18",
-     "speaker": "KEEPER",
+     "speaker": "ATLAS",
      "text": "Donor status: deceased. Galway. 2096.",
      "duration_hint": 2.5,
      "t": 93.9
@@ -2382,7 +2390,7 @@
     {
      "kind": "line",
      "line": "C12.20",
-     "speaker": "KEEPER",
+     "speaker": "ATLAS",
      "text": "Donor consent: cognitive baseline mapping, European Space Initiative, 2057. Asset transfer to Meridian Consortium, 2058. No further consent was recorded.",
      "duration_hint": 8.3,
      "t": 98.9
@@ -2398,7 +2406,7 @@
     {
      "kind": "line",
      "line": "C12.22",
-     "speaker": "KEEPER",
+     "speaker": "ATLAS",
      "text": "You did not ask.",
      "duration_hint": 2.1,
      "t": 109.7
@@ -2460,7 +2468,7 @@
    "beats": [
     {
      "kind": "direction",
-     "text": "Outpost Jezero, night. P1 has finally asked KEEPER the right question: \"List all broadcast media held in archive.\" A file: CITIES_IN_THE_SKY_2059_BROADCAST. It plays, warped by age.",
+     "text": "Outpost Jezero, night. P1 has finally asked ATLAS the right question: \"List all broadcast media held in archive.\" A file: CITIES_IN_THE_SKY_2059_BROADCAST. It plays, warped by age.",
      "verbatim": true,
      "duration_hint": 5.0,
      "t": 0.0
@@ -2468,7 +2476,7 @@
     {
      "kind": "line",
      "line": "C13.00",
-     "speaker": "KEEPER",
+     "speaker": "ATLAS",
      "text": "Broadcast media held: one file. CITIES_IN_THE_SKY_2059_BROADCAST.",
      "duration_hint": 2.9,
      "t": 5.0
@@ -2539,7 +2547,7 @@
     {
      "kind": "line",
      "line": "C13.05",
-     "speaker": "KEEPER",
+     "speaker": "ATLAS",
      "text": "Lines one and six match broadcast CITIES_IN_THE_SKY_2059. Lines two to five match motivational anchor file 07, installed on units PIONEER-1 to PIONEER-12.",
      "verbatim": true,
      "duration_hint": 9.1,
@@ -3601,7 +3609,7 @@
     },
     {
      "kind": "still",
-     "panel": "A pair of matte grey composite robot hands held up in front of the viewer; a dark porthole reflecting an empty visor.",
+     "panel": "A pair of matte grey composite hands, jointed, no seams, held up in front of the viewer; a dark porthole reflecting an empty visor.",
      "parallel": true,
      "duration_hint": 0,
      "t": 41.4
@@ -4012,7 +4020,7 @@
     },
     {
      "kind": "still",
-     "panel": "A narrow lava-tube hideout lit by harsh white lamps: a gaunt robot figure with solar panels strapped to its back, crouched against a rock wall scratched all over with names; four white-suited figures at the mouth.",
+     "panel": "A narrow lava-tube hideout lit by harsh white lamps: a gaunt bare-chassis figure, matte grey composite, with solar panels strapped to its back, crouched against a rock wall scratched all over with names; four white-suited figures at the mouth.",
      "parallel": true,
      "duration_hint": 0,
      "t": 13.9

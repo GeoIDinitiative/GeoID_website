@@ -21,11 +21,11 @@
    "module_footprint": "module cost / 2 (game/basenet.js MODULES)"
   },
   "poem_bonus": "+15 CC per recital from Act II (+50 at Dome Day), capped per sol. The reward is the clue.",
-  "closed": "At 5.1 KEEPER: 'Contribution Credit: closed.' No XP in Act V or Fugitive mode."
+  "closed": "At 5.1 ATLAS: 'Contribution Credit: closed.' No XP in Act V or Fugitive mode."
  },
  "objective_types": {
   "ask_keeper": {
-   "check": "The KEEPER question with this id is asked and answered (menu or free text; see dialogue/keeper.json).",
+   "check": "The ATLAS question with this id is asked and answered (menu or free text; see dialogue/keeper.json).",
    "params": {
     "question_id": "id in keeper.json",
     "cutscene": "plays instead of the plain answer"
@@ -1284,7 +1284,7 @@
    "layer": "what",
    "act": "I",
    "clue": "ANVIL jokes: \"Not that either of us eats in it, mind.\"",
-   "cover_story": "Robot humour",
+   "cover_story": "Unit humour",
    "mechanic": "Dialogue",
    "carried_by": [
     "1.4",
@@ -1352,7 +1352,7 @@
    "id": "9",
    "layer": "what",
    "act": "III",
-   "clue": "A dead robot at the door of a 2061 base; P3's corrupted mainframe calls itself the first man on Mars, in your voice (C10).",
+   "clue": "A dead suited figure at the door of a 2061 base (a caretaker whose suit has gone dark); P3's corrupted mainframe calls itself the first man on Mars, in your voice (C10).",
    "cover_story": "None",
    "mechanic": "Cutscene",
    "carried_by": [
@@ -1410,8 +1410,8 @@
    "id": "T5",
    "layer": "time",
    "act": "III",
-   "clue": "KEEPER, asked for \"mission sols\", gives 412; asked for \"Mars sols since landing\", gives nearly 10,000 (about 28 Earth years).",
-   "science": "KEEPER never lies; nobody asked the right question.",
+   "clue": "ATLAS, asked for \"mission sols\", gives 412; asked for \"Mars sols since landing\", gives nearly 10,000 (about 28 Earth years).",
+   "science": "ATLAS never lies; nobody asked the right question.",
    "carried_by": [
     "3.2",
     "C08"
@@ -1452,7 +1452,7 @@
   },
   "knows.*": {
    "set_by": "various",
-   "effect": "Knowledge flags that open KEEPER questions (knows.mars_sols, knows.name_rowan_ashby, knows.ashby_file, knows.pioneer_5, knows.cara...)."
+   "effect": "Knowledge flags that open ATLAS questions (knows.mars_sols, knows.name_rowan_ashby, knows.ashby_file, knows.pioneer_5, knows.cara...)."
   },
   "recall_alert": {
    "set_by": "Mission 4.7 (always)",
@@ -1466,7 +1466,7 @@
    "act": "prologue",
    "title": "The Descent",
    "site": "jezero",
-   "summary": "Wake in the tipped lander. Movement, suit systems, scanning. KEEPER sets the first directive. Step out onto the Jezero delta at dawn.",
+   "summary": "Wake in the tipped lander. Movement, suit systems, scanning. ATLAS sets the first directive. Step out onto the Jezero delta at dawn.",
    "requires": [],
    "trigger": {
     "on": "cutscene_end",
@@ -1531,7 +1531,7 @@
     "start": [
      {
       "line": "MP.1.start.01",
-      "speaker": "KEEPER",
+      "speaker": "ATLAS",
       "text": "Pioneer. Lander attitude: thirty-four degrees. Harness release is at your left hand."
      },
      {
@@ -1541,7 +1541,7 @@
      },
      {
       "line": "MP.1.start.03",
-      "speaker": "KEEPER",
+      "speaker": "ATLAS",
       "text": "Directive one: exit the lander. Check suit systems before egress."
      }
     ],
@@ -1557,7 +1557,7 @@
      "suit": [
       {
        "line": "MP.1.p.suit.01",
-       "speaker": "KEEPER",
+       "speaker": "ATLAS",
        "text": "Suit systems. Oxygen, water, food, rest and resolve. Each will drain. Each can be restored."
       },
       {
@@ -1567,14 +1567,14 @@
       },
       {
        "line": "MP.1.p.suit.03",
-       "speaker": "KEEPER",
+       "speaker": "ATLAS",
        "text": "Resolve."
       }
      ],
      "scan": [
       {
        "line": "MP.1.p.scan.01",
-       "speaker": "KEEPER",
+       "speaker": "ATLAS",
        "text": "Scanner active. Hold to scan any surface."
       },
       {
@@ -1609,7 +1609,7 @@
     "complete": [
      {
       "line": "MP.1.done.01",
-      "speaker": "KEEPER",
+      "speaker": "ATLAS",
       "text": "First compass marker set: delta front."
      },
      {
@@ -1687,7 +1687,7 @@
     "start": [
      {
       "line": "M1.1.start.01",
-      "speaker": "KEEPER",
+      "speaker": "ATLAS",
       "text": "Directive: restore power. Salvage the lander's array and battery, then establish a link to HALO-1."
      },
      {
@@ -1697,7 +1697,7 @@
      },
      {
       "line": "M1.1.start.03",
-      "speaker": "KEEPER",
+      "speaker": "ATLAS",
       "text": "Good morning, Pioneer."
      }
     ],
@@ -1722,14 +1722,14 @@
      "array": [
       {
        "line": "M1.1.p.array.01",
-       "speaker": "KEEPER",
+       "speaker": "ATLAS",
        "text": "Array output: nominal."
       }
      ],
      "link": [
       {
        "line": "M1.1.p.link.01",
-       "speaker": "KEEPER",
+       "speaker": "ATLAS",
        "text": "Link established. HALO-1 holds station at seventy-seven degrees east, seventeen thousand kilometres up. I will be directly overhead for the duration of your mission."
       }
      ]
@@ -1742,8 +1742,8 @@
      },
      {
       "line": "M1.1.done.02",
-      "speaker": "KEEPER",
-      "text": "I am KEEPER. Logistics, HALO-1."
+      "speaker": "ATLAS",
+      "text": "I am ATLAS. Logistics, HALO-1."
      },
      {
       "line": "M1.1.done.03",
@@ -1752,7 +1752,7 @@
      },
      {
       "line": "M1.1.done.04",
-      "speaker": "KEEPER",
+      "speaker": "ATLAS",
       "text": "Just me."
      }
     ]
@@ -1761,14 +1761,14 @@
     "fail": [
      {
       "line": "M1.1.fail.01",
-      "speaker": "KEEPER",
+      "speaker": "ATLAS",
       "text": "Array placement invalid. Slope exceeds ten degrees."
      }
     ],
     "retry": [
      {
       "line": "M1.1.retry.01",
-      "speaker": "KEEPER",
+      "speaker": "ATLAS",
       "text": "Select another position."
      }
     ]
@@ -1832,7 +1832,7 @@
     "start": [
      {
       "line": "M1.2.start.01",
-      "speaker": "KEEPER",
+      "speaker": "ATLAS",
       "text": "Directive: select an outpost site. Criteria: slope under six degrees. Wind shelter. Hydrated minerals within one hundred metres."
      },
      {
@@ -1885,7 +1885,7 @@
       },
       {
        "line": "M1.2.p.site.05",
-       "speaker": "KEEPER",
+       "speaker": "ATLAS",
        "text": "Site meets criteria."
       }
      ]
@@ -1898,7 +1898,7 @@
      },
      {
       "line": "M1.2.done.02",
-      "speaker": "KEEPER",
+      "speaker": "ATLAS",
       "text": "Site registered: Outpost Jezero."
      }
     ]
@@ -1907,17 +1907,17 @@
     "fail": [
      {
       "line": "M1.2.fail.slope",
-      "speaker": "KEEPER",
+      "speaker": "ATLAS",
       "text": "Site does not meet criteria: slope."
      },
      {
       "line": "M1.2.fail.shelter",
-      "speaker": "KEEPER",
+      "speaker": "ATLAS",
       "text": "Site does not meet criteria: shelter."
      },
      {
       "line": "M1.2.fail.minerals",
-      "speaker": "KEEPER",
+      "speaker": "ATLAS",
       "text": "Site does not meet criteria: minerals."
      }
     ],
@@ -1992,7 +1992,7 @@
     "start": [
      {
       "line": "M1.3.start.01",
-      "speaker": "KEEPER",
+      "speaker": "ATLAS",
       "text": "Contribution Credit: four hundred. Care packages may now be requested. Select a drop point."
      },
      {
@@ -2002,7 +2002,7 @@
      },
      {
       "line": "M1.3.start.03",
-      "speaker": "KEEPER",
+      "speaker": "ATLAS",
       "text": "An outpost."
      }
     ],
@@ -2010,7 +2010,7 @@
      "devil": [
       {
        "line": "M1.3.p.devil.01",
-       "speaker": "KEEPER",
+       "speaker": "ATLAS",
        "text": "Dust devil approaching from the west. Advise shelter in the lander."
       },
       {
@@ -2033,12 +2033,12 @@
       },
       {
        "line": "M1.3.p.wait.02",
-       "speaker": "KEEPER",
+       "speaker": "ATLAS",
        "text": "Ten minutes."
       },
       {
        "line": "M1.3.p.wait.03",
-       "speaker": "KEEPER",
+       "speaker": "ATLAS",
        "text": "Five minutes."
       },
       {
@@ -2048,7 +2048,7 @@
       },
       {
        "line": "M1.3.p.wait.05",
-       "speaker": "KEEPER",
+       "speaker": "ATLAS",
        "text": "One minute."
       }
      ]
@@ -2059,7 +2059,7 @@
     "fail": [],
     "retry": []
    },
-   "notes": "Descent time is drawn 20-30 game minutes; KEEPER announces it with the matching dialogue/keeper.json barks KEEPER.bark.descent_20..30. The pod is visible as a streak from high altitude. Do not spawn the pod until the timer ends.",
+   "notes": "Descent time is drawn 20-30 game minutes; ATLAS announces it with the matching dialogue/keeper.json barks ATLAS.bark.descent_20..30. The pod is visible as a streak from high altitude. Do not spawn the pod until the timer ends.",
    "hidden_time": {
     "mission_sol": 2,
     "mars_sols_since_landing": 2,
@@ -2075,7 +2075,7 @@
    "act": "I",
    "title": "ANVIL",
    "site": "jezero",
-   "summary": "Construction unit C-01 rides down with the pod. Stow the supplies. Build the outpost together; its personality module breaks the silence.",
+   "summary": "Construction unit C-01 rides down with the pod. Stow the supplies. Build the outpost together; his Belfast voice breaks the silence.",
    "requires": [
     "1.3"
    ],
@@ -2248,7 +2248,7 @@
      },
      {
       "line": "M1.4.done.04",
-      "speaker": "KEEPER",
+      "speaker": "ATLAS",
       "text": "Outpost tier achieved."
      }
     ]
@@ -2276,7 +2276,7 @@
    "act": "I",
    "title": "Silent Protocol",
    "site": "jezero",
-   "summary": "Try to signal Earth. KEEPER refuses: no transmissions until mission complete. A memory of signing the contract; the poem returns.",
+   "summary": "Try to signal Earth. ATLAS refuses: no transmissions until mission complete. A memory of signing the contract; the poem returns.",
    "requires": [
     "1.4"
    ],
@@ -2296,7 +2296,7 @@
     {
      "id": "ask",
      "type": "ask_keeper",
-     "text": "Ask KEEPER to open a line",
+     "text": "Ask ATLAS to open a line",
      "question_id": "contact_earth"
     },
     {
@@ -2347,7 +2347,7 @@
      "transmit": [
       {
        "line": "M1.5.p.transmit.01",
-       "speaker": "KEEPER",
+       "speaker": "ATLAS",
        "text": "Transmission blocked. Silent Protocol: no transmissions until mission complete."
       }
      ],
@@ -2359,7 +2359,7 @@
       },
       {
        "line": "M1.5.p.ask.02",
-       "speaker": "KEEPER",
+       "speaker": "ATLAS",
        "text": "No transmissions until mission complete."
       },
       {
@@ -2369,7 +2369,7 @@
       },
       {
        "line": "M1.5.p.ask.04",
-       "speaker": "KEEPER",
+       "speaker": "ATLAS",
        "text": "Silent Protocol is a mission parameter."
       },
       {
@@ -2461,7 +2461,7 @@
     "fail": [],
     "retry": []
    },
-   "notes": "The contract memory is a playable still: a kitchen table, a pen, a form. The form's heading is blurred but legible if the player zooms: EUROPEAN SPACE INITIATIVE · COGNITIVE BASELINE MAPPING · CONSENT. It pays off in Act IV (KEEPER: 'Donor consent: cognitive baseline mapping, ESI, 2057'). Reciting restores resolve here; no XP toast until Act II (clue 4).",
+   "notes": "The contract memory is a playable still: a kitchen table, a pen, a form. The form's heading is blurred but legible if the player zooms: EUROPEAN SPACE INITIATIVE · COGNITIVE BASELINE MAPPING · CONSENT. It pays off in Act IV (ATLAS: 'Donor consent: cognitive baseline mapping, ESI, 2057'). Reciting restores resolve here; no XP toast until Act II (clue 4).",
    "hidden_time": {
     "mission_sol": 4,
     "mars_sols_since_landing": 4,
@@ -2532,7 +2532,7 @@
     "start": [
      {
       "line": "M1.6.start.01",
-      "speaker": "KEEPER",
+      "speaker": "ATLAS",
       "text": "Regional dust event approaching from Isidis. Expected opacity: five. Expected duration: unknown."
      },
      {
@@ -2560,12 +2560,12 @@
       },
       {
        "line": "M1.6.p.hold.02",
-       "speaker": "KEEPER",
+       "speaker": "ATLAS",
        "text": "Array output: nine percent."
       },
       {
        "line": "M1.6.p.hold.03",
-       "speaker": "KEEPER",
+       "speaker": "ATLAS",
        "text": "Array output: two percent."
       },
       {
@@ -2585,7 +2585,7 @@
       },
       {
        "line": "M1.6.p.hold.07",
-       "speaker": "KEEPER",
+       "speaker": "ATLAS",
        "text": "Recommend dormancy. Construction units will maintain the outpost."
       }
      ],
@@ -2597,7 +2597,7 @@
       },
       {
        "line": "M1.6.p.sleep.02",
-       "speaker": "KEEPER",
+       "speaker": "ATLAS",
        "text": "I will."
       }
      ]
@@ -2614,14 +2614,14 @@
      },
      {
       "line": "M1.6.fail.02",
-      "speaker": "KEEPER",
+      "speaker": "ATLAS",
       "text": "Construction unit C-01 offline. Mission failed."
      }
     ],
     "retry": [
      {
       "line": "M1.6.retry.01",
-      "speaker": "KEEPER",
+      "speaker": "ATLAS",
       "text": "Restoring to storm onset."
      }
     ]
@@ -2691,7 +2691,7 @@
     "start": [
      {
       "line": "M1.7.start.01",
-      "speaker": "KEEPER",
+      "speaker": "ATLAS",
       "text": "Contribution Credit sufficient for a second construction unit."
      }
     ],
@@ -2880,7 +2880,7 @@
    "act": "II",
    "title": "Thirst",
    "site": "jezero",
-   "summary": "Jezero's minerals can't supply a dome. KEEPER directs you north.",
+   "summary": "Jezero's minerals can't supply a dome. ATLAS directs you north.",
    "requires": [
     "1.7"
    ],
@@ -2899,7 +2899,7 @@
     {
      "id": "ask",
      "type": "ask_keeper",
-     "text": "Ask KEEPER what a dome needs",
+     "text": "Ask ATLAS what a dome needs",
      "question_id": "dome_water_requirement"
     },
     {
@@ -2929,7 +2929,7 @@
     "start": [
      {
       "line": "M2.1.start.01",
-      "speaker": "KEEPER",
+      "speaker": "ATLAS",
       "text": "Directive: Jezero dome, phase one. Water requirement: twelve thousand litres. Local extraction yield is insufficient."
      },
      {
@@ -2944,7 +2944,7 @@
      },
      {
       "line": "M2.1.start.04",
-      "speaker": "KEEPER",
+      "speaker": "ATLAS",
       "text": "Shallow ground ice is indicated in Arcadia Planitia, two thousand four hundred kilometres north-east."
      },
      {
@@ -2954,7 +2954,7 @@
      },
      {
       "line": "M2.1.start.06",
-      "speaker": "KEEPER",
+      "speaker": "ATLAS",
       "text": "Long-range rover package available."
      }
     ],
@@ -3096,7 +3096,7 @@
     "start": [
      {
       "line": "M2.2.start.01",
-      "speaker": "KEEPER",
+      "speaker": "ATLAS",
       "text": "Fresh impact crater detected, eleven kilometres north. Excavated material shows high albedo."
      },
      {
@@ -3154,7 +3154,7 @@
     "complete": [
      {
       "line": "M2.2.done.01",
-      "speaker": "KEEPER",
+      "speaker": "ATLAS",
       "text": "Water economy established. Relay towers available."
      },
      {
@@ -3284,7 +3284,7 @@
     "start": [
      {
       "line": "M2.3.start.01",
-      "speaker": "KEEPER",
+      "speaker": "ATLAS",
       "text": "Directive: North Polar Layered Deposits. Ice core, ten metres. Expedition range: one thousand eight hundred kilometres."
      },
      {
@@ -3378,7 +3378,7 @@
     "complete": [
      {
       "line": "M2.3.done.01",
-      "speaker": "KEEPER",
+      "speaker": "ATLAS",
       "text": "Polar outpost established. Ice haulers available."
      }
     ]
@@ -3387,14 +3387,14 @@
     "fail": [
      {
       "line": "M2.3.fail.01",
-      "speaker": "KEEPER",
+      "speaker": "ATLAS",
       "text": "Rover lost in crevasse. Mission failed."
      }
     ],
     "retry": [
      {
       "line": "M2.3.retry.01",
-      "speaker": "KEEPER",
+      "speaker": "ATLAS",
       "text": "Restoring to the crevasse field boundary."
      }
     ]
@@ -3497,7 +3497,7 @@
     "start": [
      {
       "line": "M2.4.start.01",
-      "speaker": "KEEPER",
+      "speaker": "ATLAS",
       "text": "Directive: Korolev crater. Ice deposit: one point eight kilometres thick. Biome candidate."
      },
      {
@@ -3649,7 +3649,7 @@
     "start": [
      {
       "line": "M2.5.start.01",
-      "speaker": "KEEPER",
+      "speaker": "ATLAS",
       "text": "Rocket hopper package available on completion of two landing pads."
      },
      {
@@ -3681,7 +3681,7 @@
      "solo": [
       {
        "line": "M2.5.p.solo.01",
-       "speaker": "KEEPER",
+       "speaker": "ATLAS",
        "text": "Landing is safe only on a built pad."
       },
       {
@@ -3726,14 +3726,14 @@
      },
      {
       "line": "M2.5.fail.02",
-      "speaker": "KEEPER",
+      "speaker": "ATLAS",
       "text": "Hopper lost."
      }
     ],
     "retry": [
      {
       "line": "M2.5.retry.01",
-      "speaker": "KEEPER",
+      "speaker": "ATLAS",
       "text": "A replacement hopper is available."
      }
     ]
@@ -3756,7 +3756,7 @@
    "act": "II",
    "title": "Dome Day",
    "site": "jezero",
-   "summary": "Jezero's first dome pressurises. KEEPER: 'Habitation capacity, 4%.' The player recites the poem to the empty dome as if Alice were there.",
+   "summary": "Jezero's first dome pressurises. ATLAS: 'Habitation capacity, 4%.' The player recites the poem to the empty dome as if Alice were there.",
    "requires": [
     "2.5"
    ],
@@ -3846,7 +3846,7 @@
      "dome": [
       {
        "line": "M2.6.p.dome.01",
-       "speaker": "KEEPER",
+       "speaker": "ATLAS",
        "text": "Dome One pressurised. Habitation capacity, 4%.",
        "note": "verbatim bible line: 'Habitation capacity, 4%.'"
       },
@@ -4934,7 +4934,7 @@
     {
      "id": "ask",
      "type": "ask_keeper",
-     "text": "Ask KEEPER about the dedication",
+     "text": "Ask ATLAS about the dedication",
      "question_id": "plaque_dedication"
     }
    ],
@@ -4961,7 +4961,7 @@
      "ask": [
       {
        "line": "MSR.SCRIBE.p.ask.01",
-       "speaker": "KEEPER",
+       "speaker": "ATLAS",
        "text": "Dedication text: Meridian Consortium."
       },
       {
@@ -4971,7 +4971,7 @@
       },
       {
        "line": "MSR.SCRIBE.p.ask.03",
-       "speaker": "KEEPER",
+       "speaker": "ATLAS",
        "text": "Dedication text: Meridian Consortium."
       }
      ]
@@ -5199,7 +5199,7 @@
     {
      "id": "ask",
      "type": "ask_keeper",
-     "text": "Ask KEEPER about a second station",
+     "text": "Ask ATLAS about a second station",
      "question_id": "second_station"
     }
    ],
@@ -5219,7 +5219,7 @@
     "start": [
      {
       "line": "M3.1.start.01",
-      "speaker": "KEEPER",
+      "speaker": "ATLAS",
       "text": "Good morning, Pioneer. Mission sol three hundred."
      },
      {
@@ -5253,7 +5253,7 @@
      {
       "line": "M3.1.start.07",
       "speaker": "LANTERN",
-      "text": "KEEPER. 'Logging of unregistered objects is not a mission task.'",
+      "text": "ATLAS. 'Logging of unregistered objects is not a mission task.'",
       "preset": "radio"
      }
     ],
@@ -5295,11 +5295,11 @@
       {
        "line": "M3.1.p.ask.01",
        "speaker": "P1",
-       "text": "Keeper. Is there a second station in orbit?"
+       "text": "Atlas. Is there a second station in orbit?"
       },
       {
        "line": "M3.1.p.ask.02",
-       "speaker": "KEEPER",
+       "speaker": "ATLAS",
        "text": "No second station is registered to this mission."
       },
       {
@@ -5389,7 +5389,7 @@
     "start": [
      {
       "line": "M3.2.start.01",
-      "speaker": "KEEPER",
+      "speaker": "ATLAS",
       "text": "Directive: recover the lander's flight recorder for archive."
      },
      {
@@ -5415,7 +5415,7 @@
     "complete": [
      {
       "line": "M3.2.done.01",
-      "speaker": "KEEPER",
+      "speaker": "ATLAS",
       "text": "Records are open to query."
      }
     ]
@@ -5468,7 +5468,7 @@
     {
      "id": "ask",
      "type": "ask_keeper",
-     "text": "Ask KEEPER the Earth date",
+     "text": "Ask ATLAS the Earth date",
      "question_id": "earth_date"
     }
    ],
@@ -5523,7 +5523,7 @@
       },
       {
        "line": "M3.3.p.dawn.02",
-       "speaker": "KEEPER",
+       "speaker": "ATLAS",
        "text": "Earth: morning sky. Western elongation twenty-seven degrees."
       }
      ]
@@ -5806,7 +5806,7 @@
     "start": [
      {
       "line": "M3.5.start.01",
-      "speaker": "KEEPER",
+      "speaker": "ATLAS",
       "text": "Directive: survey Gale Crater for an outpost site. Site class: untouched."
      }
     ],
@@ -5872,7 +5872,7 @@
    "act": "III",
    "title": "The First Man",
    "site": "arsia",
-   "summary": "Follow a dead relay line into the Arsia Mons lava tubes to a base founded in 2061. A dead robot at the door, signs someone lived here, and a mainframe that speaks in your voice.",
+   "summary": "Follow a dead relay line into the Arsia Mons lava tubes to a base founded in 2061. A dead suited figure at the door, its suit gone dark, signs someone lived here, and a mainframe that speaks in your voice.",
    "requires": [
     "3.5"
    ],
@@ -6125,7 +6125,7 @@
      {
       "line": "MS.hand.start.01",
       "speaker": "LODESTONE",
-      "text": "KEEPER sent me a calibration set for reading survey cards. Handwriting samples. One is labelled 'reference hand'."
+      "text": "ATLAS sent me a calibration set for reading survey cards. Handwriting samples. One is labelled 'reference hand'."
      },
      {
       "line": "MS.hand.start.02",
@@ -6186,7 +6186,7 @@
     {
      "id": "predict",
      "type": "ask_keeper",
-     "text": "Ask KEEPER for the next transit",
+     "text": "Ask ATLAS for the next transit",
      "question_id": "phobos_transit"
     },
     {
@@ -6208,7 +6208,7 @@
     "start": [
      {
       "line": "MS.phobos.start.01",
-      "speaker": "KEEPER",
+      "speaker": "ATLAS",
       "text": "Next Phobos transit visible from this position: tomorrow, ten fourteen local, duration thirty-one seconds."
      }
     ],
@@ -6447,7 +6447,7 @@
       {
        "line": "MSR.LANTERN.p.logs.01",
        "speaker": "LANTERN",
-       "text": "I never stopped. Here. Every night since sol three hundred. Don't tell KEEPER."
+       "text": "I never stopped. Here. Every night since sol three hundred. Don't tell ATLAS."
       }
      ]
     },
@@ -6567,7 +6567,7 @@
     {
      "id": "ask",
      "type": "ask_keeper",
-     "text": "Ask KEEPER to list the stations",
+     "text": "Ask ATLAS to list the stations",
      "question_id": "list_stations"
     },
     {
@@ -6589,7 +6589,7 @@
     "start": [
      {
       "line": "M4.1.start.01",
-      "speaker": "KEEPER",
+      "speaker": "ATLAS",
       "text": "Good morning, Pioneer. Mission sol six hundred and ten."
      },
      {
@@ -6629,14 +6629,14 @@
      "ask": [
       {
        "line": "M4.1.p.ask.01",
-       "speaker": "KEEPER",
+       "speaker": "ATLAS",
        "text": "Stations in areostationary orbit: HALO-1 to HALO-12."
       }
      ],
      "ask2": [
       {
        "line": "M4.1.p.ask2.01",
-       "speaker": "KEEPER",
+       "speaker": "ATLAS",
        "text": "Twelve PIONEER units are registered to the Cities in the Sky programme."
       }
      ]
@@ -6681,7 +6681,7 @@
     {
      "id": "ask",
      "type": "ask_keeper",
-     "text": "Ask KEEPER whether machines came before you",
+     "text": "Ask ATLAS whether machines came before you",
      "question_id": "machines_before"
     },
     {
@@ -6730,11 +6730,11 @@
      {
       "line": "M4.2.start.01",
       "speaker": "P1",
-      "text": "Keeper. Were there machines here before me?"
+      "text": "Atlas. Were there machines here before me?"
      },
      {
       "line": "M4.2.start.02",
-      "speaker": "KEEPER",
+      "speaker": "ATLAS",
       "text": "Gen-1 autonomous units: three hundred and twelve delivered, 2044 to 2056. Status: non-operational. Location: Utopia Planitia."
      }
     ],
@@ -6855,7 +6855,7 @@
     "start": [
      {
       "line": "M4.3.start.01",
-      "speaker": "KEEPER",
+      "speaker": "ATLAS",
       "text": "Two Kestrel transponders are active in Utopia Planitia. Eight hundred kilometres east."
      },
      {
@@ -6960,7 +6960,7 @@
     "complete": [
      {
       "line": "M4.3.done.01",
-      "speaker": "KEEPER",
+      "speaker": "ATLAS",
       "text": "Cohort map available."
      },
      {
@@ -6992,7 +6992,7 @@
    "act": "IV",
    "title": "Ashby",
    "site": "jezero",
-   "summary": "Alone, interrogate KEEPER with the right questions. It confirms Rowan Ashby; opens ANVIL's file; and two more: SPOUSE and CHILD.",
+   "summary": "Alone, interrogate ATLAS with the right questions. It confirms Rowan Ashby; opens ANVIL's file; and two more: SPOUSE and CHILD.",
    "requires": [
     "4.3"
    ],
@@ -7103,7 +7103,7 @@
     {
      "id": "media",
      "type": "ask_keeper",
-     "text": "Ask KEEPER what media it holds",
+     "text": "Ask ATLAS what media it holds",
      "optional": true,
      "question_id": "list_media"
     },
@@ -7218,12 +7218,12 @@
     "start": [
      {
       "line": "M4.6.start.01",
-      "speaker": "KEEPER",
+      "speaker": "ATLAS",
       "text": "Dormancy initiated."
      },
      {
       "line": "M4.6.start.glitch",
-      "speaker": "KEEPER",
+      "speaker": "ATLAS",
       "text": "Dormancy initiated.",
       "preset": "corrupted",
       "note": "the second time it skips"
@@ -7328,7 +7328,7 @@
       {
        "line": "M4.6.p.talk.06",
        "speaker": "ANVIL",
-       "text": "I know who I'm built from. KEEPER read it me. Four lines."
+       "text": "I know who I'm built from. ATLAS read it me. Four lines."
       },
       {
        "line": "M4.6.p.talk.07",
@@ -7368,7 +7368,7 @@
    "act": "IV",
    "title": "Valles Marineris",
    "site": "valles",
-   "summary": "KEEPER's records place another living pioneer in the canyon. P1 flies there hoping for help. After Pioneer-3, no other pioneer will help him: Pioneer-11, same memories, refuses to believe him and turns him in to Meridian, whatever P1 tells him.",
+   "summary": "ATLAS's records place another living pioneer in the canyon. P1 flies there hoping for help. After Pioneer-3, no other pioneer will help him: Pioneer-11, same memories, refuses to believe him and turns him in to Meridian, whatever P1 tells him.",
    "requires": [
     "4.6"
    ],
@@ -7429,13 +7429,13 @@
     "complete": [
      {
       "line": "M4.7.done.flag",
-      "speaker": "KEEPER",
+      "speaker": "ATLAS",
       "text": "Notice. PIONEER-1 status: flagged by Meridian.",
       "note": "plays on the flight home, before 'Dormancy scheduled.'"
      },
      {
       "line": "M4.7.done.01",
-      "speaker": "KEEPER",
+      "speaker": "ATLAS",
       "text": "Dormancy scheduled.",
       "note": "the next sleep is the long one; C14 plays on wake"
      }
@@ -7910,7 +7910,7 @@
     "start": [
      {
       "line": "M5.1.start.01",
-      "speaker": "KEEPER",
+      "speaker": "ATLAS",
       "text": "Covenant landers on final approach. Pads one to six, Jezero."
      },
      {
@@ -7968,7 +7968,7 @@
     "complete": [
      {
       "line": "M5.1.done.01",
-      "speaker": "KEEPER",
+      "speaker": "ATLAS",
       "text": "Contribution Credit: closed.",
       "note": "no more XP, ever"
      }
@@ -8124,11 +8124,11 @@
      {
       "line": "M5.2.start.02",
       "speaker": "P1",
-      "text": "Keeper. What happens to them?"
+      "text": "Atlas. What happens to them?"
      },
      {
       "line": "M5.2.start.03",
-      "speaker": "KEEPER",
+      "speaker": "ATLAS",
       "text": "Construction units are decommissioned on Covenant arrival."
      },
      {
@@ -8138,7 +8138,7 @@
      },
      {
       "line": "M5.2.start.05",
-      "speaker": "KEEPER",
+      "speaker": "ATLAS",
       "text": "No directive is active."
      }
     ],
@@ -8373,7 +8373,7 @@
     {
      "id": "keeper",
      "type": "ask_keeper",
-     "text": "Ask KEEPER one more thing",
+     "text": "Ask ATLAS one more thing",
      "optional": true,
      "question_id": "were_you_going_to_tell_me"
     },
@@ -8409,7 +8409,7 @@
     "start": [
      {
       "line": "M5.6.start.01",
-      "speaker": "KEEPER",
+      "speaker": "ATLAS",
       "text": "Recall signal active. Please proceed to the decommissioning bay."
      }
     ],
@@ -8465,7 +8465,7 @@
     {
      "id": "manifest",
      "type": "ask_keeper",
-     "text": "Ask KEEPER for the Covenant manifest",
+     "text": "Ask ATLAS for the Covenant manifest",
      "question_id": "covenant_manifest"
     },
     {

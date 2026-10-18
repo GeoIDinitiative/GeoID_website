@@ -42,19 +42,19 @@
  *     log(), keeper(), uplink(), dev(on), place(id), vars(), setVar(k, v), act(), mission(), objective() ... }
  *   DEV SKIP: ?story=dev opens a panel (jump to any act / mission / cutscene, endings).
  */
-import * as THREE from "../vendor/three.module.js?v=b8cfe8e-efa5b7b7";
-import { registerSystem, getSystem } from "./systems.js?v=b8cfe8e-efa5b7b7";
-import { MARS } from "./config.js?v=b8cfe8e-efa5b7b7";
-import { advanceClock } from "./state.js?v=b8cfe8e-efa5b7b7";
-import { MODULES } from "./basenet.js?v=b8cfe8e-efa5b7b7";
-import { loadStory, speech, evalCond, esc, hash, rng, humanise, ensureStoryStyles, readTime } from "./storydata.js?v=b8cfe8e-efa5b7b7";
-import { Cutscenes, stillSVG } from "./cutscene.js?v=b8cfe8e-efa5b7b7";
-import { Terminal } from "./keeper.js?v=b8cfe8e-efa5b7b7";
-import { makeObjectives, ACTION_HOLD } from "./storyobj.js?v=b8cfe8e-efa5b7b7";
-import { stationDirection } from "./halo.js?v=b8cfe8e-efa5b7b7";
-import { hunterMesh } from "./caretakers.js?v=b8cfe8e-efa5b7b7";
-import {} from "./tiers.js?v=b8cfe8e-efa5b7b7";
-import { setCampaign } from "./title.js?v=b8cfe8e-efa5b7b7";
+import * as THREE from "../vendor/three.module.js?v=6d37c9c-9b39e129";
+import { registerSystem, getSystem } from "./systems.js?v=6d37c9c-9b39e129";
+import { MARS } from "./config.js?v=6d37c9c-9b39e129";
+import { advanceClock } from "./state.js?v=6d37c9c-9b39e129";
+import { MODULES } from "./basenet.js?v=6d37c9c-9b39e129";
+import { loadStory, speech, evalCond, esc, hash, rng, humanise, ensureStoryStyles, readTime } from "./storydata.js?v=6d37c9c-9b39e129";
+import { Cutscenes, stillSVG } from "./cutscene.js?v=6d37c9c-9b39e129";
+import { Terminal } from "./keeper.js?v=6d37c9c-9b39e129";
+import { makeObjectives, ACTION_HOLD } from "./storyobj.js?v=6d37c9c-9b39e129";
+import { stationDirection } from "./halo.js?v=6d37c9c-9b39e129";
+import { hunterMesh } from "./caretakers.js?v=6d37c9c-9b39e129";
+import {} from "./tiers.js?v=6d37c9c-9b39e129";
+import { setCampaign } from "./title.js?v=6d37c9c-9b39e129";
 
 export const ACT_ORDER = ["prologue", "I", "II", "III", "IV", "V", "fugitive"];
 export const ACT_TITLES = { prologue: ["PROLOGUE", "THE DESCENT"], I: ["ACT I", "THE LONELY LANDING"], II: ["ACT II", "THE WATER ROAD"], III: ["ACT III", "THE LONG NIGHT"],
@@ -740,7 +740,8 @@ class Story {
     if (!out.length) {
       const C = getSystem("caretakers"), p = this.playerPos(), u = C && C.api && C.api.nearest(p.x, p.z, this.onFoot() ? 5 : 12, (x) => x.founder && !x.recalled);
       const u2 = u || (C && C.api && C.api.nearest(p.x, p.z, this.onFoot() ? 5 : 12, (x) => !x.recalled && this.S.vars["names.known." + x.callsign] && !this.S.vars["names.used." + x.callsign]));
-      if (u2) out.push({ at: u2, r: this.onFoot() ? 5 : 12, text: `Talk to ${u2.callsign}`, idle: true, run: async () => { await this.offerName(u2.callsign); return C.api.bark(u2.callsign, "idle"); } });
+      const u3 = u2 || (C && C.api && C.api.nearest(p.x, p.z, this.onFoot() ? 4 : 10, (x) => !x.recalled && x.state !== "dormant"));
+      if (u3) out.push({ at: u3, r: this.onFoot() ? 5 : 12, text: `Talk to ${u3.callsign}`, idle: true, run: async () => (C.api.talk ? C.api.talk(u3.callsign) : C.api.bark(u3.callsign, "idle")) });
     }
     return out;
   }
@@ -897,7 +898,7 @@ class Story {
     } else if (S.timers.final_hour) {
       hud = { eyebrow: "ACT V · THE FINAL HOUR", name: "Go to the first module when you are ready", meta: this._hourText(), count: "" };
     } else if (S.pendingWake) {
-      hud = { eyebrow: (ACT_TITLES[S.act] || [""])[0], name: "Dormancy: KEEPER recommends sleep", meta: "Story log (O) → Sleep, in the rover or at the base", count: "" };
+      hud = { eyebrow: (ACT_TITLES[S.act] || [""])[0], name: "Dormancy: ATLAS recommends sleep", meta: "Story log (O) → Sleep, in the rover or at the base", count: "" };
     } else {
       hud = { eyebrow: (ACT_TITLES[S.act] || [""])[0] || "Story", name: S.over ? "The end" : S.avail.length ? "Side missions are open in the Story log (O)" : "Explore", meta: "", count: "" };
     }
@@ -1056,7 +1057,7 @@ class Story {
     const addMenu = () => {
       const menu = document.querySelector("#screen-menu .col"), save = document.getElementById("btn-save");
       if (!menu || document.getElementById("btn-story")) return;
-      for (const [id, label, fn] of [["btn-story", "Story", () => this.showLog()], ["btn-keeper", "KEEPER terminal", () => this.openKeeper(true)], ["btn-halo", "HALO-1 uplink", () => this.openUplink(true)]]) {
+      for (const [id, label, fn] of [["btn-story", "Story", () => this.showLog()], ["btn-keeper", "ATLAS terminal", () => this.openKeeper(true)], ["btn-halo", "HALO-1 uplink", () => this.openUplink(true)]]) {
         const b = document.createElement("button"); b.type = "button"; b.id = id; b.className = "btn"; b.textContent = label; b.hidden = !this.enabled;
         b.addEventListener("click", fn); menu.insertBefore(b, save || null);
       }
@@ -1068,7 +1069,7 @@ class Story {
     const p = this.playerPos(), b = this.base(); let near = false;
     try { near = !!b && b.bases().some((x) => Math.hypot(x.x - p.x, x.z - p.z) < 180); } catch { near = false; }
     if (this.S.lander && this.dist(this.S.lander) < 120) near = true;
-    if (!near && !(getSystem("avatar") && getSystem("avatar").api.inside) && !fromMenu) { this.game.hud.toast("KEEPER terminal: at a base or the lander<small>or from the pause menu</small>", 3.5); return false; }
+    if (!near && !(getSystem("avatar") && getSystem("avatar").api.inside) && !fromMenu) { this.game.hud.toast("ATLAS terminal: at a base or the lander<small>or from the pause menu</small>", 3.5); return false; }
     this.term.show(); return true;
   }
   openUplink(fromMenu = false) {
@@ -1099,8 +1100,8 @@ class Story {
     this.logEl.querySelector(".sl-body").innerHTML = `
       <div class="eyebrow">${esc((ACT_TITLES[S.act] || [S.act])[0])} · ${esc((ACT_TITLES[S.act] || ["", ""])[1])} · mission sol ${S.missionSol}${tier && tier !== "none" ? " · " + esc(tier) : ""}</div>
       <h2>${m ? esc(m.title) : S.over ? "The end" : "Between missions"}</h2>
-      ${m ? `<p class="sl-sum">${esc(m.summary)}</p><ol class="m-obj">${objs}</ol>` : `<p class="sl-sum">${S.pendingWake ? "KEEPER recommends dormancy." : "Nothing is asked of you right now."}</p>`}
-      <div class="sl-acts"><button type="button" class="btn" data-a="sleep">Sleep (dormancy)</button><button type="button" class="btn" data-a="poem">Recite the poem</button><button type="button" class="btn" data-a="keeper">KEEPER terminal</button>${cc ? `<button type="button" class="btn" data-a="halo">HALO-1 uplink</button>` : ""}${m && m.id === "5.6" || !S.timers.final_hour ? "" : `<button type="button" class="btn" data-a="choice">Go to the first module</button>`}</div>
+      ${m ? `<p class="sl-sum">${esc(m.summary)}</p><ol class="m-obj">${objs}</ol>` : `<p class="sl-sum">${S.pendingWake ? "ATLAS recommends dormancy." : "Nothing is asked of you right now."}</p>`}
+      <div class="sl-acts"><button type="button" class="btn" data-a="sleep">Sleep (dormancy)</button><button type="button" class="btn" data-a="poem">Recite the poem</button><button type="button" class="btn" data-a="keeper">ATLAS terminal</button>${cc ? `<button type="button" class="btn" data-a="halo">HALO-1 uplink</button>` : ""}${m && m.id === "5.6" || !S.timers.final_hour ? "" : `<button type="button" class="btn" data-a="choice">Go to the first module</button>`}</div>
       ${cc ? `<p class="fine">Contribution Credit: ${cc.free} free of ${cc.capacity} · care-package requests open ${cc.open} / ${cc.maxOpen} · base size cap ${cc.maxModules} modules</p>` : ""}
       ${others.length ? `<div class="eyebrow">Also under way</div><ul class="sl-list">${others.map((x) => `<li><b>${esc(x.title)}</b> <button type="button" class="btn quiet" data-focus="${esc(x.id)}">Track</button></li>`).join("")}</ul>` : ""}
       ${avail.length ? `<div class="eyebrow">Open to you</div><ul class="sl-list">${avail.map((x) => `<li><b>${esc(x.title)}</b><span>${esc(x.summary)}</span><button type="button" class="btn quiet" data-start="${esc(x.id)}">Begin</button></li>`).join("")}</ul>` : ""}
@@ -1160,9 +1161,10 @@ class Story {
   async devEnding(kind) { await this.jump("5.6", { noTravel: true }); this.notify("choose", { choice_id: "final", option: kind }); const run = this.S.active["5.6"]; if (run) this.completeMission(); }
   _devSync() { const el = this.devEl; if (!el || el.hidden) return; const t = `${this.S.act} · ${this.S.focus || "-"} · sol ${this.S.missionSol} (true ${Math.round(this.S.trueSol)}) · ${this.cs.active ? "cutscene " + this.cs.cur.id : ""}`; const p = el.querySelector(".sd-state"); if (p.textContent !== t) p.textContent = t; }
 
-  /** Campaign economy on the builder: the base size cap of the tier and the Contribution Credit the footprint draws. */
+  /** Campaign economy on the builder: now the builder's own (builder.js: the planning table checks the tier's base size and the footprint's credit). */
   hookBuilder() {
     const B = getSystem("builder"); if (!B || B._storyHooked || typeof B.evaluate !== "function") return;
+    if ("planning" in B) { B._storyHooked = true; return; }
     const ev = B.evaluate.bind(B), self = this;
     B.evaluate = function (type, pose, o = {}) {
       const r = ev(type, pose, o);
@@ -1262,11 +1264,9 @@ Story.prototype.onLanded = function (pkg) {
     const unit = pkg.kind === "starter" ? "ANVIL" : pkg.unit;
     // ANVIL waits in the starter pod until C03 (he knocks twice from the inside); anyone else steps straight out
     if (unit) C.api.spawn({ callsign: unit, founder: true, x: pkg.x + 2.6, z: pkg.z + 1.4, state: unit === "ANVIL" && !this.S.seen.C03 ? "dormant" : "idle", pkg: pkg.id });
-    else if (K.units || true) {
-      // a generated caretaker, while the act's population allows it
-      const cap = { prologue: 2, I: 2, II: 20, III: 150, IV: 800, V: 3000 }[this.S.act] || 2;
-      if (C.api.count() < Math.min(cap, 24)) C.api.spawn({ x: pkg.x + 3, z: pkg.z - 2, pkg: pkg.id });
-    }
+    // the plan's other caretakers step out (one per three modules, while the act's population allows: caretakers.js)
+    if (C.api.crew) C.api.crew(pkg, !!unit);
+    void K;
   }
   if (pkg.item && !this.S.items.includes(pkg.item)) this.S.items.push(pkg.item);
   this.notify("package_landed", pkg);

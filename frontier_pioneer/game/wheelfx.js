@@ -48,9 +48,9 @@
  * triangles. Steady driving on sand keeps about 600 to 800 alive. Slots scale
  * with the quality tier (600 / 1,400 / 2,500 / 4,000) and so do the rates.
  */
-import * as THREE from "../vendor/three.module.js?v=b8cfe8e-efa5b7b7";
-import { registerSystem } from "./systems.js?v=b8cfe8e-efa5b7b7";
-import { Tracks } from "./tracks.js?v=b8cfe8e-efa5b7b7";
+import * as THREE from "../vendor/three.module.js?v=6d37c9c-9b39e129";
+import { registerSystem } from "./systems.js?v=6d37c9c-9b39e129";
+import { Tracks } from "./tracks.js?v=6d37c9c-9b39e129";
 
 const SLOTS = { low: 600, medium: 1400, high: 2500, ultra: 4000 };
 const TRACK_SAMPLES = { low: 400, medium: 800, high: 1200, ultra: 1600 };

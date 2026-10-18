@@ -22,7 +22,7 @@
  * unknown ones. Change the meaning of a field: bump SAVE_SCHEMA and add a
  * step to MIGRATIONS.
  */
-import { ATMOSPHERE, MARS, SAVE_KEY, SAVE_SCHEMA, SETTINGS_KEY, TIME_SCALE, DEFAULT_QUALITY } from "./config.js?v=b8cfe8e-efa5b7b7";
+import { ATMOSPHERE, MARS, SAVE_KEY, SAVE_SCHEMA, SETTINGS_KEY, TIME_SCALE, DEFAULT_QUALITY } from "./config.js?v=6d37c9c-9b39e129";
 
 export function newState(site, detailId) {
   return {
@@ -74,7 +74,7 @@ export function loadGame(siteId) {
 export function clearGame(siteId) { const ls = store(); if (ls) ls.removeItem(SAVE_KEY + "." + siteId); }
 export function hasSave(siteId) { return !!loadGame(siteId); }
 
-export const DEFAULT_SETTINGS = { quality: DEFAULT_QUALITY, invertY: false, units: "metric", touch: "auto", shadows: true, hazards: "standard" };
+export const DEFAULT_SETTINGS = { quality: DEFAULT_QUALITY, invertY: false, units: "metric", touch: "auto", shadows: true, hazards: "standard", dof: true, grain: true };
 export function loadSettings() {
   const ls = store();
   try { return Object.assign({}, DEFAULT_SETTINGS, JSON.parse((ls && ls.getItem(SETTINGS_KEY)) || "{}")); }

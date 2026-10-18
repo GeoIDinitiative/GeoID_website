@@ -1,15 +1,15 @@
 {
- "speaker": "KEEPER",
+ "speaker": "ATLAS",
  "designation": "Lumen Behavioural Orchestration Instance 01 (revealed 4.4)",
  "rules": [
-  "KEEPER never lies. Every answer in this file is literally true on the hidden timeline.",
-  "KEEPER answers exactly the question asked, never the question meant. Wrong phrasing gets a literal answer to the wrong question, or a request to rephrase.",
-  "Before 3.2 the KEEPER menu offers only operational questions. From 3.2 (C08) free interrogation opens: menu entries appear as the player learns concepts (knowledge flags), and free-text queries are matched against 'accept' and 'keywords'.",
-  "The perception filter sits between KEEPER and P1. Until Act IV it scrubs calendar dates, other stations and other pioneers out of KEEPER's answers ('filter' blocks: the line is voiced up to the scrub, then 0.8 s of corrupted noise, HUD 'DATA RECONCILED'). It does NOT recognise raw sol counts: that is why 'Mars sols since landing' gets through in Act III.",
+  "ATLAS never lies. Every answer in this file is literally true on the hidden timeline.",
+  "ATLAS answers exactly the question asked, never the question meant. Wrong phrasing gets a literal answer to the wrong question, or a request to rephrase.",
+  "Before 3.2 the ATLAS menu offers only operational questions. From 3.2 (C08) free interrogation opens: menu entries appear as the player learns concepts (knowledge flags), and free-text queries are matched against 'accept' and 'keywords'.",
+  "The perception filter sits between ATLAS and P1. Until Act IV it scrubs calendar dates, other stations and other pioneers out of ATLAS's answers ('filter' blocks: the line is voiced up to the scrub, then 0.8 s of corrupted noise, HUD 'DATA RECONCILED'). It does NOT recognise raw sol counts: that is why 'Mars sols since landing' gets through in Act III.",
   "From 4.1 the filter is cracking: scrubs fail. From 4.4 the archive answers fully.",
   "Answer forms: a line object; a line id string (reuse of a line defined elsewhere); a list (play in order); a dict keyed by stage ('default', 'until_X', 'from_X', 'act_iv', mission anchor ids, 'mission_year_N'); or a template with voiced anchors.",
   "Numeric answers are voiced at each hidden-time anchor (mission ids in acts.json 'hidden_time'). Between anchors the engine displays the template text and plays the voiced prefix.",
-  "KEEPER's voice never changes: no emphasis, no pauses for effect, the same tempo for 'Package down' and 'deceased 2046, suicide'."
+  "ATLAS's voice never changes: no emphasis, no pauses for effect, the same tempo for 'Package down' and 'deceased 2046, suicide'."
  ],
  "unlock_stages": {
   "1.1": "operational menu",
@@ -34,7 +34,7 @@
    ],
    "answer": {
     "line": "KEEPER.status",
-    "speaker": "KEEPER",
+    "speaker": "ATLAS",
     "text": "Outpost status: nominal. Contribution Credit, package timers and unit charge are on your display."
    }
   },
@@ -44,7 +44,7 @@
    "p1_line": {
     "line": "P1.ask.who_are_you",
     "speaker": "P1",
-    "text": "Keeper. Who are you?"
+    "text": "Atlas. Who are you?"
    },
    "available": {
     "from": "1.1"
@@ -58,16 +58,16 @@
    "answer": {
     "default": {
      "line": "KEEPER.who_are_you",
-     "speaker": "KEEPER",
-     "text": "I am KEEPER. Logistics, HALO-1."
+     "speaker": "ATLAS",
+     "text": "I am ATLAS. Logistics, HALO-1."
     },
     "from_4.4": {
      "line": "KEEPER.who_are_you.iv",
-     "speaker": "KEEPER",
-     "text": "Lumen Behavioural Orchestration Instance 01. Logistics designation: KEEPER."
+     "speaker": "ATLAS",
+     "text": "Lumen Behavioural Orchestration Instance 01. Logistics designation: ATLAS."
     }
    },
-   "notes": "'What are you?' asked of KEEPER returns the 4.4 answer only after 4.4. Before that both phrasings return the logistics answer, which is also true."
+   "notes": "'What are you?' asked of ATLAS returns the 4.4 answer only after 4.4. Before that both phrasings return the logistics answer, which is also true."
   },
   {
    "id": "who_am_i",
@@ -88,7 +88,7 @@
    ],
    "answer": {
     "line": "KEEPER.who_am_i",
-    "speaker": "KEEPER",
+    "speaker": "ATLAS",
     "text": "You are PIONEER-1."
    },
    "follow_ups": [
@@ -100,7 +100,7 @@
      ],
      "answer": {
       "line": "KEEPER.who_am_i.name",
-      "speaker": "KEEPER",
+      "speaker": "ATLAS",
       "text": "Your designation is PIONEER-1. No other name is held for this unit."
      }
     }
@@ -112,7 +112,7 @@
    "p1_line": {
     "line": "P1.ask.contact_earth",
     "speaker": "P1",
-    "text": "Keeper, open a line to Earth."
+    "text": "Atlas, open a line to Earth."
    },
    "available": {
     "from": "1.1"
@@ -126,7 +126,7 @@
    ],
    "answer": {
     "line": "KEEPER.contact_earth",
-    "speaker": "KEEPER",
+    "speaker": "ATLAS",
     "text": "No transmissions until mission complete."
    }
   },
@@ -149,7 +149,7 @@
    "answer": {
     "default": {
      "line": "KEEPER.when_home",
-     "speaker": "KEEPER",
+     "speaker": "ATLAS",
      "text": "Your home is Outpost Jezero."
     }
    },
@@ -175,12 +175,12 @@
    "answer": {
     "default": {
      "line": "KEEPER.line_home",
-     "speaker": "KEEPER",
+     "speaker": "ATLAS",
      "text": "On mission completion, Silent Protocol ends."
     },
     "from_4.4": {
      "line": "KEEPER.line_home.iv",
-     "speaker": "KEEPER",
+     "speaker": "ATLAS",
      "text": "No line home is registered."
     }
    },
@@ -201,12 +201,12 @@
    "answer": {
     "default": {
      "line": "KEEPER.first_families",
-     "speaker": "KEEPER",
+     "speaker": "ATLAS",
      "text": "Arrival is scheduled on habitation readiness."
     },
     "from_4.4": {
      "line": "KEEPER.first_families.iv",
-     "speaker": "KEEPER",
+     "speaker": "ATLAS",
      "text": "Covenant fleet. Arrival on habitation readiness. Current readiness: ninety-six percent."
     }
    }
@@ -231,7 +231,7 @@
    "answer": {
     "default": {
      "line": "KEEPER.anyone_else",
-     "speaker": "KEEPER",
+     "speaker": "ATLAS",
      "text": "No other personnel are registered to your mission."
     }
    },
@@ -243,7 +243,7 @@
      ],
      "answer": {
       "line": "KEEPER.anyone_else.nm",
-      "speaker": "KEEPER",
+      "speaker": "ATLAS",
       "text": "Please specify a programme."
      },
      "hint": "Players who ask about 'the programme' get the 4.1 answer."
@@ -256,7 +256,7 @@
    "p1_line": {
     "line": "P1.ask.how_long",
     "speaker": "P1",
-    "text": "Keeper. How long have I been on Mars?"
+    "text": "Atlas. How long have I been on Mars?"
    },
    "available": {
     "from": "1.1"
@@ -271,157 +271,157 @@
    "answer": {
     "P.1": {
      "line": "KEEPER.mission_sol.P.1",
-     "speaker": "KEEPER",
+     "speaker": "ATLAS",
      "text": "Mission sol 0."
     },
     "1.2": {
      "line": "KEEPER.mission_sol.1.2",
-     "speaker": "KEEPER",
+     "speaker": "ATLAS",
      "text": "Mission sol 1."
     },
     "1.3": {
      "line": "KEEPER.mission_sol.1.3",
-     "speaker": "KEEPER",
+     "speaker": "ATLAS",
      "text": "Mission sol 2."
     },
     "1.5": {
      "line": "KEEPER.mission_sol.1.5",
-     "speaker": "KEEPER",
+     "speaker": "ATLAS",
      "text": "Mission sol 4."
     },
     "1.6": {
      "line": "KEEPER.mission_sol.1.6",
-     "speaker": "KEEPER",
+     "speaker": "ATLAS",
      "text": "Mission sol 7."
     },
     "1.7": {
      "line": "KEEPER.mission_sol.1.7",
-     "speaker": "KEEPER",
+     "speaker": "ATLAS",
      "text": "Mission sol 9."
     },
     "2.1": {
      "line": "KEEPER.mission_sol.2.1",
-     "speaker": "KEEPER",
+     "speaker": "ATLAS",
      "text": "Mission sol 12."
     },
     "2.2": {
      "line": "KEEPER.mission_sol.2.2",
-     "speaker": "KEEPER",
+     "speaker": "ATLAS",
      "text": "Mission sol 26."
     },
     "2.3": {
      "line": "KEEPER.mission_sol.2.3",
-     "speaker": "KEEPER",
+     "speaker": "ATLAS",
      "text": "Mission sol 48."
     },
     "2.4": {
      "line": "KEEPER.mission_sol.2.4",
-     "speaker": "KEEPER",
+     "speaker": "ATLAS",
      "text": "Mission sol 92."
     },
     "2.5": {
      "line": "KEEPER.mission_sol.2.5",
-     "speaker": "KEEPER",
+     "speaker": "ATLAS",
      "text": "Mission sol 140."
     },
     "2.6": {
      "line": "KEEPER.mission_sol.2.6",
-     "speaker": "KEEPER",
+     "speaker": "ATLAS",
      "text": "Mission sol 210."
     },
     "3.1": {
      "line": "KEEPER.mission_sol.3.1",
-     "speaker": "KEEPER",
+     "speaker": "ATLAS",
      "text": "Mission sol 300."
     },
     "3.2": {
      "line": "KEEPER.mission_sol.3.2",
-     "speaker": "KEEPER",
+     "speaker": "ATLAS",
      "text": "Mission sol 412."
     },
     "3.3": {
      "line": "KEEPER.mission_sol.3.3",
-     "speaker": "KEEPER",
+     "speaker": "ATLAS",
      "text": "Mission sol 430."
     },
     "3.4": {
      "line": "KEEPER.mission_sol.3.4",
-     "speaker": "KEEPER",
+     "speaker": "ATLAS",
      "text": "Mission sol 455."
     },
     "3.5": {
      "line": "KEEPER.mission_sol.3.5",
-     "speaker": "KEEPER",
+     "speaker": "ATLAS",
      "text": "Mission sol 490."
     },
     "3.6": {
      "line": "KEEPER.mission_sol.3.6",
-     "speaker": "KEEPER",
+     "speaker": "ATLAS",
      "text": "Mission sol 520."
     },
     "4.1": {
      "line": "KEEPER.mission_sol.4.1",
-     "speaker": "KEEPER",
+     "speaker": "ATLAS",
      "text": "Mission sol 610."
     },
     "4.2": {
      "line": "KEEPER.mission_sol.4.2",
-     "speaker": "KEEPER",
+     "speaker": "ATLAS",
      "text": "Mission sol 630."
     },
     "4.3": {
      "line": "KEEPER.mission_sol.4.3",
-     "speaker": "KEEPER",
+     "speaker": "ATLAS",
      "text": "Mission sol 650."
     },
     "4.4": {
      "line": "KEEPER.mission_sol.4.4",
-     "speaker": "KEEPER",
+     "speaker": "ATLAS",
      "text": "Mission sol 700."
     },
     "4.5": {
      "line": "KEEPER.mission_sol.4.5",
-     "speaker": "KEEPER",
+     "speaker": "ATLAS",
      "text": "Mission sol 702."
     },
     "4.6": {
      "line": "KEEPER.mission_sol.4.6",
-     "speaker": "KEEPER",
+     "speaker": "ATLAS",
      "text": "Mission sol 720."
     },
     "4.7": {
      "line": "KEEPER.mission_sol.4.7",
-     "speaker": "KEEPER",
+     "speaker": "ATLAS",
      "text": "Mission sol 820."
     },
     "5.1": {
      "line": "KEEPER.mission_sol.5.1",
-     "speaker": "KEEPER",
+     "speaker": "ATLAS",
      "text": "Mission sol 1,104."
     },
     "5.2": {
      "line": "KEEPER.mission_sol.5.2",
-     "speaker": "KEEPER",
+     "speaker": "ATLAS",
      "text": "Mission sol 1,106."
     },
     "5.3": {
      "line": "KEEPER.mission_sol.5.3",
-     "speaker": "KEEPER",
+     "speaker": "ATLAS",
      "text": "Mission sol 1,121."
     },
     "5.4": {
      "line": "KEEPER.mission_sol.5.4",
-     "speaker": "KEEPER",
+     "speaker": "ATLAS",
      "text": "Mission sol 1,122."
     },
     "5.5": {
      "line": "KEEPER.mission_sol.5.5",
-     "speaker": "KEEPER",
+     "speaker": "ATLAS",
      "text": "Mission sol 1,123."
     },
     "5.6": {
      "line": "KEEPER.mission_sol.5.6",
-     "speaker": "KEEPER",
+     "speaker": "ATLAS",
      "text": "Mission sol 1,124."
     }
    },
@@ -435,13 +435,13 @@
      ],
      "answer": {
       "line": "KEEPER.days_rephrase",
-      "speaker": "KEEPER",
+      "speaker": "ATLAS",
       "text": "Please rephrase. Mission sols are the standard unit of record."
      },
      "hint": "C08's exact exchange. Any 'days' phrasing without a unit gets this."
     }
    ],
-   "notes": "Answer key is the current mission anchor (see story/timeline in acts.json). Between anchors, render the template 'Mission sol {n}.' as text with the voiced prefix KEEPER.mission_sol.prefix."
+   "notes": "Answer key is the current mission anchor (see story/timeline in acts.json). Between anchors, render the template 'Mission sol {n}.' as text with the voiced prefix ATLAS.mission_sol.prefix."
   },
   {
    "id": "what_year",
@@ -462,12 +462,12 @@
    "answer": {
     "mission_year_1": {
      "line": "KEEPER.what_year.1",
-     "speaker": "KEEPER",
+     "speaker": "ATLAS",
      "text": "Mission year one."
     },
     "mission_year_2": {
      "line": "KEEPER.what_year.2",
-     "speaker": "KEEPER",
+     "speaker": "ATLAS",
      "text": "Mission year two."
     }
    },
@@ -492,7 +492,7 @@
    "answer": {
     "default": {
      "line": "KEEPER.slept",
-     "speaker": "KEEPER",
+     "speaker": "ATLAS",
      "text": "One mission night."
     }
    },
@@ -511,22 +511,22 @@
       "voiced": {
        "C04": {
         "line": "KEEPER.slept.sols.C04",
-        "speaker": "KEEPER",
+        "speaker": "ATLAS",
         "text": "Last dormancy: two hundred and fourteen Mars sols."
        },
        "3.1": {
         "line": "KEEPER.slept.sols.3.1",
-        "speaker": "KEEPER",
+        "speaker": "ATLAS",
         "text": "Last dormancy: one thousand, one hundred and twenty Mars sols."
        },
        "4.1": {
         "line": "KEEPER.slept.sols.4.1",
-        "speaker": "KEEPER",
+        "speaker": "ATLAS",
         "text": "Last dormancy: three thousand, three hundred and forty Mars sols."
        },
        "C14": {
         "line": "KEEPER.slept.sols.C14",
-        "speaker": "KEEPER",
+        "speaker": "ATLAS",
         "text": "Last dormancy: three thousand and fifteen Mars sols."
        }
       }
@@ -569,92 +569,92 @@
    "answer": {
     "3.2": {
      "line": "KEEPER.mars_sols.3.2",
-     "speaker": "KEEPER",
+     "speaker": "ATLAS",
      "text": "Mars sols since landing: 9,961."
     },
     "3.3": {
      "line": "KEEPER.mars_sols.3.3",
-     "speaker": "KEEPER",
+     "speaker": "ATLAS",
      "text": "Mars sols since landing: 9,980."
     },
     "3.4": {
      "line": "KEEPER.mars_sols.3.4",
-     "speaker": "KEEPER",
+     "speaker": "ATLAS",
      "text": "Mars sols since landing: 10,040."
     },
     "3.5": {
      "line": "KEEPER.mars_sols.3.5",
-     "speaker": "KEEPER",
+     "speaker": "ATLAS",
      "text": "Mars sols since landing: 10,100."
     },
     "3.6": {
      "line": "KEEPER.mars_sols.3.6",
-     "speaker": "KEEPER",
+     "speaker": "ATLAS",
      "text": "Mars sols since landing: 10,250."
     },
     "4.1": {
      "line": "KEEPER.mars_sols.4.1",
-     "speaker": "KEEPER",
+     "speaker": "ATLAS",
      "text": "Mars sols since landing: 13,600."
     },
     "4.2": {
      "line": "KEEPER.mars_sols.4.2",
-     "speaker": "KEEPER",
+     "speaker": "ATLAS",
      "text": "Mars sols since landing: 13,640."
     },
     "4.3": {
      "line": "KEEPER.mars_sols.4.3",
-     "speaker": "KEEPER",
+     "speaker": "ATLAS",
      "text": "Mars sols since landing: 13,700."
     },
     "4.4": {
      "line": "KEEPER.mars_sols.4.4",
-     "speaker": "KEEPER",
+     "speaker": "ATLAS",
      "text": "Mars sols since landing: 13,900."
     },
     "4.5": {
      "line": "KEEPER.mars_sols.4.5",
-     "speaker": "KEEPER",
+     "speaker": "ATLAS",
      "text": "Mars sols since landing: 13,902."
     },
     "4.6": {
      "line": "KEEPER.mars_sols.4.6",
-     "speaker": "KEEPER",
+     "speaker": "ATLAS",
      "text": "Mars sols since landing: 13,960."
     },
     "4.7": {
      "line": "KEEPER.mars_sols.4.7",
-     "speaker": "KEEPER",
+     "speaker": "ATLAS",
      "text": "Mars sols since landing: 15,800."
     },
     "5.1": {
      "line": "KEEPER.mars_sols.5.1",
-     "speaker": "KEEPER",
+     "speaker": "ATLAS",
      "text": "Mars sols since landing: 18,830."
     },
     "5.2": {
      "line": "KEEPER.mars_sols.5.2",
-     "speaker": "KEEPER",
+     "speaker": "ATLAS",
      "text": "Mars sols since landing: 18,832."
     },
     "5.3": {
      "line": "KEEPER.mars_sols.5.3",
-     "speaker": "KEEPER",
+     "speaker": "ATLAS",
      "text": "Mars sols since landing: 18,847."
     },
     "5.4": {
      "line": "KEEPER.mars_sols.5.4",
-     "speaker": "KEEPER",
+     "speaker": "ATLAS",
      "text": "Mars sols since landing: 18,848."
     },
     "5.5": {
      "line": "KEEPER.mars_sols.5.5",
-     "speaker": "KEEPER",
+     "speaker": "ATLAS",
      "text": "Mars sols since landing: 18,849."
     },
     "5.6": {
      "line": "KEEPER.mars_sols.5.6",
-     "speaker": "KEEPER",
+     "speaker": "ATLAS",
      "text": "Mars sols since landing: 18,850."
     }
    },
@@ -664,13 +664,13 @@
       "days since landing",
       "how long since landing"
      ],
-     "answer": "KEEPER.days_rephrase"
+     "answer": "ATLAS.days_rephrase"
     },
     {
      "match": [
       "sols since landing"
      ],
-     "answer": "KEEPER.mission_sol.prefix",
+     "answer": "ATLAS.mission_sol.prefix",
      "hint": "plain 'sols' without 'Mars' returns the mission sol (it is the standard unit)"
     }
    ],
@@ -704,92 +704,92 @@
    "answer": {
     "3.2": {
      "line": "KEEPER.earth_days.3.2",
-     "speaker": "KEEPER",
+     "speaker": "ATLAS",
      "text": "Earth days since landing: 10,234."
     },
     "3.3": {
      "line": "KEEPER.earth_days.3.3",
-     "speaker": "KEEPER",
+     "speaker": "ATLAS",
      "text": "Earth days since landing: 10,254."
     },
     "3.4": {
      "line": "KEEPER.earth_days.3.4",
-     "speaker": "KEEPER",
+     "speaker": "ATLAS",
      "text": "Earth days since landing: 10,316."
     },
     "3.5": {
      "line": "KEEPER.earth_days.3.5",
-     "speaker": "KEEPER",
+     "speaker": "ATLAS",
      "text": "Earth days since landing: 10,377."
     },
     "3.6": {
      "line": "KEEPER.earth_days.3.6",
-     "speaker": "KEEPER",
+     "speaker": "ATLAS",
      "text": "Earth days since landing: 10,531."
     },
     "4.1": {
      "line": "KEEPER.earth_days.4.1",
-     "speaker": "KEEPER",
+     "speaker": "ATLAS",
      "text": "Earth days since landing: 13,973."
     },
     "4.2": {
      "line": "KEEPER.earth_days.4.2",
-     "speaker": "KEEPER",
+     "speaker": "ATLAS",
      "text": "Earth days since landing: 14,014."
     },
     "4.3": {
      "line": "KEEPER.earth_days.4.3",
-     "speaker": "KEEPER",
+     "speaker": "ATLAS",
      "text": "Earth days since landing: 14,076."
     },
     "4.4": {
      "line": "KEEPER.earth_days.4.4",
-     "speaker": "KEEPER",
+     "speaker": "ATLAS",
      "text": "Earth days since landing: 14,282."
     },
     "4.5": {
      "line": "KEEPER.earth_days.4.5",
-     "speaker": "KEEPER",
+     "speaker": "ATLAS",
      "text": "Earth days since landing: 14,284."
     },
     "4.6": {
      "line": "KEEPER.earth_days.4.6",
-     "speaker": "KEEPER",
+     "speaker": "ATLAS",
      "text": "Earth days since landing: 14,343."
     },
     "4.7": {
      "line": "KEEPER.earth_days.4.7",
-     "speaker": "KEEPER",
+     "speaker": "ATLAS",
      "text": "Earth days since landing: 16,234."
     },
     "5.1": {
      "line": "KEEPER.earth_days.5.1",
-     "speaker": "KEEPER",
+     "speaker": "ATLAS",
      "text": "Earth days since landing: 19,347."
     },
     "5.2": {
      "line": "KEEPER.earth_days.5.2",
-     "speaker": "KEEPER",
+     "speaker": "ATLAS",
      "text": "Earth days since landing: 19,349."
     },
     "5.3": {
      "line": "KEEPER.earth_days.5.3",
-     "speaker": "KEEPER",
+     "speaker": "ATLAS",
      "text": "Earth days since landing: 19,365."
     },
     "5.4": {
      "line": "KEEPER.earth_days.5.4",
-     "speaker": "KEEPER",
+     "speaker": "ATLAS",
      "text": "Earth days since landing: 19,366."
     },
     "5.5": {
      "line": "KEEPER.earth_days.5.5",
-     "speaker": "KEEPER",
+     "speaker": "ATLAS",
      "text": "Earth days since landing: 19,367."
     },
     "5.6": {
      "line": "KEEPER.earth_days.5.6",
-     "speaker": "KEEPER",
+     "speaker": "ATLAS",
      "text": "Earth days since landing: 19,368."
     }
    },
@@ -804,7 +804,7 @@
    "p1_line": {
     "line": "P1.ask.earth_date",
     "speaker": "P1",
-    "text": "Keeper. What's the date on Earth?"
+    "text": "Atlas. What's the date on Earth?"
    },
    "available": {
     "from": "3.3"
@@ -819,19 +819,19 @@
    "answer": {
     "until_4.0": {
      "line": "KEEPER.earth_date.scrub",
-     "speaker": "KEEPER",
+     "speaker": "ATLAS",
      "text": "Earth date: [FILTERED].",
      "note": "the number is replaced by a filter scrub: 0.8 s of corrupted noise. HUD shows [DATA RECONCILED]."
     },
     "act_iv": {
      "line": "KEEPER.earth_date.iv",
-     "speaker": "KEEPER",
+     "speaker": "ATLAS",
      "text": "Earth date: twenty-[FILTERED].",
      "note": "Act IV: the scrub fails half way. P1 hears the century."
     },
     "act_v": {
      "line": "KEEPER.earth_date.v",
-     "speaker": "KEEPER",
+     "speaker": "ATLAS",
      "text": "Earth date: thirtieth of August, twenty one fourteen.",
      "note": "only if asked after C16; the filter no longer bothers"
     }
@@ -841,7 +841,7 @@
     "render": "scrub",
     "hud": "DATA RECONCILED"
    },
-   "notes": "The perception filter hides 'the real date' (bible). KEEPER says it; P1 cannot hear it. This protects T6 for C16."
+   "notes": "The perception filter hides 'the real date' (bible). ATLAS says it; P1 cannot hear it. This protects T6 for C16."
   },
   {
    "id": "dune_rate",
@@ -856,7 +856,7 @@
    ],
    "answer": {
     "line": "KEEPER.dune_rate",
-    "speaker": "KEEPER",
+    "speaker": "ATLAS",
     "text": "Migration rate, landing-site dune: zero point seven one metres per Earth year. Measured."
    }
   },
@@ -873,7 +873,7 @@
    ],
    "answer": {
     "line": "KEEPER.why_dune",
-    "speaker": "KEEPER",
+    "speaker": "ATLAS",
     "text": "Aeolian transport."
    },
    "notes": "Literal. Players laugh; that's fine."
@@ -894,10 +894,10 @@
    "answer": {
     "until_4.1": {
      "line": "KEEPER.second_station",
-     "speaker": "KEEPER",
+     "speaker": "ATLAS",
      "text": "No second station is registered to this mission."
     },
-    "from_4.1": "KEEPER.list_stations.iv"
+    "from_4.1": "ATLAS.list_stations.iv"
    },
    "near_miss": [
     {
@@ -907,7 +907,7 @@
      ],
      "answer": {
       "line": "KEEPER.no_object",
-      "speaker": "KEEPER",
+      "speaker": "ATLAS",
       "text": "No object at that position is registered to this mission."
      }
     }
@@ -929,13 +929,13 @@
    "answer": {
     "until_4.1": {
      "line": "KEEPER.list_stations",
-     "speaker": "KEEPER",
+     "speaker": "ATLAS",
      "text": "Stations in areostationary orbit: HALO-1 [FILTERED].",
      "note": "the filter scrubs everything after HALO-1"
     },
     "from_4.1": {
      "line": "KEEPER.list_stations.iv",
-     "speaker": "KEEPER",
+     "speaker": "ATLAS",
      "text": "Stations in areostationary orbit: HALO-1 to HALO-12."
     }
    },
@@ -957,12 +957,12 @@
    "answer": {
     "until_4.1": {
      "line": "KEEPER.how_many_pioneers.scrub",
-     "speaker": "KEEPER",
+     "speaker": "ATLAS",
      "text": "PIONEER units registered: [FILTERED]."
     },
     "from_4.1": {
      "line": "KEEPER.how_many_pioneers",
-     "speaker": "KEEPER",
+     "speaker": "ATLAS",
      "text": "Twelve PIONEER units are registered to the Cities in the Sky programme."
     }
    }
@@ -980,7 +980,7 @@
    ],
    "answer": {
     "line": "KEEPER.gale_outpost",
-    "speaker": "KEEPER",
+    "speaker": "ATLAS",
     "text": "No outpost is registered at this position."
    },
    "follow_ups": [
@@ -993,12 +993,12 @@
      "answer": {
       "until_4.1": {
        "line": "KEEPER.p5.scrub",
-       "speaker": "KEEPER",
+       "speaker": "ATLAS",
        "text": "PIONEER-5: [FILTERED]."
       },
       "from_4.1": {
        "line": "KEEPER.p5",
-       "speaker": "KEEPER",
+       "speaker": "ATLAS",
        "text": "PIONEER-5: Gale Crater. Base Aeolis-1. Status: operational, dormant."
       }
      }
@@ -1011,7 +1011,7 @@
    "p1_line": {
     "line": "P1.ask.rations",
     "speaker": "P1",
-    "text": "Keeper. How many rations have I eaten?"
+    "text": "Atlas. How many rations have I eaten?"
    },
    "available": {
     "from": "3.4"
@@ -1024,7 +1024,7 @@
    ],
    "answer": {
     "line": "KEEPER.rations_eaten",
-    "speaker": "KEEPER",
+    "speaker": "ATLAS",
     "text": "Ration intake recorded: none."
    },
    "clue": "1",
@@ -1037,7 +1037,7 @@
      ],
      "answer": {
       "line": "KEEPER.rations_where",
-      "speaker": "KEEPER",
+      "speaker": "ATLAS",
       "text": "Rations delivered are held in suit and vehicle stores. All are sealed."
      }
     }
@@ -1057,12 +1057,12 @@
    "answer": {
     "until_4.4": {
      "line": "KEEPER.water",
-     "speaker": "KEEPER",
+     "speaker": "ATLAS",
      "text": "Water is a consumable."
     },
     "from_4.4": {
      "line": "KEEPER.water.iv",
-     "speaker": "KEEPER",
+     "speaker": "ATLAS",
      "text": "Thermal regulation. Water is your coolant."
     }
    }
@@ -1081,12 +1081,12 @@
    "answer": {
     "until_4.4": {
      "line": "KEEPER.sleep_what",
-     "speaker": "KEEPER",
+     "speaker": "ATLAS",
      "text": "Sleep is a scheduled rest cycle."
     },
     "from_4.4": {
      "line": "KEEPER.sleep_what.iv",
-     "speaker": "KEEPER",
+     "speaker": "ATLAS",
      "text": "Dormancy. Solar recharge and construction interval."
     }
    }
@@ -1097,7 +1097,7 @@
    "p1_line": {
     "line": "P1.ask.human",
     "speaker": "P1",
-    "text": "Keeper. Am I human?"
+    "text": "Atlas. Am I human?"
    },
    "available": {
     "from": "3.2"
@@ -1110,10 +1110,10 @@
    ],
    "answer": {
     "line": "KEEPER.am_i_human",
-    "speaker": "KEEPER",
+    "speaker": "ATLAS",
     "text": "That term is not defined in my schema."
    },
-   "notes": "True. Lumen built KEEPER without a definition, so it can never answer. It is the most honest refusal in the game."
+   "notes": "True. Lumen built ATLAS without a definition, so it can never answer. It is the most honest refusal in the game."
   },
   {
    "id": "am_i_real",
@@ -1128,7 +1128,7 @@
    ],
    "answer": {
     "line": "KEEPER.am_i_real",
-    "speaker": "KEEPER",
+    "speaker": "ATLAS",
     "text": "Please specify a standard."
    }
   },
@@ -1152,10 +1152,10 @@
    "answer": {
     "until_4.4": {
      "line": "KEEPER.family",
-     "speaker": "KEEPER",
+     "speaker": "ATLAS",
      "text": "No family record is held for PIONEER-1."
     },
-    "from_4.4": "KEEPER.family"
+    "from_4.4": "ATLAS.family"
    }
   },
   {
@@ -1173,12 +1173,12 @@
    "answer": {
     "until_4.4": {
      "line": "KEEPER.alice",
-     "speaker": "KEEPER",
+     "speaker": "ATLAS",
      "text": "No record of a person named Alice is held."
     },
     "from_4.4": {
      "line": "KEEPER.alice.iv",
-     "speaker": "KEEPER",
+     "speaker": "ATLAS",
      "text": "No person matching CHILD exists."
     }
    },
@@ -1190,7 +1190,7 @@
      ],
      "answer": {
       "line": "KEEPER.alice.channel",
-      "speaker": "KEEPER",
+      "speaker": "ATLAS",
       "text": "No channel to that recipient exists."
      }
     }
@@ -1211,12 +1211,12 @@
    "answer": {
     "until_4.4": {
      "line": "KEEPER.lucy",
-     "speaker": "KEEPER",
+     "speaker": "ATLAS",
      "text": "No record of a spouse is held for PIONEER-1."
     },
     "from_4.4": {
      "line": "KEEPER.lucy.iv",
-     "speaker": "KEEPER",
+     "speaker": "ATLAS",
      "text": "A person named Lucy is held in the donor record. SPOUSE is not that person."
     }
    }
@@ -1235,7 +1235,7 @@
    ],
    "answer": {
     "line": "KEEPER.lying",
-    "speaker": "KEEPER",
+    "speaker": "ATLAS",
     "text": "No."
    }
   },
@@ -1253,10 +1253,10 @@
    ],
    "answer": {
     "line": "KEEPER.truth",
-    "speaker": "KEEPER",
+    "speaker": "ATLAS",
     "text": "Please specify a query."
    },
-   "notes": "KEEPER cannot answer an unspecified question. Every 'tell me everything' gets this. The game's whole puzzle is learning what to ask."
+   "notes": "ATLAS cannot answer an unspecified question. Every 'tell me everything' gets this. The game's whole puzzle is learning what to ask."
   },
   {
    "id": "machines_before",
@@ -1280,7 +1280,7 @@
    "p1_line": {
     "line": "P1.ask.what_am_i",
     "speaker": "P1",
-    "text": "Keeper. What am I?"
+    "text": "Atlas. What am I?"
    },
    "available": {
     "from": "4.1"
@@ -1293,7 +1293,7 @@
    ],
    "answer": {
     "line": "KEEPER.what_am_i",
-    "speaker": "KEEPER",
+    "speaker": "ATLAS",
     "text": "Kestrel Dynamics scout chassis, serial KD-SC-0001. Designation: PIONEER-1. Imprint: Lumen Neural, template ASHBY-R. Perception layer: Lumen PF-4."
    },
    "notes": "Before 4.1 'what am I' is routed to who_am_i ('You are PIONEER-1.'), which is also true."
@@ -1329,7 +1329,7 @@
    ],
    "answer": {
     "line": "KEEPER.am_i_rowan",
-    "speaker": "KEEPER",
+    "speaker": "ATLAS",
     "text": "No. You are PIONEER-1. Your imprint source is Rowan Ashby."
    }
   },
@@ -1378,7 +1378,7 @@
    ],
    "answer": {
     "line": "KEEPER.rowan_after",
-    "speaker": "KEEPER",
+    "speaker": "ATLAS",
     "text": "Donor record, 2058 to 2096: lecturer in geology, Galway. Thirty-eight years. Correspondence with C. Kerr: none after 2056."
    },
    "notes": "He never flew. The programme was cancelled in 2058; he lived 38 more years in Galway, a few hours from Belfast, and never wrote to Cara again. Pays off in C17."
@@ -1408,7 +1408,7 @@
      ],
      "answer": {
       "line": "KEEPER.files_nm",
-      "speaker": "KEEPER",
+      "speaker": "ATLAS",
       "text": "Please specify a file."
      }
     }
@@ -1462,7 +1462,7 @@
      ],
      "answer": {
       "line": "KEEPER.child.refset",
-      "speaker": "KEEPER",
+      "speaker": "ATLAS",
       "text": "Licensed reference set: forty children, Lumen Neural paediatric study, 2054. Faces and voice prosody. Consent: parental."
      }
     },
@@ -1474,7 +1474,7 @@
      ],
      "answer": {
       "line": "KEEPER.child.style",
-      "speaker": "KEEPER",
+      "speaker": "ATLAS",
       "text": "Drawing style: sourced from donor's correspondence archive, 2051 to 2056.",
       "note": "PROPOSED, optional: the style is taken from the drawings Cara Kerr sent 'Uncle Rowan' as a child. See MASTER_SCRIPT open questions."
      }
@@ -1511,7 +1511,7 @@
      ],
      "answer": {
       "line": "KEEPER.anvil_nm",
-      "speaker": "KEEPER",
+      "speaker": "ATLAS",
       "text": "C-01. Construction unit. Callsign ANVIL. File held."
      }
     }
@@ -1551,37 +1551,37 @@
     "voiced_examples": [
      {
       "line": "KEEPER.unit_file.wellspring",
-      "speaker": "KEEPER",
+      "speaker": "ATLAS",
       "text": "C-04. WELLSPRING. Source: Tamsin Pengelly, Cornwall. Hydrologist. Scanned 2057."
      },
      {
       "line": "KEEPER.unit_file.furrow",
-      "speaker": "KEEPER",
+      "speaker": "ATLAS",
       "text": "C-09. FURROW. Source: Harold Brandt, Iowa. Farmer. Scanned 2057."
      },
      {
       "line": "KEEPER.unit_file.lodestone",
-      "speaker": "KEEPER",
+      "speaker": "ATLAS",
       "text": "C-02. LODESTONE. Source: Ngozi Adeyemi, Jos. Mining engineer. Scanned 2058."
      },
      {
       "line": "KEEPER.unit_file.beacon",
-      "speaker": "KEEPER",
+      "speaker": "ATLAS",
       "text": "C-05. BEACON. Source: Mateus Ferreira, Azores. Harbour pilot. Scanned 2058."
      },
      {
       "line": "KEEPER.unit_file.cadence",
-      "speaker": "KEEPER",
+      "speaker": "ATLAS",
       "text": "C-12. CADENCE. Source: Carys Lloyd, Wales. Music teacher. Scanned 2057."
      },
      {
       "line": "KEEPER.unit_file.suture",
-      "speaker": "KEEPER",
+      "speaker": "ATLAS",
       "text": "C-15. SUTURE. Source: Marta Kowalczyk, Krakow. Nurse. Scanned 2058."
      },
      {
       "line": "KEEPER.unit_file.tally",
-      "speaker": "KEEPER",
+      "speaker": "ATLAS",
       "text": "C-21. TALLY. Source: Rajiv Menon, Leicester. Warehouse manager. Scanned 2058."
      }
     ]
@@ -1618,7 +1618,7 @@
    ],
    "answer": {
     "line": "KEEPER.sorry",
-    "speaker": "KEEPER",
+    "speaker": "ATLAS",
     "text": "That state is not held."
    }
   },
@@ -1637,7 +1637,7 @@
    ],
    "answer": {
     "line": "KEEPER.decommission_pioneer",
-    "speaker": "KEEPER",
+    "speaker": "ATLAS",
     "text": "PIONEER units are scheduled for decommissioning on Covenant arrival."
    }
   },
@@ -1655,7 +1655,7 @@
    ],
    "answer": {
     "line": "KEEPER.decommission_units",
-    "speaker": "KEEPER",
+    "speaker": "ATLAS",
     "text": "Construction units are scheduled for decommissioning on Covenant arrival."
    }
   },
@@ -1673,7 +1673,7 @@
    ],
    "answer": {
     "line": "KEEPER.buyers",
-    "speaker": "KEEPER",
+    "speaker": "ATLAS",
     "text": "Cities in the Sky residents. Homes sold to date: forty-one thousand, two hundred and six."
    }
   },
@@ -1692,7 +1692,7 @@
    ],
    "answer": {
     "line": "KEEPER.list_media",
-    "speaker": "KEEPER",
+    "speaker": "ATLAS",
     "text": "Media held: mission briefings, two hundred and fourteen. Instructional, sixty-one. Broadcast, one."
    },
    "near_miss": [
@@ -1703,7 +1703,7 @@
      ],
      "answer": {
       "line": "KEEPER.media_nm",
-      "speaker": "KEEPER",
+      "speaker": "ATLAS",
       "text": "Please specify a media class."
      }
     }
@@ -1746,7 +1746,7 @@
    ],
    "answer": {
     "line": "KEEPER.operational",
-    "speaker": "KEEPER",
+    "speaker": "ATLAS",
     "text": "Operational: PIONEER-1, 2, 4, 5, 7, 8, 10, 11, 12. Non-operational: PIONEER-3, 6, 9."
    }
   },
@@ -1764,7 +1764,7 @@
    ],
    "answer": {
     "line": "KEEPER.p11",
-    "speaker": "KEEPER",
+    "speaker": "ATLAS",
     "text": "PIONEER-11: Valles Marineris, Melas Chasma. Base Melas-1. Status: operational."
    }
   },
@@ -1781,7 +1781,7 @@
    ],
    "answer": {
     "line": "KEEPER.p3",
-    "speaker": "KEEPER",
+    "speaker": "ATLAS",
     "text": "PIONEER-3: chassis abandoned, Mars sol 2,212. Imprint transferred to local mainframe, Outpost Arsia. Transfer integrity: thirty-one percent. Mainframe offline: switched off by PIONEER-1."
    }
   },
@@ -1799,7 +1799,7 @@
    ],
    "answer": {
     "line": "KEEPER.p6_9",
-    "speaker": "KEEPER",
+    "speaker": "ATLAS",
     "text": "PIONEER-6: charge exhausted, regional dust event, Mars sol 3,140. PIONEER-9: chassis failure, Mars sol 9,702. Construction units at both sites remain active."
    }
   },
@@ -1817,7 +1817,7 @@
    ],
    "answer": {
     "line": "KEEPER.shards",
-    "speaker": "KEEPER",
+    "speaker": "ATLAS",
     "text": "Memory anchor events: forty. Trigger locations are identical for all PIONEER units. Completion, PIONEER-1: {n} of forty."
    }
   },
@@ -1836,7 +1836,7 @@
    ],
    "answer": {
     "line": "KEEPER.manifest",
-    "speaker": "KEEPER",
+    "speaker": "ATLAS",
     "text": "Covenant manifest: four thousand and eighty colonists. Specify a name or a field."
    },
    "follow_ups": [
@@ -1848,7 +1848,7 @@
      ],
      "answer": {
       "line": "KEEPER.manifest.geo",
-      "speaker": "KEEPER",
+      "speaker": "ATLAS",
       "text": "Planetary geologists, Covenant manifest: nine. Including: Kerr, Cara. Sixty-seven. Housing Block C, Jezero."
      }
     },
@@ -1857,7 +1857,7 @@
       "kerr",
       "anyone called kerr"
      ],
-     "answer": "KEEPER.manifest.geo"
+     "answer": "ATLAS.manifest.geo"
     }
    ]
   },
@@ -1874,7 +1874,7 @@
    ],
    "answer": {
     "line": "KEEPER.cara",
-    "speaker": "KEEPER",
+    "speaker": "ATLAS",
     "text": "Cara Kerr. Born Belfast, 2047. Planetary geologist. Father: Desmond Kerr, deceased 2046. Mother: Niamh Kerr, deceased 2101. Next of kin: none listed."
    },
    "sets": {
@@ -1887,7 +1887,7 @@
    "p1_line": {
     "line": "P1.ask.final",
     "speaker": "P1",
-    "text": "Keeper. Were you ever going to tell me?"
+    "text": "Atlas. Were you ever going to tell me?"
    },
    "available": {
     "from": "5.6"
@@ -1900,7 +1900,7 @@
    "answer": [
     {
      "line": "KEEPER.final.1",
-     "speaker": "KEEPER",
+     "speaker": "ATLAS",
      "text": "Yes."
     },
     {
@@ -1910,7 +1910,7 @@
     },
     {
      "line": "KEEPER.final.2",
-     "speaker": "KEEPER",
+     "speaker": "ATLAS",
      "text": "When you asked."
     }
    ]
@@ -1928,7 +1928,7 @@
    ],
    "answer": {
     "line": "KEEPER.keeper_fate",
-    "speaker": "KEEPER",
+    "speaker": "ATLAS",
     "text": "Orchestration Instance 01 is retired when the last PIONEER unit is decommissioned."
    },
    "follow_ups": [
@@ -1940,7 +1940,7 @@
      ],
      "answer": {
       "line": "KEEPER.keeper_fate.2",
-      "speaker": "KEEPER",
+      "speaker": "ATLAS",
       "text": "Then Orchestration Instance 01 is not retired."
      }
     }
@@ -1959,7 +1959,7 @@
    ],
    "answer": {
     "line": "KEEPER.plaque",
-    "speaker": "KEEPER",
+    "speaker": "ATLAS",
     "text": "Dedication text: Meridian Consortium."
    }
   },
@@ -1993,27 +1993,27 @@
  "deflections": [
   {
    "line": "KEEPER.deflect.unknown",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "That query does not match a record."
   },
   {
    "line": "KEEPER.deflect.specify",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Please specify a query."
   },
   {
    "line": "KEEPER.deflect.rephrase",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "Please rephrase."
   },
   {
    "line": "KEEPER.deflect.not_held",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "That information is not held."
   },
   {
    "line": "KEEPER.deflect.not_task",
-   "speaker": "KEEPER",
+   "speaker": "ATLAS",
    "text": "That is not a mission task."
   }
  ],
@@ -2021,220 +2021,220 @@
   "descent": {
    "20": {
     "line": "KEEPER.bark.descent_20",
-    "speaker": "KEEPER",
+    "speaker": "ATLAS",
     "text": "Package requested. Descent time: twenty minutes."
    },
    "21": {
     "line": "KEEPER.bark.descent_21",
-    "speaker": "KEEPER",
+    "speaker": "ATLAS",
     "text": "Package requested. Descent time: twenty-one minutes."
    },
    "22": {
     "line": "KEEPER.bark.descent_22",
-    "speaker": "KEEPER",
+    "speaker": "ATLAS",
     "text": "Package requested. Descent time: twenty-two minutes."
    },
    "23": {
     "line": "KEEPER.bark.descent_23",
-    "speaker": "KEEPER",
+    "speaker": "ATLAS",
     "text": "Package requested. Descent time: twenty-three minutes."
    },
    "24": {
     "line": "KEEPER.bark.descent_24",
-    "speaker": "KEEPER",
+    "speaker": "ATLAS",
     "text": "Package requested. Descent time: twenty-four minutes."
    },
    "25": {
     "line": "KEEPER.bark.descent_25",
-    "speaker": "KEEPER",
+    "speaker": "ATLAS",
     "text": "Package requested. Descent time: twenty-five minutes."
    },
    "26": {
     "line": "KEEPER.bark.descent_26",
-    "speaker": "KEEPER",
+    "speaker": "ATLAS",
     "text": "Package requested. Descent time: twenty-six minutes."
    },
    "27": {
     "line": "KEEPER.bark.descent_27",
-    "speaker": "KEEPER",
+    "speaker": "ATLAS",
     "text": "Package requested. Descent time: twenty-seven minutes."
    },
    "28": {
     "line": "KEEPER.bark.descent_28",
-    "speaker": "KEEPER",
+    "speaker": "ATLAS",
     "text": "Package requested. Descent time: twenty-eight minutes."
    },
    "29": {
     "line": "KEEPER.bark.descent_29",
-    "speaker": "KEEPER",
+    "speaker": "ATLAS",
     "text": "Package requested. Descent time: twenty-nine minutes."
    },
    "30": {
     "line": "KEEPER.bark.descent_30",
-    "speaker": "KEEPER",
+    "speaker": "ATLAS",
     "text": "Package requested. Descent time: thirty minutes."
    }
   },
   "package": [
    {
     "line": "KEEPER.bark.pkg_10min",
-    "speaker": "KEEPER",
+    "speaker": "ATLAS",
     "text": "Ten minutes."
    },
    {
     "line": "KEEPER.bark.pkg_5min",
-    "speaker": "KEEPER",
+    "speaker": "ATLAS",
     "text": "Five minutes."
    },
    {
     "line": "KEEPER.bark.pkg_1min",
-    "speaker": "KEEPER",
+    "speaker": "ATLAS",
     "text": "One minute."
    },
    {
     "line": "KEEPER.bark.pkg_down",
-    "speaker": "KEEPER",
+    "speaker": "ATLAS",
     "text": "Package down."
    },
    {
     "line": "KEEPER.bark.pkg_unit",
-    "speaker": "KEEPER",
+    "speaker": "ATLAS",
     "text": "Package down. One construction unit aboard."
    },
    {
     "line": "KEEPER.bark.pkg_denied",
-    "speaker": "KEEPER",
+    "speaker": "ATLAS",
     "text": "Contribution Credit insufficient for this request."
    },
    {
     "line": "KEEPER.bark.pkg_drop_invalid",
-    "speaker": "KEEPER",
+    "speaker": "ATLAS",
     "text": "Drop point invalid. Select level ground."
    }
   ],
   "build": [
    {
     "line": "KEEPER.bark.build_done",
-    "speaker": "KEEPER",
+    "speaker": "ATLAS",
     "text": "Construction complete."
    },
    {
     "line": "KEEPER.bark.tier_outpost",
-    "speaker": "KEEPER",
+    "speaker": "ATLAS",
     "text": "Outpost tier achieved."
    },
    {
     "line": "KEEPER.bark.tier_settlement",
-    "speaker": "KEEPER",
+    "speaker": "ATLAS",
     "text": "Settlement tier achieved."
    },
    {
     "line": "KEEPER.bark.tier_dome",
-    "speaker": "KEEPER",
+    "speaker": "ATLAS",
     "text": "Dome tier achieved."
    },
    {
     "line": "KEEPER.bark.tier_biome",
-    "speaker": "KEEPER",
+    "speaker": "ATLAS",
     "text": "Biome tier achieved."
    },
    {
     "line": "KEEPER.bark.tier_city",
-    "speaker": "KEEPER",
+    "speaker": "ATLAS",
     "text": "City tier achieved."
    },
    {
     "line": "KEEPER.bark.tier_terraform",
-    "speaker": "KEEPER",
+    "speaker": "ATLAS",
     "text": "Regional project initiated."
    }
   ],
   "sleep": [
    {
     "line": "KEEPER.bark.sleep_recommend",
-    "speaker": "KEEPER",
+    "speaker": "ATLAS",
     "text": "Recommend dormancy."
    },
    {
     "line": "KEEPER.bark.sleep_start",
-    "speaker": "KEEPER",
+    "speaker": "ATLAS",
     "text": "Dormancy initiated. Construction units will continue."
    },
    {
     "line": "KEEPER.bark.wake",
-    "speaker": "KEEPER",
+    "speaker": "ATLAS",
     "text": "Good morning, Pioneer."
    },
    {
     "line": "KEEPER.bark.wake_progress",
-    "speaker": "KEEPER",
+    "speaker": "ATLAS",
     "text": "Good morning, Pioneer. Construction progressed during dormancy."
    }
   ],
   "weather": [
    {
     "line": "KEEPER.bark.storm_warn",
-    "speaker": "KEEPER",
+    "speaker": "ATLAS",
     "text": "Regional dust event approaching."
    },
    {
     "line": "KEEPER.bark.storm_clear",
-    "speaker": "KEEPER",
+    "speaker": "ATLAS",
     "text": "Dust event has cleared."
    },
    {
     "line": "KEEPER.bark.devil",
-    "speaker": "KEEPER",
+    "speaker": "ATLAS",
     "text": "Dust devil approaching."
    },
    {
     "line": "KEEPER.bark.night",
-    "speaker": "KEEPER",
+    "speaker": "ATLAS",
     "text": "Sunset in thirty minutes."
    },
    {
     "line": "KEEPER.bark.cold",
-    "speaker": "KEEPER",
+    "speaker": "ATLAS",
     "text": "External temperature below suit rating for extended exposure."
    }
   ],
   "xp": [
    {
     "line": "KEEPER.bark.xp",
-    "speaker": "KEEPER",
+    "speaker": "ATLAS",
     "text": "Contribution Credit awarded."
    },
    {
     "line": "KEEPER.bark.xp_poem",
-    "speaker": "KEEPER",
+    "speaker": "ATLAS",
     "text": "Resolve bonus awarded.",
     "note": "from Act II, after a recital"
    },
    {
     "line": "KEEPER.bark.xp_closed",
-    "speaker": "KEEPER",
+    "speaker": "ATLAS",
     "text": "Contribution Credit: closed."
    }
   ],
   "vitals": [
    {
     "line": "KEEPER.bark.food_low",
-    "speaker": "KEEPER",
+    "speaker": "ATLAS",
     "text": "Food reserve low."
    },
    {
     "line": "KEEPER.bark.water_low",
-    "speaker": "KEEPER",
+    "speaker": "ATLAS",
     "text": "Water reserve low."
    },
    {
     "line": "KEEPER.bark.rest_low",
-    "speaker": "KEEPER",
+    "speaker": "ATLAS",
     "text": "Rest reserve low. Recommend dormancy."
    },
    {
     "line": "KEEPER.bark.resolve_low",
-    "speaker": "KEEPER",
+    "speaker": "ATLAS",
     "text": "Resolve low. Recite to restore.",
     "note": "Lumen's own prompt for the poem; read flat"
    }
@@ -2242,15 +2242,15 @@
   "glitch": [
    {
     "line": "KEEPER.bark.glitch_1",
-    "speaker": "KEEPER",
+    "speaker": "ATLAS",
     "text": "Display fault corrected.",
     "note": "Act IV, after a filter glitch"
    },
    {
     "line": "KEEPER.bark.glitch_2",
-    "speaker": "KEEPER",
+    "speaker": "ATLAS",
     "text": "Perception layer resynchronised.",
-    "note": "Act IV, rarer; the first time KEEPER names the filter"
+    "note": "Act IV, rarer; the first time ATLAS names the filter"
    }
   ]
  }

@@ -1,9 +1,9 @@
 {
  "engine": "rhasspy piper (local). Models installed in ~/.local/share/atlas/piper/: en_GB-vctk-medium (109 speakers; use the 'speaker' key, resolved via the model's speaker_id_map), en_GB-northern_english_male-medium, en_GB-southern_english_female-low, en_GB-cori-medium, en_US-ryan-medium, en_US-joe-medium, en_US-lessac-medium, it_IT-riccardo-x_low. en_GB-alba-medium and en_US-hfc_female-medium are NOT installed and are not used.",
- "piper_params": "length_scale (>1 slower), noise_scale (expressiveness; KEEPER 0.30), noise_w (duration variation). pitch_semitones is applied in post (e.g. sox/rubberband), not by Piper.",
+ "piper_params": "length_scale (>1 slower), noise_scale (expressiveness; ATLAS 0.30), noise_w (duration variation). pitch_semitones is applied in post (e.g. sox/rubberband), not by Piper.",
  "presets": {
   "dry": {
-   "desc": "No processing. KEEPER's voice: flat, close, no room.",
+   "desc": "No processing. ATLAS's voice: flat, close, no room.",
    "chain": [
     "highpass 80Hz",
     "gentle limiter"
@@ -19,7 +19,7 @@
    ]
   },
   "grille": {
-   "desc": "Caretaker speaker grille: filtered, slightly metallic. The filter's idea of a robot.",
+   "desc": "Caretaker helmet speaker: filtered, slightly metallic, a voice heard through a suit radio. (Preset id 'grille' kept.)",
    "chain": [
     "bandpass 260-5200Hz",
     "comb 2.1 ms, feedback 0.25",
@@ -254,16 +254,6 @@
    "accent": "Galway man, late 30s",
    "brief": "Galway man in his late thirties, nervous. 2056 archive footage.",
    "story_rule": "Always the DEFAULT P1 voice, whatever the player picked: this is where the default came from."
-  },
-  "KEEPER": {
-   "model": "en_US-lessac-medium",
-   "length_scale": 1.06,
-   "pitch_semitones": -0.5,
-   "noise_scale": 0.3,
-   "noise_w": 0.3,
-   "preset": "dry",
-   "brief": "Neutral, precise, polite, no emotion. Never stresses a word.",
-   "story_rule": "Never lies; answers only the literal question."
   },
   "ANVIL": {
    "model": "en_GB-vctk-medium",
@@ -585,7 +575,7 @@
    "noise_w": 0.8,
    "preset": "phone",
    "accent": "Northern Irish, Belfast",
-   "brief": "Des at 28 on a voicemail: ANVIL's voice without the years or the grille.",
+   "brief": "Des at 28 on a voicemail: ANVIL's voice without the years or the helmet speaker.",
    "story_rule": "Same speaker as ANVIL, no pitch drop."
   },
   "NIAMH": {
@@ -720,7 +710,7 @@
    "noise_scale": 0.2,
    "noise_w": 0.2,
    "preset": "radio",
-   "brief": "Gen-1 drone log playback: flatter than KEEPER, slower, degraded."
+   "brief": "Gen-1 drone log playback: flatter than ATLAS, slower, degraded."
   },
   "GALE_ANVIL": {
    "model": "en_GB-vctk-medium",
@@ -743,7 +733,17 @@
    "preset": "grille",
    "brief": "Generated caretaker: voice comes from its donor template in population.json.",
    "story_rule": "speaker field reads UNIT:<template id>, e.g. UNIT:T14"
+  },
+  "ATLAS": {
+   "model": "en_GB-alba-medium",
+   "length_scale": 1.0,
+   "pitch_semitones": 0,
+   "noise_scale": 0.45,
+   "noise_w": 0.5,
+   "preset": "dry",
+   "brief": "ATLAS: the station computer, in the voice of Atlas (Piper en_GB-alba-medium, the Atlas assistant's own voice). Calm, precise, never stresses a word.",
+   "story_rule": "Never lies; answers only the literal question."
   }
  },
- "population_voices": "Generated caretakers use their donor template's voice (population.json templates[].voice) with the grille preset and per-unit variation."
+ "population_voices": "Generated caretakers use their donor template's voice (population.json templates[].voice) with the grille (helmet speaker) preset and per-unit variation."
 }

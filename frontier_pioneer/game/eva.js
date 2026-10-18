@@ -23,12 +23,12 @@
  * effect, and the ring makes it deliberate. On foot, Cross is the hop and
  * the hold-to-use button is R1 alone (keyboard: E).
  */
-import * as THREE from "../vendor/three.module.js?v=b8cfe8e-efa5b7b7";
-import { registerSystem, getSystem } from "./systems.js?v=b8cfe8e-efa5b7b7";
-import { registerType } from "./entities.js?v=b8cfe8e-efa5b7b7";
-import { PROV } from "./heightfield.js?v=b8cfe8e-efa5b7b7";
-import { clockText } from "./state.js?v=b8cfe8e-efa5b7b7";
-import { ONFOOT_KEYS, ONFOOT_HELP, WALK } from "./avatar.js?v=b8cfe8e-efa5b7b7";
+import * as THREE from "../vendor/three.module.js?v=6d37c9c-9b39e129";
+import { registerSystem, getSystem } from "./systems.js?v=6d37c9c-9b39e129";
+import { registerType } from "./entities.js?v=6d37c9c-9b39e129";
+import { PROV } from "./heightfield.js?v=6d37c9c-9b39e129";
+import { clockText } from "./state.js?v=6d37c9c-9b39e129";
+import { ONFOOT_KEYS, ONFOOT_HELP, WALK } from "./avatar.js?v=6d37c9c-9b39e129";
 
 /** Suit tools and carry upgrades (game/progress.js): extra bag slots and time / range factors, read by the getters in EVA (0 / 1 = stock). */
 export const EVA_MODS = { bag: 0, core: 1, scoop: 1, scan: 1, range: 1 };

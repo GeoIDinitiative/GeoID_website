@@ -18,13 +18,18 @@
  * choice (ui.choose: the option's `set` is written, then its own beats play), set (a story variable).
  * `parallel` beats do not wait; `if` conditions use the story's variables.
  *
+ * CINEMATICS. When story/cinematics/<id>.json exists, the director (cinema.js) shoots the cutscene as a film:
+ * every beat and line is a cue it keys shots, actors, lights and grades on; stills, camera intents and the
+ * stage directions' text step aside (their timing stays: the picture fills it). No file: the old way.
+ *
  * SKIPPING (hold Circle or Esc, uistory.js) stops the voices and the subtitles at once, writes every
  * `set` still to come, and still asks every choice still to come (a choice is never skipped: the
  * endings depend on them), without its lines.
  */
-import * as THREE from "../vendor/three.module.js?v=b8cfe8e-efa5b7b7";
-import { getSystem } from "./systems.js?v=b8cfe8e-efa5b7b7";
-import { loadStory, speech, evalCond, esc, hash, ensureStoryStyles } from "./storydata.js?v=b8cfe8e-efa5b7b7";
+import * as THREE from "../vendor/three.module.js?v=6d37c9c-9b39e129";
+import { getSystem } from "./systems.js?v=6d37c9c-9b39e129";
+import { loadStory, speech, evalCond, esc, hash, ensureStoryStyles } from "./storydata.js?v=6d37c9c-9b39e129";
+import { Director } from "./cinema.js?v=6d37c9c-9b39e129";
 
 const _a = new THREE.Vector3(), _b = new THREE.Vector3(), _m = new THREE.Matrix4(), _q = new THREE.Quaternion();
 const ease = (k) => k * k * (3 - 2 * k);
@@ -86,6 +91,7 @@ export function stillSVG(brief, seed = 1) {
 export class Cutscenes {
   constructor(game, story) {
     this.game = game; this.story = story; this.cur = null; this.cam = null; this.queue = Promise.resolve();
+    this.director = new Director(game, story);
     ensureStoryStyles();
     const root = document.getElementById("story") || document.body;
     this.dirEl = document.createElement("div"); this.dirEl.className = "cs-dir"; this.dirEl.hidden = true;
@@ -117,6 +123,11 @@ export class Cutscenes {
     g.emit("cutscene:start", { id, title: cs.title });
     this.story.notify("cutscene_start", { id });
     if (ui && ui.cutscene) ui.cutscene.start({ letterbox: true, skippable: o.skippable !== false, onSkip: () => this._onSkip() });
+    // the film, when there is one
+    if (o.cinema !== false) {
+      try { const spec = await this.director.load(id); if (spec && !c.skipped) { await this.director.begin(id, spec, cs); c.cin = true; } }
+      catch (e) { console.warn("[cutscene] cinematic", id, e); this.director.end(); c.cin = false; }
+    }
     const beats = cs.beats || [];
     let i = 0;
     try {
@@ -131,6 +142,7 @@ export class Cutscenes {
     }
     // close: whatever was on screen goes, the camera is the game's again
     this.dirEl.hidden = true; this.titleEl.hidden = true; this.cam = null;
+    if (c.cin) { if (!c.skipped) this.director.cue("end"); this.director.end(); }
     if (g.camera.fov !== c.fov) { g.camera.fov = c.fov; g.camera.updateProjectionMatrix(); }
     if (ui) { if (ui.fadeTo) await ui.fadeTo(false, c.skipped ? 0.3 : 0.8); if (ui.cutscene && ui.cutscene.active) ui.cutscene.end(); }
     const st = document.querySelector("#story .st-fade"); if (st) st.classList.remove("cs-white");
@@ -141,13 +153,16 @@ export class Cutscenes {
   }
 
   _vars() { return this.story.vars(); }
-  async _beat(b, beats, i, c) {
-    const g = this.game, ui = this.ui, sp = speech(g);
+  async _beat(b, beats, i, c, prefix = "beat:") {
+    const g = this.game, ui = this.ui, sp = speech(g), D = c.cin ? this.director : null;
     if (b.if && !evalCond(b.if, this._vars())) return;
+    if (D) D.cue(prefix + i);
     const par = !!b.parallel, dur = (b.duration_hint || 0) * PACE;
     switch (b.kind) {
       case "line": {
+        if (D && b.line) D.cue(b.line);
         const p = sp.say(b, { preset: b.preset });
+        if (D && b.line) p.then(() => { if (this.cur === c) D.cue(b.line + "/end"); });
         if (!par) { await p; await this._wait(0.15); }
         return;
       }
@@ -155,11 +170,12 @@ export class Cutscenes {
         let t = String(b.text || "");
         const m = t.match(/^\[if ([^\]]+)\]\s*/); if (m) { const cond = m[1].replace(/\bin \(([^)]*)\)/g, "in [$1]"); if (!evalCond(cond, this._vars())) return; t = t.slice(m[0].length); }
         t = t.replace(/\[if ([^\]]+)\]\s*/g, "");
-        this.dirEl.textContent = t; this.dirEl.hidden = false;
+        if (!D) { this.dirEl.textContent = t; this.dirEl.hidden = false; }
         if (!par) await this._wait(Math.max(1.6, dur));
         return;
       }
       case "still": {
+        if (D) return;                                     // the film shows it
         // the game's own picture wins: when a camera beat at the same moment frames something real (the pod, the lander, a unit), no panel
         const cam = beats.find((x) => x.kind === "camera" && Math.abs((x.t || 0) - (b.t || 0)) < 0.05);
         if (cam && this.story.resolveTarget((cam.camera || {}).target || (cam.camera || {}).to || "", cam.camera || {}).world) return;
@@ -169,7 +185,7 @@ export class Cutscenes {
         if (ui && ui.still) ui.still({ src: stillSVG(b.panel, hash(c.id)), caption: b.panel, seconds: this.game.headless && c.fast ? 0.1 : span, pan: ["right", "in", "left", "out"][hash(b.panel) % 4] });
         return;
       }
-      case "camera": this._camera(b.camera || {}); return;
+      case "camera": if (!D) this._camera(b.camera || {}); return;
       case "title": {
         const text = String(b.text || "").startsWith("[engine]") ? this.story.engineText(c.id, b) : b.text;
         if (b.style === "act" && ui && ui.card) {
@@ -217,11 +233,12 @@ export class Cutscenes {
     if (k < 0) k = 0;
     const o = opts[k];
     c.choices[b.choice_id] = o.id;
+    if (c.cin) this.director.cue("chose:" + b.choice_id + ":" + o.id);
     this.story.setVar("choice." + b.choice_id, o.id);
     for (const [key, v] of Object.entries(o.set || {})) this.story.setVar(key, v);
     if (o.clue) this.story.clue(o.clue);
     this.story.notify("choose", { choice_id: b.choice_id, option: o.id });
-    if (!quick) for (let j = 0; j < (o.then || []).length && !c.skipped; j++) await this._beat(o.then[j], o.then, j, c);
+    if (!quick) for (let j = 0; j < (o.then || []).length && !c.skipped; j++) await this._beat(o.then[j], o.then, j, c, `opt:${b.choice_id}:${o.id}:`);
     else for (const t of o.then || []) if (t.kind === "set") this.story.setVar(t.var, t.value);
   }
   _sfx(b) {
@@ -244,6 +261,7 @@ export class Cutscenes {
   }
   /** After the rig: put the camera where the intent says. */
   frame(dt) {
+    if (this.director.active) { this.director.frame(dt); return; }
     const C = this.cam, g = this.game;
     if (!C || !this.cur) return;
     C.age += dt || 1 / 60;

@@ -12,31 +12,31 @@
  * waits for the fine tiles around the rover so the player never sees the
  * coarse ground first.
  */
-import * as THREE from "../vendor/three.module.js?v=b8cfe8e-efa5b7b7";
-import { CAMERA, QUALITY, TIME_SCALE, TIME_WARP, MARS, VERSION } from "./config.js?v=b8cfe8e-efa5b7b7";
-import { Site } from "./site.js?v=b8cfe8e-efa5b7b7";
-import { Heightfield } from "./heightfield.js?v=b8cfe8e-efa5b7b7";
-import { Imagery } from "./imagery.js?v=b8cfe8e-efa5b7b7";
-import { ProceduralDetail } from "./detail.js?v=b8cfe8e-efa5b7b7";
-import { Surface } from "./surface.js?v=b8cfe8e-efa5b7b7";
-import { Terrain } from "./terrain.js?v=b8cfe8e-efa5b7b7";
-import { Rocks } from "./rocks.js?v=b8cfe8e-efa5b7b7";
-import { Sky } from "./sky.js?v=b8cfe8e-efa5b7b7";
-import { TerrainShadows } from "./shadows.js?v=b8cfe8e-efa5b7b7";
-import { PostFX } from "./postfx.js?v=b8cfe8e-efa5b7b7";
-import { Vehicle, VEHICLES } from "./vehicle.js?v=b8cfe8e-efa5b7b7";
-import { loadRoverModel } from "./rovermodel.js?v=b8cfe8e-efa5b7b7";
-import { Rig } from "./camera.js?v=b8cfe8e-efa5b7b7";
-import { Input, DRIVING_HELP } from "./input.js?v=b8cfe8e-efa5b7b7";
-import { Hud } from "./hud.js?v=b8cfe8e-efa5b7b7";
-import { EntityLayer, Assets } from "./entities.js?v=b8cfe8e-efa5b7b7";
-import * as State from "./state.js?v=b8cfe8e-efa5b7b7";
-import * as tiles from "./tiles.js?v=b8cfe8e-efa5b7b7";
+import * as THREE from "../vendor/three.module.js?v=6d37c9c-9b39e129";
+import { CAMERA, QUALITY, TIME_SCALE, TIME_WARP, MARS, VERSION } from "./config.js?v=6d37c9c-9b39e129";
+import { Site } from "./site.js?v=6d37c9c-9b39e129";
+import { Heightfield } from "./heightfield.js?v=6d37c9c-9b39e129";
+import { Imagery } from "./imagery.js?v=6d37c9c-9b39e129";
+import { ProceduralDetail } from "./detail.js?v=6d37c9c-9b39e129";
+import { Surface } from "./surface.js?v=6d37c9c-9b39e129";
+import { Terrain } from "./terrain.js?v=6d37c9c-9b39e129";
+import { Rocks } from "./rocks.js?v=6d37c9c-9b39e129";
+import { Sky } from "./sky.js?v=6d37c9c-9b39e129";
+import { TerrainShadows } from "./shadows.js?v=6d37c9c-9b39e129";
+import { PostFX } from "./postfx.js?v=6d37c9c-9b39e129";
+import { Vehicle, VEHICLES } from "./vehicle.js?v=6d37c9c-9b39e129";
+import { loadRoverModel } from "./rovermodel.js?v=6d37c9c-9b39e129";
+import { Rig } from "./camera.js?v=6d37c9c-9b39e129";
+import { Input, DRIVING_HELP } from "./input.js?v=6d37c9c-9b39e129";
+import { Hud } from "./hud.js?v=6d37c9c-9b39e129";
+import { EntityLayer, Assets } from "./entities.js?v=6d37c9c-9b39e129";
+import * as State from "./state.js?v=6d37c9c-9b39e129";
+import * as tiles from "./tiles.js?v=6d37c9c-9b39e129";
 
 const _m = new THREE.Matrix4(), _p = new THREE.Vector3(), _s = new THREE.Vector3(1, 1, 1), _q = new THREE.Quaternion();
 const _drag = { x: 0, y: 0 };
 
-import * as Systems from "./systems.js?v=b8cfe8e-efa5b7b7";
+import * as Systems from "./systems.js?v=6d37c9c-9b39e129";
 import "./plugins.js";
 
 // Modes in which the world runs. "onfoot" and "build" belong to systems (the astronaut, the base builder).
@@ -62,6 +62,7 @@ export class Game {
     this.scene = new THREE.Scene();
     this.camera = new THREE.PerspectiveCamera(CAMERA.fov, 1, CAMERA.near, CAMERA.far);
     this.post = new PostFX(this.renderer);
+    this.post.settings = { dof: this.settings.dof !== false, grain: this.settings.grain !== false };
     this.input = new Input(canvas);
     this.hud = new Hud();
     this.mode = "title";            // title | loading | driving | onfoot | build | menu | complete
@@ -290,6 +291,7 @@ export class Game {
   }
   applySettings() {
     State.saveSettings(this.settings);
+    this.post.settings = { dof: this.settings.dof !== false, grain: this.settings.grain !== false };
     if (this.rig) this.rig.invertY = this.settings.invertY;
     this.hud.hintKey = "";
   }
@@ -401,7 +403,9 @@ export class Game {
     Systems.frameSystems(this, dt);
     this.camera.updateMatrixWorld(true);
     this._uniforms();
-    this.post.render(this.scene, this.camera, this.quality);
+    // a system may show another scene or camera for a moment (the cinematics' interior sets): game.view = { scene, camera }
+    const V = this.view;
+    this.post.render(V && V.scene || this.scene, V && V.camera || this.camera, this.quality);
     if (this.mode !== "title" && this.mode !== "loading") {
       this.hud.hints(this.input.padConnected && this.input.lastDevice === "pad", window.GeoIDPad);
       this.hud.update(dt || 0.2, this);

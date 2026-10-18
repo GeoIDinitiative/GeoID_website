@@ -1,0 +1,547 @@
+{
+ "id": "C06",
+ "title": "First Water",
+ "note": "Korolev, under the first biome dome: a basin in the crater's ice floor filling for the first time. WELLSPRING (water: thin, nervous, counting off on her fingers), FURROW (agriculture: slow, a farmer looking at rain), P1 kneeling at the edge, his glove stopped just above the water while a child's voice asks if you can swim on Mars.",
+ "world": {
+  "hideAvatar": false,
+  "focus": false
+ },
+ "sets": [
+  {
+   "id": "b",
+   "kind": "biome",
+   "fill": 0.01
+  }
+ ],
+ "actors": [
+  {
+   "id": "p1",
+   "kind": "pioneer",
+   "set": "b",
+   "at": [
+    0.15,
+    0,
+    5.45
+   ],
+   "yaw": 180,
+   "clip": "idle"
+  },
+  {
+   "id": "well",
+   "kind": "caretaker",
+   "set": "b",
+   "look": "WELLSPRING",
+   "at": [
+    -2.4,
+    0,
+    6.2
+   ],
+   "yaw": 150,
+   "clip": "idle"
+  },
+  {
+   "id": "furrow",
+   "kind": "caretaker",
+   "set": "b",
+   "look": "FURROW",
+   "at": [
+    2.6,
+    0,
+    6.4
+   ],
+   "yaw": 210,
+   "clip": "idle"
+  }
+ ],
+ "shots": [
+  {
+   "at": "start",
+   "name": "Korolev, the first biome dome: melt water down a printed channel, spreading across the basin, thin as glass",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": [
+       10,
+       5.5,
+       10
+      ],
+      "look": [
+       0,
+       0,
+       0
+      ],
+      "lens": 20
+     },
+     {
+      "t": 1,
+      "pos": [
+       8,
+       3.5,
+       9
+      ],
+      "look": [
+       0,
+       0,
+       1
+      ],
+      "lens": 22
+     }
+    ],
+    "ease": "linear",
+    "handheld": 0.1
+   },
+   "grade": "dome",
+   "dof": {
+    "focus": 4,
+    "fstop": 4
+   },
+   "set": "b"
+  },
+  {
+   "at": "C06.01",
+   "name": "WELLSPRING: it's just water (counting off on her fingers)",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": [
+       -0.9,
+       1.5,
+       2.4
+      ],
+      "look": {
+       "actor": "well",
+       "bone": "head"
+      },
+      "lens": 45
+     },
+     {
+      "t": 1,
+      "pos": [
+       -1.0,
+       1.5,
+       2.7
+      ],
+      "look": {
+       "actor": "well",
+       "bone": "head"
+      },
+      "lens": 50
+     }
+    ],
+    "ease": "linear",
+    "handheld": 0.15
+   },
+   "grade": "dome",
+   "dof": {
+    "focus": "well",
+    "fstop": 2.2
+   },
+   "set": "b"
+  },
+  {
+   "at": "C06.02",
+   "name": "FURROW: Well, now.",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": {
+       "actor": "well",
+       "bone": "head",
+       "o": [
+        1.15,
+        0.18,
+        -2.958
+       ]
+      },
+      "look": {
+       "actor": "furrow",
+       "bone": "head"
+      },
+      "lens": 44.5
+     },
+     {
+      "t": 1,
+      "pos": {
+       "actor": "well",
+       "bone": "head",
+       "o": [
+        1.15,
+        0.18,
+        -2.73
+       ]
+      },
+      "look": {
+       "actor": "furrow",
+       "bone": "head"
+      },
+      "lens": 45.4
+     }
+    ],
+    "ease": "linear",
+    "handheld": 0.15
+   },
+   "grade": "dome",
+   "dof": {
+    "focus": "furrow",
+    "fstop": 2.2
+   },
+   "set": "b"
+  },
+  {
+   "at": "beat:5",
+   "name": "the fans stir the surface; he kneels at the edge and reaches out, and stops just above the water",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": [
+       1.6,
+       0.5,
+       3.6
+      ],
+      "look": {
+       "actor": "p1",
+       "bone": "hand_R"
+      },
+      "lens": 40
+     },
+     {
+      "t": 1,
+      "pos": [
+       1.4,
+       0.45,
+       3.8
+      ],
+      "look": {
+       "actor": "p1",
+       "bone": "hand_R"
+      },
+      "lens": 45
+     }
+    ],
+    "ease": "linear",
+    "handheld": 0.15
+   },
+   "grade": "dome",
+   "dof": {
+    "focus": "p1",
+    "fstop": 2.0
+   },
+   "set": "b"
+  },
+  {
+   "at": "C06.03",
+   "name": "memory, an echo from a bath: Can you swim on Mars? (his glove over the water)",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": {
+       "actor": "p1",
+       "bone": "hand_R",
+       "o": [
+        0.75,
+        0.3,
+        0.85
+       ]
+      },
+      "look": {
+       "actor": "p1",
+       "bone": "hand_R"
+      },
+      "lens": 50
+     },
+     {
+      "t": 1,
+      "pos": {
+       "actor": "p1",
+       "bone": "hand_R",
+       "o": [
+        0.75,
+        0.3,
+        0.7999999999999999
+       ]
+      },
+      "look": {
+       "actor": "p1",
+       "bone": "hand_R"
+      },
+      "lens": 53
+     }
+    ],
+    "ease": "linear",
+    "handheld": 0.05
+   },
+   "grade": {
+    "base": "memory",
+    "memory": 0.5,
+    "exposureAbs": 1.0
+   },
+   "dof": {
+    "focus": {
+     "actor": "p1",
+     "bone": "hand_R"
+    },
+    "fstop": 1.8
+   },
+   "set": "b"
+  },
+  {
+   "at": "C06.05",
+   "name": "Not yet. (out loud, to the water)",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": {
+       "actor": "p1",
+       "bone": "head",
+       "o": [
+        1.3,
+        0.25,
+        2.4
+       ]
+      },
+      "look": {
+       "actor": "p1",
+       "bone": "head"
+      },
+      "lens": 45
+     },
+     {
+      "t": 1,
+      "pos": {
+       "actor": "p1",
+       "bone": "head",
+       "o": [
+        1.3,
+        0.25,
+        2.25
+       ]
+      },
+      "look": {
+       "actor": "p1",
+       "bone": "head"
+      },
+      "lens": 48
+     }
+    ],
+    "handheld": 0.12,
+    "ease": "linear"
+   },
+   "grade": "dome",
+   "dof": {
+    "focus": "p1",
+    "fstop": 2.0
+   },
+   "set": "b"
+  },
+  {
+   "at": "C06.06",
+   "name": "FURROW: potatoes along that bank by spring",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": [
+       1.4,
+       1.5,
+       2.6
+      ],
+      "look": {
+       "actor": "furrow",
+       "bone": "head"
+      },
+      "lens": 50
+     },
+     {
+      "t": 1,
+      "pos": [
+       1.5,
+       1.5,
+       2.9
+      ],
+      "look": {
+       "actor": "furrow",
+       "bone": "head"
+      },
+      "lens": 55
+     }
+    ],
+    "ease": "linear",
+    "handheld": 0.15
+   },
+   "grade": "dome",
+   "dof": {
+    "focus": "furrow",
+    "fstop": 2.2
+   },
+   "set": "b"
+  },
+  {
+   "at": "C06.07",
+   "name": "ANVIL on the comm from Jezero: don't let him plant anything in it (they laugh)",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": [
+       -2.8,
+       1.3,
+       8.8
+      ],
+      "look": [
+       0.6,
+       1.0,
+       5.4
+      ],
+      "lens": 32
+     },
+     {
+      "t": 1,
+      "pos": [
+       -2.6,
+       1.3,
+       8.6
+      ],
+      "look": [
+       0.6,
+       1.0,
+       5.4
+      ],
+      "lens": 34
+     }
+    ],
+    "ease": "linear",
+    "handheld": 0.15
+   },
+   "grade": "dome",
+   "dof": {
+    "focus": 3.8,
+    "fstop": 2.8
+   },
+   "set": "b"
+  },
+  {
+   "at": "C06.08",
+   "name": "biome tier: up and out, the dome, the pool, three small figures at its edge",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": [
+       2,
+       1.8,
+       9
+      ],
+      "look": [
+       0,
+       0,
+       0
+      ],
+      "lens": 28
+     },
+     {
+      "t": 1,
+      "pos": [
+       10,
+       12,
+       16
+      ],
+      "look": [
+       0,
+       0,
+       0
+      ],
+      "lens": 22
+     }
+    ],
+    "ease": "inout",
+    "handheld": 0.05
+   },
+   "grade": "dome",
+   "dof": {
+    "focus": 14,
+    "fstop": 5.6
+   },
+   "set": "b"
+  }
+ ],
+ "track": [
+  {
+   "at": "start",
+   "actor": "well",
+   "play": "count_fingers",
+   "fade": 0.2
+  },
+  {
+   "at": "start",
+   "actor": "furrow",
+   "lookAt": [
+    0,
+    -0.5,
+    0
+   ],
+   "weight": 0.8
+  },
+  {
+   "at": "start",
+   "actor": "p1",
+   "lookAt": [
+    0,
+    -0.5,
+    0
+   ],
+   "weight": 0.8
+  },
+  {
+   "at": "C06.02",
+   "actor": "well",
+   "play": "idle",
+   "fade": 0.6
+  },
+  {
+   "at": "beat:5",
+   "actor": "p1",
+   "play": "kneel",
+   "fade": 0.3
+  },
+  {
+   "at": "beat:5+1.6",
+   "actor": "p1",
+   "play": "kneel_reach",
+   "fade": 0.3
+  },
+  {
+   "at": "C06.06",
+   "actor": "furrow",
+   "play": "point",
+   "fade": 0.4
+  },
+  {
+   "at": "C06.06",
+   "actor": "furrow",
+   "lookAt": [
+    -6,
+    0,
+    3
+   ],
+   "weight": 0.8
+  },
+  {
+   "at": "C06.07",
+   "actor": "well",
+   "play": "shrug",
+   "fade": 0.3
+  },
+  {
+   "at": "C06.07",
+   "actor": "furrow",
+   "play": "nod",
+   "fade": 0.3
+  }
+ ]
+}

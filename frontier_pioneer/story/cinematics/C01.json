@@ -1,0 +1,769 @@
+{
+ "id": "C01",
+ "title": "Entry",
+ "note": "Three places cut together. A child's bedroom in Galway rebuilt by the filter (a reconstructed memory: warm, the edges coming apart into points, the people luminous outlines); the lander's cabin on entry (plasma through the porthole, the visor a mirror of it, buffeting); Jezero at dawn from above the canopy, then from the ground as the retros light the dust and the lander comes down hard and tips. A memory insert of the window and Mars on 'If only you could see what I see'.",
+ "stage": {
+  "at": "lander",
+  "face": "poi:jezero.delta_front"
+ },
+ "world": {
+  "hour": 6.45,
+  "focus": true
+ },
+ "sets": [
+  {
+   "id": "room",
+   "kind": "bedroom"
+  },
+  {
+   "id": "cabin",
+   "kind": "lander",
+   "state": "entry"
+  },
+  {
+   "id": "chute",
+   "kind": "descent",
+   "at": [
+    0,
+    432,
+    18
+   ],
+   "sink": 0
+  }
+ ],
+ "actors": [
+  {
+   "id": "alice",
+   "kind": "child",
+   "set": "room",
+   "look": {
+    "hair": "tied",
+    "memory": {
+     "color": "#ffb684",
+     "rim": "#ffe6c0"
+    }
+   },
+   "at": [
+    -1.3,
+    0.42,
+    -0.62
+   ],
+   "yaw": 90,
+   "clip": "lie_side"
+  },
+  {
+   "id": "dad",
+   "kind": "human",
+   "set": "room",
+   "look": {
+    "hair": "short",
+    "memory": {
+     "color": "#ffa870",
+     "rim": "#fff0d0"
+    }
+   },
+   "at": [
+    -0.55,
+    0,
+    -0.55
+   ],
+   "yaw": -90,
+   "clip": "sit_bed_lean"
+  },
+  {
+   "id": "p1",
+   "kind": "pioneer",
+   "set": "cabin",
+   "at": [
+    0,
+    0.03,
+    0.14
+   ],
+   "yaw": 180,
+   "clip": "sit_strapped"
+  }
+ ],
+ "lights": [
+  {
+   "id": "warn",
+   "type": "point",
+   "at": [
+    1.4,
+    4.2,
+    0.6
+   ],
+   "color": "#ff2010",
+   "intensity": 0,
+   "dist": 12
+  }
+ ],
+ "shots": [
+  {
+   "at": "start",
+   "name": "black: a line of light under a bedroom door",
+   "set": "room",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": [
+       1.55,
+       1.55,
+       1.55
+      ],
+      "look": [
+       -0.7,
+       0.7,
+       -0.9
+      ],
+      "lens": 22
+     },
+     {
+      "t": 1,
+      "pos": [
+       1.45,
+       1.45,
+       1.4
+      ],
+      "look": [
+       -0.8,
+       0.65,
+       -0.9
+      ],
+      "lens": 24
+     }
+    ],
+    "handheld": 0.15
+   },
+   "dof": {
+    "focus": 1.6,
+    "fstop": 1.6
+   },
+   "grade": {
+    "base": "memory",
+    "exposureAbs": 0.85
+   }
+  },
+  {
+   "at": "C01.01",
+   "name": "under the duvet: Alice, her face to the window",
+   "set": "room",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": [
+       0.05,
+       1.05,
+       -0.55
+      ],
+      "look": {
+       "actor": "alice",
+       "bone": "head"
+      },
+      "lens": 28
+     },
+     {
+      "t": 1,
+      "pos": [
+       0.0,
+       1.0,
+       -0.6
+      ],
+      "look": {
+       "actor": "alice",
+       "bone": "head"
+      },
+      "lens": 31
+     }
+    ],
+    "handheld": 0.2
+   },
+   "dof": {
+    "focus": 1.1,
+    "fstop": 2.0
+   },
+   "grade": "memory"
+  },
+  {
+   "at": "C01.02",
+   "name": "Dad on the edge of the bed, leaning over her; the window behind",
+   "set": "room",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": [
+       0.9,
+       1.05,
+       0.9
+      ],
+      "look": [
+       -0.9,
+       0.85,
+       -0.85
+      ],
+      "lens": 32
+     },
+     {
+      "t": 1,
+      "pos": [
+       0.75,
+       1.0,
+       0.75
+      ],
+      "look": [
+       -0.9,
+       0.85,
+       -0.85
+      ],
+      "lens": 34
+     }
+    ],
+    "handheld": 0.15
+   },
+   "dof": {
+    "focus": "dad",
+    "fstop": 2.0
+   },
+   "grade": "memory"
+  },
+  {
+   "at": "C01.03",
+   "name": "Alice: then why are you going? (close, low)",
+   "set": "room",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": [
+       -1.25,
+       0.75,
+       -1.3
+      ],
+      "look": {
+       "actor": "dad",
+       "bone": "head"
+      },
+      "lens": 32
+     },
+     {
+      "t": 1,
+      "pos": [
+       -1.25,
+       0.74,
+       -1.28
+      ],
+      "look": {
+       "actor": "dad",
+       "bone": "head"
+      },
+      "lens": 35
+     }
+    ],
+    "handheld": 0.2
+   },
+   "dof": {
+    "focus": "dad",
+    "fstop": 1.6
+   },
+   "grade": "memory"
+  },
+  {
+   "at": "beat:7",
+   "name": "FIRE: the cabin on entry, buffeting",
+   "set": "cabin",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": [
+       0.85,
+       2.1,
+       0.95
+      ],
+      "look": [
+       0.35,
+       1.45,
+       -1.2
+      ],
+      "lens": 16
+     },
+     {
+      "t": 1,
+      "pos": [
+       0.8,
+       2.05,
+       0.85
+      ],
+      "look": [
+       0.35,
+       1.5,
+       -1.2
+      ],
+      "lens": 17
+     }
+    ],
+    "shake": 0.9,
+    "handheld": 0.4
+   },
+   "dof": {
+    "focus": "p1",
+    "fstop": 2.8
+   },
+   "grade": "plasma"
+  },
+  {
+   "at": "beat:11",
+   "name": "the visor: a black mirror full of fire; the HUD boots",
+   "set": "cabin",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": {
+       "actor": "p1",
+       "bone": "head",
+       "o": [
+        0.25,
+        0.8,
+        0.42
+       ]
+      },
+      "look": {
+       "actor": "p1",
+       "bone": "head",
+       "o": [
+        0,
+        0.12,
+        0
+       ]
+      },
+      "lens": 25.0
+     },
+     {
+      "t": 1,
+      "pos": {
+       "actor": "p1",
+       "bone": "head",
+       "o": [
+        0.25,
+        0.8,
+        0.37
+       ]
+      },
+      "look": {
+       "actor": "p1",
+       "bone": "head",
+       "o": [
+        0,
+        0.12,
+        0
+       ]
+      },
+      "lens": 24
+     }
+    ],
+    "shake": 0.7,
+    "ease": "linear"
+   },
+   "dof": {
+    "focus": {
+     "actor": "p1",
+     "bone": "head",
+     "o": [
+      0,
+      0.12,
+      0.18
+     ]
+    },
+    "fstop": 2.0
+   },
+   "grade": "plasma"
+  },
+  {
+   "at": "C01.04+1.0",
+   "name": "memory insert: the window, the small red point low in the sky",
+   "set": "room",
+   "dur": 2.4,
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": [
+       0.35,
+       1.25,
+       -1.0
+      ],
+      "look": [
+       0.78,
+       1.32,
+       -1.78
+      ],
+      "lens": 50
+     },
+     {
+      "t": 1,
+      "pos": [
+       0.45,
+       1.28,
+       -1.2
+      ],
+      "look": [
+       0.78,
+       1.32,
+       -1.78
+      ],
+      "lens": 60
+     }
+    ],
+    "handheld": 0.15
+   },
+   "dof": {
+    "focus": 0.9,
+    "fstop": 1.8
+   },
+   "grade": "memory"
+  },
+  {
+   "at": "C01.05",
+   "name": "P1, almost a whisper, lips barely moving",
+   "set": "cabin",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": {
+       "actor": "p1",
+       "bone": "head",
+       "o": [
+        -0.35,
+        0.78,
+        0.42
+       ]
+      },
+      "look": {
+       "actor": "p1",
+       "bone": "head",
+       "o": [
+        0,
+        0.1,
+        0.1
+       ]
+      },
+      "lens": 26.6
+     },
+     {
+      "t": 1,
+      "pos": {
+       "actor": "p1",
+       "bone": "head",
+       "o": [
+        -0.35,
+        0.78,
+        0.39
+       ]
+      },
+      "look": {
+       "actor": "p1",
+       "bone": "head",
+       "o": [
+        0,
+        0.1,
+        0.1
+       ]
+      },
+      "lens": 25.6
+     }
+    ],
+    "shake": 0.6
+   },
+   "dof": {
+    "focus": "p1",
+    "fstop": 2.0
+   },
+   "grade": "plasma"
+  },
+  {
+   "at": "C01.06",
+   "name": "ATLAS: welcome to Mars. Gloves tight on the armrests, the porthole beyond",
+   "set": "cabin",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": [
+       0.95,
+       1.05,
+       0.65
+      ],
+      "look": [
+       -0.15,
+       1.0,
+       -0.4
+      ],
+      "lens": 28
+     },
+     {
+      "t": 1,
+      "pos": [
+       0.9,
+       1.1,
+       0.5
+      ],
+      "look": [
+       0.1,
+       1.2,
+       -0.8
+      ],
+      "lens": 30
+     }
+    ],
+    "shake": 1.0,
+    "handheld": 0.3
+   },
+   "dof": {
+    "focus": "p1",
+    "fstop": 2.8
+   },
+   "grade": "plasma"
+  },
+  {
+   "at": "beat:17",
+   "name": "the chute snaps: from above the canopy, Jezero's delta at dawn",
+   "dur": 5.1,
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": [
+       2,
+       452,
+       -6
+      ],
+      "look": [
+       0,
+       160,
+       500
+      ],
+      "lens": 24
+     },
+     {
+      "t": 1,
+      "pos": [
+       3,
+       440,
+       -4
+      ],
+      "look": [
+       0,
+       130,
+       560
+      ],
+      "lens": 22
+     }
+    ],
+    "shake": 0.5,
+    "ease": "out"
+   },
+   "grade": "mars_dawn"
+  },
+  {
+   "at": "beat:23",
+   "name": "ground level, 40 m: the retro flare, the dust wall, the lander comes down hard and tips",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": [
+       -28,
+       1.6,
+       30
+      ],
+      "look": [
+       0,
+       5.0,
+       0
+      ],
+      "lens": 35
+     },
+     {
+      "t": 0.4,
+      "pos": [
+       -27,
+       1.6,
+       29
+      ],
+      "look": [
+       0,
+       2.0,
+       0
+      ],
+      "lens": 38
+     },
+     {
+      "t": 1,
+      "pos": [
+       -20,
+       1.7,
+       22
+      ],
+      "look": [
+       0,
+       1.6,
+       0
+      ],
+      "lens": 45
+     }
+    ],
+    "handheld": 0.35,
+    "ease": "inout"
+   },
+   "dof": {
+    "focus": {
+     "a": "lander",
+     "o": [
+      0,
+      1.5,
+      0
+     ]
+    },
+    "fstop": 4
+   },
+   "grade": "mars_dawn"
+  }
+ ],
+ "track": [
+  {
+   "at": "start",
+   "actor": "alice",
+   "lookAt": [
+    0.6,
+    1.4,
+    -1.8
+   ],
+   "weight": 0.6
+  },
+  {
+   "at": "C01.02",
+   "actor": "alice",
+   "lookAt": "dad",
+   "weight": 0.8
+  },
+  {
+   "at": "start",
+   "actor": "dad",
+   "lookAt": "alice",
+   "weight": 0.9
+  },
+  {
+   "at": "C01.03+1.2",
+   "actor": "alice",
+   "lookAt": [
+    0.78,
+    1.32,
+    -1.78
+   ],
+   "weight": 0.8
+  },
+  {
+   "at": "beat:7",
+   "setp": "cabin",
+   "key": "state",
+   "value": "entry"
+  },
+  {
+   "at": "beat:17",
+   "setp": "cabin",
+   "key": "state",
+   "value": "landed"
+  },
+  {
+   "at": "beat:17",
+   "setp": "chute",
+   "key": "sink",
+   "value": 2.5
+  },
+  {
+   "at": "beat:23",
+   "hide": "story-lander"
+  },
+  {
+   "at": "beat:23",
+   "hide": "set:chute"
+  },
+  {
+   "at": "beat:23",
+   "fx": "glare",
+   "where": [
+    0,
+    9,
+    0
+   ],
+   "color": "#ffb060",
+   "k": 9,
+   "size": 9,
+   "light": 400,
+   "dist": 90,
+   "dur": 2.4,
+   "fall": 3.4
+  },
+  {
+   "at": "beat:23+0.9",
+   "fx": "dust",
+   "where": [
+    0,
+    0.5,
+    0
+   ],
+   "n": 40,
+   "spread": 9,
+   "up": 1.4,
+   "size": 9,
+   "life": 6,
+   "over": 0.8,
+   "color": "#a07050"
+  },
+  {
+   "at": "beat:23+1.0",
+   "fx": "dust",
+   "where": [
+    -8,
+    0.6,
+    9
+   ],
+   "n": 30,
+   "spread": 6,
+   "up": 0.8,
+   "size": 8,
+   "life": 5,
+   "over": 1.0,
+   "color": "#98684a"
+  },
+  {
+   "at": "beat:23+1.3",
+   "show": "story-lander"
+  },
+  {
+   "at": "beat:23+1.3",
+   "shake": 0.9,
+   "dur": 0.8
+  },
+  {
+   "at": "beat:23+2.6",
+   "fx": "glare",
+   "where": [
+    1.1,
+    3.9,
+    0.3
+   ],
+   "color": "#ff2010",
+   "k": 6,
+   "size": 0.7,
+   "light": 6,
+   "dist": 10,
+   "dur": 30,
+   "blink": 1.4
+  }
+ ]
+}

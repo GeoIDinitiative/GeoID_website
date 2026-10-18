@@ -18,11 +18,11 @@
  * The ground's data sources are still computed (prov-* elements) but not shown: the game has no
  * data-honesty view.
  */
-import * as THREE from "../vendor/three.module.js?v=b8cfe8e-efa5b7b7";
-import { PROV } from "./heightfield.js?v=b8cfe8e-efa5b7b7";
-import { clockText } from "./state.js?v=b8cfe8e-efa5b7b7";
-import { UiManager } from "./uiman.js?v=b8cfe8e-efa5b7b7";
-import { installStory } from "./uistory.js?v=b8cfe8e-efa5b7b7";
+import * as THREE from "../vendor/three.module.js?v=6d37c9c-9b39e129";
+import { PROV } from "./heightfield.js?v=6d37c9c-9b39e129";
+import { clockText } from "./state.js?v=6d37c9c-9b39e129";
+import { UiManager } from "./uiman.js?v=6d37c9c-9b39e129";
+import { installStory } from "./uistory.js?v=6d37c9c-9b39e129";
 
 const $ = (id) => document.getElementById(id);
 const COMPASS = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];

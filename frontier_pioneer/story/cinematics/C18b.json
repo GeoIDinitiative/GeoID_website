@@ -1,0 +1,1133 @@
+{
+ "id": "C18b",
+ "title": "Rest",
+ "note": "The decommissioning bay in the old rover garage: white, clean, a padded cradle, a rack of surrendered helmets. He walks in with Marchetti beside him; she will not wait outside; the plaque, the names; he sits; the pulse, softer. The last image is the player's: a beach in Galway at evening (a reconstructed memory: Lucy at the waterline, Alice running up the sand with the drawing over her head) or the real dome through the window, Cara at the glass turning away. Then white.",
+ "world": {
+  "hideAvatar": false,
+  "focus": false
+ },
+ "sets": [
+  {
+   "id": "bay",
+   "kind": "bay"
+  },
+  {
+   "id": "beach",
+   "kind": "beach"
+  },
+  {
+   "id": "dome",
+   "kind": "dome"
+  }
+ ],
+ "actors": [
+  {
+   "id": "p1",
+   "kind": "pioneer",
+   "set": "bay",
+   "at": [
+    0.3,
+    0,
+    -6.2
+   ],
+   "yaw": 0,
+   "clip": "walk"
+  },
+  {
+   "id": "lead",
+   "kind": "covenant",
+   "set": "bay",
+   "look": {
+    "hair": "bun",
+    "material": "cloth",
+    "helmet": false,
+    "callsign": "MARCHETTI",
+    "skin": "#9a7a66",
+    "hairColour": "#5a4a40"
+   },
+   "at": [
+    -0.6,
+    0,
+    -6.4
+   ],
+   "yaw": 0,
+   "clip": "walk"
+  },
+  {
+   "id": "r2",
+   "kind": "recall",
+   "set": "bay",
+   "at": [
+    -1.8,
+    0,
+    -4.2
+   ],
+   "yaw": 30,
+   "clip": "guard"
+  },
+  {
+   "id": "lucy",
+   "kind": "human",
+   "set": "beach",
+   "look": {
+    "hair": "long",
+    "memory": {
+     "color": "#ffb07a",
+     "rim": "#fff0d8"
+    }
+   },
+   "at": [
+    -1.6,
+    0,
+    -13
+   ],
+   "yaw": 160,
+   "clip": "hold_shoes"
+  },
+  {
+   "id": "alice",
+   "kind": "child",
+   "set": "beach",
+   "look": {
+    "hair": "tied",
+    "memory": {
+     "color": "#ffc08a",
+     "rim": "#fff4e0"
+    }
+   },
+   "at": [
+    2.0,
+    0,
+    -10
+   ],
+   "yaw": 0,
+   "clip": "run_child"
+  },
+  {
+   "id": "c1",
+   "kind": "human",
+   "set": "dome",
+   "look": {
+    "hair": "short",
+    "material": "cloth",
+    "cloth": "#4a6a8a"
+   },
+   "at": [
+    0,
+    0,
+    2
+   ],
+   "yaw": 30,
+   "clip": "sit_ground"
+  },
+  {
+   "id": "c2",
+   "kind": "human",
+   "set": "dome",
+   "look": {
+    "hair": "long",
+    "material": "cloth",
+    "cloth": "#8a4a3a"
+   },
+   "at": [
+    1.2,
+    0,
+    2.4
+   ],
+   "yaw": -20,
+   "clip": "sit_ground"
+  },
+  {
+   "id": "kid",
+   "kind": "child",
+   "set": "dome",
+   "look": {
+    "hair": "short",
+    "material": "cloth",
+    "cloth": "#e0a030"
+   },
+   "at": [
+    0.6,
+    0,
+    1.0
+   ],
+   "yaw": 10,
+   "clip": "point_up_hold"
+  },
+  {
+   "id": "c3",
+   "kind": "human",
+   "set": "dome",
+   "look": {
+    "hair": "bun",
+    "material": "cloth",
+    "cloth": "#3a5a3a"
+   },
+   "at": [
+    -2.5,
+    0,
+    0.8
+   ],
+   "yaw": 60,
+   "clip": "idle"
+  },
+  {
+   "id": "cara",
+   "kind": "human",
+   "set": "dome",
+   "look": {
+    "hair": "tied",
+    "material": "cloth",
+    "cloth": "#5a5248",
+    "hairColour": "#b8b4ac"
+   },
+   "at": [
+    5.2,
+    0,
+    -4.4
+   ],
+   "yaw": -150,
+   "clip": "idle"
+  }
+ ],
+ "shots": [
+  {
+   "at": "start",
+   "name": "the decommissioning bay in the old garage: white light, the cradle, the rack of helmets",
+   "set": "bay",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": [
+       3.6,
+       2.6,
+       3.4
+      ],
+      "look": [
+       -1.0,
+       1.2,
+       -1.8
+      ],
+      "lens": 24
+     },
+     {
+      "t": 1,
+      "pos": [
+       3.3,
+       2.4,
+       3.0
+      ],
+      "look": [
+       -1.0,
+       1.2,
+       -2.2
+      ],
+      "lens": 26
+     }
+    ],
+    "ease": "linear"
+   },
+   "dof": {
+    "focus": 5,
+    "fstop": 4
+   },
+   "grade": "bay"
+  },
+  {
+   "at": "beat:2",
+   "name": "he walks in; she walks in beside him",
+   "set": "bay",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": [
+       0.6,
+       1.5,
+       -1.0
+      ],
+      "look": {
+       "actor": "p1",
+       "bone": "chest"
+      },
+      "lens": 32
+     },
+     {
+      "t": 1,
+      "pos": [
+       0.6,
+       1.5,
+       0.2
+      ],
+      "look": {
+       "actor": "p1",
+       "bone": "chest"
+      },
+      "lens": 32
+     }
+    ],
+    "ease": "linear",
+    "handheld": 0.25
+   },
+   "dof": {
+    "focus": "p1",
+    "fstop": 2.8
+   },
+   "grade": "bay"
+  },
+  {
+   "at": "C18b.01",
+   "name": "RECALL-2: protocol is that you wait outside",
+   "set": "bay",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": {
+       "actor": "lead",
+       "bone": "head",
+       "o": [
+        1.15,
+        0.18,
+        -2.73
+       ]
+      },
+      "look": {
+       "actor": "r2",
+       "bone": "head"
+      },
+      "lens": 44.5
+     },
+     {
+      "t": 1,
+      "pos": {
+       "actor": "lead",
+       "bone": "head",
+       "o": [
+        1.15,
+        0.18,
+        -2.502
+       ]
+      },
+      "look": {
+       "actor": "r2",
+       "bone": "head"
+      },
+      "lens": 45.4
+     }
+    ],
+    "ease": "linear"
+   },
+   "dof": {
+    "focus": "r2",
+    "fstop": 2.2
+   },
+   "grade": "bay"
+  },
+  {
+   "at": "C18b.02",
+   "name": "I heard you.",
+   "set": "bay",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": {
+       "actor": "lead",
+       "bone": "head",
+       "o": [
+        0.56,
+        0.1,
+        1.662
+       ]
+      },
+      "look": {
+       "actor": "lead",
+       "bone": "head"
+      },
+      "lens": 56.2
+     },
+     {
+      "t": 1,
+      "pos": {
+       "actor": "lead",
+       "bone": "head",
+       "o": [
+        0.515,
+        0.1,
+        1.496
+       ]
+      },
+      "look": {
+       "actor": "lead",
+       "bone": "head"
+      },
+      "lens": 50.7
+     }
+    ],
+    "handheld": 0.1,
+    "ease": "linear"
+   },
+   "dof": {
+    "focus": "lead",
+    "fstop": 1.8
+   },
+   "grade": "bay"
+  },
+  {
+   "at": "beat:5",
+   "name": "she stays: the two of them by the cradle",
+   "set": "bay",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": [
+       -2.6,
+       1.4,
+       2.2
+      ],
+      "look": [
+       0.7,
+       1.2,
+       -0.7
+      ],
+      "lens": 35
+     },
+     {
+      "t": 1,
+      "pos": [
+       -2.4,
+       1.4,
+       2.0
+      ],
+      "look": [
+       0.7,
+       1.2,
+       -0.7
+      ],
+      "lens": 36
+     }
+    ],
+    "ease": "linear"
+   },
+   "dof": {
+    "focus": 3.5,
+    "fstop": 2.8
+   },
+   "grade": "bay"
+  },
+  {
+   "at": "C18b.03",
+   "name": "Note for the dedication plaque: add a line. PIONEER-1.",
+   "set": "bay",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": {
+       "actor": "lead",
+       "bone": "head",
+       "o": [
+        -0.72,
+        0.13,
+        1.488
+       ]
+      },
+      "look": {
+       "actor": "lead",
+       "bone": "head"
+      },
+      "lens": 53.1
+     },
+     {
+      "t": 1,
+      "pos": {
+       "actor": "lead",
+       "bone": "head",
+       "o": [
+        -0.662,
+        0.13,
+        1.339
+       ]
+      },
+      "look": {
+       "actor": "lead",
+       "bone": "head"
+      },
+      "lens": 48.0
+     }
+    ],
+    "handheld": 0.1,
+    "ease": "linear"
+   },
+   "dof": {
+    "focus": "lead",
+    "fstop": 1.8
+   },
+   "grade": "bay"
+  },
+  {
+   "at": "C18b.04",
+   "name": "And these.",
+   "set": "bay",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": {
+       "actor": "p1",
+       "bone": "head",
+       "o": [
+        0.64,
+        0.08,
+        1.662
+       ]
+      },
+      "look": {
+       "actor": "p1",
+       "bone": "head"
+      },
+      "lens": 57.0
+     },
+     {
+      "t": 1,
+      "pos": {
+       "actor": "p1",
+       "bone": "head",
+       "o": [
+        0.589,
+        0.08,
+        1.496
+       ]
+      },
+      "look": {
+       "actor": "p1",
+       "bone": "head"
+      },
+      "lens": 51.5
+     }
+    ],
+    "handheld": 0.1,
+    "ease": "linear"
+   },
+   "dof": {
+    "focus": "p1",
+    "fstop": 1.8
+   },
+   "grade": "bay"
+  },
+  {
+   "at": "C18b.05",
+   "name": "And these.",
+   "set": "bay",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": {
+       "actor": "lead",
+       "bone": "head",
+       "o": [
+        0.56,
+        0.1,
+        1.662
+       ]
+      },
+      "look": {
+       "actor": "lead",
+       "bone": "head"
+      },
+      "lens": 56.2
+     },
+     {
+      "t": 1,
+      "pos": {
+       "actor": "lead",
+       "bone": "head",
+       "o": [
+        0.515,
+        0.1,
+        1.496
+       ]
+      },
+      "look": {
+       "actor": "lead",
+       "bone": "head"
+      },
+      "lens": 50.7
+     }
+    ],
+    "handheld": 0.1,
+    "ease": "linear"
+   },
+   "dof": {
+    "focus": "lead",
+    "fstop": 1.8
+   },
+   "grade": "bay"
+  },
+  {
+   "at": "beat:10",
+   "name": "he sits in the cradle",
+   "set": "bay",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": [
+       2.2,
+       1.3,
+       -2.6
+      ],
+      "look": [
+       0,
+       0.9,
+       0.1
+      ],
+      "lens": 32
+     },
+     {
+      "t": 1,
+      "pos": [
+       1.9,
+       1.25,
+       -2.3
+      ],
+      "look": [
+       0,
+       0.9,
+       0.15
+      ],
+      "lens": 35
+     }
+    ],
+    "ease": "linear"
+   },
+   "dof": {
+    "focus": "p1",
+    "fstop": 2.8
+   },
+   "grade": "bay"
+  },
+  {
+   "at": "beat:11",
+   "name": "the pulse, softer: the HUD does not fight it",
+   "set": "bay",
+   "dur": 0.6,
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": [
+       1.9,
+       1.25,
+       -2.3
+      ],
+      "look": [
+       0,
+       0.9,
+       0.15
+      ],
+      "lens": 35
+     }
+    ]
+   },
+   "grade": {
+    "base": "bay",
+    "exposure": 1.6,
+    "sat": 0.5
+   }
+  },
+  {
+   "at": "C18b.06",
+   "name": "Is there anything you want me to tell them?",
+   "set": "bay",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": {
+       "actor": "p1",
+       "bone": "head",
+       "o": [
+        -1.15,
+        0.33,
+        -2.275
+       ]
+      },
+      "look": {
+       "actor": "lead",
+       "bone": "head"
+      },
+      "lens": 44.5
+     },
+     {
+      "t": 1,
+      "pos": {
+       "actor": "p1",
+       "bone": "head",
+       "o": [
+        -0.672,
+        0.33,
+        -1.61
+       ]
+      },
+      "look": {
+       "actor": "lead",
+       "bone": "head"
+      },
+      "lens": 60
+     }
+    ],
+    "ease": "linear"
+   },
+   "dof": {
+    "focus": "lead",
+    "fstop": 1.8
+   },
+   "grade": "bay"
+  },
+  {
+   "at": "C18b.07",
+   "name": "Tell them the north lobe floods (almost cheerful)",
+   "set": "bay",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": {
+       "actor": "p1",
+       "bone": "head",
+       "o": [
+        0.72,
+        0.13,
+        1.662
+       ]
+      },
+      "look": {
+       "actor": "p1",
+       "bone": "head"
+      },
+      "lens": 58.1
+     },
+     {
+      "t": 1,
+      "pos": {
+       "actor": "p1",
+       "bone": "head",
+       "o": [
+        0.662,
+        0.13,
+        1.496
+       ]
+      },
+      "look": {
+       "actor": "p1",
+       "bone": "head"
+      },
+      "lens": 52.5
+     }
+    ],
+    "handheld": 0.1,
+    "ease": "linear"
+   },
+   "dof": {
+    "focus": "p1",
+    "fstop": 1.8
+   },
+   "grade": "bay"
+  },
+  {
+   "at": "beat:14",
+   "name": "She nods. She does not look away.",
+   "set": "bay",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": {
+       "actor": "lead",
+       "bone": "head",
+       "o": [
+        -0.48,
+        0.1,
+        1.488
+       ]
+      },
+      "look": {
+       "actor": "lead",
+       "bone": "head"
+      },
+      "lens": 50.1
+     },
+     {
+      "t": 1,
+      "pos": {
+       "actor": "lead",
+       "bone": "head",
+       "o": [
+        -0.442,
+        0.1,
+        1.339
+       ]
+      },
+      "look": {
+       "actor": "lead",
+       "bone": "head"
+      },
+      "lens": 45.2
+     }
+    ],
+    "handheld": 0.1,
+    "ease": "linear"
+   },
+   "dof": {
+    "focus": "lead",
+    "fstop": 1.6
+   },
+   "grade": "bay"
+  },
+  {
+   "at": "beat:15",
+   "name": "the last image: held on him",
+   "set": "bay",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": {
+       "actor": "p1",
+       "bone": "head",
+       "o": [
+        0.32,
+        0.33,
+        2.8
+       ]
+      },
+      "look": {
+       "actor": "p1",
+       "bone": "head"
+      },
+      "lens": 50
+     },
+     {
+      "t": 1,
+      "pos": {
+       "actor": "p1",
+       "bone": "head",
+       "o": [
+        0.294,
+        0.33,
+        2.52
+       ]
+      },
+      "look": {
+       "actor": "p1",
+       "bone": "head"
+      },
+      "lens": 55
+     }
+    ],
+    "handheld": 0,
+    "ease": "linear"
+   },
+   "dof": {
+    "focus": "p1",
+    "fstop": 2.0
+   },
+   "grade": {
+    "base": "bay",
+    "exposure": 1.15
+   }
+  },
+  {
+   "at": "opt:c18b_last_image:family:0",
+   "name": "Galway, evening, the tide far out: Lucy at the waterline, her shoes in her hand; Alice running up the sand with a drawing over her head",
+   "set": "beach",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": [
+       1.4,
+       1.15,
+       3.0
+      ],
+      "look": [
+       0.5,
+       0.9,
+       -9
+      ],
+      "lens": 35
+     },
+     {
+      "t": 1,
+      "pos": [
+       1.3,
+       1.1,
+       2.4
+      ],
+      "look": [
+       1.0,
+       0.8,
+       -3
+      ],
+      "lens": 40
+     }
+    ],
+    "ease": "linear",
+    "handheld": 0.15
+   },
+   "dof": {
+    "focus": "alice",
+    "fstop": 2.0
+   },
+   "grade": "memory"
+  },
+  {
+   "at": "opt:c18b_last_image:dome:0",
+   "name": "the real dome through the bay window: colonists on the grass, a child pointing up at the ribs ANVIL welded",
+   "set": "dome",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": [
+       6,
+       1.6,
+       -6
+      ],
+      "look": [
+       -2,
+       2.5,
+       4
+      ],
+      "lens": 35
+     },
+     {
+      "t": 1,
+      "pos": [
+       5.6,
+       1.6,
+       -5.6
+      ],
+      "look": [
+       -2,
+       3.5,
+       4
+      ],
+      "lens": 36
+     }
+    ],
+    "ease": "linear"
+   },
+   "dof": {
+    "focus": 7,
+    "fstop": 2.8
+   },
+   "grade": "dome"
+  },
+  {
+   "at": "opt:c18b_last_image:dome:0+3.8",
+   "name": "at the glass, Cara Kerr: she looks at the suit in the cradle, and turns away",
+   "set": "dome",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": [
+       6.2,
+       1.62,
+       -5.4
+      ],
+      "look": {
+       "actor": "cara",
+       "bone": "head"
+      },
+      "lens": 70
+     },
+     {
+      "t": 1,
+      "pos": [
+       6.1,
+       1.62,
+       -5.3
+      ],
+      "look": {
+       "actor": "cara",
+       "bone": "head"
+      },
+      "lens": 75
+     }
+    ],
+    "ease": "linear"
+   },
+   "dof": {
+    "focus": "cara",
+    "fstop": 1.8
+   },
+   "grade": "dome"
+  }
+ ],
+ "track": [
+  {
+   "at": "start",
+   "actor": "p1",
+   "walk": [
+    [
+     0.3,
+     0,
+     -3.5
+    ],
+    [
+     0.15,
+     0,
+     -0.9
+    ]
+   ],
+   "speed": 0.8,
+   "then": "idle"
+  },
+  {
+   "at": "start+0.4",
+   "actor": "lead",
+   "walk": [
+    [
+     -0.6,
+     0,
+     -3.6
+    ],
+    [
+     1.25,
+     0,
+     -1.05
+    ]
+   ],
+   "speed": 0.8,
+   "then": "idle"
+  },
+  {
+   "at": "C18b.01",
+   "actor": "lead",
+   "lookAt": "r2",
+   "weight": 0.6
+  },
+  {
+   "at": "C18b.02",
+   "actor": "lead",
+   "lookAt": "p1",
+   "weight": 0.7
+  },
+  {
+   "at": "C18b.02",
+   "actor": "lead",
+   "face": "p1",
+   "dur": 1.0
+  },
+  {
+   "at": "C18b.03",
+   "actor": "lead",
+   "play": "wrist_talk",
+   "fade": 0.4
+  },
+  {
+   "at": "C18b.04",
+   "actor": "lead",
+   "play": "idle",
+   "fade": 0.6
+  },
+  {
+   "at": "C18b.04",
+   "actor": "p1",
+   "lookAt": [
+    -5.6,
+    1.8,
+    0
+   ],
+   "weight": 0.8
+  },
+  {
+   "at": "beat:10",
+   "actor": "p1",
+   "face": 180,
+   "dur": 1.0
+  },
+  {
+   "at": "beat:10+1.0",
+   "actor": "p1",
+   "play": "sit_down",
+   "fade": 0.3
+  },
+  {
+   "at": "beat:10+1.0",
+   "actor": "p1",
+   "move": [
+    0.0,
+    0.13,
+    0.12
+   ],
+   "dur": 1.8
+  },
+  {
+   "at": "beat:10+3.0",
+   "actor": "p1",
+   "play": "sit_cradle",
+   "fade": 0.6
+  },
+  {
+   "at": "beat:11",
+   "actor": "p1",
+   "lookAt": "lead",
+   "weight": 0.6
+  },
+  {
+   "at": "C18b.06",
+   "actor": "lead",
+   "lookAt": "p1",
+   "weight": 1
+  },
+  {
+   "at": "beat:14",
+   "actor": "lead",
+   "play": "nod",
+   "fade": 0.3
+  },
+  {
+   "at": "beat:15",
+   "actor": "p1",
+   "play": "sit_slump",
+   "fade": 0.6
+  },
+  {
+   "at": "beat:15",
+   "actor": "p1",
+   "lookAt": null
+  },
+  {
+   "at": "opt:c18b_last_image:family:0",
+   "actor": "alice",
+   "walk": [
+    1.2,
+    0,
+    1.6
+   ],
+   "gait": "run_child",
+   "speed": 2.4,
+   "then": "idle"
+  },
+  {
+   "at": "opt:c18b_last_image:family:0",
+   "actor": "lucy",
+   "lookAt": "alice",
+   "weight": 0.7
+  },
+  {
+   "at": "opt:c18b_last_image:dome:0+5.0",
+   "actor": "cara",
+   "face": 120,
+   "dur": 1.6
+  }
+ ]
+}

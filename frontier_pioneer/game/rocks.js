@@ -12,7 +12,7 @@
  * renderer instances what it returns and `bump()` turns the same rocks into
  * height for the physics.
  */
-import * as THREE from "../vendor/three.module.js?v=b8cfe8e-efa5b7b7";
+import * as THREE from "../vendor/three.module.js?v=6d37c9c-9b39e129";
 
 const CELL = 2;
 const MIN_FELT = 0.3;          // rocks smaller than this are scenery only

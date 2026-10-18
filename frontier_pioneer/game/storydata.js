@@ -18,7 +18,7 @@
  * tiny recursive-descent parser over identifiers, strings, numbers, `not`,
  * `and`, `or`, `in [...]`, comparisons and `count(prefix)`.
  */
-import { getSystem } from "./systems.js?v=b8cfe8e-efa5b7b7";
+import { getSystem } from "./systems.js?v=6d37c9c-9b39e129";
 
 export const STORY_URL = new URL("../story/", import.meta.url).href;
 // The build stamp (tools/stamp.py puts it on every module URL), carried onto the story's data and voice files: the
@@ -33,7 +33,7 @@ export const PRESET = { helmet: "helmet", grille: "grille", dry: "dry", radio: "
 /** Subtitle style (uistory.js) for a line, from its speaker and preset. */
 export function styleFor(speaker, preset) {
   const s = String(speaker || "");
-  if (s === "KEEPER" || preset === "radio" || preset === "dry") return "radio";
+  if (s === "ATLAS" || preset === "radio" || preset === "dry") return "radio";
   if (preset === "memory" || /^(ALICE|LUCY|DAD|MAM|DES|NIAMH|P1_MEM)$/.test(s)) return "memory";
   if (preset === "grille" || preset === "intercom" || /^UNIT:/.test(s)) return "unit";
   return "live";
@@ -169,7 +169,7 @@ export function speech(game) {
     if (o.fill) text = text.replace(/\{(\w+)\}/g, (m, k) => (o.fill[k] != null ? o.fill[k] : m));
     const spk = L.speaker || meta.speaker || "";
     const filter = (game.hud && game.hud.ui && game.hud.ui.filterState) || "intact";
-    let pre = L.preset || o.preset || meta.preset || (spk === "KEEPER" ? "dry" : spk === "P1" ? "helmet" : "live");
+    let pre = L.preset || o.preset || meta.preset || (spk === "ATLAS" ? "dry" : spk === "P1" ? "helmet" : "live");
     if (filter === "burnt" && (spk === "P1" || pre === "grille")) pre = "unfiltered";
     const style = o.style || styleFor(spk, pre);
     const v = D && id ? D.voice(id) : null;

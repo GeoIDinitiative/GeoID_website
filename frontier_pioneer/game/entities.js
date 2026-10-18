@@ -29,7 +29,7 @@
  * `layer.reseatHooks` are called after every reseat(), for anything that
  * follows the ground without being an entity.
  */
-import * as THREE from "../vendor/three.module.js?v=b8cfe8e-efa5b7b7";
+import * as THREE from "../vendor/three.module.js?v=6d37c9c-9b39e129";
 
 const TYPES = new Map();
 export function registerType(id, spec) { TYPES.set(id, Object.assign({ kind: "prop", footprint: 1, persist: true, maxSlope: 12 }, spec, { id })); }
@@ -51,7 +51,7 @@ export class Assets {
     const e = (await this.entries()).find((x) => x.id === id);
     if (!e) return null;
     if (!this.cache.has(id)) {
-      const { GLTFLoader } = await import("../vendor/GLTFLoader.js?v=b8cfe8e-efa5b7b7");
+      const { GLTFLoader } = await import("../vendor/GLTFLoader.js?v=6d37c9c-9b39e129");
       this.cache.set(id, new GLTFLoader().loadAsync(this.base + e.file).then((g) => { g.scene.scale.setScalar(e.scale ?? 1); return g.scene; }));
     }
     const o = (await this.cache.get(id)).clone(true);

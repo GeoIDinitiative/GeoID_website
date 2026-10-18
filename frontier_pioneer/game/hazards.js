@@ -50,11 +50,11 @@
  * harmless (no deposition, no wear, no sinking, and the array is compensated
  * for the dust in the air); "standard"; "harsh" multiplies every rate by 1.8.
  */
-import { registerSystem, getSystem } from "./systems.js?v=b8cfe8e-efa5b7b7";
-import { MARS } from "./config.js?v=b8cfe8e-efa5b7b7";
-import { surfaceIrradiance } from "./sky.js?v=b8cfe8e-efa5b7b7";
-import * as State from "./state.js?v=b8cfe8e-efa5b7b7";
-import { HazardMap } from "./hazardmap.js?v=b8cfe8e-efa5b7b7";
+import { registerSystem, getSystem } from "./systems.js?v=6d37c9c-9b39e129";
+import { MARS } from "./config.js?v=6d37c9c-9b39e129";
+import { surfaceIrradiance } from "./sky.js?v=6d37c9c-9b39e129";
+import * as State from "./state.js?v=6d37c9c-9b39e129";
+import { HazardMap } from "./hazardmap.js?v=6d37c9c-9b39e129";
 // (thermal.js is loaded by plugins.js under its own URL: it is reached through getSystem("thermal"), never imported here)
 const NO_EFFECTS = { panels: () => ({ solar: 1 }), wheels: () => ({ drive: 1, crr: 0 }) };
 function difficulty(game) { const d = game.settings && game.settings.hazards; return d === "off" || d === "harsh" ? d : "standard"; }

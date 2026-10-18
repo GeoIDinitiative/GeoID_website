@@ -37,7 +37,7 @@
  *        handle.set(text), handle.scramble(seconds, { vanish }), handle.remove(); ui.untag(id)
  *        `dir` is a direction from the camera (sky objects: the HALO-1 station, the "second light").
  */
-import * as THREE from "../vendor/three.module.js?v=b8cfe8e-efa5b7b7";
+import * as THREE from "../vendor/three.module.js?v=6d37c9c-9b39e129";
 
 const now = () => performance.now() / 1000;
 const GLYPHS = "▓▒░█▚▞◆◇#%&@0123456789ABCDEFXZ/\\<>";

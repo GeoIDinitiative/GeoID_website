@@ -16,7 +16,7 @@
  * Sun has moved 3 degrees in azimuth. It does not shadow the rover or the
  * rocks (the rover has its own analytic shadow in the terrain shader).
  */
-import * as THREE from "../vendor/three.module.js?v=b8cfe8e-efa5b7b7";
+import * as THREE from "../vendor/three.module.js?v=6d37c9c-9b39e129";
 
 const STEPS = 36, GROWTH = 1.16, REDO_DEG = 3;
 

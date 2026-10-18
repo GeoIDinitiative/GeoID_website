@@ -35,9 +35,9 @@
 },
 "C01.06": {
 "file": "C01.06.ogg",
-"dur": 4.83,
-"speaker": "KEEPER",
-"key": "6599e79de2ba"
+"dur": 5.53,
+"speaker": "ATLAS",
+"key": "7fb1c2d0c2b0"
 },
 "C01.07": {
 "file": "C01.07.ogg",
@@ -47,9 +47,9 @@
 },
 "C02.01": {
 "file": "C02.01.ogg",
-"dur": 1.77,
-"speaker": "KEEPER",
-"key": "f40200f94d63"
+"dur": 2.15,
+"speaker": "ATLAS",
+"key": "cb2ff231cda6"
 },
 "C02.02": {
 "file": "C02.02.ogg",
@@ -83,9 +83,9 @@
 },
 "C02.07": {
 "file": "C02.07.ogg",
-"dur": 8.31,
-"speaker": "KEEPER",
-"key": "90a501c89a83"
+"dur": 9.05,
+"speaker": "ATLAS",
+"key": "eff5899dcdac"
 },
 "C02.08": {
 "file": "C02.08.ogg",
@@ -95,9 +95,9 @@
 },
 "C02.09": {
 "file": "C02.09.ogg",
-"dur": 1.35,
-"speaker": "KEEPER",
-"key": "20cd40c290c9"
+"dur": 1.6,
+"speaker": "ATLAS",
+"key": "3bdda81cdf5e"
 },
 "C03.01": {
 "file": "C03.01.ogg",
@@ -131,9 +131,9 @@
 },
 "C04.01": {
 "file": "C04.01.ogg",
-"dur": 3.75,
-"speaker": "KEEPER",
-"key": "9d962b926bfd"
+"dur": 4.54,
+"speaker": "ATLAS",
+"key": "34cc6d40788b"
 },
 "C04.02": {
 "file": "C04.02.ogg",
@@ -251,9 +251,9 @@
 },
 "C05.08": {
 "file": "C05.08.ogg",
-"dur": 2.57,
-"speaker": "KEEPER",
-"key": "ab0a3faecfcc"
+"dur": 2.74,
+"speaker": "ATLAS",
+"key": "a68f36b4ca77"
 },
 "C06.01": {
 "file": "C06.01.ogg",
@@ -299,9 +299,9 @@
 },
 "C06.08": {
 "file": "C06.08.ogg",
-"dur": 3.7,
-"speaker": "KEEPER",
-"key": "37ea85699c57"
+"dur": 4.56,
+"speaker": "ATLAS",
+"key": "a6c26c10aa5a"
 },
 "C07.01": {
 "file": "C07.01.ogg",
@@ -323,15 +323,15 @@
 },
 "C07.04": {
 "file": "C07.04.ogg",
-"dur": 3.58,
+"dur": 3.47,
 "speaker": "P1",
-"key": "c8643ae63c0f"
+"key": "a69aaf189c97"
 },
 "C07.05": {
 "file": "C07.05.ogg",
-"dur": 2.97,
-"speaker": "KEEPER",
-"key": "07104736358e"
+"dur": 3.54,
+"speaker": "ATLAS",
+"key": "18f92aa92fc5"
 },
 "C07.06": {
 "file": "C07.06.ogg",
@@ -341,9 +341,9 @@
 },
 "C07.07": {
 "file": "C07.07.ogg",
-"dur": 3.14,
-"speaker": "KEEPER",
-"key": "07104736358e"
+"dur": 3.44,
+"speaker": "ATLAS",
+"key": "18f92aa92fc5"
 },
 "C08.01": {
 "file": "C08.01.ogg",
@@ -353,15 +353,15 @@
 },
 "C08.02": {
 "file": "C08.02.ogg",
-"dur": 1.93,
+"dur": 2.24,
 "speaker": "P1",
-"key": "76d6d8f43467"
+"key": "0de801738bb7"
 },
 "C08.03": {
 "file": "C08.03.ogg",
-"dur": 1.96,
-"speaker": "KEEPER",
-"key": "6bfba622c61e"
+"dur": 2.47,
+"speaker": "ATLAS",
+"key": "a9410a378ea6"
 },
 "C08.04": {
 "file": "C08.04.ogg",
@@ -371,9 +371,9 @@
 },
 "C08.05": {
 "file": "C08.05.ogg",
-"dur": 3.67,
-"speaker": "KEEPER",
-"key": "fadd1e377e89"
+"dur": 3.93,
+"speaker": "ATLAS",
+"key": "5ecc18fe606d"
 },
 "C08.06": {
 "file": "C08.06.ogg",
@@ -383,9 +383,9 @@
 },
 "C08.07": {
 "file": "C08.07.ogg",
-"dur": 2.21,
-"speaker": "KEEPER",
-"key": "b8d839622493"
+"dur": 2.55,
+"speaker": "ATLAS",
+"key": "ec8375274cd7"
 },
 "C08.08": {
 "file": "C08.08.ogg",
@@ -401,9 +401,9 @@
 },
 "C08.repeat": {
 "file": "C08.repeat.ogg",
-"dur": 1.94,
-"speaker": "KEEPER",
-"key": "b8d839622493"
+"dur": 2.56,
+"speaker": "ATLAS",
+"key": "ec8375274cd7"
 },
 "C08.11": {
 "file": "C08.11.ogg",
@@ -443,15 +443,15 @@
 },
 "C09.05": {
 "file": "C09.05.ogg",
-"dur": 1.52,
+"dur": 1.75,
 "speaker": "P1",
-"key": "c237b6e8f859"
+"key": "926dddcc865c"
 },
 "C09.06": {
 "file": "C09.06.ogg",
-"dur": 2.58,
-"speaker": "KEEPER",
-"key": "c9f5c8724af6"
+"dur": 2.71,
+"speaker": "ATLAS",
+"key": "0c1416eccd84"
 },
 "C09.07": {
 "file": "C09.07.ogg",
@@ -461,9 +461,9 @@
 },
 "C09.08": {
 "file": "C09.08.ogg",
-"dur": 2.54,
-"speaker": "KEEPER",
-"key": "c9f5c8724af6"
+"dur": 2.63,
+"speaker": "ATLAS",
+"key": "0c1416eccd84"
 },
 "C10.01": {
 "file": "C10.01.ogg",
@@ -551,15 +551,15 @@
 },
 "C12.01": {
 "file": "C12.01.ogg",
-"dur": 1.59,
+"dur": 1.66,
 "speaker": "P1",
-"key": "b6a693cdd428"
+"key": "14f90451072b"
 },
 "C12.02": {
 "file": "C12.02.ogg",
-"dur": 7.37,
-"speaker": "KEEPER",
-"key": "8fe219916fb2"
+"dur": 8.35,
+"speaker": "ATLAS",
+"key": "9f70501d81ab"
 },
 "C12.03": {
 "file": "C12.03.ogg",
@@ -569,9 +569,9 @@
 },
 "C12.04": {
 "file": "C12.04.ogg",
-"dur": 0.66,
-"speaker": "KEEPER",
-"key": "8dd3598c9309"
+"dur": 1.15,
+"speaker": "ATLAS",
+"key": "2a9f1ed1e686"
 },
 "C12.05": {
 "file": "C12.05.ogg",
@@ -581,9 +581,9 @@
 },
 "C12.06": {
 "file": "C12.06.ogg",
-"dur": 17.43,
-"speaker": "KEEPER",
-"key": "80e8e380e840"
+"dur": 20.09,
+"speaker": "ATLAS",
+"key": "3ed1ba19f2b2"
 },
 "C12.07": {
 "file": "C12.07.ogg",
@@ -593,9 +593,9 @@
 },
 "C12.08": {
 "file": "C12.08.ogg",
-"dur": 17.33,
-"speaker": "KEEPER",
-"key": "43f3da948023"
+"dur": 18.55,
+"speaker": "ATLAS",
+"key": "83f4d93664fd"
 },
 "C12.09": {
 "file": "C12.09.ogg",
@@ -605,9 +605,9 @@
 },
 "C12.10": {
 "file": "C12.10.ogg",
-"dur": 12.01,
-"speaker": "KEEPER",
-"key": "57ccdcd49bf3"
+"dur": 13.78,
+"speaker": "ATLAS",
+"key": "7c4f817a5601"
 },
 "C12.11": {
 "file": "C12.11.ogg",
@@ -617,9 +617,9 @@
 },
 "C12.12": {
 "file": "C12.12.ogg",
-"dur": 4.72,
-"speaker": "KEEPER",
-"key": "60ba0046682b"
+"dur": 5.52,
+"speaker": "ATLAS",
+"key": "3106acddad7a"
 },
 "C12.13": {
 "file": "C12.13.ogg",
@@ -629,21 +629,21 @@
 },
 "C12.14": {
 "file": "C12.14.ogg",
-"dur": 1.59,
-"speaker": "KEEPER",
-"key": "14007a497a5f"
+"dur": 1.87,
+"speaker": "ATLAS",
+"key": "d8cbe7193c00"
 },
 "C12.15": {
 "file": "C12.15.ogg",
-"dur": 10.49,
-"speaker": "KEEPER",
-"key": "b54648273d85"
+"dur": 11.84,
+"speaker": "ATLAS",
+"key": "c1bedf1c70e7"
 },
 "C12.16": {
 "file": "C12.16.ogg",
-"dur": 8.94,
-"speaker": "KEEPER",
-"key": "fdae611808d0"
+"dur": 10.4,
+"speaker": "ATLAS",
+"key": "85bf05c66b02"
 },
 "C12.17": {
 "file": "C12.17.ogg",
@@ -653,9 +653,9 @@
 },
 "C12.18": {
 "file": "C12.18.ogg",
-"dur": 3.7,
-"speaker": "KEEPER",
-"key": "a54ce1e2cae1"
+"dur": 4.44,
+"speaker": "ATLAS",
+"key": "4635842a974f"
 },
 "C12.19": {
 "file": "C12.19.ogg",
@@ -665,9 +665,9 @@
 },
 "C12.20": {
 "file": "C12.20.ogg",
-"dur": 11.08,
-"speaker": "KEEPER",
-"key": "ad6f9efbc3c5"
+"dur": 11.99,
+"speaker": "ATLAS",
+"key": "dc31f08fe924"
 },
 "C12.21": {
 "file": "C12.21.ogg",
@@ -677,15 +677,15 @@
 },
 "C12.22": {
 "file": "C12.22.ogg",
-"dur": 0.93,
-"speaker": "KEEPER",
-"key": "642915de2afd"
+"dur": 1.82,
+"speaker": "ATLAS",
+"key": "a0e8e3389f26"
 },
 "C13.00": {
 "file": "C13.00.ogg",
-"dur": 5.34,
-"speaker": "KEEPER",
-"key": "1e1938b66424"
+"dur": 5.7,
+"speaker": "ATLAS",
+"key": "dbf1ebbfdbd3"
 },
 "C13.02": {
 "file": "C13.02.ogg",
@@ -707,9 +707,9 @@
 },
 "C13.05": {
 "file": "C13.05.ogg",
-"dur": 10.11,
-"speaker": "KEEPER",
-"key": "596255a15b60"
+"dur": 11.45,
+"speaker": "ATLAS",
+"key": "30bce3b5faec"
 },
 "C13.loop": {
 "file": "C13.loop.ogg",
@@ -1157,9 +1157,9 @@
 },
 "MP.1.start.01": {
 "file": "MP.1.start.01.ogg",
-"dur": 5.02,
-"speaker": "KEEPER",
-"key": "018ee5376181"
+"dur": 5.93,
+"speaker": "ATLAS",
+"key": "0370c8aca7e1"
 },
 "MP.1.start.02": {
 "file": "MP.1.start.02.ogg",
@@ -1169,9 +1169,9 @@
 },
 "MP.1.start.03": {
 "file": "MP.1.start.03.ogg",
-"dur": 4.22,
-"speaker": "KEEPER",
-"key": "0c6b605c0ce7"
+"dur": 4.39,
+"speaker": "ATLAS",
+"key": "07d2185ff0f3"
 },
 "MP.1.p.harness.01": {
 "file": "MP.1.p.harness.01.ogg",
@@ -1181,9 +1181,9 @@
 },
 "MP.1.p.suit.01": {
 "file": "MP.1.p.suit.01.ogg",
-"dur": 6.29,
-"speaker": "KEEPER",
-"key": "11b798f3b072"
+"dur": 7.04,
+"speaker": "ATLAS",
+"key": "e77f812def66"
 },
 "MP.1.p.suit.02": {
 "file": "MP.1.p.suit.02.ogg",
@@ -1193,15 +1193,15 @@
 },
 "MP.1.p.suit.03": {
 "file": "MP.1.p.suit.03.ogg",
-"dur": 0.71,
-"speaker": "KEEPER",
-"key": "76e868ff3871"
+"dur": 0.79,
+"speaker": "ATLAS",
+"key": "befa3136439e"
 },
 "MP.1.p.scan.01": {
 "file": "MP.1.p.scan.01.ogg",
-"dur": 2.67,
-"speaker": "KEEPER",
-"key": "fd7f00354d85"
+"dur": 3.36,
+"speaker": "ATLAS",
+"key": "427058637951"
 },
 "MP.1.p.scan.02": {
 "file": "MP.1.p.scan.02.ogg",
@@ -1229,9 +1229,9 @@
 },
 "MP.1.done.01": {
 "file": "MP.1.done.01.ogg",
-"dur": 2.55,
-"speaker": "KEEPER",
-"key": "b04e888ef367"
+"dur": 3.02,
+"speaker": "ATLAS",
+"key": "ab0666029319"
 },
 "MP.1.done.02": {
 "file": "MP.1.done.02.ogg",
@@ -1241,9 +1241,9 @@
 },
 "M1.1.start.01": {
 "file": "M1.1.start.01.ogg",
-"dur": 5.89,
-"speaker": "KEEPER",
-"key": "7656206c80a6"
+"dur": 6.07,
+"speaker": "ATLAS",
+"key": "64904a07a37b"
 },
 "M1.1.start.02": {
 "file": "M1.1.start.02.ogg",
@@ -1253,9 +1253,9 @@
 },
 "M1.1.start.03": {
 "file": "M1.1.start.03.ogg",
-"dur": 1.41,
-"speaker": "KEEPER",
-"key": "d3246413e55b"
+"dur": 1.54,
+"speaker": "ATLAS",
+"key": "5512afefa32e"
 },
 "M1.1.p.salvage.01": {
 "file": "M1.1.p.salvage.01.ogg",
@@ -1277,15 +1277,15 @@
 },
 "M1.1.p.array.01": {
 "file": "M1.1.p.array.01.ogg",
-"dur": 1.58,
-"speaker": "KEEPER",
-"key": "063e24419a3e"
+"dur": 1.72,
+"speaker": "ATLAS",
+"key": "87f538d76654"
 },
 "M1.1.p.link.01": {
 "file": "M1.1.p.link.01.ogg",
-"dur": 8.84,
-"speaker": "KEEPER",
-"key": "a218463e91c4"
+"dur": 9.35,
+"speaker": "ATLAS",
+"key": "1b6792e76a97"
 },
 "M1.1.done.01": {
 "file": "M1.1.done.01.ogg",
@@ -1295,9 +1295,9 @@
 },
 "M1.1.done.02": {
 "file": "M1.1.done.02.ogg",
-"dur": 2.6,
-"speaker": "KEEPER",
-"key": "dc5208faabe8"
+"dur": 3.08,
+"speaker": "ATLAS",
+"key": "56be122b9217"
 },
 "M1.1.done.03": {
 "file": "M1.1.done.03.ogg",
@@ -1307,27 +1307,27 @@
 },
 "M1.1.done.04": {
 "file": "M1.1.done.04.ogg",
-"dur": 0.78,
-"speaker": "KEEPER",
-"key": "cf0194e4d468"
+"dur": 0.79,
+"speaker": "ATLAS",
+"key": "f67794e1208f"
 },
 "M1.1.fail.01": {
 "file": "M1.1.fail.01.ogg",
-"dur": 3.19,
-"speaker": "KEEPER",
-"key": "001b966893b3"
+"dur": 3.94,
+"speaker": "ATLAS",
+"key": "143c8fa3d8b1"
 },
 "M1.1.retry.01": {
 "file": "M1.1.retry.01.ogg",
-"dur": 1.56,
-"speaker": "KEEPER",
-"key": "3a78297aeb51"
+"dur": 1.59,
+"speaker": "ATLAS",
+"key": "a29db02b30d6"
 },
 "M1.2.start.01": {
 "file": "M1.2.start.01.ogg",
-"dur": 8.34,
-"speaker": "KEEPER",
-"key": "61e7540a2a10"
+"dur": 8.46,
+"speaker": "ATLAS",
+"key": "7bf24606a41f"
 },
 "M1.2.start.02": {
 "file": "M1.2.start.02.ogg",
@@ -1386,8 +1386,8 @@
 "M1.2.p.site.05": {
 "file": "M1.2.p.site.05.ogg",
 "dur": 1.43,
-"speaker": "KEEPER",
-"key": "7abdde724811"
+"speaker": "ATLAS",
+"key": "ccea58806a1c"
 },
 "M1.2.done.01": {
 "file": "M1.2.done.01.ogg",
@@ -1397,33 +1397,33 @@
 },
 "M1.2.done.02": {
 "file": "M1.2.done.02.ogg",
-"dur": 2.49,
-"speaker": "KEEPER",
-"key": "23abda6fd9c7"
+"dur": 2.22,
+"speaker": "ATLAS",
+"key": "d44e79228668"
 },
 "M1.2.fail.slope": {
 "file": "M1.2.fail.slope.ogg",
-"dur": 2.46,
-"speaker": "KEEPER",
-"key": "3d0821514365"
+"dur": 2.63,
+"speaker": "ATLAS",
+"key": "e8a15172c41e"
 },
 "M1.2.fail.shelter": {
 "file": "M1.2.fail.shelter.ogg",
-"dur": 2.54,
-"speaker": "KEEPER",
-"key": "e72fd786cb2b"
+"dur": 2.7,
+"speaker": "ATLAS",
+"key": "c5697f717eb1"
 },
 "M1.2.fail.minerals": {
 "file": "M1.2.fail.minerals.ogg",
-"dur": 2.57,
-"speaker": "KEEPER",
-"key": "a8ae9b7e1e0e"
+"dur": 2.39,
+"speaker": "ATLAS",
+"key": "a7c137f75178"
 },
 "M1.3.start.01": {
 "file": "M1.3.start.01.ogg",
-"dur": 5.39,
-"speaker": "KEEPER",
-"key": "5de1197b5e0c"
+"dur": 6.14,
+"speaker": "ATLAS",
+"key": "2cb6e535eecc"
 },
 "M1.3.start.02": {
 "file": "M1.3.start.02.ogg",
@@ -1433,15 +1433,15 @@
 },
 "M1.3.start.03": {
 "file": "M1.3.start.03.ogg",
-"dur": 0.97,
-"speaker": "KEEPER",
-"key": "932785c77cca"
+"dur": 1.09,
+"speaker": "ATLAS",
+"key": "3c43e26b9930"
 },
 "M1.3.p.devil.01": {
 "file": "M1.3.p.devil.01.ogg",
-"dur": 3.44,
-"speaker": "KEEPER",
-"key": "5d08e591b6c1"
+"dur": 3.74,
+"speaker": "ATLAS",
+"key": "03575a5daa79"
 },
 "M1.3.p.devil.02": {
 "file": "M1.3.p.devil.02.ogg",
@@ -1463,15 +1463,15 @@
 },
 "M1.3.p.wait.02": {
 "file": "M1.3.p.wait.02.ogg",
-"dur": 0.83,
-"speaker": "KEEPER",
-"key": "4ec74f428c19"
+"dur": 1.4,
+"speaker": "ATLAS",
+"key": "f74fe1489ea1"
 },
 "M1.3.p.wait.03": {
 "file": "M1.3.p.wait.03.ogg",
-"dur": 0.91,
-"speaker": "KEEPER",
-"key": "713d5dd4abf6"
+"dur": 1.04,
+"speaker": "ATLAS",
+"key": "516eefd82793"
 },
 "M1.3.p.wait.04": {
 "file": "M1.3.p.wait.04.ogg",
@@ -1481,9 +1481,9 @@
 },
 "M1.3.p.wait.05": {
 "file": "M1.3.p.wait.05.ogg",
-"dur": 0.76,
-"speaker": "KEEPER",
-"key": "bfe5c5b83beb"
+"dur": 1.32,
+"speaker": "ATLAS",
+"key": "0685ededd95a"
 },
 "M1.4.start.01": {
 "file": "M1.4.start.01.ogg",
@@ -1583,9 +1583,9 @@
 },
 "M1.4.done.04": {
 "file": "M1.4.done.04.ogg",
-"dur": 1.26,
-"speaker": "KEEPER",
-"key": "44676900b1cf"
+"dur": 1.54,
+"speaker": "ATLAS",
+"key": "d5307d770778"
 },
 "M1.5.start.01": {
 "file": "M1.5.start.01.ogg",
@@ -1613,9 +1613,9 @@
 },
 "M1.5.p.transmit.01": {
 "file": "M1.5.p.transmit.01.ogg",
-"dur": 4.74,
-"speaker": "KEEPER",
-"key": "51d2720d0469"
+"dur": 4.61,
+"speaker": "ATLAS",
+"key": "10e05b782435"
 },
 "M1.5.p.ask.01": {
 "file": "M1.5.p.ask.01.ogg",
@@ -1625,9 +1625,9 @@
 },
 "M1.5.p.ask.02": {
 "file": "M1.5.p.ask.02.ogg",
-"dur": 2.21,
-"speaker": "KEEPER",
-"key": "2958b3462e81"
+"dur": 2.53,
+"speaker": "ATLAS",
+"key": "28308bca00f2"
 },
 "M1.5.p.ask.03": {
 "file": "M1.5.p.ask.03.ogg",
@@ -1637,9 +1637,9 @@
 },
 "M1.5.p.ask.04": {
 "file": "M1.5.p.ask.04.ogg",
-"dur": 2.24,
-"speaker": "KEEPER",
-"key": "1c57a8d580a6"
+"dur": 2.47,
+"speaker": "ATLAS",
+"key": "e9899300f2c7"
 },
 "M1.5.p.ask.05": {
 "file": "M1.5.p.ask.05.ogg",
@@ -1733,9 +1733,9 @@
 },
 "M1.6.start.01": {
 "file": "M1.6.start.01.ogg",
-"dur": 6.78,
-"speaker": "KEEPER",
-"key": "02d47cb163fe"
+"dur": 6.9,
+"speaker": "ATLAS",
+"key": "6ea43bda6593"
 },
 "M1.6.start.02": {
 "file": "M1.6.start.02.ogg",
@@ -1763,15 +1763,15 @@
 },
 "M1.6.p.hold.02": {
 "file": "M1.6.p.hold.02.ogg",
-"dur": 1.91,
-"speaker": "KEEPER",
-"key": "31452fccdde9"
+"dur": 2.17,
+"speaker": "ATLAS",
+"key": "02e62eab89f4"
 },
 "M1.6.p.hold.03": {
 "file": "M1.6.p.hold.03.ogg",
-"dur": 1.67,
-"speaker": "KEEPER",
-"key": "9c3d4a15e948"
+"dur": 1.97,
+"speaker": "ATLAS",
+"key": "46f2e1d8b565"
 },
 "M1.6.p.hold.04": {
 "file": "M1.6.p.hold.04.ogg",
@@ -1793,9 +1793,9 @@
 },
 "M1.6.p.hold.07": {
 "file": "M1.6.p.hold.07.ogg",
-"dur": 3.85,
-"speaker": "KEEPER",
-"key": "29349acc9fa4"
+"dur": 3.98,
+"speaker": "ATLAS",
+"key": "8533e182e46b"
 },
 "M1.6.p.sleep.01": {
 "file": "M1.6.p.sleep.01.ogg",
@@ -1805,9 +1805,9 @@
 },
 "M1.6.p.sleep.02": {
 "file": "M1.6.p.sleep.02.ogg",
-"dur": 0.52,
-"speaker": "KEEPER",
-"key": "57be1a9ff820"
+"dur": 0.65,
+"speaker": "ATLAS",
+"key": "85e5ed0af3d2"
 },
 "M1.6.fail.01": {
 "file": "M1.6.fail.01.ogg",
@@ -1817,21 +1817,21 @@
 },
 "M1.6.fail.02": {
 "file": "M1.6.fail.02.ogg",
-"dur": 3.16,
-"speaker": "KEEPER",
-"key": "d54848a3f0ba"
+"dur": 3.43,
+"speaker": "ATLAS",
+"key": "304c420c05be"
 },
 "M1.6.retry.01": {
 "file": "M1.6.retry.01.ogg",
-"dur": 1.56,
-"speaker": "KEEPER",
-"key": "06fb717f845e"
+"dur": 2.21,
+"speaker": "ATLAS",
+"key": "dd77b6b6feaa"
 },
 "M1.7.start.01": {
 "file": "M1.7.start.01.ogg",
-"dur": 3.29,
-"speaker": "KEEPER",
-"key": "25de95fe9150"
+"dur": 3.23,
+"speaker": "ATLAS",
+"key": "903613f2b1ab"
 },
 "M1.7.p.meet.01": {
 "file": "M1.7.p.meet.01.ogg",
@@ -1913,9 +1913,9 @@
 },
 "M2.1.start.01": {
 "file": "M2.1.start.01.ogg",
-"dur": 7.4,
-"speaker": "KEEPER",
-"key": "460dcdf97261"
+"dur": 7.97,
+"speaker": "ATLAS",
+"key": "a05d6d33c8e2"
 },
 "M2.1.start.02": {
 "file": "M2.1.start.02.ogg",
@@ -1931,9 +1931,9 @@
 },
 "M2.1.start.04": {
 "file": "M2.1.start.04.ogg",
-"dur": 5.82,
-"speaker": "KEEPER",
-"key": "f74a23a1dddb"
+"dur": 6.05,
+"speaker": "ATLAS",
+"key": "40e6ab212fee"
 },
 "M2.1.start.05": {
 "file": "M2.1.start.05.ogg",
@@ -1943,9 +1943,9 @@
 },
 "M2.1.start.06": {
 "file": "M2.1.start.06.ogg",
-"dur": 1.99,
-"speaker": "KEEPER",
-"key": "a267001d6289"
+"dur": 2.24,
+"speaker": "ATLAS",
+"key": "47a36ed7cb4d"
 },
 "M2.1.p.rover.01": {
 "file": "M2.1.p.rover.01.ogg",
@@ -1979,9 +1979,9 @@
 },
 "M2.2.start.01": {
 "file": "M2.2.start.01.ogg",
-"dur": 6.03,
-"speaker": "KEEPER",
-"key": "b8814e2674f8"
+"dur": 6.46,
+"speaker": "ATLAS",
+"key": "2dc1ea7a3291"
 },
 "M2.2.start.02": {
 "file": "M2.2.start.02.ogg",
@@ -2033,9 +2033,9 @@
 },
 "M2.2.done.01": {
 "file": "M2.2.done.01.ogg",
-"dur": 2.89,
-"speaker": "KEEPER",
-"key": "9fccf1a97ef2"
+"dur": 3.9,
+"speaker": "ATLAS",
+"key": "1984c5e3efb4"
 },
 "M2.2.done.02": {
 "file": "M2.2.done.02.ogg",
@@ -2045,9 +2045,9 @@
 },
 "M2.3.start.01": {
 "file": "M2.3.start.01.ogg",
-"dur": 7.72,
-"speaker": "KEEPER",
-"key": "d912c7e06e85"
+"dur": 7.92,
+"speaker": "ATLAS",
+"key": "940ce671d726"
 },
 "M2.3.start.02": {
 "file": "M2.3.start.02.ogg",
@@ -2141,27 +2141,27 @@
 },
 "M2.3.done.01": {
 "file": "M2.3.done.01.ogg",
-"dur": 2.94,
-"speaker": "KEEPER",
-"key": "88ed7bd596a3"
+"dur": 3.42,
+"speaker": "ATLAS",
+"key": "a7a214fc5122"
 },
 "M2.3.fail.01": {
 "file": "M2.3.fail.01.ogg",
-"dur": 2.47,
-"speaker": "KEEPER",
-"key": "db5dfa854026"
+"dur": 2.75,
+"speaker": "ATLAS",
+"key": "4146f47a4828"
 },
 "M2.3.retry.01": {
 "file": "M2.3.retry.01.ogg",
-"dur": 2.24,
-"speaker": "KEEPER",
-"key": "2e2d1e94793e"
+"dur": 2.32,
+"speaker": "ATLAS",
+"key": "2fa1583ef807"
 },
 "M2.4.start.01": {
 "file": "M2.4.start.01.ogg",
-"dur": 6.05,
-"speaker": "KEEPER",
-"key": "dc30a55c3fc4"
+"dur": 6.51,
+"speaker": "ATLAS",
+"key": "03cadf7b9f2d"
 },
 "M2.4.start.02": {
 "file": "M2.4.start.02.ogg",
@@ -2225,9 +2225,9 @@
 },
 "M2.5.start.01": {
 "file": "M2.5.start.01.ogg",
-"dur": 3.67,
-"speaker": "KEEPER",
-"key": "0e98724426c4"
+"dur": 3.91,
+"speaker": "ATLAS",
+"key": "f17ef99aa3e6"
 },
 "M2.5.start.02": {
 "file": "M2.5.start.02.ogg",
@@ -2255,9 +2255,9 @@
 },
 "M2.5.p.solo.01": {
 "file": "M2.5.p.solo.01.ogg",
-"dur": 2.2,
-"speaker": "KEEPER",
-"key": "d21433161884"
+"dur": 2.89,
+"speaker": "ATLAS",
+"key": "dd3dedfbc65a"
 },
 "M2.5.p.solo.02": {
 "file": "M2.5.p.solo.02.ogg",
@@ -2297,15 +2297,15 @@
 },
 "M2.5.fail.02": {
 "file": "M2.5.fail.02.ogg",
-"dur": 0.9,
-"speaker": "KEEPER",
-"key": "f6173faf7f9e"
+"dur": 1.01,
+"speaker": "ATLAS",
+"key": "bd9218bd3587"
 },
 "M2.5.retry.01": {
 "file": "M2.5.retry.01.ogg",
-"dur": 1.84,
-"speaker": "KEEPER",
-"key": "7c88c82ca75f"
+"dur": 1.94,
+"speaker": "ATLAS",
+"key": "5f51d502b32f"
 },
 "M2.6.start.01": {
 "file": "M2.6.start.01.ogg",
@@ -2333,9 +2333,9 @@
 },
 "M2.6.p.dome.01": {
 "file": "M2.6.p.dome.01.ogg",
-"dur": 3.67,
-"speaker": "KEEPER",
-"key": "be45d6b9c31c"
+"dur": 4.24,
+"speaker": "ATLAS",
+"key": "d27e1cc64616"
 },
 "M2.6.p.dome.02": {
 "file": "M2.6.p.dome.02.ogg",
@@ -2375,9 +2375,9 @@
 },
 "M3.1.start.01": {
 "file": "M3.1.start.01.ogg",
-"dur": 2.88,
-"speaker": "KEEPER",
-"key": "3e3e07c38e9f"
+"dur": 3.17,
+"speaker": "ATLAS",
+"key": "407b2648ca29"
 },
 "M3.1.start.02": {
 "file": "M3.1.start.02.ogg",
@@ -2411,9 +2411,9 @@
 },
 "M3.1.start.07": {
 "file": "M3.1.start.07.ogg",
-"dur": 3.3,
+"dur": 3.54,
 "speaker": "LANTERN",
-"key": "c5222af6b3c4"
+"key": "75550bf455ee"
 },
 "M3.1.p.night1.01": {
 "file": "M3.1.p.night1.01.ogg",
@@ -2447,15 +2447,15 @@
 },
 "M3.1.p.ask.01": {
 "file": "M3.1.p.ask.01.ogg",
-"dur": 2.07,
+"dur": 2.21,
 "speaker": "P1",
-"key": "408cf4a9c810"
+"key": "8be59db97df4"
 },
 "M3.1.p.ask.02": {
 "file": "M3.1.p.ask.02.ogg",
-"dur": 2.58,
-"speaker": "KEEPER",
-"key": "d6cb4c2aa33d"
+"dur": 2.89,
+"speaker": "ATLAS",
+"key": "a225eb7513b2"
 },
 "M3.1.p.ask.03": {
 "file": "M3.1.p.ask.03.ogg",
@@ -2471,9 +2471,9 @@
 },
 "M3.2.start.01": {
 "file": "M3.2.start.01.ogg",
-"dur": 3.32,
-"speaker": "KEEPER",
-"key": "e13d4457a472"
+"dur": 3.24,
+"speaker": "ATLAS",
+"key": "c4627d34d594"
 },
 "M3.2.start.02": {
 "file": "M3.2.start.02.ogg",
@@ -2495,9 +2495,9 @@
 },
 "M3.2.done.01": {
 "file": "M3.2.done.01.ogg",
-"dur": 1.58,
-"speaker": "KEEPER",
-"key": "89511f4c6651"
+"dur": 1.79,
+"speaker": "ATLAS",
+"key": "1c9bf1c1fd01"
 },
 "M3.3.start.01": {
 "file": "M3.3.start.01.ogg",
@@ -2537,9 +2537,9 @@
 },
 "M3.3.p.dawn.02": {
 "file": "M3.3.p.dawn.02.ogg",
-"dur": 4.11,
-"speaker": "KEEPER",
-"key": "f2a63094c9ab"
+"dur": 4.54,
+"speaker": "ATLAS",
+"key": "6c387e4ebdc4"
 },
 "M3.3.done.01": {
 "file": "M3.3.done.01.ogg",
@@ -2645,9 +2645,9 @@
 },
 "M3.5.start.01": {
 "file": "M3.5.start.01.ogg",
-"dur": 5.01,
-"speaker": "KEEPER",
-"key": "905b1cc1a482"
+"dur": 4.69,
+"speaker": "ATLAS",
+"key": "4de6d11b8bdb"
 },
 "M3.5.p.scan.01": {
 "file": "M3.5.p.scan.01.ogg",
@@ -2747,9 +2747,9 @@
 },
 "M4.1.start.01": {
 "file": "M4.1.start.01.ogg",
-"dur": 3.42,
-"speaker": "KEEPER",
-"key": "c074c47848fe"
+"dur": 3.88,
+"speaker": "ATLAS",
+"key": "346647cfb467"
 },
 "M4.1.start.02": {
 "file": "M4.1.start.02.ogg",
@@ -2783,15 +2783,15 @@
 },
 "M4.1.p.ask.01": {
 "file": "M4.1.p.ask.01.ogg",
-"dur": 4.0,
-"speaker": "KEEPER",
-"key": "63af13c4b771"
+"dur": 4.05,
+"speaker": "ATLAS",
+"key": "bce00f8b784c"
 },
 "M4.1.p.ask2.01": {
 "file": "M4.1.p.ask2.01.ogg",
-"dur": 3.62,
-"speaker": "KEEPER",
-"key": "8e6eacce5cd2"
+"dur": 3.61,
+"speaker": "ATLAS",
+"key": "419ab0ed83ae"
 },
 "M4.1.done.01": {
 "file": "M4.1.done.01.ogg",
@@ -2801,15 +2801,15 @@
 },
 "M4.2.start.01": {
 "file": "M4.2.start.01.ogg",
-"dur": 1.93,
+"dur": 2.12,
 "speaker": "P1",
-"key": "89860aabf55d"
+"key": "761a70578927"
 },
 "M4.2.start.02": {
 "file": "M4.2.start.02.ogg",
-"dur": 9.47,
-"speaker": "KEEPER",
-"key": "a70fe24b68e2"
+"dur": 10.6,
+"speaker": "ATLAS",
+"key": "93b0fe734148"
 },
 "M4.2.p.viking.01": {
 "file": "M4.2.p.viking.01.ogg",
@@ -2831,9 +2831,9 @@
 },
 "M4.3.start.01": {
 "file": "M4.3.start.01.ogg",
-"dur": 5.03,
-"speaker": "KEEPER",
-"key": "f221a0736391"
+"dur": 5.4,
+"speaker": "ATLAS",
+"key": "b7ad555bda73"
 },
 "M4.3.start.02": {
 "file": "M4.3.start.02.ogg",
@@ -2939,9 +2939,9 @@
 },
 "M4.3.done.01": {
 "file": "M4.3.done.01.ogg",
-"dur": 1.22,
-"speaker": "KEEPER",
-"key": "33b979acb805"
+"dur": 1.9,
+"speaker": "ATLAS",
+"key": "b3b307c109e5"
 },
 "M4.3.done.02": {
 "file": "M4.3.done.02.ogg",
@@ -2975,15 +2975,15 @@
 },
 "M4.6.start.01": {
 "file": "M4.6.start.01.ogg",
-"dur": 1.3,
-"speaker": "KEEPER",
-"key": "17d77ccc6596"
+"dur": 2.06,
+"speaker": "ATLAS",
+"key": "cef80b9282b7"
 },
 "M4.6.start.glitch": {
 "file": "M4.6.start.glitch.ogg",
-"dur": 1.32,
-"speaker": "KEEPER",
-"key": "17d77ccc6596"
+"dur": 2.02,
+"speaker": "ATLAS",
+"key": "cef80b9282b7"
 },
 "M4.6.p.spiral.01": {
 "file": "M4.6.p.spiral.01.ogg",
@@ -3083,9 +3083,9 @@
 },
 "M4.6.p.talk.06": {
 "file": "M4.6.p.talk.06.ogg",
-"dur": 3.3,
+"dur": 3.34,
 "speaker": "ANVIL",
-"key": "a448098f825d"
+"key": "ddb3f3cdc336"
 },
 "M4.6.p.talk.07": {
 "file": "M4.6.p.talk.07.ogg",
@@ -3113,21 +3113,21 @@
 },
 "M4.7.done.flag": {
 "file": "M4.7.done.flag.ogg",
-"dur": 3.49,
-"speaker": "KEEPER",
-"key": "744f16910e4b"
+"dur": 3.73,
+"speaker": "ATLAS",
+"key": "e798cbf68265"
 },
 "M4.7.done.01": {
 "file": "M4.7.done.01.ogg",
-"dur": 1.19,
-"speaker": "KEEPER",
-"key": "f68d6d87c29a"
+"dur": 1.37,
+"speaker": "ATLAS",
+"key": "327dd60cc2e6"
 },
 "M5.1.start.01": {
 "file": "M5.1.start.01.ogg",
-"dur": 3.92,
-"speaker": "KEEPER",
-"key": "196d96e308d4"
+"dur": 4.24,
+"speaker": "ATLAS",
+"key": "a474985f014b"
 },
 "M5.1.start.02": {
 "file": "M5.1.start.02.ogg",
@@ -3185,9 +3185,9 @@
 },
 "M5.1.done.01": {
 "file": "M5.1.done.01.ogg",
-"dur": 2.15,
-"speaker": "KEEPER",
-"key": "7520407a8d67"
+"dur": 2.01,
+"speaker": "ATLAS",
+"key": "9c0321daab15"
 },
 "M5.2.start.01": {
 "file": "M5.2.start.01.ogg",
@@ -3197,15 +3197,15 @@
 },
 "M5.2.start.02": {
 "file": "M5.2.start.02.ogg",
-"dur": 1.35,
+"dur": 1.59,
 "speaker": "P1",
-"key": "b95b4e10a6a6"
+"key": "a4a485fa2f91"
 },
 "M5.2.start.03": {
 "file": "M5.2.start.03.ogg",
-"dur": 2.74,
-"speaker": "KEEPER",
-"key": "2ddf8face044"
+"dur": 3.11,
+"speaker": "ATLAS",
+"key": "aab0c0fab719"
 },
 "M5.2.start.04": {
 "file": "M5.2.start.04.ogg",
@@ -3215,9 +3215,9 @@
 },
 "M5.2.start.05": {
 "file": "M5.2.start.05.ogg",
-"dur": 1.39,
-"speaker": "KEEPER",
-"key": "fc28968702bc"
+"dur": 1.88,
+"speaker": "ATLAS",
+"key": "823042206425"
 },
 "M5.2.p.network.01": {
 "file": "M5.2.p.network.01.ogg",
@@ -3275,9 +3275,9 @@
 },
 "M5.6.start.01": {
 "file": "M5.6.start.01.ogg",
-"dur": 3.44,
-"speaker": "KEEPER",
-"key": "fd56ad80cb1c"
+"dur": 3.99,
+"speaker": "ATLAS",
+"key": "4732e1f81b2d"
 },
 "M5.6.p.rack.01": {
 "file": "M5.6.p.rack.01.ogg",
@@ -3665,9 +3665,9 @@
 },
 "MS.phobos.start.01": {
 "file": "MS.phobos.start.01.ogg",
-"dur": 6.25,
-"speaker": "KEEPER",
-"key": "1be86c559db6"
+"dur": 6.51,
+"speaker": "ATLAS",
+"key": "597b73af7bb0"
 },
 "MS.phobos.p.photo.01": {
 "file": "MS.phobos.p.photo.01.ogg",
@@ -3713,9 +3713,9 @@
 },
 "MS.hand.start.01": {
 "file": "MS.hand.start.01.ogg",
-"dur": 6.54,
+"dur": 6.87,
 "speaker": "LODESTONE",
-"key": "13c1f28bc6b5"
+"key": "492a029b0aef"
 },
 "MS.hand.start.02": {
 "file": "MS.hand.start.02.ogg",
@@ -4385,9 +4385,9 @@
 },
 "MSR.LANTERN.p.logs.01": {
 "file": "MSR.LANTERN.p.logs.01.ogg",
-"dur": 4.26,
+"dur": 4.37,
 "speaker": "LANTERN",
-"key": "3386f3e75a82"
+"key": "6b7a84b0ee37"
 },
 "MSR.LANTERN.done.01": {
 "file": "MSR.LANTERN.done.01.ogg",
@@ -4457,9 +4457,9 @@
 },
 "MSR.SCRIBE.p.ask.01": {
 "file": "MSR.SCRIBE.p.ask.01.ogg",
-"dur": 2.67,
-"speaker": "KEEPER",
-"key": "6506a55088e6"
+"dur": 2.69,
+"speaker": "ATLAS",
+"key": "0547e3a1955c"
 },
 "MSR.SCRIBE.p.ask.02": {
 "file": "MSR.SCRIBE.p.ask.02.ogg",
@@ -4469,9 +4469,9 @@
 },
 "MSR.SCRIBE.p.ask.03": {
 "file": "MSR.SCRIBE.p.ask.03.ogg",
-"dur": 2.58,
-"speaker": "KEEPER",
-"key": "6506a55088e6"
+"dur": 2.71,
+"speaker": "ATLAS",
+"key": "0547e3a1955c"
 },
 "MSR.SCRIBE.done.01": {
 "file": "MSR.SCRIBE.done.01.ogg",
@@ -5039,33 +5039,33 @@
 },
 "KEEPER.status": {
 "file": "KEEPER.status.ogg",
-"dur": 5.82,
-"speaker": "KEEPER",
-"key": "59cd68160d98"
+"dur": 6.12,
+"speaker": "ATLAS",
+"key": "87518cd4f97b"
 },
 "KEEPER.who_are_you": {
 "file": "KEEPER.who_are_you.ogg",
-"dur": 2.62,
-"speaker": "KEEPER",
-"key": "dc5208faabe8"
+"dur": 3.01,
+"speaker": "ATLAS",
+"key": "56be122b9217"
 },
 "KEEPER.who_are_you.iv": {
 "file": "KEEPER.who_are_you.iv.ogg",
-"dur": 4.9,
-"speaker": "KEEPER",
-"key": "41958af6e375"
+"dur": 5.17,
+"speaker": "ATLAS",
+"key": "447fdab44bbe"
 },
 "P1.ask.who_are_you": {
 "file": "P1.ask.who_are_you.ogg",
-"dur": 1.1,
+"dur": 1.33,
 "speaker": "P1",
-"key": "7dfb30702470"
+"key": "d677cf36483a"
 },
 "KEEPER.who_am_i": {
 "file": "KEEPER.who_am_i.ogg",
-"dur": 1.19,
-"speaker": "KEEPER",
-"key": "3ee0389ab2d7"
+"dur": 1.86,
+"speaker": "ATLAS",
+"key": "adfeed87520e"
 },
 "P1.ask.who_am_i": {
 "file": "P1.ask.who_am_i.ogg",
@@ -5075,27 +5075,27 @@
 },
 "KEEPER.who_am_i.name": {
 "file": "KEEPER.who_am_i.name.ogg",
-"dur": 3.91,
-"speaker": "KEEPER",
-"key": "c528e182e8b5"
+"dur": 4.62,
+"speaker": "ATLAS",
+"key": "8ad099619bb5"
 },
 "KEEPER.contact_earth": {
 "file": "KEEPER.contact_earth.ogg",
-"dur": 2.33,
-"speaker": "KEEPER",
-"key": "2958b3462e81"
+"dur": 2.56,
+"speaker": "ATLAS",
+"key": "28308bca00f2"
 },
 "P1.ask.contact_earth": {
 "file": "P1.ask.contact_earth.ogg",
-"dur": 1.35,
+"dur": 1.47,
 "speaker": "P1",
-"key": "be211007c6bf"
+"key": "1698cf72489d"
 },
 "KEEPER.when_home": {
 "file": "KEEPER.when_home.ogg",
-"dur": 1.88,
-"speaker": "KEEPER",
-"key": "90d083cb9080"
+"dur": 1.97,
+"speaker": "ATLAS",
+"key": "8d47756fdd4f"
 },
 "P1.ask.when_home": {
 "file": "P1.ask.when_home.ogg",
@@ -5105,15 +5105,15 @@
 },
 "KEEPER.line_home": {
 "file": "KEEPER.line_home.ogg",
-"dur": 2.92,
-"speaker": "KEEPER",
-"key": "ce46fef2cc76"
+"dur": 2.89,
+"speaker": "ATLAS",
+"key": "3ed8337d80d8"
 },
 "KEEPER.line_home.iv": {
 "file": "KEEPER.line_home.iv.ogg",
-"dur": 1.72,
-"speaker": "KEEPER",
-"key": "1c6d606782f0"
+"dur": 2.11,
+"speaker": "ATLAS",
+"key": "347bc07a8a87"
 },
 "P1.ask.line_home": {
 "file": "P1.ask.line_home.ogg",
@@ -5123,21 +5123,21 @@
 },
 "KEEPER.first_families": {
 "file": "KEEPER.first_families.ogg",
-"dur": 2.56,
-"speaker": "KEEPER",
-"key": "83134936c13e"
+"dur": 2.78,
+"speaker": "ATLAS",
+"key": "74726db7f499"
 },
 "KEEPER.first_families.iv": {
 "file": "KEEPER.first_families.iv.ogg",
-"dur": 5.32,
-"speaker": "KEEPER",
-"key": "26deb559a47f"
+"dur": 5.88,
+"speaker": "ATLAS",
+"key": "32a1bc28902e"
 },
 "KEEPER.anyone_else": {
 "file": "KEEPER.anyone_else.ogg",
-"dur": 2.26,
-"speaker": "KEEPER",
-"key": "c46fcef4a0b5"
+"dur": 2.66,
+"speaker": "ATLAS",
+"key": "5683a26ed528"
 },
 "P1.ask.anyone_else": {
 "file": "P1.ask.anyone_else.ogg",
@@ -5147,225 +5147,225 @@
 },
 "KEEPER.anyone_else.nm": {
 "file": "KEEPER.anyone_else.nm.ogg",
-"dur": 1.63,
-"speaker": "KEEPER",
-"key": "7c5985989dc1"
+"dur": 1.84,
+"speaker": "ATLAS",
+"key": "fd08d755c472"
 },
 "KEEPER.mission_sol.P.1": {
 "file": "KEEPER.mission_sol.P.1.ogg",
-"dur": 1.26,
-"speaker": "KEEPER",
-"key": "e87ffa88390b"
+"dur": 1.48,
+"speaker": "ATLAS",
+"key": "b30fc4ec9451"
 },
 "KEEPER.mission_sol.1.2": {
 "file": "KEEPER.mission_sol.1.2.ogg",
-"dur": 1.12,
-"speaker": "KEEPER",
-"key": "2f48c3a46c8b"
+"dur": 1.24,
+"speaker": "ATLAS",
+"key": "f291f9cab8fd"
 },
 "KEEPER.mission_sol.1.3": {
 "file": "KEEPER.mission_sol.1.3.ogg",
-"dur": 1.26,
-"speaker": "KEEPER",
-"key": "d5b4bec8510f"
+"dur": 1.27,
+"speaker": "ATLAS",
+"key": "d93ad0704696"
 },
 "KEEPER.mission_sol.1.5": {
 "file": "KEEPER.mission_sol.1.5.ogg",
-"dur": 1.21,
-"speaker": "KEEPER",
-"key": "a6cfad2483fb"
+"dur": 1.3,
+"speaker": "ATLAS",
+"key": "438bd06c3668"
 },
 "KEEPER.mission_sol.1.6": {
 "file": "KEEPER.mission_sol.1.6.ogg",
-"dur": 1.29,
-"speaker": "KEEPER",
-"key": "ce608d25c3ce"
+"dur": 1.37,
+"speaker": "ATLAS",
+"key": "0d016f1e0518"
 },
 "KEEPER.mission_sol.1.7": {
 "file": "KEEPER.mission_sol.1.7.ogg",
-"dur": 1.2,
-"speaker": "KEEPER",
-"key": "ccdcb6fb3d59"
+"dur": 1.32,
+"speaker": "ATLAS",
+"key": "369a82a9df7e"
 },
 "KEEPER.mission_sol.2.1": {
 "file": "KEEPER.mission_sol.2.1.ogg",
-"dur": 1.24,
-"speaker": "KEEPER",
-"key": "8514c9d60c60"
+"dur": 1.5,
+"speaker": "ATLAS",
+"key": "c884a6bbcd76"
 },
 "KEEPER.mission_sol.2.2": {
 "file": "KEEPER.mission_sol.2.2.ogg",
-"dur": 1.39,
-"speaker": "KEEPER",
-"key": "32843305bd71"
+"dur": 1.77,
+"speaker": "ATLAS",
+"key": "dc8817c4fe1d"
 },
 "KEEPER.mission_sol.2.3": {
 "file": "KEEPER.mission_sol.2.3.ogg",
-"dur": 1.39,
-"speaker": "KEEPER",
-"key": "d15139d97641"
+"dur": 1.73,
+"speaker": "ATLAS",
+"key": "3a023c51ab51"
 },
 "KEEPER.mission_sol.2.4": {
 "file": "KEEPER.mission_sol.2.4.ogg",
-"dur": 1.46,
-"speaker": "KEEPER",
-"key": "689248f6a78e"
+"dur": 1.59,
+"speaker": "ATLAS",
+"key": "15e73d885da1"
 },
 "KEEPER.mission_sol.2.5": {
 "file": "KEEPER.mission_sol.2.5.ogg",
-"dur": 1.98,
-"speaker": "KEEPER",
-"key": "e3986e101067"
+"dur": 2.47,
+"speaker": "ATLAS",
+"key": "748cc0414bc6"
 },
 "KEEPER.mission_sol.2.6": {
 "file": "KEEPER.mission_sol.2.6.ogg",
-"dur": 1.95,
-"speaker": "KEEPER",
-"key": "af7b954265ca"
+"dur": 2.29,
+"speaker": "ATLAS",
+"key": "b2a9ddd06b36"
 },
 "KEEPER.mission_sol.3.1": {
 "file": "KEEPER.mission_sol.3.1.ogg",
-"dur": 1.3,
-"speaker": "KEEPER",
-"key": "9cdbbae68334"
+"dur": 1.59,
+"speaker": "ATLAS",
+"key": "7f267fdc8300"
 },
 "KEEPER.mission_sol.3.2": {
 "file": "KEEPER.mission_sol.3.2.ogg",
-"dur": 1.99,
-"speaker": "KEEPER",
-"key": "6bfba622c61e"
+"dur": 2.4,
+"speaker": "ATLAS",
+"key": "a9410a378ea6"
 },
 "KEEPER.mission_sol.3.3": {
 "file": "KEEPER.mission_sol.3.3.ogg",
-"dur": 1.87,
-"speaker": "KEEPER",
-"key": "e8f38553632f"
+"dur": 2.4,
+"speaker": "ATLAS",
+"key": "eefc985048fa"
 },
 "KEEPER.mission_sol.3.4": {
 "file": "KEEPER.mission_sol.3.4.ogg",
-"dur": 2.25,
-"speaker": "KEEPER",
-"key": "e2ce6c512924"
+"dur": 2.7,
+"speaker": "ATLAS",
+"key": "f04f154fb60e"
 },
 "KEEPER.mission_sol.3.5": {
 "file": "KEEPER.mission_sol.3.5.ogg",
-"dur": 2.15,
-"speaker": "KEEPER",
-"key": "cb9cb06b9eee"
+"dur": 2.41,
+"speaker": "ATLAS",
+"key": "063f43663e4a"
 },
 "KEEPER.mission_sol.3.6": {
 "file": "KEEPER.mission_sol.3.6.ogg",
-"dur": 1.88,
-"speaker": "KEEPER",
-"key": "0f427a884edf"
+"dur": 2.32,
+"speaker": "ATLAS",
+"key": "92ddb9fcc247"
 },
 "KEEPER.mission_sol.4.1": {
 "file": "KEEPER.mission_sol.4.1.ogg",
-"dur": 1.98,
-"speaker": "KEEPER",
-"key": "23a3e61f7a26"
+"dur": 2.38,
+"speaker": "ATLAS",
+"key": "afb00d67a866"
 },
 "KEEPER.mission_sol.4.2": {
 "file": "KEEPER.mission_sol.4.2.ogg",
-"dur": 1.97,
-"speaker": "KEEPER",
-"key": "a120c81a0d90"
+"dur": 2.55,
+"speaker": "ATLAS",
+"key": "b9dd627b33e0"
 },
 "KEEPER.mission_sol.4.3": {
 "file": "KEEPER.mission_sol.4.3.ogg",
-"dur": 2.01,
-"speaker": "KEEPER",
-"key": "fcd9f11d2621"
+"dur": 2.53,
+"speaker": "ATLAS",
+"key": "5e22b316451e"
 },
 "KEEPER.mission_sol.4.4": {
 "file": "KEEPER.mission_sol.4.4.ogg",
-"dur": 1.57,
-"speaker": "KEEPER",
-"key": "dfca81908ac6"
+"dur": 1.78,
+"speaker": "ATLAS",
+"key": "4780b98cce38"
 },
 "KEEPER.mission_sol.4.5": {
 "file": "KEEPER.mission_sol.4.5.ogg",
-"dur": 1.9,
-"speaker": "KEEPER",
-"key": "7f2bbae82468"
+"dur": 2.17,
+"speaker": "ATLAS",
+"key": "d82c01e0ac71"
 },
 "KEEPER.mission_sol.4.6": {
 "file": "KEEPER.mission_sol.4.6.ogg",
-"dur": 2.16,
-"speaker": "KEEPER",
-"key": "174f529424cb"
+"dur": 2.38,
+"speaker": "ATLAS",
+"key": "3ad3626969a4"
 },
 "KEEPER.mission_sol.4.7": {
 "file": "KEEPER.mission_sol.4.7.ogg",
-"dur": 1.96,
-"speaker": "KEEPER",
-"key": "dbb6219f0e3f"
+"dur": 2.34,
+"speaker": "ATLAS",
+"key": "0e0ac6a22838"
 },
 "KEEPER.mission_sol.5.1": {
 "file": "KEEPER.mission_sol.5.1.ogg",
-"dur": 2.73,
-"speaker": "KEEPER",
-"key": "7171df615223"
+"dur": 3.18,
+"speaker": "ATLAS",
+"key": "c1062bb0dc5e"
 },
 "KEEPER.mission_sol.5.2": {
 "file": "KEEPER.mission_sol.5.2.ogg",
-"dur": 2.74,
-"speaker": "KEEPER",
-"key": "f880a2a02749"
+"dur": 3.23,
+"speaker": "ATLAS",
+"key": "93c6479e8db3"
 },
 "KEEPER.mission_sol.5.3": {
 "file": "KEEPER.mission_sol.5.3.ogg",
-"dur": 2.77,
-"speaker": "KEEPER",
-"key": "97a94ece9d38"
+"dur": 3.37,
+"speaker": "ATLAS",
+"key": "593d7bfee6e1"
 },
 "KEEPER.mission_sol.5.4": {
 "file": "KEEPER.mission_sol.5.4.ogg",
-"dur": 2.94,
-"speaker": "KEEPER",
-"key": "f0d6e128275d"
+"dur": 3.37,
+"speaker": "ATLAS",
+"key": "ca338868aa5e"
 },
 "KEEPER.mission_sol.5.5": {
 "file": "KEEPER.mission_sol.5.5.ogg",
-"dur": 2.79,
-"speaker": "KEEPER",
-"key": "4d9f419319f4"
+"dur": 3.28,
+"speaker": "ATLAS",
+"key": "c0712d39b67d"
 },
 "KEEPER.mission_sol.5.6": {
 "file": "KEEPER.mission_sol.5.6.ogg",
-"dur": 3.01,
-"speaker": "KEEPER",
-"key": "1380567efe2f"
+"dur": 3.45,
+"speaker": "ATLAS",
+"key": "6fe9ab50fdfb"
 },
 "P1.ask.how_long": {
 "file": "P1.ask.how_long.ogg",
-"dur": 2.03,
+"dur": 2.1,
 "speaker": "P1",
-"key": "76d6d8f43467"
+"key": "0de801738bb7"
 },
 "KEEPER.days_rephrase": {
 "file": "KEEPER.days_rephrase.ogg",
-"dur": 3.54,
-"speaker": "KEEPER",
-"key": "fadd1e377e89"
+"dur": 3.81,
+"speaker": "ATLAS",
+"key": "5ecc18fe606d"
 },
 "KEEPER.mission_sol.prefix": {
 "file": "KEEPER.mission_sol.prefix.ogg",
-"dur": 0.97,
-"speaker": "KEEPER",
-"key": "2c65b94e2887"
+"dur": 1.05,
+"speaker": "ATLAS",
+"key": "8af0eaebaf1b"
 },
 "KEEPER.what_year.1": {
 "file": "KEEPER.what_year.1.ogg",
-"dur": 1.02,
-"speaker": "KEEPER",
-"key": "f845dded02db"
+"dur": 1.29,
+"speaker": "ATLAS",
+"key": "e5a30e9d5ed8"
 },
 "KEEPER.what_year.2": {
 "file": "KEEPER.what_year.2.ogg",
-"dur": 1.1,
-"speaker": "KEEPER",
-"key": "9ecc9db84d3e"
+"dur": 1.26,
+"speaker": "ATLAS",
+"key": "9ca53bfd8903"
 },
 "P1.ask.what_year": {
 "file": "P1.ask.what_year.ogg",
@@ -5375,9 +5375,9 @@
 },
 "KEEPER.slept": {
 "file": "KEEPER.slept.ogg",
-"dur": 0.88,
-"speaker": "KEEPER",
-"key": "843582bd19f9"
+"dur": 1.6,
+"speaker": "ATLAS",
+"key": "0bf0c370ae49"
 },
 "P1.ask.slept": {
 "file": "P1.ask.slept.ogg",
@@ -5387,393 +5387,393 @@
 },
 "KEEPER.slept.sols.C04": {
 "file": "KEEPER.slept.sols.C04.ogg",
-"dur": 3.22,
-"speaker": "KEEPER",
-"key": "b490ad33ece7"
+"dur": 3.55,
+"speaker": "ATLAS",
+"key": "4931536e8c12"
 },
 "KEEPER.slept.sols.3.1": {
 "file": "KEEPER.slept.sols.3.1.ogg",
-"dur": 3.91,
-"speaker": "KEEPER",
-"key": "3ba972062418"
+"dur": 4.31,
+"speaker": "ATLAS",
+"key": "df051d3314dc"
 },
 "KEEPER.slept.sols.4.1": {
 "file": "KEEPER.slept.sols.4.1.ogg",
-"dur": 3.8,
-"speaker": "KEEPER",
-"key": "1a9313573999"
+"dur": 4.54,
+"speaker": "ATLAS",
+"key": "3951032aa6bf"
 },
 "KEEPER.slept.sols.C14": {
 "file": "KEEPER.slept.sols.C14.ogg",
-"dur": 3.28,
-"speaker": "KEEPER",
-"key": "61f48e1417dc"
+"dur": 3.57,
+"speaker": "ATLAS",
+"key": "0a57ebed0829"
 },
 "KEEPER.bark.descent_20": {
 "file": "KEEPER.bark.descent_20.ogg",
-"dur": 3.29,
-"speaker": "KEEPER",
-"key": "f37f5107fb85"
+"dur": 3.28,
+"speaker": "ATLAS",
+"key": "8dbe928e5309"
 },
 "KEEPER.bark.descent_21": {
 "file": "KEEPER.bark.descent_21.ogg",
-"dur": 3.29,
-"speaker": "KEEPER",
-"key": "e3984d564130"
+"dur": 3.52,
+"speaker": "ATLAS",
+"key": "432175297cd7"
 },
 "KEEPER.bark.descent_22": {
 "file": "KEEPER.bark.descent_22.ogg",
-"dur": 3.3,
-"speaker": "KEEPER",
-"key": "cea81206010f"
+"dur": 3.43,
+"speaker": "ATLAS",
+"key": "3f8eb10cdd07"
 },
 "KEEPER.bark.descent_23": {
 "file": "KEEPER.bark.descent_23.ogg",
-"dur": 3.37,
-"speaker": "KEEPER",
-"key": "b0e50a6c7921"
+"dur": 3.51,
+"speaker": "ATLAS",
+"key": "795f11594879"
 },
 "KEEPER.bark.descent_24": {
 "file": "KEEPER.bark.descent_24.ogg",
-"dur": 3.33,
-"speaker": "KEEPER",
-"key": "ddf9cd041490"
+"dur": 3.6,
+"speaker": "ATLAS",
+"key": "ac3001a55498"
 },
 "KEEPER.bark.descent_25": {
 "file": "KEEPER.bark.descent_25.ogg",
-"dur": 3.51,
-"speaker": "KEEPER",
-"key": "1d5dfa78cd05"
+"dur": 3.59,
+"speaker": "ATLAS",
+"key": "2c71a42ae498"
 },
 "KEEPER.bark.descent_26": {
 "file": "KEEPER.bark.descent_26.ogg",
-"dur": 3.5,
-"speaker": "KEEPER",
-"key": "06b4b6aadd63"
+"dur": 3.59,
+"speaker": "ATLAS",
+"key": "fd85be03865f"
 },
 "KEEPER.bark.descent_27": {
 "file": "KEEPER.bark.descent_27.ogg",
-"dur": 3.53,
-"speaker": "KEEPER",
-"key": "b068edf71d3b"
+"dur": 3.66,
+"speaker": "ATLAS",
+"key": "a9aa41a4bd5e"
 },
 "KEEPER.bark.descent_28": {
 "file": "KEEPER.bark.descent_28.ogg",
-"dur": 3.25,
-"speaker": "KEEPER",
-"key": "ee78a843ed51"
+"dur": 3.54,
+"speaker": "ATLAS",
+"key": "96866febb48d"
 },
 "KEEPER.bark.descent_29": {
 "file": "KEEPER.bark.descent_29.ogg",
-"dur": 3.44,
-"speaker": "KEEPER",
-"key": "6f173712b538"
+"dur": 3.54,
+"speaker": "ATLAS",
+"key": "a5d33aa491bd"
 },
 "KEEPER.bark.descent_30": {
 "file": "KEEPER.bark.descent_30.ogg",
-"dur": 3.21,
-"speaker": "KEEPER",
-"key": "4e34b9fecc71"
+"dur": 3.4,
+"speaker": "ATLAS",
+"key": "75ae2259c443"
 },
 "KEEPER.bark.pkg_10min": {
 "file": "KEEPER.bark.pkg_10min.ogg",
-"dur": 0.78,
-"speaker": "KEEPER",
-"key": "4ec74f428c19"
+"dur": 1.17,
+"speaker": "ATLAS",
+"key": "f74fe1489ea1"
 },
 "KEEPER.bark.pkg_5min": {
 "file": "KEEPER.bark.pkg_5min.ogg",
-"dur": 0.95,
-"speaker": "KEEPER",
-"key": "713d5dd4abf6"
+"dur": 1.08,
+"speaker": "ATLAS",
+"key": "516eefd82793"
 },
 "KEEPER.bark.pkg_1min": {
 "file": "KEEPER.bark.pkg_1min.ogg",
-"dur": 0.78,
-"speaker": "KEEPER",
-"key": "bfe5c5b83beb"
+"dur": 1.39,
+"speaker": "ATLAS",
+"key": "0685ededd95a"
 },
 "KEEPER.bark.pkg_down": {
 "file": "KEEPER.bark.pkg_down.ogg",
-"dur": 1.0,
-"speaker": "KEEPER",
-"key": "082b592514d9"
+"dur": 1.31,
+"speaker": "ATLAS",
+"key": "b7e6eea8db1d"
 },
 "KEEPER.bark.pkg_unit": {
 "file": "KEEPER.bark.pkg_unit.ogg",
-"dur": 2.76,
-"speaker": "KEEPER",
-"key": "e37d2e256444"
+"dur": 3.3,
+"speaker": "ATLAS",
+"key": "23f1745e7fe8"
 },
 "KEEPER.bark.pkg_denied": {
 "file": "KEEPER.bark.pkg_denied.ogg",
-"dur": 2.6,
-"speaker": "KEEPER",
-"key": "289a18e18faf"
+"dur": 2.98,
+"speaker": "ATLAS",
+"key": "124e96af7d0b"
 },
 "KEEPER.bark.pkg_drop_invalid": {
 "file": "KEEPER.bark.pkg_drop_invalid.ogg",
-"dur": 2.55,
-"speaker": "KEEPER",
-"key": "d1930c66223f"
+"dur": 2.77,
+"speaker": "ATLAS",
+"key": "daa17a5f96aa"
 },
 "KEEPER.bark.build_done": {
 "file": "KEEPER.bark.build_done.ogg",
-"dur": 1.35,
-"speaker": "KEEPER",
-"key": "85b23c9422ea"
+"dur": 1.4,
+"speaker": "ATLAS",
+"key": "a0da99642504"
 },
 "KEEPER.bark.tier_outpost": {
 "file": "KEEPER.bark.tier_outpost.ogg",
-"dur": 1.3,
-"speaker": "KEEPER",
-"key": "44676900b1cf"
+"dur": 1.54,
+"speaker": "ATLAS",
+"key": "d5307d770778"
 },
 "KEEPER.bark.tier_settlement": {
 "file": "KEEPER.bark.tier_settlement.ogg",
-"dur": 1.35,
-"speaker": "KEEPER",
-"key": "2c2c36131b5c"
+"dur": 1.69,
+"speaker": "ATLAS",
+"key": "5c8067a1b0be"
 },
 "KEEPER.bark.tier_dome": {
 "file": "KEEPER.bark.tier_dome.ogg",
-"dur": 1.04,
-"speaker": "KEEPER",
-"key": "edad7c40ccbe"
+"dur": 1.39,
+"speaker": "ATLAS",
+"key": "26a462dddd79"
 },
 "KEEPER.bark.tier_biome": {
 "file": "KEEPER.bark.tier_biome.ogg",
-"dur": 1.21,
-"speaker": "KEEPER",
-"key": "2f2c3841559b"
+"dur": 1.53,
+"speaker": "ATLAS",
+"key": "fcd82949630d"
 },
 "KEEPER.bark.tier_city": {
 "file": "KEEPER.bark.tier_city.ogg",
-"dur": 1.2,
-"speaker": "KEEPER",
-"key": "9de6f0e6d37b"
+"dur": 1.47,
+"speaker": "ATLAS",
+"key": "f1d8bb620bc7"
 },
 "KEEPER.bark.tier_terraform": {
 "file": "KEEPER.bark.tier_terraform.ogg",
-"dur": 1.89,
-"speaker": "KEEPER",
-"key": "5d4c839b110d"
+"dur": 2.4,
+"speaker": "ATLAS",
+"key": "eaf0438fde4f"
 },
 "KEEPER.bark.sleep_recommend": {
 "file": "KEEPER.bark.sleep_recommend.ogg",
-"dur": 1.26,
-"speaker": "KEEPER",
-"key": "b58f4497d23b"
+"dur": 1.48,
+"speaker": "ATLAS",
+"key": "2c3b4cdf9a59"
 },
 "KEEPER.bark.sleep_start": {
 "file": "KEEPER.bark.sleep_start.ogg",
-"dur": 3.02,
-"speaker": "KEEPER",
-"key": "fb3228cec2e9"
+"dur": 4.08,
+"speaker": "ATLAS",
+"key": "5951834d4802"
 },
 "KEEPER.bark.wake": {
 "file": "KEEPER.bark.wake.ogg",
-"dur": 1.48,
-"speaker": "KEEPER",
-"key": "d3246413e55b"
+"dur": 1.52,
+"speaker": "ATLAS",
+"key": "5512afefa32e"
 },
 "KEEPER.bark.wake_progress": {
 "file": "KEEPER.bark.wake_progress.ogg",
-"dur": 3.53,
-"speaker": "KEEPER",
-"key": "72f2554904fe"
+"dur": 3.57,
+"speaker": "ATLAS",
+"key": "851abd11460d"
 },
 "KEEPER.bark.storm_warn": {
 "file": "KEEPER.bark.storm_warn.ogg",
-"dur": 1.72,
-"speaker": "KEEPER",
-"key": "8f4a644fa61e"
+"dur": 2.4,
+"speaker": "ATLAS",
+"key": "1cb11634d554"
 },
 "KEEPER.bark.storm_clear": {
 "file": "KEEPER.bark.storm_clear.ogg",
-"dur": 1.3,
-"speaker": "KEEPER",
-"key": "b77ae1a751b6"
+"dur": 1.65,
+"speaker": "ATLAS",
+"key": "69046684c53d"
 },
 "KEEPER.bark.devil": {
 "file": "KEEPER.bark.devil.ogg",
-"dur": 1.19,
-"speaker": "KEEPER",
-"key": "6789b8279ee7"
+"dur": 1.35,
+"speaker": "ATLAS",
+"key": "5a90efb1497c"
 },
 "KEEPER.bark.night": {
 "file": "KEEPER.bark.night.ogg",
-"dur": 1.38,
-"speaker": "KEEPER",
-"key": "4d2fcb0c0199"
+"dur": 1.89,
+"speaker": "ATLAS",
+"key": "64e00cb1b6ff"
 },
 "KEEPER.bark.cold": {
 "file": "KEEPER.bark.cold.ogg",
-"dur": 3.44,
-"speaker": "KEEPER",
-"key": "a7bbad6d8690"
+"dur": 3.56,
+"speaker": "ATLAS",
+"key": "9c2483007bdb"
 },
 "KEEPER.bark.xp": {
 "file": "KEEPER.bark.xp.ogg",
-"dur": 1.58,
-"speaker": "KEEPER",
-"key": "211ca5c3850e"
+"dur": 1.95,
+"speaker": "ATLAS",
+"key": "988019f92bc7"
 },
 "KEEPER.bark.xp_poem": {
 "file": "KEEPER.bark.xp_poem.ogg",
-"dur": 1.53,
-"speaker": "KEEPER",
-"key": "a05795e856ad"
+"dur": 1.72,
+"speaker": "ATLAS",
+"key": "8b43e0dfe0af"
 },
 "KEEPER.bark.xp_closed": {
 "file": "KEEPER.bark.xp_closed.ogg",
-"dur": 2.13,
-"speaker": "KEEPER",
-"key": "7520407a8d67"
+"dur": 2.08,
+"speaker": "ATLAS",
+"key": "9c0321daab15"
 },
 "KEEPER.bark.food_low": {
 "file": "KEEPER.bark.food_low.ogg",
-"dur": 1.24,
-"speaker": "KEEPER",
-"key": "cfc53081f606"
+"dur": 1.23,
+"speaker": "ATLAS",
+"key": "c9fd77a6ec4c"
 },
 "KEEPER.bark.water_low": {
 "file": "KEEPER.bark.water_low.ogg",
-"dur": 1.23,
-"speaker": "KEEPER",
-"key": "60c09f5bab52"
+"dur": 1.34,
+"speaker": "ATLAS",
+"key": "4861d4134692"
 },
 "KEEPER.bark.rest_low": {
 "file": "KEEPER.bark.rest_low.ogg",
-"dur": 2.6,
-"speaker": "KEEPER",
-"key": "17567a2d0577"
+"dur": 2.78,
+"speaker": "ATLAS",
+"key": "e54b6c869284"
 },
 "KEEPER.bark.resolve_low": {
 "file": "KEEPER.bark.resolve_low.ogg",
-"dur": 2.23,
-"speaker": "KEEPER",
-"key": "39e7873dbad2"
+"dur": 2.53,
+"speaker": "ATLAS",
+"key": "9d7da8dc1193"
 },
 "KEEPER.bark.glitch_1": {
 "file": "KEEPER.bark.glitch_1.ogg",
-"dur": 1.57,
-"speaker": "KEEPER",
-"key": "3bc60253eef3"
+"dur": 2.0,
+"speaker": "ATLAS",
+"key": "62f555735b5f"
 },
 "KEEPER.bark.glitch_2": {
 "file": "KEEPER.bark.glitch_2.ogg",
-"dur": 1.79,
-"speaker": "KEEPER",
-"key": "a94e24ca400a"
+"dur": 2.1,
+"speaker": "ATLAS",
+"key": "5710f3da807b"
 },
 "KEEPER.mars_sols.3.2": {
 "file": "KEEPER.mars_sols.3.2.ogg",
-"dur": 3.74,
-"speaker": "KEEPER",
-"key": "615d4f5b9001"
+"dur": 3.93,
+"speaker": "ATLAS",
+"key": "064a5d7a670b"
 },
 "KEEPER.mars_sols.3.3": {
 "file": "KEEPER.mars_sols.3.3.ogg",
-"dur": 3.21,
-"speaker": "KEEPER",
-"key": "a9a68a5e9268"
+"dur": 3.92,
+"speaker": "ATLAS",
+"key": "f5505a8d0e07"
 },
 "KEEPER.mars_sols.3.4": {
 "file": "KEEPER.mars_sols.3.4.ogg",
-"dur": 2.65,
-"speaker": "KEEPER",
-"key": "196c08b8bd89"
+"dur": 3.28,
+"speaker": "ATLAS",
+"key": "6d40a9668d3b"
 },
 "KEEPER.mars_sols.3.5": {
 "file": "KEEPER.mars_sols.3.5.ogg",
-"dur": 2.89,
-"speaker": "KEEPER",
-"key": "b8929b2e1aed"
+"dur": 3.25,
+"speaker": "ATLAS",
+"key": "ac586ed81793"
 },
 "KEEPER.mars_sols.3.6": {
 "file": "KEEPER.mars_sols.3.6.ogg",
-"dur": 3.47,
-"speaker": "KEEPER",
-"key": "a57ad886c463"
+"dur": 3.79,
+"speaker": "ATLAS",
+"key": "05533c3a579b"
 },
 "KEEPER.mars_sols.4.1": {
 "file": "KEEPER.mars_sols.4.1.ogg",
-"dur": 3.02,
-"speaker": "KEEPER",
-"key": "cb0dfe5bc241"
+"dur": 3.38,
+"speaker": "ATLAS",
+"key": "29b53fb9b982"
 },
 "KEEPER.mars_sols.4.2": {
 "file": "KEEPER.mars_sols.4.2.ogg",
-"dur": 3.72,
-"speaker": "KEEPER",
-"key": "94d2f4adedb6"
+"dur": 4.19,
+"speaker": "ATLAS",
+"key": "ee3bb085f098"
 },
 "KEEPER.mars_sols.4.3": {
 "file": "KEEPER.mars_sols.4.3.ogg",
-"dur": 3.3,
-"speaker": "KEEPER",
-"key": "32f01777d7ef"
+"dur": 3.54,
+"speaker": "ATLAS",
+"key": "78973732c28c"
 },
 "KEEPER.mars_sols.4.4": {
 "file": "KEEPER.mars_sols.4.4.ogg",
-"dur": 3.32,
-"speaker": "KEEPER",
-"key": "2da0c35c5b36"
+"dur": 3.34,
+"speaker": "ATLAS",
+"key": "d209d92e3c68"
 },
 "KEEPER.mars_sols.4.5": {
 "file": "KEEPER.mars_sols.4.5.ogg",
-"dur": 3.67,
-"speaker": "KEEPER",
-"key": "6b43c1671684"
+"dur": 3.81,
+"speaker": "ATLAS",
+"key": "7519d47aab51"
 },
 "KEEPER.mars_sols.4.6": {
 "file": "KEEPER.mars_sols.4.6.ogg",
-"dur": 3.87,
-"speaker": "KEEPER",
-"key": "b46401f9ab86"
+"dur": 3.97,
+"speaker": "ATLAS",
+"key": "3a0654c7549f"
 },
 "KEEPER.mars_sols.4.7": {
 "file": "KEEPER.mars_sols.4.7.ogg",
-"dur": 3.23,
-"speaker": "KEEPER",
-"key": "26e041f4d912"
+"dur": 3.39,
+"speaker": "ATLAS",
+"key": "31db4f49f09a"
 },
 "KEEPER.mars_sols.5.1": {
 "file": "KEEPER.mars_sols.5.1.ogg",
-"dur": 3.5,
-"speaker": "KEEPER",
-"key": "99521b47008a"
+"dur": 3.93,
+"speaker": "ATLAS",
+"key": "5c41d5f449e1"
 },
 "KEEPER.mars_sols.5.2": {
 "file": "KEEPER.mars_sols.5.2.ogg",
-"dur": 3.74,
-"speaker": "KEEPER",
-"key": "85fb5ec71ff4"
+"dur": 4.03,
+"speaker": "ATLAS",
+"key": "802c49e4bae8"
 },
 "KEEPER.mars_sols.5.3": {
 "file": "KEEPER.mars_sols.5.3.ogg",
-"dur": 3.92,
-"speaker": "KEEPER",
-"key": "f5753d2c1588"
+"dur": 4.33,
+"speaker": "ATLAS",
+"key": "17d62d503ee7"
 },
 "KEEPER.mars_sols.5.4": {
 "file": "KEEPER.mars_sols.5.4.ogg",
-"dur": 3.58,
-"speaker": "KEEPER",
-"key": "69d933fe2cd6"
+"dur": 4.31,
+"speaker": "ATLAS",
+"key": "e3952bb95af4"
 },
 "KEEPER.mars_sols.5.5": {
 "file": "KEEPER.mars_sols.5.5.ogg",
-"dur": 3.59,
-"speaker": "KEEPER",
-"key": "ead632f3bca4"
+"dur": 4.29,
+"speaker": "ATLAS",
+"key": "491a89fccbac"
 },
 "KEEPER.mars_sols.5.6": {
 "file": "KEEPER.mars_sols.5.6.ogg",
-"dur": 3.53,
-"speaker": "KEEPER",
-"key": "82be66158fab"
+"dur": 3.99,
+"speaker": "ATLAS",
+"key": "c17408ee242e"
 },
 "P1.ask.mars_sols": {
 "file": "P1.ask.mars_sols.ogg",
@@ -5783,261 +5783,261 @@
 },
 "KEEPER.earth_days.3.2": {
 "file": "KEEPER.earth_days.3.2.ogg",
-"dur": 3.5,
-"speaker": "KEEPER",
-"key": "1c9613756580"
+"dur": 4.02,
+"speaker": "ATLAS",
+"key": "461e1d5bdf44"
 },
 "KEEPER.earth_days.3.3": {
 "file": "KEEPER.earth_days.3.3.ogg",
-"dur": 3.53,
-"speaker": "KEEPER",
-"key": "a503fe3af069"
+"dur": 4.13,
+"speaker": "ATLAS",
+"key": "598401b7ddca"
 },
 "KEEPER.earth_days.3.4": {
 "file": "KEEPER.earth_days.3.4.ogg",
-"dur": 3.65,
-"speaker": "KEEPER",
-"key": "f58620ed264a"
+"dur": 3.81,
+"speaker": "ATLAS",
+"key": "d67459a96a50"
 },
 "KEEPER.earth_days.3.5": {
 "file": "KEEPER.earth_days.3.5.ogg",
-"dur": 3.76,
-"speaker": "KEEPER",
-"key": "13bac0eef425"
+"dur": 4.14,
+"speaker": "ATLAS",
+"key": "98805fc71480"
 },
 "KEEPER.earth_days.3.6": {
 "file": "KEEPER.earth_days.3.6.ogg",
-"dur": 3.62,
-"speaker": "KEEPER",
-"key": "3f8799f60edb"
+"dur": 3.96,
+"speaker": "ATLAS",
+"key": "11143d79d95a"
 },
 "KEEPER.earth_days.4.1": {
 "file": "KEEPER.earth_days.4.1.ogg",
-"dur": 3.93,
-"speaker": "KEEPER",
-"key": "b8a7ab250295"
+"dur": 3.94,
+"speaker": "ATLAS",
+"key": "5e99a541be2e"
 },
 "KEEPER.earth_days.4.2": {
 "file": "KEEPER.earth_days.4.2.ogg",
-"dur": 2.9,
-"speaker": "KEEPER",
-"key": "1b6450fd8e15"
+"dur": 3.04,
+"speaker": "ATLAS",
+"key": "d019f151503e"
 },
 "KEEPER.earth_days.4.3": {
 "file": "KEEPER.earth_days.4.3.ogg",
-"dur": 2.93,
-"speaker": "KEEPER",
-"key": "f444f74a2517"
+"dur": 3.27,
+"speaker": "ATLAS",
+"key": "6aea29e6d678"
 },
 "KEEPER.earth_days.4.4": {
 "file": "KEEPER.earth_days.4.4.ogg",
-"dur": 3.53,
-"speaker": "KEEPER",
-"key": "81907baca699"
+"dur": 4.01,
+"speaker": "ATLAS",
+"key": "6f784352980a"
 },
 "KEEPER.earth_days.4.5": {
 "file": "KEEPER.earth_days.4.5.ogg",
-"dur": 3.61,
-"speaker": "KEEPER",
-"key": "f5b793b42e2c"
+"dur": 4.13,
+"speaker": "ATLAS",
+"key": "4ce167f933a4"
 },
 "KEEPER.earth_days.4.6": {
 "file": "KEEPER.earth_days.4.6.ogg",
-"dur": 3.85,
-"speaker": "KEEPER",
-"key": "3b4893b1b846"
+"dur": 4.31,
+"speaker": "ATLAS",
+"key": "d1147507772a"
 },
 "KEEPER.earth_days.4.7": {
 "file": "KEEPER.earth_days.4.7.ogg",
-"dur": 3.59,
-"speaker": "KEEPER",
-"key": "6abe8775c654"
+"dur": 4.32,
+"speaker": "ATLAS",
+"key": "2bb683458712"
 },
 "KEEPER.earth_days.5.1": {
 "file": "KEEPER.earth_days.5.1.ogg",
-"dur": 3.92,
-"speaker": "KEEPER",
-"key": "bafd682e23d9"
+"dur": 4.31,
+"speaker": "ATLAS",
+"key": "bca42dd77eb8"
 },
 "KEEPER.earth_days.5.2": {
 "file": "KEEPER.earth_days.5.2.ogg",
-"dur": 3.78,
-"speaker": "KEEPER",
-"key": "bd5948932102"
+"dur": 4.4,
+"speaker": "ATLAS",
+"key": "c63127309215"
 },
 "KEEPER.earth_days.5.3": {
 "file": "KEEPER.earth_days.5.3.ogg",
-"dur": 3.97,
-"speaker": "KEEPER",
-"key": "358cd785cce4"
+"dur": 4.31,
+"speaker": "ATLAS",
+"key": "92695e0488d6"
 },
 "KEEPER.earth_days.5.4": {
 "file": "KEEPER.earth_days.5.4.ogg",
-"dur": 3.96,
-"speaker": "KEEPER",
-"key": "f1600b094ddb"
+"dur": 4.32,
+"speaker": "ATLAS",
+"key": "d0031e59c5df"
 },
 "KEEPER.earth_days.5.5": {
 "file": "KEEPER.earth_days.5.5.ogg",
-"dur": 3.81,
-"speaker": "KEEPER",
-"key": "8e9f98e6372d"
+"dur": 4.36,
+"speaker": "ATLAS",
+"key": "702a5c1da752"
 },
 "KEEPER.earth_days.5.6": {
 "file": "KEEPER.earth_days.5.6.ogg",
-"dur": 3.76,
-"speaker": "KEEPER",
-"key": "60629bf5a851"
+"dur": 4.22,
+"speaker": "ATLAS",
+"key": "ccb3da6e88ac"
 },
 "KEEPER.earth_date.scrub": {
 "file": "KEEPER.earth_date.scrub.ogg",
-"dur": 0.89,
-"speaker": "KEEPER",
-"key": "e398f64a470d"
+"dur": 1.03,
+"speaker": "ATLAS",
+"key": "a092749655f3"
 },
 "KEEPER.earth_date.iv": {
 "file": "KEEPER.earth_date.iv.ogg",
-"dur": 1.17,
-"speaker": "KEEPER",
-"key": "6882547b2247"
+"dur": 1.47,
+"speaker": "ATLAS",
+"key": "119dd839dc97"
 },
 "KEEPER.earth_date.v": {
 "file": "KEEPER.earth_date.v.ogg",
-"dur": 3.13,
-"speaker": "KEEPER",
-"key": "840ee465550c"
+"dur": 3.67,
+"speaker": "ATLAS",
+"key": "2c30925fbf8e"
 },
 "P1.ask.earth_date": {
 "file": "P1.ask.earth_date.ogg",
-"dur": 1.61,
+"dur": 1.68,
 "speaker": "P1",
-"key": "4498b088411e"
+"key": "7f0a837b64db"
 },
 "KEEPER.dune_rate": {
 "file": "KEEPER.dune_rate.ogg",
-"dur": 5.39,
-"speaker": "KEEPER",
-"key": "96a494844709"
+"dur": 5.8,
+"speaker": "ATLAS",
+"key": "476790bbf234"
 },
 "KEEPER.why_dune": {
 "file": "KEEPER.why_dune.ogg",
-"dur": 1.26,
-"speaker": "KEEPER",
-"key": "e1a5a2ca3ecb"
+"dur": 1.46,
+"speaker": "ATLAS",
+"key": "719ca0bc1e3f"
 },
 "KEEPER.second_station": {
 "file": "KEEPER.second_station.ogg",
-"dur": 2.54,
-"speaker": "KEEPER",
-"key": "d6cb4c2aa33d"
+"dur": 2.91,
+"speaker": "ATLAS",
+"key": "a225eb7513b2"
 },
 "KEEPER.no_object": {
 "file": "KEEPER.no_object.ogg",
-"dur": 3.12,
-"speaker": "KEEPER",
-"key": "07104736358e"
+"dur": 3.47,
+"speaker": "ATLAS",
+"key": "18f92aa92fc5"
 },
 "KEEPER.list_stations": {
 "file": "KEEPER.list_stations.ogg",
-"dur": 3.11,
-"speaker": "KEEPER",
-"key": "308490744897"
+"dur": 3.05,
+"speaker": "ATLAS",
+"key": "2b0b7f76b14f"
 },
 "KEEPER.list_stations.iv": {
 "file": "KEEPER.list_stations.iv.ogg",
-"dur": 3.94,
-"speaker": "KEEPER",
-"key": "5029c56339c5"
+"dur": 3.91,
+"speaker": "ATLAS",
+"key": "342f652ccb91"
 },
 "KEEPER.how_many_pioneers.scrub": {
 "file": "KEEPER.how_many_pioneers.scrub.ogg",
-"dur": 1.56,
-"speaker": "KEEPER",
-"key": "09fc4f33580e"
+"dur": 1.69,
+"speaker": "ATLAS",
+"key": "e58a51d241ee"
 },
 "KEEPER.how_many_pioneers": {
 "file": "KEEPER.how_many_pioneers.ogg",
-"dur": 3.48,
-"speaker": "KEEPER",
-"key": "8e6eacce5cd2"
+"dur": 3.59,
+"speaker": "ATLAS",
+"key": "419ab0ed83ae"
 },
 "KEEPER.gale_outpost": {
 "file": "KEEPER.gale_outpost.ogg",
-"dur": 2.58,
-"speaker": "KEEPER",
-"key": "c9f5c8724af6"
+"dur": 2.69,
+"speaker": "ATLAS",
+"key": "0c1416eccd84"
 },
 "KEEPER.p5": {
 "file": "KEEPER.p5.ogg",
-"dur": 5.31,
-"speaker": "KEEPER",
-"key": "bca260b5e18e"
+"dur": 6.08,
+"speaker": "ATLAS",
+"key": "d4262c70275f"
 },
 "KEEPER.rations_eaten": {
 "file": "KEEPER.rations_eaten.ogg",
-"dur": 2.0,
-"speaker": "KEEPER",
-"key": "1c8af15f02af"
+"dur": 2.11,
+"speaker": "ATLAS",
+"key": "745abe80fdeb"
 },
 "P1.ask.rations": {
 "file": "P1.ask.rations.ogg",
-"dur": 1.93,
+"dur": 2.09,
 "speaker": "P1",
-"key": "0629bac9f8ed"
+"key": "8e229de5d25a"
 },
 "KEEPER.rations_where": {
 "file": "KEEPER.rations_where.ogg",
-"dur": 3.99,
-"speaker": "KEEPER",
-"key": "7959be657f80"
+"dur": 4.55,
+"speaker": "ATLAS",
+"key": "5c83f3607041"
 },
 "KEEPER.water": {
 "file": "KEEPER.water.ogg",
-"dur": 1.3,
-"speaker": "KEEPER",
-"key": "dd022832ceb8"
+"dur": 2.07,
+"speaker": "ATLAS",
+"key": "78d7b09a5591"
 },
 "KEEPER.water.iv": {
 "file": "KEEPER.water.iv.ogg",
-"dur": 2.23,
-"speaker": "KEEPER",
-"key": "fc6333d11f57"
+"dur": 3.19,
+"speaker": "ATLAS",
+"key": "617f0221462b"
 },
 "KEEPER.sleep_what": {
 "file": "KEEPER.sleep_what.ogg",
-"dur": 2.05,
-"speaker": "KEEPER",
-"key": "1fe5d4000f6c"
+"dur": 2.15,
+"speaker": "ATLAS",
+"key": "f02b573c44d4"
 },
 "KEEPER.sleep_what.iv": {
 "file": "KEEPER.sleep_what.iv.ogg",
-"dur": 2.94,
-"speaker": "KEEPER",
-"key": "ff490f9244e0"
+"dur": 3.97,
+"speaker": "ATLAS",
+"key": "dfbed4ba61bc"
 },
 "KEEPER.am_i_human": {
 "file": "KEEPER.am_i_human.ogg",
-"dur": 2.24,
-"speaker": "KEEPER",
-"key": "feda50aa261e"
+"dur": 2.83,
+"speaker": "ATLAS",
+"key": "22426f1b2f22"
 },
 "P1.ask.human": {
 "file": "P1.ask.human.ogg",
-"dur": 1.19,
+"dur": 1.49,
 "speaker": "P1",
-"key": "7860ab97fa93"
+"key": "b251eca1ddd5"
 },
 "KEEPER.am_i_real": {
 "file": "KEEPER.am_i_real.ogg",
-"dur": 1.52,
-"speaker": "KEEPER",
-"key": "dbeced59b85e"
+"dur": 1.99,
+"speaker": "ATLAS",
+"key": "d250f27d961d"
 },
 "KEEPER.family": {
 "file": "KEEPER.family.ogg",
-"dur": 2.33,
-"speaker": "KEEPER",
-"key": "3f5a030cad05"
+"dur": 2.86,
+"speaker": "ATLAS",
+"key": "0be06b4b67e4"
 },
 "P1.ask.family": {
 "file": "P1.ask.family.ogg",
@@ -6047,225 +6047,225 @@
 },
 "KEEPER.alice": {
 "file": "KEEPER.alice.ogg",
-"dur": 2.27,
-"speaker": "KEEPER",
-"key": "ba2b495c9206"
+"dur": 2.85,
+"speaker": "ATLAS",
+"key": "5be83e903228"
 },
 "KEEPER.alice.iv": {
 "file": "KEEPER.alice.iv.ogg",
-"dur": 2.1,
-"speaker": "KEEPER",
-"key": "5aee6aa6711b"
+"dur": 2.4,
+"speaker": "ATLAS",
+"key": "c5be959065b9"
 },
 "KEEPER.alice.channel": {
 "file": "KEEPER.alice.channel.ogg",
-"dur": 2.14,
-"speaker": "KEEPER",
-"key": "6cecbb9496e6"
+"dur": 2.42,
+"speaker": "ATLAS",
+"key": "2f86c42cb041"
 },
 "KEEPER.lucy": {
 "file": "KEEPER.lucy.ogg",
-"dur": 2.67,
-"speaker": "KEEPER",
-"key": "a114851a5c7d"
+"dur": 3.09,
+"speaker": "ATLAS",
+"key": "5009e912ff36"
 },
 "KEEPER.lucy.iv": {
 "file": "KEEPER.lucy.iv.ogg",
-"dur": 3.96,
-"speaker": "KEEPER",
-"key": "aa63116b86ac"
+"dur": 5.19,
+"speaker": "ATLAS",
+"key": "3835023ae0e4"
 },
 "KEEPER.lying": {
 "file": "KEEPER.lying.ogg",
-"dur": 0.56,
-"speaker": "KEEPER",
-"key": "33b97ad71052"
+"dur": 0.58,
+"speaker": "ATLAS",
+"key": "09a4b003a17e"
 },
 "KEEPER.truth": {
 "file": "KEEPER.truth.ogg",
-"dur": 1.53,
-"speaker": "KEEPER",
-"key": "d0e5c5f50b86"
+"dur": 1.74,
+"speaker": "ATLAS",
+"key": "3addcb3105b1"
 },
 "KEEPER.what_am_i": {
 "file": "KEEPER.what_am_i.ogg",
-"dur": 12.48,
-"speaker": "KEEPER",
-"key": "0cfb5d8fce49"
+"dur": 12.6,
+"speaker": "ATLAS",
+"key": "ec99b068d7a3"
 },
 "P1.ask.what_am_i": {
 "file": "P1.ask.what_am_i.ogg",
-"dur": 1.19,
+"dur": 1.42,
 "speaker": "P1",
-"key": "8cdf784c7822"
+"key": "f9ef585b07c2"
 },
 "KEEPER.am_i_rowan": {
 "file": "KEEPER.am_i_rowan.ogg",
-"dur": 3.89,
-"speaker": "KEEPER",
-"key": "9326ed68f2a8"
+"dur": 4.04,
+"speaker": "ATLAS",
+"key": "9bb2789f6477"
 },
 "KEEPER.rowan_after": {
 "file": "KEEPER.rowan_after.ogg",
-"dur": 9.8,
-"speaker": "KEEPER",
-"key": "be481e695f43"
+"dur": 10.73,
+"speaker": "ATLAS",
+"key": "2136960fd493"
 },
 "KEEPER.files_nm": {
 "file": "KEEPER.files_nm.ogg",
-"dur": 1.54,
-"speaker": "KEEPER",
-"key": "75ec17fea140"
+"dur": 1.74,
+"speaker": "ATLAS",
+"key": "b22304fb5c50"
 },
 "KEEPER.child.refset": {
 "file": "KEEPER.child.refset.ogg",
-"dur": 8.79,
-"speaker": "KEEPER",
-"key": "cfc3100a1067"
+"dur": 10.48,
+"speaker": "ATLAS",
+"key": "13e04782ad1b"
 },
 "KEEPER.child.style": {
 "file": "KEEPER.child.style.ogg",
-"dur": 5.97,
-"speaker": "KEEPER",
-"key": "5e1ac31e77da"
+"dur": 7.28,
+"speaker": "ATLAS",
+"key": "79b794ed08c7"
 },
 "KEEPER.anvil_nm": {
 "file": "KEEPER.anvil_nm.ogg",
-"dur": 3.94,
-"speaker": "KEEPER",
-"key": "daf3511e1a7f"
+"dur": 4.26,
+"speaker": "ATLAS",
+"key": "e911a4952c3c"
 },
 "KEEPER.unit_file.wellspring": {
 "file": "KEEPER.unit_file.wellspring.ogg",
-"dur": 6.4,
-"speaker": "KEEPER",
-"key": "1cca0d636cba"
+"dur": 7.77,
+"speaker": "ATLAS",
+"key": "86254ba6ac24"
 },
 "KEEPER.unit_file.furrow": {
 "file": "KEEPER.unit_file.furrow.ogg",
-"dur": 5.77,
-"speaker": "KEEPER",
-"key": "82c32c7a8cfb"
+"dur": 6.47,
+"speaker": "ATLAS",
+"key": "a89fc37117aa"
 },
 "KEEPER.unit_file.lodestone": {
 "file": "KEEPER.unit_file.lodestone.ogg",
-"dur": 6.6,
-"speaker": "KEEPER",
-"key": "0aaad3ff9f53"
+"dur": 8.13,
+"speaker": "ATLAS",
+"key": "407c5671083e"
 },
 "KEEPER.unit_file.beacon": {
 "file": "KEEPER.unit_file.beacon.ogg",
-"dur": 6.23,
-"speaker": "KEEPER",
-"key": "0d05ac9d5241"
+"dur": 7.41,
+"speaker": "ATLAS",
+"key": "2f53ddab8f16"
 },
 "KEEPER.unit_file.cadence": {
 "file": "KEEPER.unit_file.cadence.ogg",
-"dur": 6.17,
-"speaker": "KEEPER",
-"key": "57e86d708ff3"
+"dur": 7.76,
+"speaker": "ATLAS",
+"key": "2d88930c6cf2"
 },
 "KEEPER.unit_file.suture": {
 "file": "KEEPER.unit_file.suture.ogg",
-"dur": 5.98,
-"speaker": "KEEPER",
-"key": "3d65381288fd"
+"dur": 7.21,
+"speaker": "ATLAS",
+"key": "c843c06c5689"
 },
 "KEEPER.unit_file.tally": {
 "file": "KEEPER.unit_file.tally.ogg",
-"dur": 6.33,
-"speaker": "KEEPER",
-"key": "c723e4e41031"
+"dur": 7.79,
+"speaker": "ATLAS",
+"key": "f7f50f72b0f0"
 },
 "KEEPER.sorry": {
 "file": "KEEPER.sorry.ogg",
-"dur": 1.39,
-"speaker": "KEEPER",
-"key": "4906a0d5b0e1"
+"dur": 1.63,
+"speaker": "ATLAS",
+"key": "a5c3291918bb"
 },
 "KEEPER.decommission_pioneer": {
 "file": "KEEPER.decommission_pioneer.ogg",
-"dur": 3.29,
-"speaker": "KEEPER",
-"key": "1258973c0724"
+"dur": 3.46,
+"speaker": "ATLAS",
+"key": "87006f22ab29"
 },
 "KEEPER.decommission_units": {
 "file": "KEEPER.decommission_units.ogg",
-"dur": 3.42,
-"speaker": "KEEPER",
-"key": "6e44da77435e"
+"dur": 3.83,
+"speaker": "ATLAS",
+"key": "817b20a3b768"
 },
 "KEEPER.buyers": {
 "file": "KEEPER.buyers.ogg",
-"dur": 5.11,
-"speaker": "KEEPER",
-"key": "90a0f6da9be9"
+"dur": 5.83,
+"speaker": "ATLAS",
+"key": "28d57cc524d5"
 },
 "KEEPER.list_media": {
 "file": "KEEPER.list_media.ogg",
-"dur": 6.56,
-"speaker": "KEEPER",
-"key": "960bf7b6e41f"
+"dur": 7.28,
+"speaker": "ATLAS",
+"key": "6637ab48dca8"
 },
 "KEEPER.media_nm": {
 "file": "KEEPER.media_nm.ogg",
-"dur": 1.86,
-"speaker": "KEEPER",
-"key": "c9340710f2be"
+"dur": 2.14,
+"speaker": "ATLAS",
+"key": "9df7aa1285d3"
 },
 "KEEPER.operational": {
 "file": "KEEPER.operational.ogg",
-"dur": 9.97,
-"speaker": "KEEPER",
-"key": "f2d48ce70913"
+"dur": 8.18,
+"speaker": "ATLAS",
+"key": "c9b244710d23"
 },
 "KEEPER.p11": {
 "file": "KEEPER.p11.ogg",
-"dur": 6.2,
-"speaker": "KEEPER",
-"key": "e833b21becdf"
+"dur": 6.59,
+"speaker": "ATLAS",
+"key": "d45c2d31117d"
 },
 "KEEPER.p3": {
 "file": "KEEPER.p3.ogg",
-"dur": 13.32,
-"speaker": "KEEPER",
-"key": "87843b4b7284"
+"dur": 13.63,
+"speaker": "ATLAS",
+"key": "9df528c02674"
 },
 "KEEPER.p6_9": {
 "file": "KEEPER.p6_9.ogg",
-"dur": 13.26,
-"speaker": "KEEPER",
-"key": "ddf5a55e6a02"
+"dur": 14.16,
+"speaker": "ATLAS",
+"key": "24232aa042a2"
 },
 "KEEPER.shards": {
 "file": "KEEPER.shards.ogg",
-"dur": 4.76,
-"speaker": "KEEPER",
-"key": "bcba4e93fb95"
+"dur": 5.4,
+"speaker": "ATLAS",
+"key": "296ea3e882ff"
 },
 "KEEPER.manifest": {
 "file": "KEEPER.manifest.ogg",
-"dur": 4.87,
-"speaker": "KEEPER",
-"key": "fdfdb3af1434"
+"dur": 5.51,
+"speaker": "ATLAS",
+"key": "bf47e2baeace"
 },
 "KEEPER.manifest.geo": {
 "file": "KEEPER.manifest.geo.ogg",
-"dur": 7.89,
-"speaker": "KEEPER",
-"key": "6b8ec63ca71e"
+"dur": 8.2,
+"speaker": "ATLAS",
+"key": "361f4497f1fa"
 },
 "KEEPER.cara": {
 "file": "KEEPER.cara.ogg",
-"dur": 12.86,
-"speaker": "KEEPER",
-"key": "f3acdb3f898f"
+"dur": 14.09,
+"speaker": "ATLAS",
+"key": "18e8e2de8edb"
 },
 "KEEPER.final.1": {
 "file": "KEEPER.final.1.ogg",
-"dur": 0.6,
-"speaker": "KEEPER",
-"key": "1e2953af7b71"
+"dur": 0.68,
+"speaker": "ATLAS",
+"key": "991710f34812"
 },
 "P1.ask.final.when": {
 "file": "P1.ask.final.when.ogg",
@@ -6275,63 +6275,63 @@
 },
 "KEEPER.final.2": {
 "file": "KEEPER.final.2.ogg",
-"dur": 1.02,
-"speaker": "KEEPER",
-"key": "f5888ec3e1b3"
+"dur": 1.09,
+"speaker": "ATLAS",
+"key": "dffddf96bf57"
 },
 "P1.ask.final": {
 "file": "P1.ask.final.ogg",
-"dur": 1.66,
+"dur": 2.05,
 "speaker": "P1",
-"key": "f4addf23a84c"
+"key": "6ff5b26dfe31"
 },
 "KEEPER.keeper_fate": {
 "file": "KEEPER.keeper_fate.ogg",
-"dur": 4.95,
-"speaker": "KEEPER",
-"key": "34d270c503ab"
+"dur": 5.21,
+"speaker": "ATLAS",
+"key": "135f5de4cb1d"
 },
 "KEEPER.keeper_fate.2": {
 "file": "KEEPER.keeper_fate.2.ogg",
-"dur": 2.92,
-"speaker": "KEEPER",
-"key": "ceec3bc5eb85"
+"dur": 3.3,
+"speaker": "ATLAS",
+"key": "1c6051466a4b"
 },
 "KEEPER.plaque": {
 "file": "KEEPER.plaque.ogg",
-"dur": 2.69,
-"speaker": "KEEPER",
-"key": "6506a55088e6"
+"dur": 2.72,
+"speaker": "ATLAS",
+"key": "0547e3a1955c"
 },
 "KEEPER.deflect.unknown": {
 "file": "KEEPER.deflect.unknown.ogg",
-"dur": 1.93,
-"speaker": "KEEPER",
-"key": "e16e82006a66"
+"dur": 2.29,
+"speaker": "ATLAS",
+"key": "4689af498e95"
 },
 "KEEPER.deflect.specify": {
 "file": "KEEPER.deflect.specify.ogg",
-"dur": 1.56,
-"speaker": "KEEPER",
-"key": "d0e5c5f50b86"
+"dur": 1.78,
+"speaker": "ATLAS",
+"key": "3addcb3105b1"
 },
 "KEEPER.deflect.rephrase": {
 "file": "KEEPER.deflect.rephrase.ogg",
 "dur": 1.14,
-"speaker": "KEEPER",
-"key": "3df7bb8be004"
+"speaker": "ATLAS",
+"key": "3ba414a0d91e"
 },
 "KEEPER.deflect.not_held": {
 "file": "KEEPER.deflect.not_held.ogg",
-"dur": 1.6,
-"speaker": "KEEPER",
-"key": "23446e795c3e"
+"dur": 2.46,
+"speaker": "ATLAS",
+"key": "e7b77d0167ff"
 },
 "KEEPER.deflect.not_task": {
 "file": "KEEPER.deflect.not_task.ogg",
-"dur": 1.35,
-"speaker": "KEEPER",
-"key": "67b735f32d74"
+"dur": 1.91,
+"speaker": "ATLAS",
+"key": "e766d44ede27"
 },
 "ANVIL.idle.I.01": {
 "file": "ANVIL.idle.I.01.ogg",
@@ -6923,9 +6923,9 @@
 },
 "WELLSPRING.idle.II.03": {
 "file": "WELLSPRING.idle.II.03.ogg",
-"dur": 4.77,
+"dur": 4.74,
 "speaker": "WELLSPRING",
-"key": "4ec4cff4d7ce"
+"key": "bfba77697124"
 },
 "WELLSPRING.idle.II.04": {
 "file": "WELLSPRING.idle.II.04.ogg",
@@ -8129,15 +8129,15 @@
 },
 "P11.confront.05": {
 "file": "P11.confront.05.ogg",
-"dur": 2.19,
+"dur": 2.26,
 "speaker": "P1",
-"key": "927c6fcd777b"
+"key": "29cc7ed04a4d"
 },
 "P11.confront.06": {
 "file": "P11.confront.06.ogg",
-"dur": 1.18,
+"dur": 1.17,
 "speaker": "PIONEER_11",
-"key": "49643cc5288d"
+"key": "0ffa8dfd7b47"
 },
 "P11.confront.07": {
 "file": "P11.confront.07.ogg",
@@ -8153,9 +8153,9 @@
 },
 "P11.confront.09": {
 "file": "P11.confront.09.ogg",
-"dur": 6.92,
+"dur": 7.39,
 "speaker": "PIONEER_11",
-"key": "78b714eee5d6"
+"key": "ac40212ead21"
 },
 "P11.leave.01": {
 "file": "P11.leave.01.ogg",
@@ -8177,9 +8177,9 @@
 },
 "P11.leave.04": {
 "file": "P11.leave.04.ogg",
-"dur": 7.3,
+"dur": 7.44,
 "speaker": "PIONEER_11",
-"key": "6ceabdf0a7f1"
+"key": "006bdfb68ca0"
 },
 "P11.idle.01": {
 "file": "P11.idle.01.ogg",
@@ -8207,9 +8207,9 @@
 },
 "PN.iv.01": {
 "file": "PN.iv.01.ogg",
-"dur": 4.51,
+"dur": 4.63,
 "speaker": "PIONEER_N",
-"key": "e6eb987a2cd3"
+"key": "c22d27a60a3c"
 },
 "PN.iv.02": {
 "file": "PN.iv.02.ogg",
@@ -8225,9 +8225,9 @@
 },
 "PN.iv.04": {
 "file": "PN.iv.04.ogg",
-"dur": 4.02,
+"dur": 4.21,
 "speaker": "PIONEER_N",
-"key": "0f7ecef37196"
+"key": "38ea3d4880b8"
 },
 "PN.iv.05": {
 "file": "PN.iv.05.ogg",

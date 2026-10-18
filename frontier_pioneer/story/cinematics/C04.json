@@ -1,0 +1,1245 @@
+{
+ "id": "C04",
+ "title": "After the Storm",
+ "note": "Morning after the storm, in the module (brown light through the porthole); outside, the array buried, not dusted, ANVIL up on the frame with a broom of cable ties and packing foam; the glove in the dust; the rover he built overnight (NO RADIO taped to the dash); a time cut to evening, the two of them on the roof with their legs over the edge as the sky goes from butterscotch to blue at the sun to black, HALO-1 fixed among the stars that turn. The films show the outpost as one module, an array and a mast (dressing at the base, which is hidden for the film).",
+ "stage": {
+  "at": "home",
+  "face": 0
+ },
+ "world": {
+  "hour": 8.2,
+  "hideAvatar": true,
+  "hide": [
+   "bases",
+   "tiers",
+   "caretakers"
+  ],
+  "hideUnits": "all",
+  "focus": true
+ },
+ "sets": [
+  {
+   "id": "mod",
+   "kind": "module",
+   "porthole": "storm"
+  },
+  {
+   "id": "cab",
+   "kind": "cab"
+  },
+  {
+   "id": "post",
+   "kind": "outpost",
+   "at": [
+    0,
+    0,
+    0
+   ],
+   "drifts": true
+  },
+  {
+   "id": "rov",
+   "kind": "rover_copy",
+   "at": [
+    -1.5,
+    0,
+    -10.5
+   ],
+   "yaw": 90
+  }
+ ],
+ "actors": [
+  {
+   "id": "p1",
+   "kind": "pioneer",
+   "set": "mod",
+   "at": [
+    0.95,
+    0.48,
+    -0.2
+   ],
+   "yaw": 0,
+   "clip": "lie_back"
+  },
+  {
+   "id": "p1w",
+   "kind": "pioneer",
+   "at": [
+    3.4,
+    0,
+    0.2
+   ],
+   "yaw": 200,
+   "clip": "idle",
+   "hidden": true
+  },
+  {
+   "id": "anvil",
+   "kind": "caretaker",
+   "look": "ANVIL",
+   "at": [
+    -1.6,
+    1.05,
+    6.3
+   ],
+   "yaw": 180,
+   "clip": "brush",
+   "kit": [
+    "broom",
+    "mask_belt"
+   ]
+  },
+  {
+   "id": "p1r",
+   "kind": "pioneer",
+   "at": [
+    -0.45,
+    3.3,
+    0.95
+   ],
+   "yaw": 0,
+   "clip": "sit_edge",
+   "hidden": true,
+   "ik": false
+  },
+  {
+   "id": "anvilr",
+   "kind": "caretaker",
+   "look": "ANVIL",
+   "at": [
+    0.5,
+    3.3,
+    0.95
+   ],
+   "yaw": -4,
+   "clip": "sit_edge",
+   "hidden": true,
+   "ik": false,
+   "kit": [
+    "mask_belt"
+   ]
+  }
+ ],
+ "lights": [
+  {
+   "id": "roof",
+   "type": "point",
+   "at": [
+    0,
+    5.5,
+    2.5
+   ],
+   "color": "#ffd0a0",
+   "intensity": 12,
+   "dist": 10,
+   "night": 1
+  }
+ ],
+ "shots": [
+  {
+   "at": "start",
+   "name": "inside the module: storm light through the porthole going brown, then cleaner; he sits up in the bunk",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": [
+       0.65,
+       1.8,
+       2.3
+      ],
+      "look": [
+       -0.3,
+       1.15,
+       -1.5
+      ],
+      "lens": 18
+     },
+     {
+      "t": 1,
+      "pos": [
+       0.6,
+       1.75,
+       2.1
+      ],
+      "look": [
+       -0.4,
+       1.15,
+       -1.5
+      ],
+      "lens": 20
+     }
+    ],
+    "ease": "linear",
+    "handheld": 0.15
+   },
+   "grade": {
+    "base": "interior_warm",
+    "temp": 0.4,
+    "exposureAbs": 1.2
+   },
+   "dof": {
+    "focus": "p1",
+    "fstop": 2.8
+   },
+   "set": "mod"
+  },
+  {
+   "at": "C04.01",
+   "name": "ATLAS: array output four percent (the porthole)",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": {
+       "actor": "p1",
+       "bone": "head",
+       "o": [
+        -1.12,
+        0.18,
+        1.575
+       ]
+      },
+      "look": {
+       "actor": "p1",
+       "bone": "head"
+      },
+      "lens": 41.2
+     },
+     {
+      "t": 1,
+      "pos": {
+       "actor": "p1",
+       "bone": "head",
+       "o": [
+        -1.03,
+        0.18,
+        1.417
+       ]
+      },
+      "look": {
+       "actor": "p1",
+       "bone": "head"
+      },
+      "lens": 42.5
+     }
+    ],
+    "handheld": 0.12,
+    "ease": "linear"
+   },
+   "grade": {
+    "base": "interior_warm",
+    "temp": 0.4,
+    "exposureAbs": 1.2
+   },
+   "dof": {
+    "focus": "p1",
+    "fstop": 2.0
+   },
+   "set": "mod"
+  },
+  {
+   "at": "beat:4",
+   "name": "outside: the array not dusted but buried; ANVIL up on the frame with a home-made broom",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": [
+       5.0,
+       1.3,
+       1.0
+      ],
+      "look": [
+       -1.5,
+       1.4,
+       6.4
+      ],
+      "lens": 35
+     },
+     {
+      "t": 1,
+      "pos": [
+       3.4,
+       1.4,
+       2.6
+      ],
+      "look": [
+       -1.6,
+       1.5,
+       6.4
+      ],
+      "lens": 38
+     }
+    ],
+    "ease": "linear",
+    "handheld": 0.15
+   },
+   "grade": "auto",
+   "dof": {
+    "focus": "anvil",
+    "fstop": 4
+   }
+  },
+  {
+   "at": "C04.02",
+   "name": "Morning. Don't stand there admiring me.",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": {
+       "actor": "p1w",
+       "bone": "head",
+       "o": [
+        1.15,
+        0.23,
+        -3.185
+       ]
+      },
+      "look": {
+       "actor": "anvil",
+       "bone": "head"
+      },
+      "lens": 43.0
+     },
+     {
+      "t": 1,
+      "pos": {
+       "actor": "p1w",
+       "bone": "head",
+       "o": [
+        1.15,
+        0.23,
+        -2.958
+       ]
+      },
+      "look": {
+       "actor": "anvil",
+       "bone": "head"
+      },
+      "lens": 44.5
+     }
+    ],
+    "ease": "linear",
+    "handheld": 0.15
+   },
+   "grade": "auto",
+   "dof": {
+    "focus": "anvil",
+    "fstop": 2.4
+   }
+  },
+  {
+   "at": "C04.03",
+   "name": "How much came down?",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": {
+       "actor": "anvil",
+       "bone": "head",
+       "o": [
+        -1.15,
+        0.08,
+        -3.413
+       ]
+      },
+      "look": {
+       "actor": "p1w",
+       "bone": "head"
+      },
+      "lens": 44.5
+     },
+     {
+      "t": 1,
+      "pos": {
+       "actor": "anvil",
+       "bone": "head",
+       "o": [
+        -1.15,
+        0.08,
+        -3.185
+       ]
+      },
+      "look": {
+       "actor": "p1w",
+       "bone": "head"
+      },
+      "lens": 45.4
+     }
+    ],
+    "ease": "linear",
+    "handheld": 0.15
+   },
+   "grade": "auto",
+   "dof": {
+    "focus": "p1",
+    "fstop": 2.2
+   }
+  },
+  {
+   "at": "C04.04",
+   "name": "Enough. Came down heavy, so it did. (ANVIL brushing)",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": {
+       "actor": "anvil",
+       "bone": "head",
+       "o": [
+        1.44,
+        0.38,
+        2.8
+       ]
+      },
+      "look": {
+       "actor": "anvil",
+       "bone": "head"
+      },
+      "lens": 50
+     },
+     {
+      "t": 1,
+      "pos": {
+       "actor": "anvil",
+       "bone": "head",
+       "o": [
+        1.325,
+        0.38,
+        2.52
+       ]
+      },
+      "look": {
+       "actor": "anvil",
+       "bone": "head"
+      },
+      "lens": 55
+     }
+    ],
+    "handheld": 0.12,
+    "ease": "linear"
+   },
+   "grade": "auto",
+   "dof": {
+    "focus": "anvil",
+    "fstop": 2.4
+   }
+  },
+  {
+   "at": "beat:10",
+   "name": "he kneels and pushes a glove into the dust on a panel",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": [
+       -2.6,
+       0.9,
+       2.6
+      ],
+      "look": {
+       "actor": "p1w",
+       "bone": "chest"
+      },
+      "lens": 40
+     },
+     {
+      "t": 1,
+      "pos": [
+       -2.4,
+       0.9,
+       2.9
+      ],
+      "look": {
+       "actor": "p1w",
+       "bone": "chest"
+      },
+      "lens": 42
+     }
+    ],
+    "ease": "linear",
+    "handheld": 0.15
+   },
+   "grade": "auto",
+   "dof": {
+    "focus": "p1",
+    "fstop": 2.4
+   }
+  },
+  {
+   "at": "beat:11",
+   "name": "insert: past the knuckle (DUST LOAD 11 mm)",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": [
+       1.5,
+       1.15,
+       4.2
+      ],
+      "look": {
+       "actor": "p1w",
+       "bone": "hand_R"
+      },
+      "lens": 45
+     },
+     {
+      "t": 1,
+      "pos": [
+       1.4,
+       1.1,
+       4.35
+      ],
+      "look": {
+       "actor": "p1w",
+       "bone": "hand_R"
+      },
+      "lens": 50
+     }
+    ],
+    "ease": "linear",
+    "handheld": 0.05
+   },
+   "grade": "auto",
+   "dof": {
+    "focus": {
+     "actor": "p1",
+     "bone": "hand_R"
+    },
+    "fstop": 2.0
+   }
+  },
+  {
+   "at": "C04.06",
+   "name": "a wee present round the back: ANVIL, pleased with himself",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": {
+       "actor": "anvil",
+       "bone": "head",
+       "o": [
+        1.12,
+        0.28,
+        2.625
+       ]
+      },
+      "look": {
+       "actor": "anvil",
+       "bone": "head"
+      },
+      "lens": 55
+     },
+     {
+      "t": 1,
+      "pos": {
+       "actor": "anvil",
+       "bone": "head",
+       "o": [
+        1.03,
+        0.28,
+        2.363
+       ]
+      },
+      "look": {
+       "actor": "anvil",
+       "bone": "head"
+      },
+      "lens": 60
+     }
+    ],
+    "handheld": 0.12,
+    "ease": "linear"
+   },
+   "grade": "auto",
+   "dof": {
+    "focus": "anvil",
+    "fstop": 2.2
+   }
+  },
+  {
+   "at": "beat:14",
+   "name": "round the back of the module: a six-wheeled rover, assembled, already dusty",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": [
+       1.5,
+       1.6,
+       -5.5
+      ],
+      "look": [
+       -1.5,
+       1.2,
+       -10.5
+      ],
+      "lens": 32
+     },
+     {
+      "t": 1,
+      "pos": [
+       0.8,
+       1.6,
+       -6.4
+      ],
+      "look": [
+       -1.5,
+       1.3,
+       -10.5
+      ],
+      "lens": 35
+     }
+    ],
+    "ease": "linear",
+    "handheld": 0.15
+   },
+   "grade": "auto",
+   "dof": {
+    "focus": 7,
+    "fstop": 4
+   }
+  },
+  {
+   "at": "beat:14+1.6",
+   "name": "insert: a hand-lettered sticker on the dash: NO RADIO",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": [
+       0.2,
+       1.32,
+       -0.35
+      ],
+      "look": [
+       0.35,
+       1.07,
+       -0.74
+      ],
+      "lens": 60
+     },
+     {
+      "t": 1,
+      "pos": [
+       0.22,
+       1.3,
+       -0.38
+      ],
+      "look": [
+       0.35,
+       1.07,
+       -0.74
+      ],
+      "lens": 66
+     }
+    ],
+    "ease": "linear",
+    "handheld": 0.05
+   },
+   "grade": {
+    "base": "interior_warm",
+    "exposureAbs": 1.0
+   },
+   "dof": {
+    "focus": 0.48,
+    "fstop": 2.0
+   },
+   "set": "cab"
+  },
+  {
+   "at": "C04.07",
+   "name": "You built a rover. Overnight.",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": {
+       "actor": "anvil",
+       "bone": "head",
+       "o": [
+        -1.15,
+        0.08,
+        -3.413
+       ]
+      },
+      "look": {
+       "actor": "p1w",
+       "bone": "head"
+      },
+      "lens": 44.5
+     },
+     {
+      "t": 1,
+      "pos": {
+       "actor": "anvil",
+       "bone": "head",
+       "o": [
+        -1.15,
+        0.08,
+        -3.185
+       ]
+      },
+      "look": {
+       "actor": "p1w",
+       "bone": "head"
+      },
+      "lens": 45.4
+     }
+    ],
+    "ease": "linear",
+    "handheld": 0.15
+   },
+   "grade": "auto",
+   "dof": {
+    "focus": "p1",
+    "fstop": 2.2
+   }
+  },
+  {
+   "at": "C04.08",
+   "name": "I'm a construction unit. I construct.",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": {
+       "actor": "anvil",
+       "bone": "head",
+       "o": [
+        0.64,
+        0.13,
+        2.1
+       ]
+      },
+      "look": {
+       "actor": "anvil",
+       "bone": "head"
+      },
+      "lens": 65
+     },
+     {
+      "t": 1,
+      "pos": {
+       "actor": "anvil",
+       "bone": "head",
+       "o": [
+        0.589,
+        0.13,
+        1.89
+       ]
+      },
+      "look": {
+       "actor": "anvil",
+       "bone": "head"
+      },
+      "lens": 63.5
+     }
+    ],
+    "handheld": 0.12,
+    "ease": "linear"
+   },
+   "grade": "auto",
+   "dof": {
+    "focus": "anvil",
+    "fstop": 2.0
+   }
+  },
+  {
+   "at": "beat:18",
+   "name": "time cut, evening: the two of them on the roof, legs over the edge; the sky goes from butterscotch to blue at the sun",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": [
+       0.6,
+       2.4,
+       -3.2
+      ],
+      "look": [
+       0.0,
+       4.0,
+       4.0
+      ],
+      "lens": 24
+     },
+     {
+      "t": 1,
+      "pos": [
+       1.0,
+       4.5,
+       -7.0
+      ],
+      "look": [
+       0.0,
+       4.2,
+       6.0
+      ],
+      "lens": 24
+     }
+    ],
+    "ease": "inout",
+    "handheld": 0.1
+   },
+   "grade": "mars_dusk",
+   "dof": {
+    "focus": 4.2,
+    "fstop": 4
+   },
+   "hour": 18.35
+  },
+  {
+   "at": "C04.09",
+   "name": "You ever think the stars look too still out here?",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": {
+       "actor": "p1r",
+       "bone": "head",
+       "o": [
+        -0.6,
+        0.05,
+        2.4
+       ]
+      },
+      "look": {
+       "actor": "anvilr",
+       "bone": "head"
+      },
+      "lens": 34
+     },
+     {
+      "t": 1,
+      "pos": {
+       "actor": "p1r",
+       "bone": "head",
+       "o": [
+        -0.6,
+        0.05,
+        2.25
+       ]
+      },
+      "look": {
+       "actor": "anvilr",
+       "bone": "head"
+      },
+      "lens": 36
+     }
+    ],
+    "ease": "linear",
+    "handheld": 0.15
+   },
+   "grade": "mars_dusk",
+   "dof": {
+    "focus": "anvil",
+    "fstop": 2.2
+   },
+   "hour": 18.6
+  },
+  {
+   "at": "C04.10",
+   "name": "They're stars. They're meant to be still.",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": {
+       "actor": "anvilr",
+       "bone": "head",
+       "o": [
+        0.6,
+        0.05,
+        2.4
+       ]
+      },
+      "look": {
+       "actor": "p1r",
+       "bone": "head"
+      },
+      "lens": 34
+     },
+     {
+      "t": 1,
+      "pos": {
+       "actor": "anvilr",
+       "bone": "head",
+       "o": [
+        0.6,
+        0.05,
+        2.25
+       ]
+      },
+      "look": {
+       "actor": "p1r",
+       "bone": "head"
+      },
+      "lens": 36
+     }
+    ],
+    "ease": "linear",
+    "handheld": 0.15
+   },
+   "grade": "mars_dusk",
+   "dof": {
+    "focus": "p1",
+    "fstop": 2.2
+   }
+  },
+  {
+   "at": "beat:25",
+   "name": "Overhead, HALO-1 hangs: one steady point (up past them)",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": [
+       0.1,
+       3.95,
+       -1.3
+      ],
+      "look": {
+       "sky": "halo"
+      },
+      "lens": 28
+     },
+     {
+      "t": 1,
+      "pos": [
+       0.1,
+       3.95,
+       -1.25
+      ],
+      "look": {
+       "sky": "halo"
+      },
+      "lens": 28
+     }
+    ],
+    "ease": "linear",
+    "handheld": 0.15
+   },
+   "grade": "mars_night",
+   "hour": 19.4
+  },
+  {
+   "at": "C04.12",
+   "name": "That one's ours.",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": [
+       1.8,
+       3.1,
+       3.0
+      ],
+      "look": [
+       0.0,
+       4.2,
+       0.6
+      ],
+      "lens": 40
+     },
+     {
+      "t": 1,
+      "pos": [
+       1.7,
+       3.1,
+       2.8
+      ],
+      "look": [
+       0.0,
+       4.3,
+       0.6
+      ],
+      "lens": 42
+     }
+    ],
+    "ease": "linear",
+    "handheld": 0.15
+   },
+   "grade": "mars_night",
+   "dof": {
+    "focus": 3.2,
+    "fstop": 2.4
+   }
+  },
+  {
+   "at": "C04.13",
+   "name": "That one never moves at all. Everything else turns. Not him. (crane out: the outpost small under the sky)",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": [
+       2.5,
+       3.6,
+       4.5
+      ],
+      "look": [
+       0.0,
+       3.8,
+       0.5
+      ],
+      "lens": 35
+     },
+     {
+      "t": 1,
+      "pos": [
+       14,
+       14,
+       22
+      ],
+      "look": [
+       0,
+       3,
+       0
+      ],
+      "lens": 24
+     }
+    ],
+    "ease": "inout",
+    "handheld": 0.05
+   },
+   "grade": "mars_night",
+   "dof": {
+    "focus": 6,
+    "fstop": 5.6
+   }
+  }
+ ],
+ "track": [
+  {
+   "at": "start",
+   "actor": "p1",
+   "play": "wake_sit_up",
+   "fade": 0.1
+  },
+  {
+   "at": "C04.01",
+   "actor": "p1",
+   "lookAt": [
+    0,
+    1.45,
+    -2.6
+   ],
+   "weight": 0.8
+  },
+  {
+   "at": "beat:4",
+   "actor": "p1",
+   "visible": true
+  },
+  {
+   "at": "beat:4",
+   "actor": "p1w",
+   "visible": true
+  },
+  {
+   "at": "beat:4",
+   "actor": "p1w",
+   "walk": [
+    [
+     2.6,
+     0,
+     2.6
+    ],
+    [
+     0.2,
+     0,
+     4.8
+    ]
+   ],
+   "speed": 1.1,
+   "then": "idle"
+  },
+  {
+   "at": "beat:4",
+   "actor": "p1w",
+   "lookAt": "anvil",
+   "weight": 0.7
+  },
+  {
+   "at": "C04.02",
+   "actor": "anvil",
+   "lookAt": "p1w",
+   "weight": 0.8
+  },
+  {
+   "at": "C04.02+2.5",
+   "actor": "anvil",
+   "lookAt": null
+  },
+  {
+   "at": "C04.03",
+   "actor": "p1w",
+   "play": "gesture_talk",
+   "fade": 0.4
+  },
+  {
+   "at": "C04.04",
+   "actor": "p1w",
+   "play": "idle",
+   "fade": 0.6
+  },
+  {
+   "at": "beat:10",
+   "actor": "p1w",
+   "walk": [
+    0.3,
+    0,
+    5.3
+   ],
+   "speed": 0.6,
+   "then": "kneel"
+  },
+  {
+   "at": "beat:10+1.4",
+   "actor": "p1w",
+   "play": "kneel_touch",
+   "fade": 0.3
+  },
+  {
+   "at": "C04.06",
+   "actor": "anvil",
+   "play": "gesture_anvil",
+   "fade": 0.5
+  },
+  {
+   "at": "C04.06",
+   "actor": "anvil",
+   "lookAt": "p1w",
+   "weight": 0.8
+  },
+  {
+   "at": "C04.06+6.0",
+   "actor": "anvil",
+   "play": "point",
+   "fade": 0.4
+  },
+  {
+   "at": "C04.06",
+   "actor": "p1w",
+   "play": "stand_from_kneel",
+   "fade": 0.3
+  },
+  {
+   "at": "beat:14",
+   "actor": "p1w",
+   "pos": [
+    0.6,
+    0,
+    -4.0
+   ],
+   "yaw": 200
+  },
+  {
+   "at": "beat:14",
+   "actor": "anvil",
+   "pos": [
+    2.0,
+    0,
+    -3.6
+   ],
+   "yaw": 220
+  },
+  {
+   "at": "beat:14",
+   "actor": "anvil",
+   "play": "gesture_anvil",
+   "fade": 0.1
+  },
+  {
+   "at": "C04.07",
+   "actor": "p1w",
+   "lookAt": "anvil",
+   "weight": 0.9
+  },
+  {
+   "at": "C04.08",
+   "actor": "anvil",
+   "lookAt": "p1w",
+   "weight": 0.9
+  },
+  {
+   "at": "beat:18",
+   "actor": "p1w",
+   "visible": false
+  },
+  {
+   "at": "beat:18",
+   "actor": "anvil",
+   "visible": false
+  },
+  {
+   "at": "beat:18",
+   "actor": "p1r",
+   "visible": true
+  },
+  {
+   "at": "beat:18",
+   "actor": "anvilr",
+   "visible": true
+  },
+  {
+   "at": "C04.09",
+   "actor": "anvilr",
+   "lookAt": "p1r",
+   "weight": 0.7
+  },
+  {
+   "at": "C04.10",
+   "actor": "p1r",
+   "lookAt": "anvilr",
+   "weight": 0.6
+  },
+  {
+   "at": "beat:25",
+   "actor": "p1r",
+   "play": "sit_edge_look_up",
+   "fade": 1.0
+  },
+  {
+   "at": "beat:25",
+   "actor": "anvilr",
+   "play": "sit_edge_look_up",
+   "fade": 1.4
+  },
+  {
+   "at": "beat:25",
+   "actor": "p1r",
+   "lookAt": {
+    "sky": "halo"
+   },
+   "weight": 0.9
+  },
+  {
+   "at": "beat:25",
+   "actor": "anvilr",
+   "lookAt": {
+    "sky": "halo"
+   },
+   "weight": 0.9
+  },
+  {
+   "at": "C04.12",
+   "actor": "p1r",
+   "play": "sit_edge_point",
+   "fade": 0.4
+  },
+  {
+   "at": "C04.13",
+   "actor": "anvilr",
+   "lookAt": "p1r",
+   "weight": 0.6
+  }
+ ]
+}

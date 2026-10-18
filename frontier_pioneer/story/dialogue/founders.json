@@ -13,7 +13,7 @@
     "hometown": "Belfast",
     "occupation": "Welder, Harland and Wolff shipyard (apprenticed after one year of Geography at UB)",
     "source": "Reconstructed, not scanned: public social footprint, messages, videos, and the donor's guilt-laced memories of him.",
-    "revealed": "4.4 (KEEPER file); spoken aloud only in C15"
+    "revealed": "4.4 (ATLAS file); spoken aloud only in C15"
    },
    "arc": [
     {
@@ -374,7 +374,7 @@
      {
       "line": "ANVIL.beat.spiral_after.01",
       "speaker": "ANVIL",
-      "text": "You're all right. You're all right. Look at me. Well. Look at the sensor bar."
+      "text": "You're all right. You're all right. Look at me. Well. Look at the visor."
      }
     ],
     "pre_intercom_unwarned": [
@@ -712,7 +712,7 @@
      {
       "line": "WELLSPRING.idle.II.03",
       "speaker": "WELLSPRING",
-      "text": "Is it all right if I put a second tank in? I'll ask KEEPER. I'll ask you. I'm asking you."
+      "text": "Is it all right if I put a second tank in? I'll ask ATLAS. I'll ask you. I'm asking you."
      },
      {
       "line": "WELLSPRING.idle.II.04",
@@ -1687,7 +1687,7 @@
      {
       "line": "SUTURE.idle.III.05",
       "speaker": "SUTURE",
-      "text": "Your servo's fine. You're fine. Go away."
+      "text": "Your seal's fine. You're fine. Go away."
      }
     ],
     "IV": [

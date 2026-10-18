@@ -1,0 +1,1382 @@
+{
+ "id": "C18a",
+ "title": "Fugitive",
+ "note": "The old module under the dome; the recall pulsing white. ANVIL's torch from its bracket; the reach round behind his own back; the burn; the memory flood (the filter's last output: the bedroom, the pier, the drawing, the beach, the poem, each torn by static, 0.6 s each); silence, grey; his hands, bare composite; a child's drawing taped inside the visor rim. The rover (each choice its own shot); the service tunnel at speed; the ridge at night, the lit city behind, nothing ahead.",
+ "stage": {
+  "at": "rover",
+  "face": "home",
+  "away": true
+ },
+ "world": {
+  "hour": 22.4,
+  "hideAvatar": true,
+  "focus": true
+ },
+ "sets": [
+  {
+   "id": "mod",
+   "kind": "module",
+   "porthole": "night",
+   "broom": true,
+   "torch": true,
+   "dark": true
+  },
+  {
+   "id": "room",
+   "kind": "bedroom"
+  },
+  {
+   "id": "pier",
+   "kind": "pier"
+  },
+  {
+   "id": "beach",
+   "kind": "beach"
+  },
+  {
+   "id": "cave",
+   "kind": "tunnel"
+  },
+  {
+   "id": "hall",
+   "kind": "dome",
+   "outside": true,
+   "cab": {
+    "at": [
+     -13.6,
+     0.55,
+     3.2
+    ],
+    "yaw": 0
+   }
+  },
+  {
+   "id": "city",
+   "kind": "city",
+   "anchor": "home",
+   "n": 70
+  }
+ ],
+ "actors": [
+  {
+   "id": "p1",
+   "kind": "pioneer",
+   "set": "mod",
+   "at": [
+    -0.72,
+    0.39,
+    0.25
+   ],
+   "yaw": -90,
+   "clip": "idle"
+  },
+  {
+   "id": "alice",
+   "kind": "child",
+   "set": "room",
+   "look": {
+    "hair": "tied"
+   },
+   "at": [
+    -1.3,
+    0.42,
+    -0.62
+   ],
+   "yaw": 90,
+   "clip": "lie_side"
+  },
+  {
+   "id": "dad",
+   "kind": "human",
+   "set": "room",
+   "look": {
+    "hair": "short"
+   },
+   "at": [
+    -0.55,
+    0,
+    -0.55
+   ],
+   "yaw": -90,
+   "clip": "sit_bed_lean"
+  },
+  {
+   "id": "lucy",
+   "kind": "human",
+   "set": "pier",
+   "look": {
+    "hair": "long"
+   },
+   "at": [
+    1.15,
+    0.03,
+    -6
+   ],
+   "yaw": 90,
+   "clip": "lean_rail"
+  },
+  {
+   "id": "lucy2",
+   "kind": "human",
+   "set": "beach",
+   "look": {
+    "hair": "long"
+   },
+   "at": [
+    -1.6,
+    0,
+    -13
+   ],
+   "yaw": 180,
+   "clip": "hold_shoes"
+  }
+ ],
+ "lights": [
+  {
+   "id": "pulse",
+   "type": "point",
+   "set": "mod",
+   "at": [
+    0,
+    2.2,
+    0
+   ],
+   "color": "#ffffff",
+   "intensity": 0,
+   "dist": 8
+  }
+ ],
+ "shots": [
+  {
+   "at": "start",
+   "name": "the first module, preserved: ANVIL's broom on the wall, the bunk, the porthole",
+   "set": "mod",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": [
+       0.9,
+       1.65,
+       2.2
+      ],
+      "look": [
+       -0.6,
+       1.2,
+       -0.6
+      ],
+      "lens": 24
+     },
+     {
+      "t": 1,
+      "pos": [
+       0.8,
+       1.6,
+       1.9
+      ],
+      "look": [
+       -0.6,
+       1.25,
+       -0.4
+      ],
+      "lens": 26
+     }
+    ],
+    "ease": "linear",
+    "handheld": 0.15
+   },
+   "dof": {
+    "focus": "p1",
+    "fstop": 2.8
+   },
+   "grade": "interior_cold"
+  },
+  {
+   "at": "beat:1",
+   "name": "recall pulse: the room bleaches toward white",
+   "set": "mod",
+   "dur": 0.45,
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": [
+       0.8,
+       1.6,
+       1.9
+      ],
+      "look": [
+       -0.6,
+       1.25,
+       -0.4
+      ],
+      "lens": 26,
+      "roll": 2
+     }
+    ]
+   },
+   "grade": {
+    "base": "interior_cold",
+    "exposure": 3.0,
+    "sat": 0.3,
+    "ca": 0.004
+   }
+  },
+  {
+   "at": "beat:1+0.45",
+   "name": "after the pulse",
+   "set": "mod",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": [
+       0.8,
+       1.6,
+       1.9
+      ],
+      "look": [
+       -0.6,
+       1.25,
+       -0.4
+      ],
+      "lens": 26
+     },
+     {
+      "t": 1,
+      "pos": [
+       0.7,
+       1.58,
+       1.7
+      ],
+      "look": [
+       -0.7,
+       1.3,
+       -0.2
+      ],
+      "lens": 28
+     }
+    ],
+    "ease": "linear"
+   },
+   "dof": {
+    "focus": "p1",
+    "fstop": 2.8
+   },
+   "grade": "interior_cold"
+  },
+  {
+   "at": "beat:2",
+   "name": "ANVIL's old welding torch, taken down off its bracket",
+   "set": "mod",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": [
+       0.3,
+       1.55,
+       1.2
+      ],
+      "look": [
+       -1.3,
+       1.7,
+       0.2
+      ],
+      "lens": 35
+     },
+     {
+      "t": 1,
+      "pos": [
+       0.15,
+       1.5,
+       1.05
+      ],
+      "look": [
+       -1.0,
+       1.4,
+       0.1
+      ],
+      "lens": 38
+     }
+    ],
+    "ease": "inout",
+    "handheld": 0.2
+   },
+   "dof": {
+    "focus": "p1",
+    "fstop": 2.2
+   },
+   "grade": "interior_cold"
+  },
+  {
+   "at": "beat:2+2.6",
+   "name": "the flame; his hand going round behind his own back",
+   "set": "mod",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": [
+       0.6,
+       1.3,
+       -1.2
+      ],
+      "look": {
+       "actor": "p1",
+       "bone": "chest"
+      },
+      "lens": 32
+     },
+     {
+      "t": 1,
+      "pos": [
+       0.5,
+       1.32,
+       -1.0
+      ],
+      "look": {
+       "actor": "p1",
+       "bone": "chest"
+      },
+      "lens": 35
+     }
+    ],
+    "ease": "linear",
+    "handheld": 0.25
+   },
+   "dof": {
+    "focus": "p1",
+    "fstop": 2.2
+   },
+   "grade": {
+    "base": "interior_cold",
+    "bloom": 2.5
+   }
+  },
+  {
+   "at": "C18a.01",
+   "name": "Right, then. (the way ANVIL said it)",
+   "set": "mod",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": {
+       "actor": "p1",
+       "bone": "head",
+       "o": [
+        0.38,
+        0.08,
+        0.52
+       ]
+      },
+      "look": {
+       "actor": "p1",
+       "bone": "head"
+      },
+      "lens": 22
+     },
+     {
+      "t": 1,
+      "pos": {
+       "actor": "p1",
+       "bone": "head",
+       "o": [
+        0.38,
+        0.08,
+        0.49
+       ]
+      },
+      "look": {
+       "actor": "p1",
+       "bone": "head"
+      },
+      "lens": 23
+     }
+    ],
+    "handheld": 0.12,
+    "ease": "linear"
+   },
+   "dof": {
+    "focus": "p1",
+    "fstop": 1.8
+   },
+   "grade": "interior_cold"
+  },
+  {
+   "at": "beat:7",
+   "name": "he burns it through",
+   "set": "mod",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": {
+       "actor": "p1",
+       "bone": "chest",
+       "o": [
+        0.55,
+        0.1,
+        -0.75
+       ]
+      },
+      "look": {
+       "actor": "p1",
+       "bone": "chest",
+       "o": [
+        0,
+        0,
+        -0.25
+       ]
+      },
+      "lens": 40
+     },
+     {
+      "t": 1,
+      "pos": {
+       "actor": "p1",
+       "bone": "chest",
+       "o": [
+        0.5,
+        0.1,
+        -0.7
+       ]
+      },
+      "look": {
+       "actor": "p1",
+       "bone": "chest",
+       "o": [
+        0,
+        0,
+        -0.25
+       ]
+      },
+      "lens": 42
+     }
+    ],
+    "shake": 0.5,
+    "ease": "linear"
+   },
+   "dof": {
+    "focus": "p1",
+    "fstop": 2.0
+   },
+   "grade": {
+    "base": "interior_cold",
+    "bloom": 3,
+    "ca": 0.002
+   }
+  },
+  {
+   "at": "beat:8",
+   "name": "memory flood: bedroom: Alice",
+   "set": "room",
+   "dur": 0.62,
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": [
+       0.4,
+       1.0,
+       0.2
+      ],
+      "look": [
+       -1.3,
+       0.5,
+       -1.0
+      ],
+      "lens": 40
+     },
+     {
+      "t": 1,
+      "pos": [
+       0.38,
+       1.0,
+       0.19
+      ],
+      "look": [
+       -1.3,
+       0.5,
+       -1.0
+      ],
+      "lens": 44
+     }
+    ],
+    "shake": 0.3
+   },
+   "grade": {
+    "base": "memory",
+    "ca": 0.006,
+    "vhs": 0.5
+   }
+  },
+  {
+   "at": "beat:8+0.62",
+   "name": "memory flood: the pier: Lucy",
+   "set": "pier",
+   "dur": 0.62,
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": [
+       -0.6,
+       1.5,
+       -3.0
+      ],
+      "look": [
+       1.15,
+       1.3,
+       -6.0
+      ],
+      "lens": 40
+     },
+     {
+      "t": 1,
+      "pos": [
+       -0.57,
+       1.5,
+       -2.8499999999999996
+      ],
+      "look": [
+       1.15,
+       1.3,
+       -6.0
+      ],
+      "lens": 44
+     }
+    ],
+    "shake": 0.3
+   },
+   "grade": {
+    "base": "memory",
+    "ca": 0.006,
+    "vhs": 0.5
+   }
+  },
+  {
+   "at": "beat:8+1.24",
+   "name": "memory flood: the drawing",
+   "set": "mod",
+   "dur": 0.62,
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": [
+       -0.9,
+       1.35,
+       -0.1
+      ],
+      "look": [
+       -1.14,
+       1.32,
+       -0.48
+      ],
+      "lens": 40
+     },
+     {
+      "t": 1,
+      "pos": [
+       -0.855,
+       1.35,
+       -0.095
+      ],
+      "look": [
+       -1.14,
+       1.32,
+       -0.48
+      ],
+      "lens": 44
+     }
+    ],
+    "shake": 0.3
+   },
+   "grade": {
+    "base": "memory",
+    "ca": 0.006,
+    "vhs": 0.5
+   }
+  },
+  {
+   "at": "beat:8+1.86",
+   "name": "memory flood: the beach",
+   "set": "beach",
+   "dur": 0.62,
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": [
+       1.2,
+       1.4,
+       1.0
+      ],
+      "look": [
+       -1.6,
+       1.0,
+       -13
+      ],
+      "lens": 40
+     },
+     {
+      "t": 1,
+      "pos": [
+       1.14,
+       1.4,
+       0.95
+      ],
+      "look": [
+       -1.6,
+       1.0,
+       -13
+      ],
+      "lens": 44
+     }
+    ],
+    "shake": 0.3
+   },
+   "grade": {
+    "base": "memory",
+    "ca": 0.006,
+    "vhs": 0.5
+   }
+  },
+  {
+   "at": "beat:8+2.48",
+   "name": "memory flood: Dad leaning over her",
+   "set": "room",
+   "dur": 0.62,
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": [
+       0.9,
+       1.05,
+       0.9
+      ],
+      "look": [
+       -0.9,
+       0.85,
+       -0.85
+      ],
+      "lens": 40
+     },
+     {
+      "t": 1,
+      "pos": [
+       0.855,
+       1.05,
+       0.855
+      ],
+      "look": [
+       -0.9,
+       0.85,
+       -0.85
+      ],
+      "lens": 44
+     }
+    ],
+    "shake": 0.3
+   },
+   "grade": {
+    "base": "memory",
+    "ca": 0.006,
+    "vhs": 0.5
+   }
+  },
+  {
+   "at": "beat:8+3.1",
+   "name": "the poem, as text, tearing",
+   "set": "mod",
+   "dur": 0.8,
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": [
+       -0.5,
+       1.45,
+       -0.9
+      ],
+      "look": [
+       -1.12,
+       1.45,
+       -0.9
+      ],
+      "lens": 50
+     }
+    ]
+   },
+   "grade": {
+    "base": "memory",
+    "ca": 0.01,
+    "vhs": 1
+   }
+  },
+  {
+   "at": "C18a.02",
+   "name": "Daddy? (cut off mid-word)",
+   "set": "room",
+   "dur": 0.9,
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": [
+       -0.8,
+       0.6,
+       -1.7
+      ],
+      "look": [
+       -1.3,
+       0.55,
+       -1.38
+      ],
+      "lens": 55
+     }
+    ]
+   },
+   "grade": {
+    "base": "memory",
+    "ca": 0.008,
+    "vhs": 0.8
+   }
+  },
+  {
+   "at": "C18a.02+0.9",
+   "name": "silence: the breathing stops",
+   "set": "mod",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": {
+       "actor": "p1",
+       "bone": "head",
+       "o": [
+        0.38,
+        0.08,
+        0.52
+       ]
+      },
+      "look": {
+       "actor": "p1",
+       "bone": "head"
+      },
+      "lens": 22
+     },
+     {
+      "t": 1,
+      "pos": {
+       "actor": "p1",
+       "bone": "head",
+       "o": [
+        0.38,
+        0.08,
+        0.49
+       ]
+      },
+      "look": {
+       "actor": "p1",
+       "bone": "head"
+      },
+      "lens": 23
+     }
+    ],
+    "handheld": 0,
+    "ease": "linear"
+   },
+   "dof": {
+    "focus": "p1",
+    "fstop": 2.8
+   },
+   "grade": "burnt"
+  },
+  {
+   "at": "beat:12",
+   "name": "the HUD falls away: three numbers left",
+   "set": "mod",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": [
+       1.0,
+       1.5,
+       1.6
+      ],
+      "look": {
+       "actor": "p1",
+       "bone": "chest"
+      },
+      "lens": 35
+     },
+     {
+      "t": 1,
+      "pos": [
+       0.9,
+       1.5,
+       1.4
+      ],
+      "look": {
+       "actor": "p1",
+       "bone": "chest"
+      },
+      "lens": 38
+     }
+    ],
+    "ease": "linear"
+   },
+   "dof": {
+    "focus": "p1",
+    "fstop": 2.8
+   },
+   "grade": "burnt"
+  },
+  {
+   "at": "beat:14",
+   "name": "his hands: matte composite, no seams, no fabric",
+   "set": "mod",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": {
+       "actor": "p1",
+       "bone": "head",
+       "o": [
+        0.38,
+        0.08,
+        0.52
+       ]
+      },
+      "look": {
+       "actor": "p1",
+       "bone": "chest",
+       "o": [
+        0,
+        0.15,
+        0.35
+       ]
+      },
+      "lens": 22
+     },
+     {
+      "t": 1,
+      "pos": {
+       "actor": "p1",
+       "bone": "head",
+       "o": [
+        0.38,
+        0.08,
+        0.49
+       ]
+      },
+      "look": {
+       "actor": "p1",
+       "bone": "chest",
+       "o": [
+        0,
+        0.15,
+        0.35
+       ]
+      },
+      "lens": 23
+     }
+    ],
+    "ease": "linear"
+   },
+   "dof": {
+    "focus": "p1",
+    "fstop": 2.0
+   },
+   "grade": "burnt"
+  },
+  {
+   "at": "beat:15",
+   "name": "POV: his own hands, raw",
+   "set": "mod",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": {
+       "actor": "p1",
+       "bone": "head",
+       "o": [
+        0,
+        0.14,
+        0.12
+       ]
+      },
+      "look": {
+       "actor": "p1",
+       "bone": "hand_L",
+       "o": [
+        0,
+        0,
+        0
+       ]
+      },
+      "lens": 35
+     },
+     {
+      "t": 1,
+      "pos": {
+       "actor": "p1",
+       "bone": "head",
+       "o": [
+        0,
+        0.14,
+        0.12
+       ]
+      },
+      "look": {
+       "actor": "p1",
+       "bone": "hand_R"
+      },
+      "lens": 35
+     }
+    ],
+    "ease": "inout"
+   },
+   "dof": {
+    "focus": 0.5,
+    "fstop": 2.8
+   },
+   "grade": "burnt"
+  },
+  {
+   "at": "beat:17",
+   "name": "taped inside the visor rim, a child's drawing",
+   "set": "mod",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": {
+       "actor": "p1",
+       "bone": "head",
+       "o": [
+        0.38,
+        0.08,
+        0.52
+       ]
+      },
+      "look": {
+       "actor": "p1",
+       "bone": "head",
+       "o": [
+        0.05,
+        0.15,
+        0.12
+       ]
+      },
+      "lens": 22
+     },
+     {
+      "t": 1,
+      "pos": {
+       "actor": "p1",
+       "bone": "head",
+       "o": [
+        0.38,
+        0.08,
+        0.49
+       ]
+      },
+      "look": {
+       "actor": "p1",
+       "bone": "head",
+       "o": [
+        0.05,
+        0.15,
+        0.12
+       ]
+      },
+      "lens": 23
+     }
+    ],
+    "ease": "linear"
+   },
+   "dof": {
+    "focus": 0.32,
+    "fstop": 1.8
+   },
+   "grade": {
+    "base": "burnt",
+    "sat": 0.6
+   }
+  },
+  {
+   "at": "chose:c18a_rover:garage",
+   "name": "the city garage: a Meridian-blue rover on charge; he pulls the plug",
+   "set": "cave",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": [
+       2.2,
+       1.2,
+       -6
+      ],
+      "look": [
+       0,
+       1.0,
+       -14
+      ],
+      "lens": 35
+     },
+     {
+      "t": 1,
+      "pos": [
+       1.8,
+       1.1,
+       -7
+      ],
+      "look": [
+       0,
+       1.0,
+       -14
+      ],
+      "lens": 38
+     }
+    ]
+   },
+   "grade": "interior_night"
+  },
+  {
+   "at": "chose:c18a_rover:museum",
+   "name": "the heritage hall: his first rover; NO RADIO on the dash; the drawing behind the glass",
+   "set": "hall",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": [
+       -13.3,
+       1.75,
+       3.05
+      ],
+      "look": [
+       -13.25,
+       1.12,
+       2.45
+      ],
+      "lens": 60
+     },
+     {
+      "t": 1,
+      "pos": [
+       -13.32,
+       1.72,
+       3.0
+      ],
+      "look": [
+       -13.25,
+       1.1,
+       2.45
+      ],
+      "lens": 66
+     }
+    ],
+    "ease": "linear"
+   },
+   "dof": {
+    "focus": 0.8,
+    "fstop": 2.0
+   },
+   "grade": {
+    "base": "dome",
+    "exposure": 0.6,
+    "temp": -0.2
+   }
+  },
+  {
+   "at": "beat:19",
+   "name": "the old service tunnel: the rover's lights on the walls",
+   "set": "cave",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": [
+       0,
+       1.5,
+       0
+      ],
+      "look": [
+       0,
+       1.3,
+       -20
+      ],
+      "lens": 24
+     },
+     {
+      "t": 1,
+      "pos": [
+       0,
+       1.5,
+       -52
+      ],
+      "look": [
+       0,
+       1.3,
+       -80
+      ],
+      "lens": 24
+     }
+    ],
+    "ease": "linear",
+    "shake": 0.35
+   },
+   "grade": "interior_night"
+  },
+  {
+   "at": "beat:22",
+   "name": "out over the dune that ate the lander, up the ridge (night)",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": [
+       6,
+       1.2,
+       14
+      ],
+      "look": {
+       "a": "rover",
+       "o": [
+        0,
+        1.2,
+        0
+       ]
+      },
+      "lens": 35
+     },
+     {
+      "t": 1,
+      "pos": [
+       4,
+       1.6,
+       9
+      ],
+      "look": {
+       "a": "rover",
+       "o": [
+        0,
+        1.3,
+        0
+       ]
+      },
+      "lens": 40
+     }
+    ],
+    "handheld": 0.2,
+    "ease": "linear"
+   },
+   "dof": {
+    "focus": "rover",
+    "fstop": 2.8
+   },
+   "grade": "mars_night"
+  },
+  {
+   "at": "C18a.03",
+   "name": "the lit city behind, the dark planet ahead: they've got the cities; I've got the rest",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": [
+       -2.5,
+       2.2,
+       -9
+      ],
+      "look": [
+       0,
+       1.2,
+       30
+      ],
+      "lens": 24
+     },
+     {
+      "t": 0.5,
+      "pos": [
+       -3,
+       5,
+       -14
+      ],
+      "look": [
+       0,
+       0.6,
+       40
+      ],
+      "lens": 21
+     },
+     {
+      "t": 1,
+      "pos": [
+       -4,
+       14,
+       -26
+      ],
+      "look": [
+       0,
+       0,
+       60
+      ],
+      "lens": 18
+     }
+    ],
+    "ease": "inout"
+   },
+   "grade": {
+    "base": "mars_night",
+    "bloom": 2.6
+   }
+  }
+ ],
+ "track": [
+  {
+   "at": "start",
+   "actor": "p1",
+   "lookAt": [
+    -1.3,
+    1.8,
+    0.2
+   ],
+   "weight": 0.7
+  },
+  {
+   "at": "beat:2",
+   "actor": "p1",
+   "play": "reach_take",
+   "fade": 0.3
+  },
+  {
+   "at": "beat:2+1.15",
+   "hide": "bracket-torch"
+  },
+  {
+   "at": "beat:2+1.15",
+   "actor": "p1",
+   "attach": {
+    "prop": "torch",
+    "socket": "sk_grip_R",
+    "lit": true
+   }
+  },
+  {
+   "at": "beat:2+1.15",
+   "actor": "p1",
+   "lit": false
+  },
+  {
+   "at": "beat:2+2.2",
+   "actor": "p1",
+   "lit": true
+  },
+  {
+   "at": "beat:2+2.6",
+   "actor": "p1",
+   "play": "reach_back",
+   "fade": 0.4
+  },
+  {
+   "at": "beat:2+2.6",
+   "actor": "p1",
+   "lookAt": null
+  },
+  {
+   "at": "beat:7",
+   "fx": "sparks",
+   "set": "mod",
+   "where": [
+    -0.75,
+    1.35,
+    0.55
+   ],
+   "n": 40
+  },
+  {
+   "at": "beat:7+0.6",
+   "fx": "sparks",
+   "set": "mod",
+   "where": [
+    -0.75,
+    1.35,
+    0.55
+   ],
+   "n": 40
+  },
+  {
+   "at": "beat:7+1.0",
+   "actor": "p1",
+   "play": "flinch",
+   "fade": 0.08
+  },
+  {
+   "at": "beat:8",
+   "actor": "p1",
+   "lit": false
+  },
+  {
+   "at": "C18a.02+0.9",
+   "actor": "p1",
+   "detach": "torch"
+  },
+  {
+   "at": "C18a.02+0.9",
+   "actor": "p1",
+   "play": "idle",
+   "fade": 1.2
+  },
+  {
+   "at": "beat:12",
+   "actor": "p1",
+   "play": "look_down",
+   "fade": 1.0
+  },
+  {
+   "at": "beat:14",
+   "actor": "p1",
+   "kind": "kestrel"
+  },
+  {
+   "at": "beat:14",
+   "actor": "p1",
+   "attach": {
+    "prop": "paper_sheet",
+    "socket": "sk_eye",
+    "pos": [
+     0.07,
+     0.02,
+     -0.05
+    ],
+    "rot": [
+     0,
+     180,
+     8
+    ]
+   }
+  },
+  {
+   "at": "beat:14",
+   "actor": "p1",
+   "play": "look_hands",
+   "fade": 0.5
+  },
+  {
+   "at": "beat:19",
+   "setp": "cave",
+   "key": "driving",
+   "value": true
+  }
+ ]
+}

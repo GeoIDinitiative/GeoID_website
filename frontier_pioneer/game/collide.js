@@ -12,7 +12,7 @@
  * into the wall. Nothing here touches the wheels or the suspension, so the
  * vehicle feels exactly as it did everywhere else.
  */
-import { KIT, MODULES, rot, toWorld } from "./basenet.js?v=b8cfe8e-efa5b7b7";
+import { KIT, MODULES, rot, toWorld } from "./basenet.js?v=6d37c9c-9b39e129";
 
 /** Local boxes [x0, z0, x1, z1] in the module's own frame. */
 function localBoxes(type) {

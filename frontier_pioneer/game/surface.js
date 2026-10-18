@@ -17,7 +17,7 @@
  * are in memory; while they stream, the answer comes from the next coarser
  * level. `field.settled` says whether that is still happening.
  */
-import * as THREE from "../vendor/three.module.js?v=b8cfe8e-efa5b7b7";
+import * as THREE from "../vendor/three.module.js?v=6d37c9c-9b39e129";
 
 export class Surface {
   constructor(site, field, imagery, detail, rocks = null) {

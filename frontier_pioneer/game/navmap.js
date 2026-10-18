@@ -17,7 +17,7 @@
  *
  * Headings follow the vehicle and the walker: 0 = north = -z, 90 = east = +x.
  */
-import { registerSystem, getSystem } from "./systems.js?v=b8cfe8e-efa5b7b7";
+import { registerSystem, getSystem } from "./systems.js?v=6d37c9c-9b39e129";
 
 const SPAN_DEG = 110;                 // the compass window
 const MAP_SPAN_M = 650;               // half-width of the corner map (1.3 km across)

@@ -25,8 +25,8 @@
  * laid out. The terrain has its own shader and does not see three's lights,
  * which is why the lamps also get an additive pool draped on the ground.
  */
-import * as THREE from "../vendor/three.module.js?v=b8cfe8e-efa5b7b7";
-import { KIT, MODULES, defineKit, halfExtent, rot, toWorld } from "./basenet.js?v=b8cfe8e-efa5b7b7";
+import * as THREE from "../vendor/three.module.js?v=6d37c9c-9b39e129";
+import { KIT, MODULES, defineKit, halfExtent, rot, toWorld } from "./basenet.js?v=6d37c9c-9b39e129";
 
 const DYNAMIC_NODES = new Set(["panel", "door", "door_outer"]);
 const _m = new THREE.Matrix4(), _v = new THREE.Vector3(), _n3 = new THREE.Matrix3();
@@ -458,11 +458,17 @@ export class Site {
   }
   /** progress 0..1; baseY = world height of the base datum; dt real seconds. */
   update(progress, baseY, dt = 0.016) {
-    const now = performance.now(), age = (now - this.born) / 1000, pop = Math.min(1, age / 0.3), want = 0.12 + 0.88 * progress;
+    const now = performance.now(), age = (now - this.born) / 1000, pop = Math.min(1, age / 0.3);
+    // a blueprint (planned, in descent, or its components still at the pod): a cyan hologram, no scaffold, nothing rising
+    const plan = this.mod.plan, blueprint = plan === "draft" || plan === "ordered" || plan === "delivered";
+    if (blueprint !== this._bp) { this._bp = blueprint; this.blueMat.color.set(blueprint ? (plan === "draft" ? 0x5fd4ff : 0x8fb8ff) : 0xffa040); }
+    const want = blueprint ? 0 : 0.12 + 0.88 * progress;
     this.shown += (want - this.shown) * Math.min(1, 0.25 + dt * 4);
     this.plane.constant = baseY + (this.mod.ly || 0) + 0.02 + this.height * this.shown;
+    this.mesh.visible = !blueprint && !!this.mesh.geometry.attributes.position;
+    this.scaffold.visible = !blueprint;
     this.group.scale.setScalar(0.82 + 0.18 * (1 - (1 - pop) * (1 - pop)));
-    this.blueMat.opacity = (this.mod.queued ? 0.22 : 0.32) + 0.1 * Math.sin(now * 0.004) + 0.3 * (1 - pop);
+    this.blueMat.opacity = blueprint ? (plan === "draft" ? 0.26 : 0.2) + 0.08 * Math.sin(now * 0.003) + 0.3 * (1 - pop) : (this.mod.queued ? 0.22 : 0.32) + 0.1 * Math.sin(now * 0.004) + 0.3 * (1 - pop);
     this.scaffold.material.opacity = this.mod.queued ? 0.5 : 0.85;
   }
   dispose() { this.scaffold.geometry.dispose(); this.material.dispose(); this.blueMat.dispose(); this.group.parent && this.group.parent.remove(this.group); }

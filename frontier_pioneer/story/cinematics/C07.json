@@ -1,0 +1,598 @@
+{
+ "id": "C07",
+ "title": "Second Light",
+ "note": "Night after Dome Day, on the outpost roof; the new dome below glows from inside like a paper lantern. He lies on his back tracing constellations; a memory of a garden (the Plough, Orion: same stars, just from further away); HALO-1 fixed overhead; then a second light, as bright, crawling along the southern sky against both, and ATLAS saying nothing is there.",
+ "stage": {
+  "at": "home",
+  "face": 0
+ },
+ "world": {
+  "hour": 22.5,
+  "hideAvatar": true,
+  "hide": [
+   "bases",
+   "tiers",
+   "caretakers"
+  ],
+  "focus": true
+ },
+ "sets": [
+  {
+   "id": "post",
+   "kind": "outpost",
+   "at": [
+    0,
+    0,
+    0
+   ],
+   "dome": true,
+   "night": true
+  },
+  {
+   "id": "sky",
+   "kind": "sky_lights",
+   "at": [
+    0,
+    0,
+    0
+   ],
+   "second": true
+  },
+  {
+   "id": "g",
+   "kind": "garden"
+  }
+ ],
+ "actors": [
+  {
+   "id": "p1",
+   "kind": "pioneer",
+   "at": [
+    0.2,
+    3.3,
+    0.1
+   ],
+   "yaw": 90,
+   "clip": "lie_trace",
+   "ik": false
+  },
+  {
+   "id": "alice",
+   "kind": "child",
+   "set": "g",
+   "look": {
+    "hair": "tied"
+   },
+   "at": [
+    0.4,
+    0,
+    0
+   ],
+   "yaw": 180,
+   "clip": "point_up_hold"
+  },
+  {
+   "id": "dad",
+   "kind": "human",
+   "set": "g",
+   "look": {
+    "hair": "short"
+   },
+   "at": [
+    -0.4,
+    0,
+    0.4
+   ],
+   "yaw": 180,
+   "clip": "idle"
+  }
+ ],
+ "lights": [
+  {
+   "id": "lantern",
+   "type": "point",
+   "at": [
+    0,
+    5,
+    -3
+   ],
+   "color": "#ffcf90",
+   "intensity": 10,
+   "dist": 10
+  }
+ ],
+ "shots": [
+  {
+   "at": "start",
+   "name": "night after Dome Day: a man lying on the roof, tracing the stars; below, the new dome glowing like a paper lantern",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": [
+       -4.5,
+       7.5,
+       -6.5
+      ],
+      "look": [
+       0,
+       3.3,
+       0
+      ],
+      "lens": 35
+     },
+     {
+      "t": 1,
+      "pos": [
+       -4.0,
+       7.2,
+       -5.8
+      ],
+      "look": [
+       0,
+       3.3,
+       0
+      ],
+      "lens": 36
+     }
+    ],
+    "ease": "linear",
+    "handheld": 0.05
+   },
+   "grade": "mars_night",
+   "dof": {
+    "focus": "p1",
+    "fstop": 2.8
+   }
+  },
+  {
+   "at": "C07.01",
+   "name": "memory: That's the Plough.",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": [
+       1.3,
+       0.6,
+       2.4
+      ],
+      "look": [
+       0.0,
+       2.4,
+       -2.5
+      ],
+      "lens": 28
+     },
+     {
+      "t": 1,
+      "pos": [
+       1.2,
+       0.6,
+       2.2
+      ],
+      "look": [
+       0.0,
+       2.8,
+       -2.5
+      ],
+      "lens": 28
+     }
+    ],
+    "ease": "linear",
+    "handheld": 0.15
+   },
+   "grade": "memory",
+   "dof": {
+    "focus": "alice",
+    "fstop": 2.2
+   },
+   "set": "g"
+  },
+  {
+   "at": "C07.02",
+   "name": "And that's Orion. Same stars, love.",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": [
+       -1.9,
+       0.5,
+       -1.6
+      ],
+      "look": [
+       0.0,
+       1.4,
+       0.3
+      ],
+      "lens": 28
+     },
+     {
+      "t": 1,
+      "pos": [
+       -1.75,
+       0.55,
+       -1.45
+      ],
+      "look": [
+       0.0,
+       1.45,
+       0.3
+      ],
+      "lens": 30
+     }
+    ],
+    "ease": "linear",
+    "handheld": 0.15
+   },
+   "grade": "memory",
+   "dof": {
+    "focus": "dad",
+    "fstop": 2.0
+   },
+   "set": "g"
+  },
+  {
+   "at": "C07.03",
+   "name": "Same stars. Just from further away. (his finger on Orion)",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": {
+       "actor": "p1",
+       "bone": "head",
+       "o": [
+        0.5,
+        0.6,
+        0.3
+       ]
+      },
+      "look": {
+       "actor": "p1",
+       "bone": "hand_R"
+      },
+      "lens": 35
+     },
+     {
+      "t": 1,
+      "pos": {
+       "actor": "p1",
+       "bone": "head",
+       "o": [
+        0.45,
+        0.6,
+        0.25
+       ]
+      },
+      "look": {
+       "actor": "p1",
+       "bone": "hand_R"
+      },
+      "lens": 38
+     }
+    ],
+    "ease": "linear",
+    "handheld": 0.05
+   },
+   "grade": "mars_night",
+   "dof": {
+    "focus": {
+     "actor": "p1",
+     "bone": "hand_R"
+    },
+    "fstop": 2.4
+   }
+  },
+  {
+   "at": "beat:6",
+   "name": "HALO-1 fixed overhead; then a second light, crawling against both",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": {
+       "actor": "p1",
+       "bone": "head",
+       "o": [
+        0.0,
+        0.55,
+        -0.15
+       ]
+      },
+      "look": {
+       "sky": [
+        0.25,
+        0.32,
+        1
+       ]
+      },
+      "lens": 35
+     },
+     {
+      "t": 1,
+      "pos": {
+       "actor": "p1",
+       "bone": "head",
+       "o": [
+        0.0,
+        0.55,
+        -0.15
+       ]
+      },
+      "look": {
+       "sky": [
+        -0.05,
+        0.25,
+        1
+       ]
+      },
+      "lens": 35
+     }
+    ],
+    "ease": "linear",
+    "handheld": 0.05
+   },
+   "grade": {
+    "base": "mars_night",
+    "bloom": 3
+   }
+  },
+  {
+   "at": "C07.04",
+   "name": "Atlas. There's a light in the south.",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": {
+       "actor": "p1",
+       "bone": "head",
+       "o": [
+        1.5,
+        0.55,
+        0.3
+       ]
+      },
+      "look": {
+       "actor": "p1",
+       "bone": "head"
+      },
+      "lens": 34
+     },
+     {
+      "t": 1,
+      "pos": {
+       "actor": "p1",
+       "bone": "head",
+       "o": [
+        1.4,
+        0.55,
+        0.3
+       ]
+      },
+      "look": {
+       "actor": "p1",
+       "bone": "head"
+      },
+      "lens": 37
+     }
+    ],
+    "handheld": 0.12,
+    "ease": "linear"
+   },
+   "grade": "mars_night",
+   "dof": {
+    "focus": "p1",
+    "fstop": 2.0
+   }
+  },
+  {
+   "at": "C07.05",
+   "name": "No object at that position is registered.",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": {
+       "actor": "p1",
+       "bone": "head",
+       "o": [
+        0.0,
+        0.55,
+        -0.15
+       ]
+      },
+      "look": {
+       "sky": [
+        -0.1,
+        0.24,
+        1
+       ]
+      },
+      "lens": 50
+     },
+     {
+      "t": 1,
+      "pos": {
+       "actor": "p1",
+       "bone": "head",
+       "o": [
+        0.0,
+        0.55,
+        -0.15
+       ]
+      },
+      "look": {
+       "sky": [
+        -0.18,
+        0.22,
+        1
+       ]
+      },
+      "lens": 55
+     }
+    ],
+    "ease": "linear",
+    "handheld": 0.05
+   },
+   "grade": {
+    "base": "mars_night",
+    "bloom": 3
+   }
+  },
+  {
+   "at": "C07.06",
+   "name": "I'm looking at it.",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": {
+       "actor": "p1",
+       "bone": "head",
+       "o": [
+        1.5,
+        0.55,
+        0.3
+       ]
+      },
+      "look": {
+       "actor": "p1",
+       "bone": "head"
+      },
+      "lens": 40
+     },
+     {
+      "t": 1,
+      "pos": {
+       "actor": "p1",
+       "bone": "head",
+       "o": [
+        1.4,
+        0.55,
+        0.3
+       ]
+      },
+      "look": {
+       "actor": "p1",
+       "bone": "head"
+      },
+      "lens": 43
+     }
+    ],
+    "handheld": 0.12,
+    "ease": "linear"
+   },
+   "grade": "mars_night",
+   "dof": {
+    "focus": "p1",
+    "fstop": 1.8
+   }
+  },
+  {
+   "at": "beat:14",
+   "name": "he watches it sink into the haze over the crater rim; the dome glows on below him; he does not trace any more",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": [
+       -4.0,
+       6.5,
+       -5.5
+      ],
+      "look": [
+       0,
+       3.3,
+       0
+      ],
+      "lens": 32
+     },
+     {
+      "t": 1,
+      "pos": [
+       -7.5,
+       10,
+       -10
+      ],
+      "look": [
+       0,
+       3.6,
+       0
+      ],
+      "lens": 28
+     }
+    ],
+    "ease": "inout",
+    "handheld": 0.05
+   },
+   "grade": "mars_night",
+   "dof": {
+    "focus": 6,
+    "fstop": 4
+   }
+  }
+ ],
+ "track": [
+  {
+   "at": "start",
+   "actor": "p1",
+   "lookAt": {
+    "sky": [
+     0.1,
+     1,
+     0.3
+    ]
+   },
+   "weight": 0.8
+  },
+  {
+   "at": "C07.01",
+   "actor": "alice",
+   "lookAt": [
+    0.4,
+    70,
+    -90
+   ],
+   "weight": 1
+  },
+  {
+   "at": "C07.02",
+   "actor": "dad",
+   "play": "point_up",
+   "fade": 0.4
+  },
+  {
+   "at": "beat:6",
+   "actor": "p1",
+   "lookAt": {
+    "sky": [
+     0.1,
+     0.3,
+     1
+    ]
+   },
+   "weight": 1
+  },
+  {
+   "at": "beat:8",
+   "actor": "p1",
+   "play": "lie_back",
+   "fade": 2.0
+  },
+  {
+   "at": "C07.05",
+   "actor": "p1",
+   "lookAt": {
+    "sky": [
+     -0.15,
+     0.25,
+     1
+    ]
+   },
+   "weight": 1
+  }
+ ]
+}

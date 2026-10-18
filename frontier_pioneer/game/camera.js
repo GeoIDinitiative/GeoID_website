@@ -7,7 +7,7 @@
  * rover a couple of seconds after the last look input while it is moving. It
  * never goes below the ground.
  */
-import * as THREE from "../vendor/three.module.js?v=b8cfe8e-efa5b7b7";
+import * as THREE from "../vendor/three.module.js?v=6d37c9c-9b39e129";
 
 const _t = new THREE.Vector3(), _d = new THREE.Vector3(), _q = new THREE.Quaternion(), _e = new THREE.Euler(0, 0, 0, "YXZ");
 const _fw = new THREE.Vector3();

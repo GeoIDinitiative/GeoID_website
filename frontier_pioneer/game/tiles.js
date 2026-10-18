@@ -6,7 +6,7 @@
  * Tiles come from the site's own static pyramid, so there is no cross-origin
  * question: an <img> decode and a canvas read-back.
  */
-import { TILE_BUDGET } from "./config.js?v=b8cfe8e-efa5b7b7";
+import { TILE_BUDGET } from "./config.js?v=6d37c9c-9b39e129";
 
 const inflight = new Map();   // url -> Promise<HTMLImageElement>
 const queue = [];             // {url, priority, seq, resolve, reject, retired}

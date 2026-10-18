@@ -25,7 +25,7 @@
  *
  * All of it is GENERATED: no dataset says where a dust devil is.
  */
-import * as THREE from "../vendor/three.module.js?v=b8cfe8e-efa5b7b7";
+import * as THREE from "../vendor/three.module.js?v=6d37c9c-9b39e129";
 
 const TIERS = {
   low:    { grid: 24, devils: 4,  radial: 8,  rows: 8,  shadows: false, wall: 24, shake: 0.6 },

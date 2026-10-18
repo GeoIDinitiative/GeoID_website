@@ -2,17 +2,18 @@
  * The shell: the MARS: FRONTIER PIONEER title (title.js), the development site picker (?dev), loading, menus. Everything here is DOM
  * wiring around one Game; nothing in the game depends on it.
  */
-import { Game } from "./main.js?v=b8cfe8e-efa5b7b7";
-import { SITES } from "./site.js?v=b8cfe8e-efa5b7b7";
-import { install } from "./diag.js?v=b8cfe8e-efa5b7b7";
-import { KEYBOARD_HELP, DRIVING_HELP } from "./input.js?v=b8cfe8e-efa5b7b7";
-import { hasSave, clockText } from "./state.js?v=b8cfe8e-efa5b7b7";
-import { MARS, QUALITY } from "./config.js?v=b8cfe8e-efa5b7b7";
-import { fmtDistance } from "./hud.js?v=b8cfe8e-efa5b7b7";
-import { mountLauncher } from "./launcher.js?v=b8cfe8e-efa5b7b7";
-import { openBigMap } from "./bigmap.js?v=b8cfe8e-efa5b7b7";
-import { mountTitle, campaign, hasCampaign, campaignEntry } from "./title.js?v=b8cfe8e-efa5b7b7";
-import { getSystem } from "./systems.js?v=b8cfe8e-efa5b7b7";
+import { Game } from "./main.js?v=6d37c9c-9b39e129";
+import { SITES } from "./site.js?v=6d37c9c-9b39e129";
+import { install } from "./diag.js?v=6d37c9c-9b39e129";
+import { KEYBOARD_HELP, DRIVING_HELP } from "./input.js?v=6d37c9c-9b39e129";
+import { hasSave, clockText } from "./state.js?v=6d37c9c-9b39e129";
+import { MARS, QUALITY } from "./config.js?v=6d37c9c-9b39e129";
+import { fmtDistance } from "./hud.js?v=6d37c9c-9b39e129";
+import { mountLauncher } from "./launcher.js?v=6d37c9c-9b39e129";
+import { openBigMap } from "./bigmap.js?v=6d37c9c-9b39e129";
+import { installPadNav } from "./padnav.js?v=6d37c9c-9b39e129";
+import { mountTitle, campaign, hasCampaign, campaignEntry } from "./title.js?v=6d37c9c-9b39e129";
+import { getSystem } from "./systems.js?v=6d37c9c-9b39e129";
 
 const $ = (id) => document.getElementById(id);
 const params = new URLSearchParams(location.search);
@@ -113,6 +114,7 @@ function syncMenu() {}
 function syncSettings() {
   const s = game.settings;
   $("set-quality").value = s.quality; $("set-invert").checked = s.invertY; $("set-shadows").checked = s.shadows;
+  $("set-dof").checked = s.dof !== false; $("set-grain").checked = s.grain !== false;
   $("set-units").value = s.units; $("set-touch").value = s.touch;
 }
 function updateTouch() {
@@ -157,6 +159,8 @@ $("btn-done-quit").addEventListener("click", () => { game.save(); location.href 
 $("set-quality").addEventListener("change", (e) => { game.setQuality(e.target.value); game.applySettings(); if (game.ready) game.tick(0); });
 $("set-invert").addEventListener("change", (e) => { game.settings.invertY = e.target.checked; game.applySettings(); });
 $("set-shadows").addEventListener("change", (e) => { game.settings.shadows = e.target.checked; game.applySettings(); if (game.ready) game.tick(0); });
+$("set-dof").addEventListener("change", (e) => { game.settings.dof = e.target.checked; game.applySettings(); if (game.ready) game.tick(0); });
+$("set-grain").addEventListener("change", (e) => { game.settings.grain = e.target.checked; game.applySettings(); if (game.ready) game.tick(0); });
 $("set-units").addEventListener("change", (e) => { game.settings.units = e.target.value; game.applySettings(); });
 $("set-touch").addEventListener("change", (e) => { game.settings.touch = e.target.value; game.applySettings(); updateTouch(); });
 
@@ -171,6 +175,7 @@ window.addEventListener("pagehide", () => game.save());
 document.addEventListener("visibilitychange", () => { if (document.hidden && game.mode === "driving") { game.save(); if (!headless) openMenu(); } });
 
 install(game, { begin });
+installPadNav(game);          // the left stick moves the selection in the menus (the pad is the game's while it is in front: padhost.js)
 const home = () => { const q = new URLSearchParams(location.search); q.delete("continue"); const t = q.toString(); return location.pathname + (t ? "?" + t : ""); };
 if (!dev) {
   // MARS: FRONTIER PIONEER: the campaign's title (title.js); the site comes from the campaign

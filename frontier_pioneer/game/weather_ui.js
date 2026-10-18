@@ -11,8 +11,8 @@
  * the shared controller module walks it with the D-pad and closes it with
  * Circle exactly like the others.
  */
-import { getSystem } from "./systems.js?v=b8cfe8e-efa5b7b7";
-import { fmtSpeed, fmtDistance } from "./hud.js?v=b8cfe8e-efa5b7b7";
+import { getSystem } from "./systems.js?v=6d37c9c-9b39e129";
+import { fmtSpeed, fmtDistance } from "./hud.js?v=6d37c9c-9b39e129";
 // (weather.js is loaded by plugins.js under its own URL: importing it again from here would make a second copy of the system)
 const HOUR = 88775.244 / 24;
 const COMPASS16 = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"];

@@ -46,8 +46,8 @@
  * background tab is not throttled to one slice a second) and happens behind
  * the loading screen: about half a second in all.
  */
-import * as THREE from "../vendor/three.module.js?v=b8cfe8e-efa5b7b7";
-import { sunPosition, surfaceIrradiance } from "./sky.js?v=b8cfe8e-efa5b7b7";
+import * as THREE from "../vendor/three.module.js?v=6d37c9c-9b39e129";
+import { sunPosition, surfaceIrradiance } from "./sky.js?v=6d37c9c-9b39e129";
 
 export const LAYERS = [
   { id: "traversability", label: "Traversability", good: "easy", bad: "do not drive", invert: false },

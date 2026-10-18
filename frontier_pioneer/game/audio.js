@@ -49,8 +49,8 @@
  *   game.audio = { available, started, ctx, start(), mute(on), toggleMute(), setVolume(name, v),
  *                  stats(), play(name, bus), debugEnv }      // debugEnv: {wind, storm} overrides, for tests
  */
-import { registerSystem, getSystem } from "./systems.js?v=b8cfe8e-efa5b7b7";
-import { KEYBOARD_HELP } from "./input.js?v=b8cfe8e-efa5b7b7";
+import { registerSystem, getSystem } from "./systems.js?v=6d37c9c-9b39e129";
+import { KEYBOARD_HELP } from "./input.js?v=6d37c9c-9b39e129";
 
 export const AUDIO_DEFAULTS = { master: 0.8, sfx: 0.85, music: 0.3, ui: 0.6, voice: 0.9, muted: false };
 /** Voice presets: processing chains for the story's lines (see Sound.voice). */

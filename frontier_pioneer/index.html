@@ -14,7 +14,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <script src="/scripts/theme.js"></script>
 <link rel="stylesheet" href="/styles/viewer-themes.css">
-<link rel="stylesheet" href="mars.css?v=b8cfe8e-efa5b7b7">
+<link rel="stylesheet" href="mars.css?v=6d37c9c-9b39e129">
 <!-- The site's shared controller module. Not deferred: it must exist before the game module runs. -->
 <script src="/scripts/gamepad.js"></script>
 </head>
@@ -179,6 +179,8 @@
           <select id="set-quality"><option value="low">Low</option><option value="medium">Medium</option><option value="high">High (default)</option><option value="ultra">Ultra</option></select></label>
         <label class="field check"><input type="checkbox" id="set-invert"> Invert camera vertical</label>
         <label class="field check"><input type="checkbox" id="set-shadows"> Terrain shadows</label>
+        <label class="field check"><input type="checkbox" id="set-dof"> Cinematic depth of field (Medium and above)</label>
+        <label class="field check"><input type="checkbox" id="set-grain"> Film grain in cutscenes</label>
         <label class="field">Units
           <select id="set-units"><option value="metric">Metric (m/s, km)</option><option value="kmh">Metric (km/h, km)</option><option value="imperial">Imperial (mph, miles)</option></select></label>
         <label class="field">Touch buttons
@@ -222,6 +224,6 @@
 
 <div id="fatal" class="fatal" hidden></div>
 
-<script type="module" src="game/boot.js?v=b8cfe8e-efa5b7b7"></script>
+<script type="module" src="game/boot.js?v=6d37c9c-9b39e129"></script>
 </body>
 </html>

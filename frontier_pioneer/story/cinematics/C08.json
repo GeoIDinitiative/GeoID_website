@@ -1,0 +1,802 @@
+{
+ "id": "C08",
+ "title": "Buried",
+ "note": "The landing site, wind on a smooth dune crest where the lander stood; he kneels with the scanner and the HUD draws the lander three metres under the sand. Twenty metres off when he landed. ATLAS answers in mission sols. Each answer has its own shots: the number nobody converts for him; the line he lets go; the poem said to the dune.",
+ "stage": {
+  "at": "lander",
+  "face": "rover"
+ },
+ "world": {
+  "hideAvatar": true,
+  "focus": true,
+  "hide": [
+   "story-lander"
+  ]
+ },
+ "sets": [
+  {
+   "id": "ghost",
+   "kind": "dune_ghost",
+   "at": [
+    0,
+    0,
+    0
+   ]
+  }
+ ],
+ "actors": [
+  {
+   "id": "p1",
+   "kind": "pioneer",
+   "at": {
+    "obj": "story-dune",
+    "o": [
+     0,
+     1.0,
+     0
+    ]
+   },
+   "yaw": 0,
+   "clip": "kneel_scan",
+   "ik": false
+  }
+ ],
+ "shots": [
+  {
+   "at": "start",
+   "name": "the landing site: where the lander stood, a smooth dune crest; a kneeling figure scanning",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": [
+       -11,
+       1.6,
+       -6
+      ],
+      "look": {
+       "actor": "p1",
+       "bone": "chest"
+      },
+      "lens": 28
+     },
+     {
+      "t": 1,
+      "pos": [
+       -12,
+       2.2,
+       4
+      ],
+      "look": {
+       "actor": "p1",
+       "bone": "chest"
+      },
+      "lens": 28
+     }
+    ],
+    "ease": "linear",
+    "handheld": 0.15
+   },
+   "grade": "auto",
+   "dof": {
+    "focus": "p1",
+    "fstop": 4
+   }
+  },
+  {
+   "at": "C08.01",
+   "name": "That dune was twenty metres off when I landed. Twenty.",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": {
+       "actor": "p1",
+       "bone": "head",
+       "o": [
+        0.8,
+        0.18,
+        2.1
+       ]
+      },
+      "look": {
+       "actor": "p1",
+       "bone": "head"
+      },
+      "lens": 60
+     },
+     {
+      "t": 1,
+      "pos": {
+       "actor": "p1",
+       "bone": "head",
+       "o": [
+        0.736,
+        0.18,
+        1.89
+       ]
+      },
+      "look": {
+       "actor": "p1",
+       "bone": "head"
+      },
+      "lens": 65
+     }
+    ],
+    "handheld": 0.12,
+    "ease": "linear"
+   },
+   "grade": "auto",
+   "dof": {
+    "focus": "p1",
+    "fstop": 2.2
+   }
+  },
+  {
+   "at": "beat:5",
+   "name": "the HUD outlines the lander three metres under the sand",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": [
+       6,
+       4,
+       6
+      ],
+      "look": [
+       0,
+       -1,
+       0
+      ],
+      "lens": 35
+     },
+     {
+      "t": 1,
+      "pos": [
+       5,
+       4.5,
+       7
+      ],
+      "look": [
+       0,
+       -1,
+       0
+      ],
+      "lens": 35
+     }
+    ],
+    "ease": "linear",
+    "handheld": 0.1
+   },
+   "grade": "auto",
+   "dof": {
+    "focus": 8,
+    "fstop": 5.6
+   }
+  },
+  {
+   "at": "C08.02",
+   "name": "Atlas. How long have I been on Mars?",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": {
+       "actor": "p1",
+       "bone": "head",
+       "o": [
+        -0.72,
+        0.13,
+        1.925
+       ]
+      },
+      "look": {
+       "actor": "p1",
+       "bone": "head"
+      },
+      "lens": 65.9
+     },
+     {
+      "t": 1,
+      "pos": {
+       "actor": "p1",
+       "bone": "head",
+       "o": [
+        -0.662,
+        0.13,
+        1.733
+       ]
+      },
+      "look": {
+       "actor": "p1",
+       "bone": "head"
+      },
+      "lens": 59.5
+     }
+    ],
+    "handheld": 0.12,
+    "ease": "linear"
+   },
+   "grade": "auto",
+   "dof": {
+    "focus": "p1",
+    "fstop": 2.0
+   }
+  },
+  {
+   "at": "C08.03",
+   "name": "Mission sol four hundred and twelve. (wide, wind on the crest)",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": [
+       9,
+       1.3,
+       10
+      ],
+      "look": {
+       "actor": "p1",
+       "bone": "chest"
+      },
+      "lens": 45
+     },
+     {
+      "t": 1,
+      "pos": [
+       8.6,
+       1.3,
+       9.6
+      ],
+      "look": {
+       "actor": "p1",
+       "bone": "chest"
+      },
+      "lens": 48
+     }
+    ],
+    "ease": "linear",
+    "handheld": 0.15
+   },
+   "grade": "auto",
+   "dof": {
+    "focus": "p1",
+    "fstop": 2.8
+   }
+  },
+  {
+   "at": "C08.04",
+   "name": "That's not what I asked.",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": {
+       "actor": "p1",
+       "bone": "head",
+       "o": [
+        0.64,
+        0.13,
+        1.75
+       ]
+      },
+      "look": {
+       "actor": "p1",
+       "bone": "head"
+      },
+      "lens": 59.8
+     },
+     {
+      "t": 1,
+      "pos": {
+       "actor": "p1",
+       "bone": "head",
+       "o": [
+        0.589,
+        0.13,
+        1.575
+       ]
+      },
+      "look": {
+       "actor": "p1",
+       "bone": "head"
+      },
+      "lens": 54.0
+     }
+    ],
+    "handheld": 0.12,
+    "ease": "linear"
+   },
+   "grade": "auto",
+   "dof": {
+    "focus": "p1",
+    "fstop": 1.8
+   }
+  },
+  {
+   "at": "C08.05",
+   "name": "Please rephrase.",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": [
+       -3,
+       1.2,
+       7
+      ],
+      "look": {
+       "actor": "p1",
+       "bone": "head"
+      },
+      "lens": 55
+     },
+     {
+      "t": 1,
+      "pos": [
+       -2.8,
+       1.2,
+       6.6
+      ],
+      "look": {
+       "actor": "p1",
+       "bone": "head"
+      },
+      "lens": 58
+     }
+    ],
+    "ease": "linear",
+    "handheld": 0.15
+   },
+   "grade": "auto",
+   "dof": {
+    "focus": "p1",
+    "fstop": 2.4
+   }
+  },
+  {
+   "at": "beat:10",
+   "name": "he looks back at the dune",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": {
+       "actor": "p1",
+       "bone": "head",
+       "o": [
+        0.4,
+        0.08,
+        1.575
+       ]
+      },
+      "look": {
+       "actor": "p1",
+       "bone": "head"
+      },
+      "lens": 52.1
+     },
+     {
+      "t": 1,
+      "pos": {
+       "actor": "p1",
+       "bone": "head",
+       "o": [
+        0.368,
+        0.08,
+        1.417
+       ]
+      },
+      "look": {
+       "actor": "p1",
+       "bone": "head"
+      },
+      "lens": 46.9
+     }
+    ],
+    "handheld": 0.12,
+    "ease": "linear"
+   },
+   "grade": "auto",
+   "dof": {
+    "focus": "p1",
+    "fstop": 1.6
+   }
+  },
+  {
+   "at": "C08.07",
+   "name": "Nine thousand nine hundred and sixty-one.",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": [
+       2.2,
+       1.7,
+       -10
+      ],
+      "look": {
+       "actor": "p1",
+       "bone": "chest"
+      },
+      "lens": 55
+     },
+     {
+      "t": 1,
+      "pos": [
+       2.0,
+       1.6,
+       -9.2
+      ],
+      "look": {
+       "actor": "p1",
+       "bone": "chest"
+      },
+      "lens": 55
+     }
+    ],
+    "ease": "linear",
+    "handheld": 0.05
+   },
+   "grade": "auto",
+   "dof": {
+    "focus": "p1",
+    "fstop": 2.8
+   }
+  },
+  {
+   "at": "C08.08",
+   "name": "That's twenty-eight years.",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": {
+       "actor": "p1",
+       "bone": "head",
+       "o": [
+        0.48,
+        0.08,
+        1.575
+       ]
+      },
+      "look": {
+       "actor": "p1",
+       "bone": "head"
+      },
+      "lens": 52.8
+     },
+     {
+      "t": 1,
+      "pos": {
+       "actor": "p1",
+       "bone": "head",
+       "o": [
+        0.442,
+        0.08,
+        1.417
+       ]
+      },
+      "look": {
+       "actor": "p1",
+       "bone": "head"
+      },
+      "lens": 47.6
+     }
+    ],
+    "handheld": 0.12,
+    "ease": "linear"
+   },
+   "grade": "auto",
+   "dof": {
+    "focus": "p1",
+    "fstop": 1.6
+   }
+  },
+  {
+   "at": "C08.repeat",
+   "name": "(again) Nine thousand nine hundred and sixty-one: the dune goes on moving",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": [
+       4,
+       1.5,
+       9
+      ],
+      "look": [
+       0,
+       1.5,
+       0
+      ],
+      "lens": 40
+     },
+     {
+      "t": 1,
+      "pos": [
+       10,
+       5,
+       20
+      ],
+      "look": [
+       0,
+       1,
+       0
+      ],
+      "lens": 28
+     }
+    ],
+    "ease": "inout",
+    "handheld": 0.05
+   },
+   "grade": "auto",
+   "dof": {
+    "focus": "p1",
+    "fstop": 4
+   }
+  },
+  {
+   "at": "C08.11",
+   "name": "Mission sol four hundred and twelve. Fine.",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": {
+       "actor": "p1",
+       "bone": "head",
+       "o": [
+        0.72,
+        0.13,
+        1.75
+       ]
+      },
+      "look": {
+       "actor": "p1",
+       "bone": "head"
+      },
+      "lens": 60.7
+     },
+     {
+      "t": 1,
+      "pos": {
+       "actor": "p1",
+       "bone": "head",
+       "o": [
+        0.662,
+        0.13,
+        1.575
+       ]
+      },
+      "look": {
+       "actor": "p1",
+       "bone": "head"
+      },
+      "lens": 54.8
+     }
+    ],
+    "handheld": 0.12,
+    "ease": "linear"
+   },
+   "grade": "auto",
+   "dof": {
+    "focus": "p1",
+    "fstop": 2.0
+   }
+  },
+  {
+   "at": "opt:c08_buried:let_go:1",
+   "name": "he stands; wind fills in the marks his knees left",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": [
+       3,
+       0.6,
+       4
+      ],
+      "look": [
+       0,
+       2.0,
+       0
+      ],
+      "lens": 35
+     },
+     {
+      "t": 1,
+      "pos": [
+       6,
+       1.0,
+       8
+      ],
+      "look": [
+       0,
+       2.2,
+       0
+      ],
+      "lens": 30
+     }
+    ],
+    "ease": "inout",
+    "handheld": 0.15
+   },
+   "grade": "auto",
+   "dof": {
+    "focus": "p1",
+    "fstop": 2.8
+   }
+  },
+  {
+   "at": "C08.12",
+   "name": "If only you could see what I see (quietly, to the dune)",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": {
+       "actor": "p1",
+       "bone": "head",
+       "o": [
+        0.96,
+        0.23,
+        2.275
+       ]
+      },
+      "look": {
+       "actor": "p1",
+       "bone": "head"
+      },
+      "lens": 60
+     },
+     {
+      "t": 1,
+      "pos": {
+       "actor": "p1",
+       "bone": "head",
+       "o": [
+        0.883,
+        0.23,
+        2.048
+       ]
+      },
+      "look": {
+       "actor": "p1",
+       "bone": "head"
+      },
+      "lens": 65
+     }
+    ],
+    "handheld": 0.12,
+    "ease": "linear"
+   },
+   "grade": "auto",
+   "dof": {
+    "focus": "p1",
+    "fstop": 2.0
+   }
+  },
+  {
+   "at": "opt:c08_buried:recite:2",
+   "name": "the dune goes on moving at seven tenths of a metre a year",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": [
+       8,
+       2,
+       10
+      ],
+      "look": [
+       0,
+       1.2,
+       0
+      ],
+      "lens": 32
+     },
+     {
+      "t": 1,
+      "pos": [
+       16,
+       6,
+       24
+      ],
+      "look": [
+       0,
+       1,
+       0
+      ],
+      "lens": 24
+     }
+    ],
+    "ease": "inout",
+    "handheld": 0.05
+   },
+   "grade": "auto",
+   "dof": {
+    "focus": "p1",
+    "fstop": 4
+   }
+  }
+ ],
+ "track": [
+  {
+   "at": "start",
+   "fx": "dust",
+   "where": [
+    -4,
+    2.2,
+    0
+   ],
+   "n": 40,
+   "spread": 2,
+   "up": 0.2,
+   "size": 3,
+   "life": 6,
+   "over": 5,
+   "color": "#b08060"
+  },
+  {
+   "at": "start",
+   "actor": "p1",
+   "play": "kneel_scan"
+  },
+  {
+   "at": "C08.01",
+   "actor": "p1",
+   "play": "kneel_idle",
+   "fade": 0.6
+  },
+  {
+   "at": "C08.01",
+   "actor": "p1",
+   "lookAt": [
+    -18,
+    1,
+    6
+   ],
+   "weight": 0.6
+  },
+  {
+   "at": "C08.02",
+   "actor": "p1",
+   "lookAt": {
+    "sky": [
+     0.2,
+     0.6,
+     -0.2
+    ]
+   },
+   "weight": 0.4
+  },
+  {
+   "at": "beat:10",
+   "actor": "p1",
+   "lookAt": [
+    0,
+    0,
+    0
+   ],
+   "weight": 0.8
+  },
+  {
+   "at": "opt:c08_buried:let_go:1",
+   "actor": "p1",
+   "play": "stand_from_kneel",
+   "fade": 0.3
+  },
+  {
+   "at": "C08.12",
+   "actor": "p1",
+   "lookAt": [
+    0,
+    0.5,
+    0
+   ],
+   "weight": 0.9
+  }
+ ]
+}

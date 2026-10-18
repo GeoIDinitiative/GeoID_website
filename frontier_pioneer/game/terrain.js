@@ -31,11 +31,11 @@
  * cells (N/8, a multiple of 2), so its centre is always on its parent's
  * vertex lattice and the parent's hole is a whole number of parent cells.
  */
-import * as THREE from "../vendor/three.module.js?v=b8cfe8e-efa5b7b7";
-import { CLIPMAP, PROVENANCE_COLOURS } from "./config.js?v=b8cfe8e-efa5b7b7";
-import { PROV } from "./heightfield.js?v=b8cfe8e-efa5b7b7";
-import { IMAGERY_GLSL } from "./imagery.js?v=b8cfe8e-efa5b7b7";
-import { SKY_GLSL } from "./sky.js?v=b8cfe8e-efa5b7b7";
+import * as THREE from "../vendor/three.module.js?v=6d37c9c-9b39e129";
+import { CLIPMAP, PROVENANCE_COLOURS } from "./config.js?v=6d37c9c-9b39e129";
+import { PROV } from "./heightfield.js?v=6d37c9c-9b39e129";
+import { IMAGERY_GLSL } from "./imagery.js?v=6d37c9c-9b39e129";
+import { SKY_GLSL } from "./sky.js?v=6d37c9c-9b39e129";
 
 const AP = 2;        // apron cells sampled around every level
 

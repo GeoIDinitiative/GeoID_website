@@ -37,15 +37,15 @@
  * localStorage ("geoid.mars_surface.profile"), so they can be edited on the
  * title screen before any save exists, and follow the player between sites.
  */
-import * as THREE from "../vendor/three.module.js?v=b8cfe8e-efa5b7b7";
-import { registerSystem, getSystem } from "./systems.js?v=b8cfe8e-efa5b7b7";
-import { VEHICLES, Vehicle } from "./vehicle.js?v=b8cfe8e-efa5b7b7";
-import { loadRoverModel } from "./rovermodel.js?v=b8cfe8e-efa5b7b7";
-import { SUIT_MODS } from "./avatar.js?v=b8cfe8e-efa5b7b7";
-import { EVA_MODS, EVA } from "./eva.js?v=b8cfe8e-efa5b7b7";
-import { XP_RULES, tierFor, UPGRADE, UPGRADES, DESIGN, combine, blocker, cleanLook, cleanPaint } from "./progress_data.js?v=b8cfe8e-efa5b7b7";
-import { dressAstronaut, dressRover, kitParts } from "./cosmetics.js?v=b8cfe8e-efa5b7b7";
-import { Workshop } from "./workshop.js?v=b8cfe8e-efa5b7b7";
+import * as THREE from "../vendor/three.module.js?v=6d37c9c-9b39e129";
+import { registerSystem, getSystem } from "./systems.js?v=6d37c9c-9b39e129";
+import { VEHICLES, Vehicle } from "./vehicle.js?v=6d37c9c-9b39e129";
+import { loadRoverModel } from "./rovermodel.js?v=6d37c9c-9b39e129";
+import { SUIT_MODS } from "./avatar.js?v=6d37c9c-9b39e129";
+import { EVA_MODS, EVA } from "./eva.js?v=6d37c9c-9b39e129";
+import { XP_RULES, tierFor, UPGRADE, UPGRADES, DESIGN, combine, blocker, cleanLook, cleanPaint } from "./progress_data.js?v=6d37c9c-9b39e129";
+import { dressAstronaut, dressRover, kitParts } from "./cosmetics.js?v=6d37c9c-9b39e129";
+import { Workshop } from "./workshop.js?v=6d37c9c-9b39e129";
 
 const PROFILE_KEY = "geoid.mars_surface.profile";
 const SAVE_V = 1;
@@ -322,7 +322,7 @@ const sys = {
   },
   _dressSuit() {
     const av = this._avatar();
-    if (av && av.parts && av.body) this.handles.suit = dressAstronaut({ body: av.body, parts: av.parts }, this.profile.look, this.suitVisuals());
+    if (av && av.parts && av.body) this.handles.suit = dressAstronaut({ body: av.body, parts: av.parts, rig: av.rig }, this.profile.look, this.suitVisuals());
   },
   _dressRover() {
     const g = this.game;

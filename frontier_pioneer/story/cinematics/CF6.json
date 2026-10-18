@@ -1,0 +1,145 @@
+{
+ "id": "CF6",
+ "title": "The High Lonely",
+ "note": "The lip of Olympus Mons' caldera, 20,879 m. One shot, eighteen seconds: from just behind him at the edge, out over the drop and up, two and a half kilometres of old lava to a floor flat as a table; the sky black at noon.",
+ "stage": {
+  "at": "player",
+  "face": "poi:olympus.caldera_floor"
+ },
+ "world": {
+  "hideAvatar": true,
+  "focus": true
+ },
+ "actors": [
+  {
+   "id": "p1",
+   "kind": "pioneer",
+   "at": [
+    0,
+    0,
+    0
+   ],
+   "yaw": 0,
+   "clip": "stand_edge"
+  }
+ ],
+ "shots": [
+  {
+   "at": "start",
+   "name": "behind him at the lip; out over the drop and up",
+   "dur": 18,
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": [
+       1.8,
+       2.4,
+       -4.2
+      ],
+      "look": {
+       "actor": "p1",
+       "bone": "head",
+       "o": [
+        0,
+        -0.2,
+        0
+       ]
+      },
+      "lens": 24
+     },
+     {
+      "t": 0.25,
+      "pos": [
+       3.0,
+       4.0,
+       -2.0
+      ],
+      "look": [
+       0,
+       0,
+       30
+      ],
+      "lens": 30
+     },
+     {
+      "t": 0.6,
+      "pos": [
+       6.0,
+       22,
+       40
+      ],
+      "look": [
+       0,
+       -40,
+       400
+      ],
+      "lens": 24
+     },
+     {
+      "t": 1,
+      "pos": [
+       -4.0,
+       60,
+       110
+      ],
+      "look": [
+       0,
+       -300,
+       900
+      ],
+      "lens": 21
+     }
+    ],
+    "ease": "inout"
+   },
+   "dof": {
+    "keys": [
+     {
+      "t": 0,
+      "focus": "p1"
+     },
+     {
+      "t": 0.3,
+      "focus": 400
+     }
+    ],
+    "fstop": 5.6
+   },
+   "grade": {
+    "base": "mars_day",
+    "sat": 0.85,
+    "con": 1.22,
+    "lift": [
+     -0.02,
+     -0.02,
+     -0.01
+    ],
+    "vignette": 0.4
+   }
+  }
+ ],
+ "track": [
+  {
+   "at": "start",
+   "actor": "p1",
+   "lookAt": [
+    0,
+    -60,
+    300
+   ],
+   "weight": 0.8
+  },
+  {
+   "at": "beat:3",
+   "actor": "p1",
+   "play": "look_up",
+   "fade": 3.0
+  },
+  {
+   "at": "beat:3",
+   "actor": "p1",
+   "lookAt": null
+  }
+ ]
+}

@@ -1,38 +1,39 @@
 /**
- * The controller and the desktop pointer: who owns the sticks.
+ * The controller and the computer: while the game is in front, the pad is the game's.
  *
- * On this machine AntiMicroX maps the DualShock to the desktop: in its
- * "desktop" mode the left stick IS the mouse pointer. The game reads the same
- * stick through GeoIDPad, so while driving or walking every movement did two
- * things at once (the rover steered and the pointer flew across the screen).
+ * On this machine AntiMicroX maps the DualShock to the desktop: in its "desktop" profile the left
+ * stick is the mouse pointer, Cross is left click and Circle right click (a context menu). The game
+ * reads the same pad, so every movement and press did two things at once. The rule now:
  *
- * The host broker (127.0.0.1:8787, which accepts this page's origin) switches
- * AntiMicroX: "flight" leaves the sticks to the page, "desktop" gives them
- * back to the pointer. This module follows the game's own controller mode
- * (main.js syncPadMode -> GeoIDPad.setMode, mirrored as "geoid:controller-mode"):
+ *   the game page is visible and focused, a pad is connected   -> "flight"  (AntiMicroX maps nothing:
+ *                                                                 sticks, buttons and D-pad are the game's,
+ *                                                                 in play, menus, cutscenes and the title)
+ *   the window loses focus, the tab is hidden, the page closes -> "desktop" (the pointer again)
  *
- *   flight (driving, walking, building)        -> "flight"
- *   app (menus, help) / none (page hidden)     -> "desktop"  (the pointer for the menus)
- *   the window loses focus, is hidden or closes -> "desktop"
+ * In the menus the stick moves the selection ring (padnav.js); Cross selects, Circle goes back.
  *
- * Inside the Atlas window (window.__ATLAS_HOST, or framed) the shell already
- * does this from the same announcement, and also owns the "atlas" mode, so
- * here only the two in-game transitions are repeated (flight on, and back to
- * "atlas" while the window has focus) and focus changes are left to the shell.
+ * The switch is the host broker (127.0.0.1:8787: POST /native/controller-mode), which accepts this
+ * page's origin for those two routes only. Inside the Atlas window (window.__ATLAS_HOST, or framed)
+ * the shell also switches the mapper from the controller module's own mode announcements, so there
+ * the request is re-asserted a moment after each announcement, and focus changes are the shell's.
  *
- * Mars game only: nothing outside this folder is changed, and with no broker
- * (or no controller) every request simply fails quietly.
+ * Where it runs: this machine's own server (localhost), and the live site only once its owner has
+ * opted in on this browser with ?atlaspad=1 (?atlaspad=0 to stop): a public page reaching a loopback
+ * address makes the browser ask about local-network access, which no other visitor should see.
+ * Never under browser automation (the headless tests have no broker). With no broker, no controller
+ * or no mapper, every request fails quietly.
  */
 
 const BROKER = "http://127.0.0.1:8787/native/controller-mode";
+const OPT_KEY = "geoid.mars_surface.atlasPad";
 let sent = null, timer = 0;
 
 const hosted = () => { try { return window.__ATLAS_HOST === true || window.top !== window; } catch { return true; } };
-/** The controller module flags the document while a pad is connected (and reports "none" without one). */
+/** The controller module flags the document while a pad is connected. */
 const padOn = () => document.documentElement.classList.contains("geoid-pad-on");
 
-function post(mode, keepalive = false) {
-  if (mode === sent) return;
+function post(mode, { keepalive = false, force = false } = {}) {
+  if (mode === sent && !force) return;
   sent = mode;
   try {
     fetch(BROKER, { method: "POST", mode: "cors", keepalive, headers: { "Content-Type": "application/json", "X-Atlas-Native": "1" }, body: JSON.stringify({ mode }) })
@@ -40,35 +41,44 @@ function post(mode, keepalive = false) {
   } catch { sent = null; }
 }
 
-/** What the mapper should be in, from the game's controller mode. */
-function want(padMode) {
-  if (padMode === "flight" && document.visibilityState === "visible" && (hosted() || document.hasFocus())) return "flight";
-  if (hosted()) return document.hasFocus() ? "atlas" : null;      // focus changes are the shell's
+/** What the mapper should be in now. null: leave it (hosted and not focused: the shell decides). */
+function want() {
+  const front = document.visibilityState === "visible" && (hosted() || document.hasFocus());
+  if (front && padOn()) return "flight";
+  if (hosted()) return document.hasFocus() ? "atlas" : null;
   return "desktop";
 }
 
-function sync(padMode, now = false) {
-  const m = want(padMode ?? (padOn() && window.GeoIDPad ? window.GeoIDPad.mode : "none"));
+function sync({ now = false, force = false } = {}) {
+  const m = want();
   if (!m) return;
   if (m !== "flight" && sent === null) return;    // never asked for flight: leave the mapper alone
   clearTimeout(timer);
-  // leaving flight is immediate; entering waits a beat so a menu flick does not toggle the profile twice
-  if (now || m !== "flight") post(m, now); else timer = setTimeout(() => post(m), 120);
+  // giving the pad back is immediate; taking it waits a beat so a focus flicker does not toggle the profile twice
+  if (now || m !== "flight") post(m, { keepalive: now, force }); else timer = setTimeout(() => post(m, { force }), 120);
 }
 
-/** Only on this machine's own server, and never under browser automation (the headless tests have no broker,
- *  and a refused connection logs a console error the suites count). On the public site there is no mapper to
- *  talk to, and a request to a loopback address would make browsers ask about local-network access. */
-const local = () => /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname) && !navigator.webdriver;
+function optedIn() {
+  try {
+    const q = new URLSearchParams(location.search).get("atlaspad");
+    if (q === "1") localStorage.setItem(OPT_KEY, "1");
+    if (q === "0") localStorage.removeItem(OPT_KEY);
+    return localStorage.getItem(OPT_KEY) === "1";
+  } catch { return false; }
+}
+/** This machine's own server, or the live site after the owner opted in; never under automation. */
+const enabled = () => !navigator.webdriver && (/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname) || optedIn());
 
 export function installPadHost() {
-  if (installPadHost.done || !local()) return; installPadHost.done = true;
-  window.addEventListener("geoid:controller-mode", (e) => sync(e.detail && e.detail.mode));
-  // a pad connecting is announced through the same event (none -> flight / app)
-  window.addEventListener("focus", () => sync());
+  if (installPadHost.done || !enabled()) return; installPadHost.done = true;
+  // a pad connecting or going, and every mode the module announces (in Atlas the shell acts on those too:
+  // re-assert "flight" just after it, so the game keeps the pad in its menus as well)
+  window.addEventListener("geoid:controller-mode", () => { sync(); if (hosted()) setTimeout(() => sync({ force: true }), 250); });
+  window.addEventListener("gamepadconnected", () => sync());
+  window.addEventListener("focus", () => sync({ force: hosted() }));
   if (!hosted()) window.addEventListener("blur", () => { clearTimeout(timer); if (sent === "flight") post("desktop"); });
   document.addEventListener("visibilitychange", () => sync());
-  window.addEventListener("pagehide", () => { clearTimeout(timer); if (sent === "flight") post(hosted() ? "atlas" : "desktop", true); });
+  window.addEventListener("pagehide", () => { clearTimeout(timer); if (sent === "flight") post(hosted() ? "atlas" : "desktop", { keepalive: true }); });
   sync();
 }
 

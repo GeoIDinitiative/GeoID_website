@@ -27,8 +27,8 @@
  * clock runs. Hotel loads (avionics, heaters) and solar input are per
  * simulated second. A flat battery stops the drive; the Sun brings it back.
  */
-import * as THREE from "../vendor/three.module.js?v=b8cfe8e-efa5b7b7";
-import { MARS } from "./config.js?v=b8cfe8e-efa5b7b7";
+import * as THREE from "../vendor/three.module.js?v=6d37c9c-9b39e129";
+import { MARS } from "./config.js?v=6d37c9c-9b39e129";
 
 export const VEHICLES = {
   rover_crew: {

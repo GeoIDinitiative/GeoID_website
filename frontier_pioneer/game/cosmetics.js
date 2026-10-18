@@ -7,17 +7,19 @@
  *   dressAstronaut({ body, parts }, look, visuals)   colours, visor, patch, name tag, proportions, suit hardware
  *   dressRover(model, design, fit, paint, kit)       paint, decals, bolt-on parts, the wheel set
  *   prepareSuitModel(model)                          the avatar's own material treatment, for a copy of the kit's astronaut
+ *   prepareSuitRig(character)                        the same treatment for a rigged Character (charrig.js), once
  *
- * THE RIG IS NOT TOUCHED. The astronaut is six rigid parts pivoted at neck,
- * shoulders and hips (avatar.js animates their rotations). Customisation
- * changes materials and colours, adds small meshes as children of a part
- * (each tagged userData.cosmetic, rebuilt on every change), scales the whole
- * body for height (every pivot scales with it, so the gait still meets the
- * ground) and scales the limbs across their own long axis for build (a leaf
- * scale: nothing it carries shears).
+ * THE RIG IS NOT TOUCHED. The astronaut is the skinned Kestrel rig (charrig.js):
+ * customisation changes the suit's and the visor's materials, hangs small
+ * meshes on the rig's sockets (sk_patch_L, sk_nametag, sk_wrist_*, sk_shin_*,
+ * sk_knee_*, sk_back, sk_hip_R: empties on the bones, made in Blender with the
+ * radius of the suit there), each tagged userData.cosmetic and rebuilt on every
+ * change, and scales the whole body for height and a little across for build
+ * (every bone scales with it, so the clips still meet the ground). The old
+ * six-part model (no rig) is still dressed the old way if it is all there is.
  */
-import * as THREE from "../vendor/three.module.js?v=b8cfe8e-efa5b7b7";
-import { COLOUR, VISOR, DESIGN } from "./progress_data.js?v=b8cfe8e-efa5b7b7";
+import * as THREE from "../vendor/three.module.js?v=6d37c9c-9b39e129";
+import { COLOUR, VISOR, DESIGN } from "./progress_data.js?v=6d37c9c-9b39e129";
 
 const col = (hex) => new THREE.Color(hex);
 const WHITE = new THREE.Color(1, 1, 1);
@@ -111,6 +113,89 @@ export function prepareSuitModel(model) {
   return model;
 }
 
+/** The avatar's treatment of the suit for a rigged Character: its own materials taken down to a dusty off-white (once). */
+export function prepareSuitRig(ch) {
+  if (!ch || ch._suitPrepared) return ch;
+  ch._suitPrepared = true;
+  ch.model.traverse((o) => {
+    if (!o.isMesh) return;
+    const m = o.userData.base || o.material;
+    if (!m || !/^astnt1_/.test(m.name || "")) return;
+    m.color.multiplyScalar(0.62); m.roughness = Math.max(m.roughness ?? 0.8, 0.85); m.metalness = 0;
+  });
+  return ch;
+}
+
+/** Dress a rigged Character: the same look on sockets. */
+function dressRig(target, look, visuals) {
+  const ch = target.rig, body = target.body || ch.root, K = ch.sockets;
+  const b = 1 + (look.build - 1) * 0.6;
+  body.scale.set(look.height * b, look.height, look.height * b);
+  const suit = col(COLOUR[look.suit].hex), accent = col(COLOUR[look.accent].hex), tint = WHITE.clone().lerp(suit, look.suit === "kit" ? 0 : 0.82);
+  const boost = look.suit === "kit" ? 1 : 1.35, v = col(VISOR[look.visor].hex);
+  ch.model.traverse((o) => {
+    if (!o.isMesh) return;
+    const m = o.userData.base || o.material;
+    if (!m || !m.color) return;
+    if (/^astnt1_1/.test(m.name || "")) {
+      if (!m.userData.tintBase) m.userData.tintBase = m.color.clone();
+      m.color.copy(m.userData.tintBase).multiply(tint).multiplyScalar(boost);
+    } else if (/^astnt1_2/.test(m.name || "")) {
+      if (!m.userData.tintBase) m.userData.tintBase = m.color.clone();
+      m.color.copy(m.userData.tintBase).multiply(WHITE.clone().lerp(v, 0.85)).multiplyScalar(1.6);
+      m.emissive = v.clone(); m.emissiveIntensity = 0.22; m.roughness = 0.22; m.metalness = 0.35; m.needsUpdate = true;
+    }
+  });
+  const aMat = std(accent, { roughness: 0.5 }), dark = std(0x2b2f35, { roughness: 0.5, metalness: 0.4 }), metal = std(0x9aa1a9, { roughness: 0.35, metalness: 0.6 });
+  const out = { jet: [] };
+  const ring = (sk, key, k, h, mat, torus) => {
+    const s = K[sk]; if (!s) return null;
+    const g = cosmeticGroup(s, key), r = (s.userData.radius || 0.08) * k;
+    const m = mesh(torus ? new THREE.TorusGeometry(r, 0.016, 6, 22) : new THREE.CylinderGeometry(r, r, h, 20, 1, true), mat);
+    if (!torus) m.rotation.x = Math.PI / 2;
+    g.add(m); return m;
+  };
+  for (const s of ["sk_wrist_L", "sk_wrist_R"]) ring(s, "accent", 1.06, 0.05, aMat);
+  for (const s of ["sk_shin_L", "sk_shin_R"]) ring(s, "accent", 1.04, 0.05, aMat);
+  for (const s of ["sk_knee_L", "sk_knee_R"]) {
+    const sk = K[s]; if (!sk) continue;
+    const g = cosmeticGroup(sk, "kit"), r = sk.userData.radius || 0.12;
+    if (visuals.has("knees") || visuals.has("exo")) g.add(mesh(new THREE.TorusGeometry(r * 0.98, 0.016, 6, 22), dark));
+    if (visuals.has("exo")) for (const sx of [-1, 1]) g.add(mesh(new THREE.BoxGeometry(0.02, 0.025, 0.42), metal, sx * (r + 0.012), 0, -0.05));
+  }
+  if (K.sk_wrist_R) { const g = cosmeticGroup(K.sk_wrist_R, "gauntlet"); if (visuals.has("gauntlet")) { const r = (K.sk_wrist_R.userData.radius || 0.075) * 1.14; const m = mesh(new THREE.CylinderGeometry(r, r, 0.08, 20, 1, true), std(0x062a33, { emissive: col("#00e5ff"), emissiveIntensity: 1.4 }), 0, 0, -0.06); m.rotation.x = Math.PI / 2; g.add(m); } }
+  if (K.sk_patch_L) {
+    const g = cosmeticGroup(K.sk_patch_L, "patch");
+    if (look.patch !== "none") {
+      const pm = new THREE.MeshStandardMaterial({ map: patchTex(look.patch), transparent: true, roughness: 0.7, metalness: 0, alphaTest: 0.05 });
+      const p = mesh(new THREE.PlaneGeometry(0.1, 0.1), pm, 0, 0, 0.006); p.name = "patch"; g.add(p);
+    }
+  }
+  if (K.sk_nametag) {
+    const g = cosmeticGroup(K.sk_nametag, "nametag");
+    if (look.nametag) { const t = mesh(new THREE.PlaneGeometry(0.17, 0.0425), new THREE.MeshStandardMaterial({ map: nameTex(look.name, COLOUR[look.accent].hex), roughness: 0.6 }), 0, 0, 0.012); t.name = "nametag"; g.add(t); }
+  }
+  if (K.sk_back) {
+    const g = cosmeticGroup(K.sk_back, "suitkit");
+    const tank = visuals.has("tank2") ? [0.055, 0.42] : visuals.has("tank1") ? [0.042, 0.34] : null;
+    if (tank) for (const sx of [-1, 1]) {
+      g.add(mesh(new THREE.CylinderGeometry(tank[0], tank[0], tank[1], 14), std(0xd9dde2, { metalness: 0.5, roughness: 0.3 }), sx * 0.17, 0.02, tank[0] * 0.8));
+      g.add(mesh(new THREE.CylinderGeometry(tank[0] * 1.04, tank[0] * 1.04, 0.03, 14), aMat, sx * 0.17, 0.02 + tank[1] * 0.3, tank[0] * 0.8));
+    }
+    if (visuals.has("jet")) {
+      g.add(mesh(new THREE.BoxGeometry(0.34, 0.05, 0.06), dark, 0, -0.32, 0.03));
+      for (const sx of [-1, 1]) {
+        g.add(mesh(new THREE.CylinderGeometry(0.025, 0.045, 0.09, 12), metal, sx * 0.13, -0.34, 0.05));
+        const glow = mesh(new THREE.ConeGeometry(0.05, 0.32, 12, 1, true), new THREE.MeshBasicMaterial({ color: 0x9fe8ff, transparent: true, opacity: 0.75, depthWrite: false, blending: THREE.AdditiveBlending }), sx * 0.13, -0.54, 0.05);
+        glow.rotation.x = Math.PI; glow.visible = false; glow.name = "jet-glow"; g.add(glow); out.jet.push(glow);
+      }
+    }
+    if (visuals.has("sled")) g.add(mesh(new THREE.BoxGeometry(0.3, 0.16, 0.14), std(0x565a60, { metalness: 0.4 }), 0, -0.55, 0.07));
+  }
+  if (K.sk_hip_R) { const g = cosmeticGroup(K.sk_hip_R, "caddy"); if (visuals.has("caddy") && !visuals.has("sled")) g.add(mesh(new THREE.BoxGeometry(0.16, 0.14, 0.09), std(0x565a60, { metalness: 0.4 }), 0, 0, 0.045)); }
+  return out;
+}
+
 /* ── the astronaut ────────────────────────────────────────────────────────── */
 
 /**
@@ -119,6 +204,7 @@ export function prepareSuitModel(model) {
  * Returns handles for the per-frame bits: { jet: [glow meshes] }.
  */
 export function dressAstronaut(target, look, visuals = new Set()) {
+  if (target && target.rig) return dressRig(target, look, visuals);
   const { body, parts } = target, P = parts;
   if (!body || !P || !P.torso) return {};
   const stop = new Set(PART_NAMES.map((n) => P[n]).filter(Boolean));

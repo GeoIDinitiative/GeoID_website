@@ -421,6 +421,33 @@ body:not([data-ui-base="on"]) .bp-detail { display: none; }
 .site-label i { display: block; width: 100%; min-width: 6em; height: 3px; background: rgba(var(--skin-chrome-rgb), 0.25); border-radius: 0; overflow: hidden; }
 .site-label em { display: block; height: 100%; background: var(--skin-chrome); }
 body.is-title #site-labels { display: none; }
+.site-label.plan { color: #8fd8ff; }
+.site-label.plan em { background: #8fd8ff; }
+
+/* ── the planning table (a campaign: buildui.js _fillPlan): the plan HALO-1 will send ── */
+.plan-ui { position: fixed; left: var(--pad); top: var(--pad); width: min(21rem, 32vw); font-size: 0.95em; max-height: calc(100vh - 2 * var(--pad) - 15rem); overflow: auto; padding: 0.65rem 0.8rem 0.7rem;
+  display: grid; gap: 0.35rem; z-index: 3; background: rgba(var(--skin-panel), 0.82); border-color: rgba(var(--skin-chrome-rgb), 0.35); box-shadow: none; backdrop-filter: blur(4px); }
+.plan-ui .eyebrow { margin: 0; color: var(--skin-chrome); }
+.plan-ui .pl-title { margin: 0; font: 500 1rem/1.2 "Orbitron", var(--skin-body); color: var(--skin-ink); }
+.pl-items { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 0.15rem 0.8rem; font-size: 0.78rem; color: var(--skin-ink); }
+.pl-items b { color: var(--skin-data); font-variant-numeric: tabular-nums; margin-right: 0.2em; }
+.pl-items .pl-empty { color: rgba(var(--skin-muted), 0.9); }
+.pl-rows { display: grid; grid-template-columns: 5.2rem 1fr; gap: 0.12rem 0.55rem; margin: 0.1rem 0 0; font-size: 0.72rem; line-height: 1.3; }
+.pl-rows dt { font-size: 0.64rem; letter-spacing: 0.12em; text-transform: uppercase; color: rgba(var(--skin-muted), 0.85); padding-top: 0.1em; }
+.pl-rows dd { margin: 0; color: var(--skin-ink); font-variant-numeric: tabular-nums; }
+.pl-story { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.12rem; font-size: 0.74rem; }
+.pl-story:empty { display: none; }
+.pl-story .pl-head { font-size: 0.64rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--skin-chrome); border: 0; padding: 0; }
+.pl-story li { display: flex; justify-content: space-between; gap: 0.6rem; border-left: 3px solid var(--bad); padding-left: 0.45rem; color: var(--skin-ink); }
+.pl-story li span { color: rgba(var(--skin-muted), 0.9); font-size: 0.68rem; }
+.pl-story li.ok { border-left-color: var(--skin-data); } .pl-story li.done { border-left-color: var(--good); }
+.plan-ui .pl-send { justify-self: start; pointer-events: auto; }
+.plan-ui .pl-send kbd { margin-left: 0.4em; font: 600 0.64rem/1 var(--skin-body); border: 1px solid currentColor; padding: 0.12em 0.35em; }
+.plan-ui .pl-pad { margin-left: 0.4em; font-size: 0.72rem; }
+.pl-inbound { margin: 0; font-size: 0.72rem; color: var(--skin-data); font-variant-numeric: tabular-nums; }
+.pl-inbound:empty { display: none; }
+.b-halo { display: flex !important; align-items: center; justify-content: center; font: 500 2.2rem/1 "Orbitron", var(--skin-body); color: var(--skin-data); }
+@media (max-width: 1000px) { .plan-ui { width: min(20rem, 60vw); max-height: 40vh; } }
 
 /* ── navigation: the corner map and the compass (game/navmap.js): unboxed, light ── */
 #navmap { position: absolute; left: var(--pad); bottom: var(--pad); width: var(--navmap); height: var(--navmap); padding: 0; overflow: hidden;
@@ -437,7 +464,8 @@ body.is-build #compass { display: none !important; }
    Outside #hud, so it plays while the HUD is hidden for a cutscene. */
 #story { position: fixed; inset: 0; pointer-events: none; z-index: 12; }
 #story .st-choice { pointer-events: auto; }
-body.ui-cutscene #hud, body.ui-cutscene #build-ui, body.ui-cutscene #site-labels, body.ui-cutscene #touch, body.ui-cutscene #eva-touch {
+body.ui-cutscene #hud, body.ui-cutscene #build-ui, body.ui-cutscene #site-labels, body.ui-cutscene #touch, body.ui-cutscene #eva-touch,
+body.ui-cutscene #world-tags, body.ui-cutscene > [class*="hud"], body.ui-cutscene > .marker, body.ui-cutscene > .hints {
   opacity: 0 !important; visibility: hidden !important; transition: opacity 0.5s ease, visibility 0s linear 0.5s; }
 .st-bars i { position: absolute; left: 0; right: 0; height: 11vh; background: rgba(var(--skin-vignette), 1); transform: scaleY(0); transition: transform 0.6s ease; }
 .st-bars i:first-child { top: 0; transform-origin: top; border-bottom: 1px solid rgba(var(--skin-chrome-rgb), 0.25); }
@@ -587,3 +615,39 @@ body.ui-instant .st-line, body.ui-instant .st-card, body.ui-instant .st-still, b
 /* subtitles over bright ground: every line gets a soft dark plate and a shadow (radio and memory lines keep their own plates) */
 .st-line { background: linear-gradient(90deg, transparent, rgba(var(--skin-vignette), 0.62) 14%, rgba(var(--skin-vignette), 0.62) 86%, transparent); }
 .st-text, .st-who { text-shadow: 0 1px 2px rgba(var(--skin-vignette), 0.9), 0 0 10px rgba(var(--skin-vignette), 0.6); }
+
+/* ── the caretakers: the dialogue panel and the crew roster (caretakers.js) ── */
+.ct-card { max-width: 46rem; }
+.ct-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 1.2rem; }
+.ct-head h2 { margin: 0 0 0.15rem; }
+.ct-role { margin: 0; font-size: 0.82rem; color: rgba(var(--skin-muted), 0.95); }
+.ct-meters { display: grid; grid-template-columns: auto 8rem; gap: 0.25rem 0.6rem; align-items: center; margin: 0; font-size: 0.78rem; }
+.ct-meters dt { font-size: 0.64rem; letter-spacing: 0.14em; text-transform: uppercase; color: rgba(var(--skin-muted), 0.85); }
+.ct-meters dd { margin: 0; color: var(--skin-ink); text-transform: capitalize; }
+.ct-bar { display: block; height: 7px; border: 1px solid rgba(var(--skin-chrome-rgb), 0.45); padding: 1px; min-width: 4rem; }
+.ct-bar b { display: block; height: 100%; background: var(--skin-data); }
+.ct-status { margin: 0.5rem 0 0.4rem; font-size: 0.8rem; color: var(--skin-data); }
+.ct-log { display: grid; gap: 0.35rem; max-height: 14rem; min-height: 4rem; overflow: auto; padding: 0.55rem 0.7rem; background: rgba(var(--skin-panel), 0.55); border: 1px solid rgba(var(--skin-chrome-rgb), 0.25); font-size: 0.86rem; }
+.ct-log .kt-line.ct-you b { color: var(--skin-chrome); }
+.ct-topics { display: flex; flex-wrap: wrap; gap: 0.35rem; margin: 0.6rem 0 0.7rem; }
+.ct-topics .btn { font-size: 0.8rem; }
+.cr-card { max-width: 60rem; }
+.cr-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 1rem; margin-bottom: 0.5rem; }
+.cr-head h2 { margin: 0; }
+.cr-sum { margin: 0; font-size: 0.78rem; color: rgba(var(--skin-muted), 0.95); }
+.cr-wrap { max-height: 52vh; overflow: auto; border: 1px solid rgba(var(--skin-chrome-rgb), 0.25); }
+.cr-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+.cr-table th { position: sticky; top: 0; background: rgba(var(--skin-panel), 0.96); text-align: center; font-size: 0.62rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--skin-chrome); padding: 0.4rem 0.5rem; font-weight: 600; }
+.cr-table td { padding: 0.35rem 0.5rem; border-top: 1px solid rgba(var(--skin-chrome-rgb), 0.14); color: var(--skin-ink); vertical-align: middle; }
+.cr-table td b { display: block; font-weight: 600; }
+.cr-table td span { font-size: 0.68rem; color: rgba(var(--skin-muted), 0.9); font-variant-numeric: tabular-nums; }
+.cr-table td.cr-trust { white-space: nowrap; }
+.cr-table td.cr-trust .ct-bar { display: inline-block; vertical-align: middle; width: 4.5rem; margin-right: 0.4rem; }
+.cr-table tr.cr-off td { opacity: 0.55; }
+.cr-table .cr-empty { text-align: center; color: rgba(var(--skin-muted), 0.95); padding: 1rem; }
+.cr-hint { margin: 0.5rem 0; }
+.h-kind.off { opacity: 0.6; }
+@media (max-width: 720px) { .ct-head { flex-direction: column; } .cr-table th:nth-child(4), .cr-table td:nth-child(4) { display: none; } }
+body.crew-open .st-subs, body.crew-open #world-tags, body.crew-open #site-labels { visibility: hidden; }
+.plan-ui .pl-key { margin: -0.15rem 0 0; font-size: 0.7rem; color: rgba(var(--skin-muted), 0.9); }
+.plan-ui .pl-key kbd { font: 600 0.62rem/1 var(--skin-body); border: 1px solid rgba(var(--skin-muted), 0.6); padding: 0.1em 0.35em; color: var(--skin-ink); }

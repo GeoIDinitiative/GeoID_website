@@ -20,18 +20,18 @@
  * Both are plain functions of (type, cursor) so the test drives them without a
  * controller, and the controller drives nothing else.
  */
-import * as THREE from "../vendor/three.module.js?v=b8cfe8e-efa5b7b7";
-import { MARS, TIME_SCALE } from "./config.js?v=b8cfe8e-efa5b7b7";
-import { registerSystem, getSystem } from "./systems.js?v=b8cfe8e-efa5b7b7";
-import { registerType } from "./entities.js?v=b8cfe8e-efa5b7b7";
-import { sunPosition, surfaceIrradiance } from "./sky.js?v=b8cfe8e-efa5b7b7";
+import * as THREE from "../vendor/three.module.js?v=6d37c9c-9b39e129";
+import { MARS, TIME_SCALE } from "./config.js?v=6d37c9c-9b39e129";
+import { registerSystem, getSystem } from "./systems.js?v=6d37c9c-9b39e129";
+import { registerType } from "./entities.js?v=6d37c9c-9b39e129";
+import { sunPosition, surfaceIrradiance } from "./sky.js?v=6d37c9c-9b39e129";
 import { BaseNet, MODULES, MODULE_IDS, KIT, RULES, CATEGORIES, GRID, rot, halfExtent, snapLattice, cellsOf, cellKey, cellOfPoint, portsOf, keepClearCells,
-  toWorld, toLocal, compatible } from "./basenet.js?v=b8cfe8e-efa5b7b7";
-import { Kit, BaseBatch, Dynamics, LightPool, Ghost, Site, Outline, GridDecal } from "./basekit.js?v=b8cfe8e-efa5b7b7";
-import { obstaclesOf, resolve } from "./collide.js?v=b8cfe8e-efa5b7b7";
+  toWorld, toLocal, compatible, waitingForParts, planManifest, cratesFor } from "./basenet.js?v=6d37c9c-9b39e129";
+import { Kit, BaseBatch, Dynamics, LightPool, Ghost, Site, Outline, GridDecal } from "./basekit.js?v=6d37c9c-9b39e129";
+import { obstaclesOf, resolve } from "./collide.js?v=6d37c9c-9b39e129";
 
 const _lv = new THREE.Vector3();   // construction labels (Base._siteLabels)
-import { BuildUI, BUILD_HELP } from "./buildui.js?v=b8cfe8e-efa5b7b7";
+import { BuildUI, BUILD_HELP } from "./buildui.js?v=6d37c9c-9b39e129";
 
 const _m = new THREE.Matrix4(), _m2 = new THREE.Matrix4(), _v = new THREE.Vector3(), _fw = new THREE.Vector3();
 const clamp = (v, lo, hi) => (v < lo ? lo : v > hi ? hi : v);
@@ -141,6 +141,7 @@ class BaseSystem {
     this.batches.clear(); this.sites.clear(); net.modules.clear(); net.bases.clear(); net._topo.clear();
     net.materials = saved && Number.isFinite(saved.materials) ? saved.materials : RULES.startMaterials;
     net.seq = (saved && saved.seq) || 0;
+    net.onHand = Object.assign({}, (saved && saved.onHand) || {});
     for (const id in (saved && saved.bases) || {}) net.addBase(Object.assign({ id }, saved.bases[id]));
     if (game.state.clock.scale === RULES.buildClockScale) game.state.clock.scale = TIME_SCALE;     // saved from build mode
     for (const e of game.entities.items.values()) if (e.type.kind === "base") this.adopt(e, true);
@@ -154,7 +155,7 @@ class BaseSystem {
       const e = this.game.entities.get(m.id);
       if (!e) continue;
       const T = net.topology(m.base);
-      e.def.data = { base: m.base, g: [m.lx, m.lz], r: m.r, level: m.level, ly: m.ly, seq: m.seq, progress: m.progress,
+      e.def.data = { base: m.base, g: [m.lx, m.lz], r: m.r, level: m.level, ly: m.ly, seq: m.seq, progress: m.progress, plan: m.plan || undefined, pkg: m.pkg || undefined, crates: m.crates || undefined, got: m.got || undefined,
         st: { dust: m.st.dust, reserve: m.st.reserve, wh: m.st.wh, air: m.st.air, breached: !!m.st.breached },
         links: T.joints.filter((j) => j.a === m.id || j.b === m.id).map((j) => ({ to: j.a === m.id ? j.b : j.a, port: j.a === m.id ? j.pa : j.pb, type: j.type })) };
       this.syncDef(e, m);
@@ -188,6 +189,7 @@ class BaseSystem {
       if (d.progress === undefined) d.progress = 0;
     }
     const m = net.addModule({ id: e.def.id, type: e.def.type, base: base.id, lx: d.g[0], lz: d.g[1], r: d.r || 0, level: d.level || 0, ly: d.ly || 0, seq: d.seq, progress: d.progress ?? 0, st: d.st });
+    if (d.plan && !isBuilt(m)) { m.plan = d.plan; m.pkg = d.pkg || null; m.crates = d.crates || cratesFor(m.type); m.got = d.got || 0; }
     if (isBuilt(m)) { m.st.on = true; m.st.pf = 1; }
     this.syncDef(e, m);
     this.dirty.add(base.id);
@@ -254,20 +256,40 @@ class BaseSystem {
       el.hidden = off;
       if (off) continue;
       el.classList.toggle("far", !building && dist > 90);
-      el.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px) translate(-50%, -100%)`;
+      el._x = x; el._y = y;
+      el.style.transform = `translate(${x.toFixed(1)}px, ${(y - (el._dy || 0)).toFixed(1)}px) translate(-50%, -100%)`;
       if (refresh) {
         const B = MODULES[m.type], pct = Math.floor(m.progress * 100);
         let when;
+        el.classList.toggle("plan", waitingForParts(m));
+        if (m.plan === "draft") { el.innerHTML = `<b>${B.name}</b><span>blueprint \u00b7 send the plan to HALO-1</span>`; continue; }
+        if (m.plan === "ordered") { const H = getSystem("halo"), pk = H && H.api ? H.api.get(m.pkg) : null, l = pk ? Math.max(0, pk.left) : 0; el.innerHTML = `<b>${B.name}</b><span>${pk && pk.phase === "final" ? "components inbound" : `components in descent \u00b7 T-${Math.floor(l / 60)}:${String(Math.floor(l % 60)).padStart(2, "0")}`}</span>`; continue; }
+        if (m.plan === "delivered") { const C = getSystem("caretakers"), who = C && C.api && C.api.carrier ? C.api.carrier(m.id) : null; el.innerHTML = `<b>${B.name}</b><span>crates ${m.got || 0} / ${m.crates || 1} on site \u00b7 ${who ? who + " carrying" : "waiting"}</span><i><em style="width:${Math.round((m.got || 0) / (m.crates || 1) * 100)}%"></em></i>`; continue; }
         if (net.sandbox) when = "instant (sandbox)";
-        else if (m.queued) when = "waiting for a crew";
+        else if (m.queued) when = net.crewGate ? "waiting for a caretaker" : "waiting for a crew";
         else {
           const secs = (1 - m.progress) * B.build_h * 3600 / pace;
           when = secs >= 90 ? `${Math.ceil(secs / 60)} min left` : `${Math.max(1, Math.ceil(secs))} s left`;
+          const C = getSystem("caretakers"), who = net.crewGate && C && C.api && C.api.builders ? C.api.builders(m.id) : null;
+          if (who && who.length) when = who.join(" + ") + " \u00b7 " + when;
         }
         el.innerHTML = `<b>${B.name}</b><span>${pct}% \u00b7 ${when}</span><i><em style="width:${pct}%"></em></i>`;
       }
     }
     for (const [id, el] of this._labels) if (!seen.has(id)) { el.remove(); this._labels.delete(id); }
+    // neighbours' labels must not print over each other: stack them upward where they would
+    if (refresh) {
+      const boxes = [];
+      for (const [, el] of this._labels) if (!el.hidden && el._x != null) boxes.push({ el, x: el._x, y: el._y, w: el.offsetWidth || 120, h: (el.offsetHeight || 28) + 2 });
+      boxes.sort((a, b) => b.y - a.y);
+      const placed = [];
+      for (const b of boxes) {
+        let y = b.y;
+        for (let k = 0; k < 8; k++) { const hit = placed.find((p) => Math.abs(p.x - b.x) < (p.w + b.w) / 2 && Math.abs(p.y - y) < Math.max(p.h, b.h)); if (!hit) break; y = hit.y - hit.h; }
+        b.el._dy = b.y - y;
+        placed.push({ x: b.x, y, w: b.w, h: b.h });
+      }
+    }
   }
 
   /** The floor datum of a base: the highest ground under its founding footprint, so nothing is ever dug in. */
@@ -322,8 +344,9 @@ class BaseSystem {
     }
     const w = toWorld(base, spec.lx, spec.lz);
     const e = await this.game.entities.add({ type: spec.type, x: w.x, z: w.z, yaw: -(base.yaw + (spec.r || 0) * Math.PI / 2),
-      data: { base: base.id, g: [spec.lx, spec.lz], r: spec.r || 0, level: spec.level || 0, ly: spec.ly || 0, progress: spec.progress ?? 0 } });
+      data: { base: base.id, g: [spec.lx, spec.lz], r: spec.r || 0, level: spec.level || 0, ly: spec.ly || 0, progress: spec.progress ?? 0, plan: spec.plan || undefined } });
     const m = net.modules.get(e.def.id);
+    if (spec.plan && !m.plan) { m.plan = spec.plan; m.crates = cratesFor(m.type); m.got = spec.plan === "site" ? m.crates : 0; }
     if (this.net.sandbox || spec.instant) net.finish(m.id);
     this._refresh();
     this.emit("placed", this.describe(m));
@@ -354,6 +377,9 @@ class BaseSystem {
     if (!m) return { ok: false, reason: "nothing there" };
     const c = this.canRemove(m);
     if (!c.ok) return c;
+    if (m.plan === "ordered") return { ok: false, reason: "its components are already in descent" };
+    if (m.plan === "delivered") return { ok: false, reason: "its components have landed: let the caretakers build it" };
+    if (m.plan) c.refund = 0;                 // a blueprint costs nothing to take back; materials are HALO-1's in a campaign
     if (!this.net.sandbox) this.net.materials += c.refund;
     this.removeModule(id);
     return { ok: true, refund: c.refund, type: m.type };
@@ -376,7 +402,7 @@ class BaseSystem {
     }
     for (const [id, s] of this.sites) if (!net.modules.has(id)) { s.dispose(); this.sites.delete(id); }
     this.obstacles = [];
-    for (const m of net.modules.values()) obstaclesOf(m, net.bases.get(m.base), this.obstacles);
+    for (const m of net.modules.values()) if (!waitingForParts(m)) obstaclesOf(m, net.bases.get(m.base), this.obstacles);      // a blueprint is not in anyone's way
   }
   _refreshBase(id) {
     const net = this.net;
@@ -642,6 +668,7 @@ class BaseSystem {
     const mated = T ? T.joined.get(m.id) || new Set() : new Set();
     return {
       id: m.id, type: m.type, name: B.name, base: m.base, x: w.x, y: w.y, z: w.z, yaw: w.yaw, level: m.level, built: isBuilt(m), progress: m.progress, queued: !!m.queued,
+      plan: isBuilt(m) ? null : m.plan || null, pkg: m.pkg || null, crates: m.crates || 0, got: m.got || 0,
       powered: !!m.st.on, onReserve: !!m.st.onReserve, pressurised: !!B.pressurised, air: m.st.air, habitable: !!m.st.habitable, breached: !!m.st.breached, dust: m.st.dust,
       crew: B.crew || 0, cutOff: !!T && isBuilt(m) && T.networkOf.get(m.id) !== T.main, volume: T ? T.volumeOf.get(m.id) ?? null : null,
       ports: b ? portsOf(m).map((p) => { const pw = toWorld(b, p.x, p.z), d = toWorld({ x: 0, z: 0, yaw: b.yaw }, p.dx, p.dz); return { name: p.name, type: p.type, x: pw.x, y: b.y + p.y, z: pw.z, dir: p.up ? { x: 0, y: 1, z: 0 } : { x: d.x, y: 0, z: d.z }, joined: mated.has(p.name) }; }) : [],
@@ -746,6 +773,39 @@ function makeApi(sys) {
     /** Deliver materials to the build stock (a mission reward, a supply drop). Not capped: a delivery is not thrown away. */
     addMaterials: (n) => { if (Number.isFinite(n)) net.materials = Math.max(0, net.materials + n); return net.materials; },
     breach: (id, on = true) => { const m = net.modules.get(id); if (m) m.st.breached = !!on; return !!m; },
+    /** The campaign's supply chain (see basenet.js PLAN_STATES): move a module to a plan state. */
+    setPlan: (id, state, o = {}) => {
+      const m = net.modules.get(id); if (!m || isBuilt(m)) return null;
+      if (state) m.plan = state; else delete m.plan;
+      if (o.pkg !== undefined) m.pkg = o.pkg;
+      if (o.got !== undefined) m.got = o.got;
+      if (!m.crates) m.crates = cratesFor(m.type);
+      if (state === "site") m.got = m.crates;
+      sys._refresh(); sys.dirty.add(m.base);
+      return sys.describe(m);
+    },
+    /** One more component crate has reached a module's site; at the last one construction can start. */
+    deliverCrate: (id) => {
+      const m = net.modules.get(id); if (!m || m.plan !== "delivered") return null;
+      m.got = Math.min(m.crates || 1, (m.got || 0) + 1);
+      if (m.got >= (m.crates || 1)) { m.plan = "site"; sys._refresh(); sys.emit("components", sys.describe(m)); }
+      return sys.describe(m);
+    },
+    /** Blueprints not yet sent (the plan on the table). */
+    drafts: () => [...net.modules.values()].filter((m) => m.plan === "draft").map((m) => sys.describe(m)),
+    /** Components on hand (the lander's salvage): placing one builds it at once, no package needed. */
+    onHand: () => Object.assign({}, net.onHand),
+    addOnHand: (type, n = 1) => { net.onHand[type] = Math.max(0, (net.onHand[type] || 0) + n); return net.onHand[type]; },
+    /** Supplies into a base's stores (a package): what does not fit stays crated beside them and goes in as room appears. */
+    stow: (baseId, sup = {}) => {
+      const b = net.bases.get(baseId) || sys.currentBase(); if (!b) return null;
+      b.crated = b.crated || { o2: 0, water: 0, food: 0 };
+      for (const k of ["o2", "water", "food"]) b.crated[k] = (b.crated[k] || 0) + (sup[k] || 0);
+      b.spares = (b.spares || 0) + (sup.spares || 0);
+      net._stepBase(b, 1e-9, 1e-12, sys.env());
+      return { o2: b.o2, water: b.water, food: b.food, crated: Object.assign({}, b.crated), spares: b.spares };
+    },
+    planManifest: (types) => planManifest(types),
     repair: (id) => api.breach(id, false),
     on: (name, fn) => sys.on(name, fn),          // "placed" | "built" | "salvaged" | "founded" | "enter" | "exit"
     /** Advance the settlement alone by simulated seconds (tests; a mission that wants to skip a night). */
@@ -776,8 +836,13 @@ class Builder {
     this.hold = { t: 0, id: null };
     this._crossT = 0; this._evalKey = ""; this._evalT = 0; this._promptT = 0; this._stillT = 0; this._placing = false;
     this.catalog = CATEGORIES.map((c) => ({ id: c.id, name: c.name, items: MODULE_IDS.filter((id) => MODULES[id].cat === c.id) }));
+    // the campaign's last tab: not a module but the plan itself (D-pad down to it, Cross sends it)
+    this.catalog.push({ id: "halo", name: "HALO-1", items: ["send_plan"], action: true });
+    this.item.push(0);
   }
   get sys() { return hub.base; }
+  /** The campaign's planning table: HALO-1 is online, so build mode lays out blueprints (no materials; Contribution Credit is the limit) and sends them. */
+  get planning() { const H = getSystem("halo"); return !!(H && H.api && H.api.enabled); }
   get type() { return this.catalog[this.cat].items[this.item[this.cat]]; }
 
   async init(game) {
@@ -796,7 +861,8 @@ class Builder {
       poseAt: (type, x, z, o) => this.poseAt(type, x, z, o), evaluate: (type, pose, o) => this.evaluate(type, pose, o),
       /** Evaluate at a world point and, if allowed, place. Returns {ok, state, reason, id, pose}. */
       placeAt: (type, x, z, o) => this.placeAt(type, x, z, o), placeLattice: (type, baseId, lx, lz, r, o) => this.placeLattice(type, baseId, lx, lz, r, o), nav: (c, i) => this.nav(c, i), confirm: () => this.confirm(), salvage: (id) => this.salvage(id), undoLast: () => this.undoLast(),
-      rotate: (d) => this.rotate(d), thumbnails: () => this.ui.thumbnails().then(() => this.ui.sync()), state: () => ({ active: this.active, type: this.type, category: this.catalog[this.cat].id, rot: this.rot, cursor: { ...this.cursor }, cam: { ...this.cam },
+      rotate: (d) => this.rotate(d), sendPlan: (o) => this.sendPlan(o), manifest: () => this.manifest(), autoPlan: (types, x, z, o) => this.autoPlan(types, x, z, o),
+      clearPlan: () => this.clearPlan(), get planning() { return builderSystem.planning; }, thumbnails: () => this.ui.thumbnails().then(() => this.ui.sync()), state: () => ({ active: this.active, type: this.type, category: this.catalog[this.cat].id, rot: this.rot, cursor: { ...this.cursor }, cam: { ...this.cam },
         result: this.result, pose: this.pose ? { base: this.pose.base ? this.pose.base.id : null, lx: this.pose.lx, lz: this.pose.lz, r: this.pose.r, level: this.pose.level, snapped: this.pose.snapped ? { port: this.pose.snapped.gp.name, to: this.pose.snapped.tp.module, toPort: this.pose.snapped.tp.name, options: this.pose.snapped.n } : null, yaw: this.pose.frame.yaw } : null,
         hover: this.hover ? this.hover.id : null }),
     };
@@ -811,6 +877,9 @@ class Builder {
     if (this.active || !g.ready) return false;
     if (g.mode !== "driving" && g.mode !== "menu") return false;
     if (Math.abs(v.t.speed) > 1.2) { g.hud.toast("Stop first to build", 2); return false; }
+    // HOOK (story): strapped into the lander in the prologue there is nothing to plan with yet
+    const story = getSystem("story"), sst = story && story.api && story.api.state && story.api.state();
+    if (sst && sst.campaign && sst.act === "prologue") { g.hud.toast("Nothing to build with yet<small>the lander first</small>", 3); return false; }
     v.v.set(0, 0, 0); v.w.set(0, 0, 0);
     this.active = true;
     if (g.hud.ui) g.hud.ui.used("build.enter");
@@ -827,6 +896,8 @@ class Builder {
     this._focus.x = this.cam.x; this._focus.z = this.cam.z; g.focus = this._focus;
     if (g.mode === "menu") { g._resumeMode = "build"; g.pause(false); } else g.setMode("build");
     this.ui.thumbnails();
+    if (this.planning && !this._plannedHint) { this._plannedHint = true; g.hud.toast("The planning table<small>lay out the settlement as blueprints: no materials, Contribution Credit is the limit · then send the plan to HALO-1 (G, or the HALO-1 tab)</small>", 6); }
+    this.ui.sync();
     return true;
   }
   exit() {
@@ -860,7 +931,8 @@ class Builder {
   }
   nav(dCat, dItem) {
     const n = this.catalog.length;
-    if (dCat) this.cat = (this.cat + dCat + n) % n;
+    if (dCat) { let k = 0; do { this.cat = (this.cat + dCat + n) % n; } while (this.catalog[this.cat].action && !this.planning && ++k < n); }
+    if (this.catalog[this.cat].action && !this.planning) this.cat = 0;
     if (dItem) { const k = this.catalog[this.cat].items.length; this.item[this.cat] = (this.item[this.cat] + dItem + k) % k; }
     this.portCycle = 0; this._evalKey = "";
     this.ui.sync();
@@ -991,7 +1063,18 @@ class Builder {
         }
       }
     }
-    if (!net.canAfford(type)) return bad(`not enough materials: ${B.cost} needed, ${Math.floor(net.materials)} in stock`);
+    if (this.planning && !o.classic) {
+      // the campaign: materials are HALO-1's and unlimited; Contribution Credit is the limit (progress.api.limits() through HALO-1)
+      res.cost = 0; res.footprint = Math.round(B.cost / 2); res.onHand = (net.onHand[type] || 0) > 0;
+      if (!(o.free === true && o.story)) {
+        const H = getSystem("halo"), cc = H && H.api ? H.api.cc() : null;
+        if (cc) {
+          const n = pose.base ? net.of(pose.base.id).length : 0;
+          if (n >= cc.maxModules) return bad(`base size cap: ${cc.maxModules} modules at tier ${cc.tier} (earn Contribution Credit)`);
+          if (!res.onHand && B.cost / 2 > cc.free) return bad(`Contribution Credit: ${Math.ceil(B.cost / 2)} needed for its footprint, ${Math.max(0, cc.free)} free`);
+        }
+      }
+    } else if (!net.canAfford(type)) return bad(`not enough materials: ${B.cost} needed, ${Math.floor(net.materials)} in stock`);
 
     // what it will join
     let pressureJoint = false, anyNear = !pose.base;
@@ -1039,13 +1122,19 @@ class Builder {
   }
   _poseInfo(p) { return { base: p.base ? p.base.id : null, lx: p.lx, lz: p.lz, r: p.r, level: p.level, snapped: !!p.snapped }; }
   async _place(type, pose, res, o = {}) {
-    const sys = this.sys, net = sys.net;
-    if (!net.sandbox) net.materials -= MODULES[type].cost;
+    const sys = this.sys, net = sys.net, planning = this.planning && !o.classic;
+    let plan;
+    if (planning) { if ((net.onHand[type] || 0) > 0) { net.onHand[type]--; plan = "site"; } else plan = "draft"; }
+    else if (!net.sandbox) net.materials -= MODULES[type].cost;
     const site = pose.base ? null : sys.siteQuality(res.x, res.z, res.slope);
-    const m = await sys.addModule({ type, base: pose.base ? pose.base.id : null, frame: pose.frame, lx: pose.lx, lz: pose.lz, r: pose.r, level: pose.level, ly: pose.ly, site, instant: o.instant });
+    const m = await sys.addModule({ type, base: pose.base ? pose.base.id : null, frame: pose.frame, lx: pose.lx, lz: pose.lz, r: pose.r, level: pose.level, ly: pose.ly, site, instant: o.instant, plan });
     this.undo.push(m.id);
     this._evalKey = "";
-    if (this.game.mode === "build" || this.game.mode === "driving") {
+    if (o.quiet) { /* a scripted layout: no toast per module */ } else if (planning && (this.game.mode === "build" || this.game.mode === "driving")) {
+      const n = net.modules.size && [...net.modules.values()].filter((x) => x.plan === "draft").length;
+      this.game.hud.toast(plan === "site" ? `${MODULES[type].name}: components on hand<small>salvaged from the lander: build it yourself (stay within 30 m)${pose.base ? "" : " \u00b7 a new base is founded here"}</small>`
+        : `${MODULES[type].name} planned<small>blueprint ${n} in the plan \u00b7 no materials, ${Math.round(MODULES[type].cost / 2)} CC footprint \u00b7 send it to HALO-1: G, or the HALO-1 tab</small>`, 2.8);
+    } else if (this.game.mode === "build" || this.game.mode === "driving") {
       const B = MODULES[type], secs = B.build_h * 3600 / RULES.buildPace;
       const when = m.progress >= 1 ? "built" : m.queued || [...net.modules.values()].filter((x) => x.progress < 1).length > RULES.crews ? "queued: two crews are busy" : "assembling: about " + (secs >= 90 ? Math.round(secs / 60) + " min" : Math.round(secs) + " s");
       this.game.hud.toast(`${B.name} placed<small>${when}${pose.base ? "" : " \u00b7 a new base is founded here"}</small>`, 2.6);
@@ -1054,6 +1143,7 @@ class Builder {
   }
   /** Cross: place the ghost where it is. */
   async confirm() {
+    if (this.active && this.type === "send_plan") return this.sendPlan();
     if (!this.active || this._placing || !this.pose || !this.result) return { ok: false, reason: "not building" };
     this.update(0, true);
     const res = this.result, pose = this.pose;
@@ -1117,8 +1207,9 @@ class Builder {
         case "BracketRight": case "Period": this.nav(0, 1); break;
         case "KeyZ": if (!e.repeat) this.undoLast(); break;
         case "KeyT": if (!e.repeat) this.toggleWarp(); break;
+        case "KeyG": if (!e.repeat && this.planning) this.sendPlan(); else used = false; break;
         default:
-          if (/^Digit[1-7]$/.test(e.code)) { this.cat = +e.code.slice(5) - 1; this.nav(0, 0); } else used = false;
+          if (/^Digit[1-7]$/.test(e.code) || (e.code === "Digit8" && this.planning)) { this.cat = +e.code.slice(5) - 1; this.nav(0, 0); } else used = false;
       }
       if (used) { e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation(); }
     }, true);
@@ -1181,6 +1272,85 @@ class Builder {
     return false;
   }
 
+  /* ── the plan ─────────────────────────────────────────────────────────── */
+
+  /** The plan on the table: blueprints, what the package will bring, who comes with it, what credit allows, what the story asks for. */
+  manifest() {
+    const sys = this.sys, drafts = sys.api.drafts(), types = drafts.map((d) => d.type), M = planManifest(types);
+    M.ids = drafts.map((d) => d.id);
+    M.items = Object.entries(M.count).map(([t, n]) => ({ type: t, name: MODULES[t].name, n }));
+    let cx = 0, cz = 0; for (const d of drafts) { cx += d.x; cz += d.z; }
+    M.centre = drafts.length ? { x: cx / drafts.length, z: cz / drafts.length } : null;
+    const H = getSystem("halo"), C = getSystem("caretakers");
+    M.credit = H && H.api && H.api.enabled ? H.api.cc() : null;
+    M.drop = H && H.api && H.api.planDrop && drafts.length ? H.api.planDrop(M.ids) : null;
+    M.crew = C && C.api && C.api.forecast ? C.api.forecast(M) : null;
+    M.descent = "20 to 30 game minutes";
+    M.bases = [...sys.net.bases.values()].map((b) => ({ id: b.id, name: b.name, modules: sys.net.of(b.id).length, drafts: sys.net.of(b.id).filter((m) => m.plan === "draft").length, cap: M.credit ? M.credit.maxModules : null })).filter((b) => b.drafts);
+    M.inbound = H && H.api ? H.api.packages().filter((p) => p.kind === "plan" && p.phase !== "landed").map((p) => ({ id: p.id, left: p.left, phase: p.phase, modules: (p.modules || []).length })) : [];
+    M.story = this._storyNeeds();
+    const T = getSystem("tiers"); M.tier = T && T.api && T.api.enabled && T.api.next ? T.api.next() : null;
+    return M;
+  }
+  /** What the campaign's open build objectives ask for (and the outpost the first package is for), against what is built or planned. */
+  _storyNeeds() {
+    const st = getSystem("story"), S = st && st.api && st.api.state ? st.api.state() : null, D = st && st.story ? st.story.D : null;
+    if (!S || !S.campaign || !D) return [];
+    const mods = [...this.sys.net.modules.values()], out = [];
+    const want = (m, ob) => {
+      if (ob.type !== "build" || ob.planned_module || ob.remote) return;
+      const run = S.active[m.id]; if (run && run.done[ob.id]) return;
+      const re = ob.match ? new RegExp(ob.match) : null, hit = (x) => x.type === ob.module || (re && re.test(x.type));
+      out.push({ mission: m.id, text: ob.text, module: ob.module, count: ob.count || 1, built: mods.filter((x) => hit(x) && isBuilt(x)).length, planned: mods.filter((x) => hit(x) && !isBuilt(x)).length });
+    };
+    for (const id of Object.keys(S.active)) {
+      const m = D.mission(id); if (!m) continue;
+      for (const ob of m.objectives) want(m, ob);
+      if (m.objectives.some((ob) => ob.type === "request_package" && ob.kind === "starter" && !S.active[id].done[ob.id])) for (const n of D.missions) if (n.trigger && n.trigger.on === "mission_complete" && n.trigger.id === id) for (const ob of n.objectives) want(n, ob);
+    }
+    return out;
+  }
+  /** Send the blueprints on the table to HALO-1: one package with their components, the supplies and the caretakers. */
+  sendPlan(o = {}) {
+    const g = this.game, H = getSystem("halo");
+    if (!this.planning || !H || !H.api) { this.ui.flash("HALO-1 does not answer"); return { ok: false, reason: "no HALO" }; }
+    const drafts = this.sys.api.drafts();
+    if (!drafts.length) { this.ui.flash("Nothing planned: lay out blueprints first"); return { ok: false, reason: "no plan" }; }
+    const r = H.api.requestPlan(Object.assign({ ids: drafts.map((d) => d.id) }, o));
+    if (!r.ok) { this.ui.flash(r.reason || "refused"); return r; }
+    this._evalKey = ""; this.undo = [];
+    this.ui.sent(r.pkg);
+    void g;
+    return r;
+  }
+  clearPlan() { let n = 0; for (const d of this.sys.api.drafts()) { this.sys.removeModule(d.id); n++; } this._evalKey = ""; return n; }
+  /** Lay out blueprints of these types around (x, z) by the placement rules (the dev skip, the tests, a story fallback). */
+  async autoPlan(types, x, z, o = {}) {
+    const out = []; let base = o.base || null;
+    for (const type of types) {
+      const pts = [];
+      if (base && MODULES[type].pressurised) {
+        const b = this.sys.net.bases.get(base);
+        for (const p of this.sys.net.openPorts(base)) if (p.type === "pressurized" && !p.up) { const w = toWorld(b, p.x + p.dx * 2.5, p.z + p.dz * 2.5); pts.push([w.x, w.z]); }
+      }
+      for (let r = 0; r <= 44; r += 4) { const k = Math.max(1, Math.round(r * 1.6)); for (let i = 0; i < k; i++) { const a = i / k * Math.PI * 2 + r; pts.push([x + Math.cos(a) * r, z + Math.sin(a) * r]); } }
+      let placed = null;
+      for (const pass of ["ok", "warn"]) {
+        for (const [px, pz] of pts) {
+          const pose = this.poseAt(type, px, pz, { r: 0, cycle: 0, yaw: o.yaw || 0 });
+          if (base && (!pose.base || pose.base.id !== base)) continue;
+          const res = this.evaluate(type, pose, { free: true, story: !!o.story });
+          if (res.state === "bad" || (pass === "ok" && res.state !== "ok")) continue;
+          placed = await this._place(type, pose, res, o); break;
+        }
+        if (placed) break;
+      }
+      if (placed && !base) base = placed.base;
+      out.push(placed ? placed.id : null);
+    }
+    return out;
+  }
+
   /* ── every frame ──────────────────────────────────────────────────────── */
 
   tick(game, dt) {
@@ -1203,7 +1373,8 @@ class Builder {
     if (this._stillT > 1.5) {
       const near = this.sys.baseNear(v.p.x, v.p.z, 80), flat = game.surface.slopeDeg(v.p.x, v.p.z, 6) <= RULES.maxSlopeDeg - 2;
       const key = P && game.input.padConnected && game.input.lastDevice === "pad" ? "Hold " + P.glyph("cross") : "<kbd>B</kbd>";
-      if (near) text = `${key} Build mode: ${near.name} base`; else if (flat) text = `${key} Level ground: build here`;
+      const plan = this.planning;
+      if (near) text = plan ? `${key} Plan: ${near.name} base` : `${key} Build mode: ${near.name} base`; else if (flat) text = plan ? `${key} Level ground: plan a base here` : `${key} Level ground: build here`;
     }
     // HOOK (story): not while the campaign is still in the prologue (strapped into the lander, nothing to build with yet)
     const story = getSystem("story"), sst = story && story.api && story.api.state && story.api.state();
@@ -1250,7 +1421,12 @@ class Builder {
     if (this.cursorMode === "mouse" && this.mouse.inside) this._pick(this.cursor); else { this.cursor.x = cam.x; this.cursor.z = cam.z; }
 
     const type = this.type, sys = this.sys;
-    if (!KIT[type]) return;
+    if (!KIT[type]) {
+      // the HALO-1 tab: no ghost; the manifest is the picture
+      this.ghost.group.visible = false; this.ghost.rings.visible = false; this.outline.show(null); this.grid.hide(); this.hover = null;
+      this._evalT += dt; if (force || this._evalT > 0.4) { this._evalT = 0; this.ui.planStatus(); }
+      return;
+    }
     this.hover = sys.moduleAt(this.cursor.x, this.cursor.z);
     const pose = this.poseAt(type, this.cursor.x, this.cursor.z);
     const key = [type, pose.base ? pose.base.id : this.cursor.x.toFixed(1) + "," + this.cursor.z.toFixed(1), pose.lx, pose.lz, pose.r, pose.level, pose.frame.yaw.toFixed(3), sys.net.modules.size, Math.floor(sys.net.materials / 5), sys.net.sandbox].join("|");

@@ -17,7 +17,7 @@
  * wheel track, wheelbase and radius FROM the model so the two agree.
  * Otherwise the rover is built from primitives with the same interface.
  */
-import * as THREE from "../vendor/three.module.js?v=b8cfe8e-efa5b7b7";
+import * as THREE from "../vendor/three.module.js?v=6d37c9c-9b39e129";
 
 const X = new THREE.Vector3(1, 0, 0), Y = new THREE.Vector3(0, 1, 0);
 
@@ -37,7 +37,7 @@ export async function loadRoverModel(def, vehicle, base = "assets/models/") {
 }
 
 async function fromGLB(def, vehicle, entry, base, cat) {
-  const { GLTFLoader } = await import("../vendor/GLTFLoader.js?v=b8cfe8e-efa5b7b7");
+  const { GLTFLoader } = await import("../vendor/GLTFLoader.js?v=6d37c9c-9b39e129");
   const gltf = await new GLTFLoader().loadAsync(base + entry.file);
   const group = new THREE.Group();
   group.name = "rover";

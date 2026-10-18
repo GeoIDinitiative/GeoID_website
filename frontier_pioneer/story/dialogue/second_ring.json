@@ -1,5 +1,5 @@
 {
- "note": "Second Ring sample (17 named specialists). Each has a quest (acts.json SR.<CALLSIGN>), one memory fragment, idle barks and recall last words. Recall last words: four variants (warned/unwarned x named/unnamed); named variants play if the player used the unit's real name before its Recall. donor_name is what the player learns via KEEPER open_unit_file.",
+ "note": "Second Ring sample (17 named specialists). Each has a quest (acts.json SR.<CALLSIGN>), one memory fragment, idle barks and recall last words. Recall last words: four variants (warned/unwarned x named/unnamed); named variants play if the player used the unit's real name before its Recall. donor_name is what the player learns via ATLAS open_unit_file.",
  "units": {
   "GIRDER": {
    "callsign": "GIRDER",

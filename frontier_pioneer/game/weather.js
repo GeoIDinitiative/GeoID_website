@@ -79,9 +79,9 @@
  *   - The UV index is a game scale (irradiance, scaled), not a measurement.
  *   - The seasonal curves ignore the orbit's eccentricity, as sky.js does.
  */
-import { MARS } from "./config.js?v=b8cfe8e-efa5b7b7";
-import { registerSystem, getSystem } from "./systems.js?v=b8cfe8e-efa5b7b7";
-import { surfaceIrradiance, sunPosition } from "./sky.js?v=b8cfe8e-efa5b7b7";
+import { MARS } from "./config.js?v=6d37c9c-9b39e129";
+import { registerSystem, getSystem } from "./systems.js?v=6d37c9c-9b39e129";
+import { surfaceIrradiance, sunPosition } from "./sky.js?v=6d37c9c-9b39e129";
 
 export const SOL = MARS.solSeconds;
 export const HOUR = SOL / 24;           // one Mars-hour, the unit the HUD clock shows
@@ -289,9 +289,9 @@ export const weather = {
   async init(game) {
     this._makeEnv(game);
     // The picture and the panels are separate modules, loaded here so a headless or broken one cannot stop the model.
-    try { const m = await import("./weather_fx.js?v=b8cfe8e-efa5b7b7"); this.fx = new m.WeatherFx(game); }
+    try { const m = await import("./weather_fx.js?v=6d37c9c-9b39e129"); this.fx = new m.WeatherFx(game); }
     catch (err) { console.warn("[weather] visuals unavailable:", err && err.message); }
-    try { const m = await import("./weather_ui.js?v=b8cfe8e-efa5b7b7"); this.ui = new m.WeatherUi(game); }
+    try { const m = await import("./weather_ui.js?v=6d37c9c-9b39e129"); this.ui = new m.WeatherUi(game); }
     catch (err) { console.warn("[weather] panels unavailable:", err && err.message); }
   },
 

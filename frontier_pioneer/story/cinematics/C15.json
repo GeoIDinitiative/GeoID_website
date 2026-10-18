@@ -1,0 +1,703 @@
+{
+ "id": "C15",
+ "title": "Intercom",
+ "note": "The first module, a preserved corner of the city dome; ANVIL sealed inside it; three RECALL suits at its door, polite, waiting. P1 in a rover cab on the old intercom. Shot through the windscreen and close, almost all of it on P1 and on the door: ANVIL is a voice through a handset, which is the point. Des. Aye, that'll do. The door opens; static.",
+ "world": {
+  "hideAvatar": false,
+  "focus": false
+ },
+ "sets": [
+  {
+   "id": "dome",
+   "kind": "dome",
+   "cab": {
+    "at": [
+     -13.6,
+     0.55,
+     3.2
+    ],
+    "yaw": 0
+   }
+  }
+ ],
+ "actors": [
+  {
+   "id": "p1",
+   "kind": "pioneer",
+   "set": "dome",
+   "at": [
+    -13.6,
+    0.59,
+    3.32
+   ],
+   "yaw": 180,
+   "clip": "sit_handset",
+   "props": [
+    {
+     "prop": "handset",
+     "socket": "sk_grip_R"
+    }
+   ]
+  },
+  {
+   "id": "r1",
+   "kind": "recall",
+   "set": "dome",
+   "at": [
+    -13.3,
+    0,
+    -5.3
+   ],
+   "yaw": -25,
+   "clip": "guard"
+  },
+  {
+   "id": "r2",
+   "kind": "recall",
+   "set": "dome",
+   "at": [
+    -14.7,
+    0,
+    -5.1
+   ],
+   "yaw": -10,
+   "clip": "guard"
+  },
+  {
+   "id": "r3",
+   "kind": "recall",
+   "set": "dome",
+   "at": [
+    -14.0,
+    0,
+    -4.4
+   ],
+   "yaw": -38,
+   "clip": "guard"
+  }
+ ],
+ "lights": [
+  {
+   "id": "doorL",
+   "type": "point",
+   "set": "dome",
+   "at": [
+    -14.0,
+    2.6,
+    -5.6
+   ],
+   "color": "#fff0d8",
+   "intensity": 12,
+   "dist": 8
+  }
+ ],
+ "shots": [
+  {
+   "at": "start",
+   "name": "the old module under the glass, a rope round it; three white suits at its door; the rover",
+   "set": "dome",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": [
+       -2,
+       6.5,
+       12
+      ],
+      "look": [
+       -14.0,
+       1.6,
+       -6.4
+      ],
+      "lens": 32
+     },
+     {
+      "t": 1,
+      "pos": [
+       -3.2,
+       5.5,
+       10
+      ],
+      "look": [
+       -14.0,
+       1.5,
+       -6.4
+      ],
+      "lens": 35
+     }
+    ],
+    "ease": "inout"
+   },
+   "dof": {
+    "focus": 16,
+    "fstop": 5.6
+   },
+   "grade": "dome"
+  },
+  {
+   "at": "C15.01",
+   "name": "in the cab: the handset; through the windscreen, the module and the suits",
+   "set": "dome",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": [
+       -12.95,
+       2.2,
+       4.5
+      ],
+      "look": [
+       -14.0,
+       1.2,
+       -6.4
+      ],
+      "lens": 28
+     },
+     {
+      "t": 1,
+      "pos": [
+       -12.9,
+       2.18,
+       4.35
+      ],
+      "look": [
+       -14.0,
+       1.2,
+       -6.4
+      ],
+      "lens": 30
+     }
+    ],
+    "ease": "linear",
+    "handheld": 0.15
+   },
+   "dof": {
+    "focus": "p1",
+    "fstop": 2.8
+   },
+   "grade": "dome"
+  },
+  {
+   "at": "C15.02",
+   "name": "P1: I can get you out (profile, the dash light)",
+   "set": "dome",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": {
+       "actor": "p1",
+       "bone": "head",
+       "o": [
+        -0.45,
+        0.12,
+        1.55
+       ]
+      },
+      "look": {
+       "actor": "p1",
+       "bone": "head"
+      },
+      "lens": 40
+     },
+     {
+      "t": 1,
+      "pos": {
+       "actor": "p1",
+       "bone": "head",
+       "o": [
+        -0.45,
+        0.12,
+        1.49
+       ]
+      },
+      "look": {
+       "actor": "p1",
+       "bone": "head"
+      },
+      "lens": 43
+     }
+    ],
+    "handheld": 0.15
+   },
+   "dof": {
+    "focus": "p1",
+    "fstop": 1.8
+   },
+   "grade": "dome"
+  },
+  {
+   "at": "C15.03",
+   "name": "through the windscreen, long: the porthole, the door, the suits waiting",
+   "set": "dome",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": [
+       -12.25,
+       1.95,
+       3.0
+      ],
+      "look": [
+       -14.0,
+       1.6,
+       -6.4
+      ],
+      "lens": 85
+     },
+     {
+      "t": 1,
+      "pos": [
+       -12.22,
+       1.95,
+       2.95
+      ],
+      "look": [
+       -14.0,
+       1.5,
+       -6.4
+      ],
+      "lens": 90
+     }
+    ],
+    "ease": "linear"
+   },
+   "dof": {
+    "focus": 12.4,
+    "fstop": 2.8
+   },
+   "grade": "dome"
+  },
+  {
+   "at": "C15.04",
+   "name": "ANVIL: here's the thing (slow push on P1)",
+   "set": "dome",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": [
+       -12.75,
+       1.5,
+       2.0
+      ],
+      "look": {
+       "actor": "p1",
+       "bone": "head"
+      },
+      "lens": 40
+     },
+     {
+      "t": 1,
+      "pos": [
+       -12.95,
+       1.52,
+       2.35
+      ],
+      "look": {
+       "actor": "p1",
+       "bone": "head"
+      },
+      "lens": 60
+     }
+    ],
+    "ease": "linear"
+   },
+   "dof": {
+    "focus": "p1",
+    "fstop": 2.0
+   },
+   "grade": "dome"
+  },
+  {
+   "at": "C15.04+5.0",
+   "name": "the door; the nearest suit shifts its weight",
+   "set": "dome",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": [
+       -10.6,
+       1.55,
+       -1.6
+      ],
+      "look": [
+       -14.0,
+       1.5,
+       -5.2
+      ],
+      "lens": 35
+     },
+     {
+      "t": 1,
+      "pos": [
+       -10.8,
+       1.55,
+       -1.9
+      ],
+      "look": [
+       -14.0,
+       1.5,
+       -5.2
+      ],
+      "lens": 38
+     }
+    ],
+    "ease": "linear",
+    "handheld": 0.15
+   },
+   "dof": {
+    "focus": "r1",
+    "fstop": 2.4
+   },
+   "grade": "dome"
+  },
+  {
+   "at": "C15.05",
+   "name": "Des.",
+   "set": "dome",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": {
+       "actor": "p1",
+       "bone": "head",
+       "o": [
+        0.6,
+        0.12,
+        1.2
+       ]
+      },
+      "look": {
+       "actor": "p1",
+       "bone": "head",
+       "o": [
+        0,
+        0.12,
+        0.1
+       ]
+      },
+      "lens": 43.1
+     },
+     {
+      "t": 1,
+      "pos": {
+       "actor": "p1",
+       "bone": "head",
+       "o": [
+        0.6,
+        0.12,
+        1.14
+       ]
+      },
+      "look": {
+       "actor": "p1",
+       "bone": "head",
+       "o": [
+        0,
+        0.12,
+        0.1
+       ]
+      },
+      "lens": 41.4
+     }
+    ],
+    "ease": "linear"
+   },
+   "dof": {
+    "focus": "p1",
+    "fstop": 1.6
+   },
+   "grade": "dome"
+  },
+  {
+   "at": "beat:8",
+   "name": "a long pause: the rover from outside, him small in the cab, the module beyond",
+   "set": "dome",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": [
+       -17.5,
+       1.5,
+       7.8
+      ],
+      "look": [
+       -13.0,
+       1.4,
+       1.5
+      ],
+      "lens": 35
+     },
+     {
+      "t": 1,
+      "pos": [
+       -17.2,
+       1.5,
+       7.6
+      ],
+      "look": [
+       -13.0,
+       1.4,
+       1.2
+      ],
+      "lens": 36
+     }
+    ],
+    "ease": "linear"
+   },
+   "dof": {
+    "focus": 7,
+    "fstop": 4
+   },
+   "grade": "dome"
+  },
+  {
+   "at": "C15.06",
+   "name": "Aye. That'll do. (the module through the glass)",
+   "set": "dome",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": [
+       -12.25,
+       1.95,
+       3.0
+      ],
+      "look": [
+       -14.0,
+       1.8,
+       -6.4
+      ],
+      "lens": 70
+     },
+     {
+      "t": 1,
+      "pos": [
+       -12.22,
+       1.95,
+       2.95
+      ],
+      "look": [
+       -14.0,
+       1.8,
+       -6.4
+      ],
+      "lens": 75
+     }
+    ]
+   },
+   "dof": {
+    "focus": 13,
+    "fstop": 2.8
+   },
+   "grade": "dome"
+  },
+  {
+   "at": "C15.07",
+   "name": "Go on, Ro: P1 holding the handset, not speaking",
+   "set": "dome",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": {
+       "actor": "p1",
+       "bone": "head",
+       "o": [
+        0.45,
+        0.12,
+        1.55
+       ]
+      },
+      "look": {
+       "actor": "p1",
+       "bone": "head"
+      },
+      "lens": 42
+     },
+     {
+      "t": 1,
+      "pos": {
+       "actor": "p1",
+       "bone": "head",
+       "o": [
+        0.45,
+        0.12,
+        1.49
+       ]
+      },
+      "look": {
+       "actor": "p1",
+       "bone": "head"
+      },
+      "lens": 45
+     }
+    ],
+    "ease": "linear"
+   },
+   "dof": {
+    "focus": "p1",
+    "fstop": 1.8
+   },
+   "grade": "dome"
+  },
+  {
+   "at": "beat:12",
+   "name": "the door opens; they go in",
+   "set": "dome",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": [
+       -12.25,
+       1.95,
+       3.0
+      ],
+      "look": [
+       -14.0,
+       1.3,
+       -6.4
+      ],
+      "lens": 60
+     },
+     {
+      "t": 1,
+      "pos": [
+       -12.22,
+       1.95,
+       2.95
+      ],
+      "look": [
+       -14.0,
+       1.3,
+       -6.4
+      ],
+      "lens": 60
+     }
+    ]
+   },
+   "dof": {
+    "focus": 12,
+    "fstop": 2.8
+   },
+   "grade": {
+    "base": "dome",
+    "exposure": 0.9
+   }
+  }
+ ],
+ "track": [
+  {
+   "at": "start",
+   "actor": "p1",
+   "lookAt": [
+    -14.0,
+    1.6,
+    -6.5
+   ],
+   "weight": 0.8
+  },
+  {
+   "at": "start",
+   "actor": "r1",
+   "lookAt": [
+    -13.6,
+    1.6,
+    3.2
+   ],
+   "weight": 0.4
+  },
+  {
+   "at": "start",
+   "actor": "r2",
+   "lookAt": [
+    -13.6,
+    1.6,
+    3.2
+   ],
+   "weight": 0.4
+  },
+  {
+   "at": "C15.04+5.6",
+   "actor": "r1",
+   "lookAt": [
+    -13.6,
+    1.6,
+    3.2
+   ],
+   "weight": 0.8
+  },
+  {
+   "at": "C15.04+8.0",
+   "actor": "r1",
+   "lookAt": [
+    -14.0,
+    1.6,
+    -6.5
+   ],
+   "weight": 0.7
+  },
+  {
+   "at": "C15.05",
+   "actor": "p1",
+   "lookAt": [
+    -13.6,
+    1.0,
+    1.8
+   ],
+   "weight": 0.6
+  },
+  {
+   "at": "C15.06",
+   "actor": "p1",
+   "lookAt": [
+    -14.0,
+    1.8,
+    -6.5
+   ],
+   "weight": 0.8
+  },
+  {
+   "at": "beat:12",
+   "actor": "r1",
+   "walk": [
+    -14.0,
+    0,
+    -6.5
+   ],
+   "speed": 0.8,
+   "then": "idle"
+  },
+  {
+   "at": "beat:12+0.6",
+   "actor": "r2",
+   "walk": [
+    -13.65,
+    0,
+    -6.5
+   ],
+   "speed": 0.8,
+   "then": "idle"
+  },
+  {
+   "at": "beat:12+2.2",
+   "actor": "r1",
+   "visible": false
+  },
+  {
+   "at": "beat:12+2.6",
+   "light": "doorL",
+   "intensity": 30,
+   "dur": 0.4
+  }
+ ]
+}

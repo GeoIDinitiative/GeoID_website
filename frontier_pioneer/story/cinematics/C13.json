@@ -1,0 +1,635 @@
+{
+ "id": "C13",
+ "title": "The Advert",
+ "note": "Night at the terminal; the archive's one broadcast, a 2059 advert, played warped by age: glowing domes over a red plain lighting one by one, a rendered family, a girl pointing up at them (rendered people, cloth, glossy: an advert's people), the Meridian logo. He has been mouthing the words. He stops. ATLAS matches the lines to the broadcast and to anchor file 07. The advert loops.",
+ "world": {
+  "hideAvatar": false,
+  "focus": false
+ },
+ "sets": [
+  {
+   "id": "mod",
+   "kind": "module",
+   "porthole": "night",
+   "dark": true
+  },
+  {
+   "id": "ad",
+   "kind": "advert"
+  }
+ ],
+ "actors": [
+  {
+   "id": "p1",
+   "kind": "pioneer",
+   "set": "mod",
+   "at": [
+    -0.45,
+    0.39,
+    -0.9
+   ],
+   "yaw": -90,
+   "clip": "sit_desk_still"
+  },
+  {
+   "id": "girl",
+   "kind": "child",
+   "set": "ad",
+   "look": {
+    "hair": "tied",
+    "material": "cloth",
+    "cloth": "#e04848"
+   },
+   "at": [
+    0.5,
+    0,
+    -11.6
+   ],
+   "yaw": 180,
+   "clip": "point_up_hold"
+  },
+  {
+   "id": "mum",
+   "kind": "human",
+   "set": "ad",
+   "look": {
+    "hair": "long",
+    "material": "cloth",
+    "cloth": "#3a6aa0"
+   },
+   "at": [
+    -0.4,
+    0,
+    -11.8
+   ],
+   "yaw": 170,
+   "clip": "idle"
+  },
+  {
+   "id": "dad",
+   "kind": "human",
+   "set": "ad",
+   "look": {
+    "hair": "short",
+    "material": "cloth",
+    "cloth": "#e0d8c8"
+   },
+   "at": [
+    1.4,
+    0,
+    -11.9
+   ],
+   "yaw": 190,
+   "clip": "look_up"
+  }
+ ],
+ "shots": [
+  {
+   "at": "start",
+   "name": "night: the right question asked at last; the terminal",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": [
+       0.65,
+       1.8,
+       2.3
+      ],
+      "look": [
+       -0.3,
+       1.15,
+       -1.5
+      ],
+      "lens": 18
+     },
+     {
+      "t": 1,
+      "pos": [
+       0.6,
+       1.75,
+       2.1
+      ],
+      "look": [
+       -0.4,
+       1.15,
+       -1.5
+      ],
+      "lens": 20
+     }
+    ],
+    "ease": "linear",
+    "handheld": 0.05
+   },
+   "grade": "interior_night",
+   "dof": {
+    "focus": "p1",
+    "fstop": 2.8
+   },
+   "set": "mod"
+  },
+  {
+   "at": "C13.00",
+   "name": "one file: CITIES_IN_THE_SKY_2059_BROADCAST",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": [
+       -0.45,
+       1.5,
+       -0.55
+      ],
+      "look": [
+       -1.12,
+       1.45,
+       -0.9
+      ],
+      "lens": 50
+     },
+     {
+      "t": 1,
+      "pos": [
+       -0.55,
+       1.48,
+       -0.7
+      ],
+      "look": [
+       -1.12,
+       1.45,
+       -0.9
+      ],
+      "lens": 70
+     }
+    ],
+    "ease": "linear",
+    "handheld": 0.15
+   },
+   "grade": "interior_night",
+   "dof": {
+    "focus": 0.6,
+    "fstop": 2.0
+   },
+   "set": "mod"
+  },
+  {
+   "at": "beat:2",
+   "name": "the broadcast: glowing domes over a red plain, a rendered family, swelling strings (warped by age)",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": [
+       0,
+       1.6,
+       6
+      ],
+      "look": [
+       0,
+       4,
+       -40
+      ],
+      "lens": 35
+     },
+     {
+      "t": 1,
+      "pos": [
+       0,
+       1.7,
+       4.5
+      ],
+      "look": [
+       0,
+       4,
+       -40
+      ],
+      "lens": 40
+     }
+    ],
+    "ease": "linear",
+    "handheld": 0.05
+   },
+   "grade": "advert",
+   "dof": {
+    "focus": 30,
+    "fstop": 5.6
+   },
+   "set": "ad"
+  },
+  {
+   "at": "C13.02",
+   "name": "If only you could see what I see... (the girl points up at them)",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": [
+       1.5,
+       1.2,
+       -8
+      ],
+      "look": {
+       "actor": "girl",
+       "bone": "head"
+      },
+      "lens": 50
+     },
+     {
+      "t": 1,
+      "pos": [
+       1.3,
+       1.2,
+       -8.5
+      ],
+      "look": {
+       "actor": "girl",
+       "bone": "head"
+      },
+      "lens": 55
+     }
+    ],
+    "ease": "linear",
+    "handheld": 0.05
+   },
+   "grade": "advert",
+   "dof": {
+    "focus": "girl",
+    "fstop": 2.4
+   },
+   "set": "ad"
+  },
+  {
+   "at": "beat:6",
+   "name": "a dome lights up, then another",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": [
+       -3,
+       2,
+       0
+      ],
+      "look": [
+       0,
+       5,
+       -50
+      ],
+      "lens": 28
+     },
+     {
+      "t": 1,
+      "pos": [
+       -2,
+       2.5,
+       -2
+      ],
+      "look": [
+       0,
+       6,
+       -50
+      ],
+      "lens": 28
+     }
+    ],
+    "ease": "linear",
+    "handheld": 0.05
+   },
+   "grade": "advert",
+   "dof": {
+    "focus": 40,
+    "fstop": 5.6
+   },
+   "set": "ad"
+  },
+  {
+   "at": "C13.03",
+   "name": "...shimmers of eternity. Cities in the Sky. A Meridian initiative.",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": [
+       0,
+       1.6,
+       4
+      ],
+      "look": [
+       0,
+       3,
+       -30
+      ],
+      "lens": 35
+     },
+     {
+      "t": 1,
+      "pos": [
+       0,
+       1.8,
+       8
+      ],
+      "look": [
+       0,
+       3,
+       -30
+      ],
+      "lens": 28
+     }
+    ],
+    "ease": "inout",
+    "handheld": 0.15
+   },
+   "grade": "advert",
+   "dof": {
+    "focus": 20,
+    "fstop": 5.6
+   },
+   "set": "ad"
+  },
+  {
+   "at": "beat:8",
+   "name": "he has been mouthing the words along with it; he stops",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": {
+       "actor": "p1",
+       "bone": "head",
+       "o": [
+        1.0,
+        0.15,
+        0.75
+       ]
+      },
+      "look": {
+       "actor": "p1",
+       "bone": "head"
+      },
+      "lens": 38
+     },
+     {
+      "t": 1,
+      "pos": {
+       "actor": "p1",
+       "bone": "head",
+       "o": [
+        1.0,
+        0.15,
+        0.75
+       ]
+      },
+      "look": {
+       "actor": "p1",
+       "bone": "head"
+      },
+      "lens": 38
+     }
+    ],
+    "handheld": 0.12,
+    "ease": "linear"
+   },
+   "grade": "interior_night",
+   "dof": {
+    "focus": "p1",
+    "fstop": 1.8
+   },
+   "set": "mod"
+  },
+  {
+   "at": "C13.04",
+   "name": "That's mine. That's what I say to her.",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": {
+       "actor": "p1",
+       "bone": "head",
+       "o": [
+        1.0,
+        0.15,
+        0.75
+       ]
+      },
+      "look": {
+       "actor": "p1",
+       "bone": "head"
+      },
+      "lens": 38
+     },
+     {
+      "t": 1,
+      "pos": {
+       "actor": "p1",
+       "bone": "head",
+       "o": [
+        1.0,
+        0.15,
+        0.75
+       ]
+      },
+      "look": {
+       "actor": "p1",
+       "bone": "head"
+      },
+      "lens": 38
+     }
+    ],
+    "handheld": 0.12,
+    "ease": "linear"
+   },
+   "grade": "interior_night",
+   "dof": {
+    "focus": "p1",
+    "fstop": 1.6
+   },
+   "set": "mod"
+  },
+  {
+   "at": "C13.05",
+   "name": "lines one and six match the broadcast; two to five, anchor file 07",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": [
+       -0.2,
+       1.6,
+       -0.1
+      ],
+      "look": [
+       -1.12,
+       1.45,
+       -0.9
+      ],
+      "lens": 40
+     },
+     {
+      "t": 1,
+      "pos": [
+       -0.35,
+       1.58,
+       -0.3
+      ],
+      "look": [
+       -1.12,
+       1.45,
+       -0.9
+      ],
+      "lens": 52
+     }
+    ],
+    "ease": "linear",
+    "handheld": 0.15
+   },
+   "grade": "interior_night",
+   "dof": {
+    "focus": 0.9,
+    "fstop": 2.0
+   },
+   "set": "mod"
+  },
+  {
+   "at": "beat:11",
+   "name": "long silence; the advert loops (wide, the screen's light on him)",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": [
+       1.3,
+       1.7,
+       2.1
+      ],
+      "look": [
+       -0.8,
+       1.2,
+       -1.0
+      ],
+      "lens": 24
+     },
+     {
+      "t": 1,
+      "pos": [
+       1.25,
+       1.7,
+       2.0
+      ],
+      "look": [
+       -0.8,
+       1.2,
+       -1.0
+      ],
+      "lens": 24
+     }
+    ],
+    "ease": "linear",
+    "handheld": 0.15
+   },
+   "grade": "interior_night",
+   "dof": {
+    "focus": "p1",
+    "fstop": 4
+   },
+   "set": "mod"
+  },
+  {
+   "at": "C13.loop",
+   "name": "If only you could see what I see... (the broadcast again, quieter)",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": [
+       0,
+       1.6,
+       6
+      ],
+      "look": [
+       0,
+       4,
+       -40
+      ],
+      "lens": 35
+     },
+     {
+      "t": 1,
+      "pos": [
+       0,
+       1.65,
+       5.2
+      ],
+      "look": [
+       0,
+       4,
+       -40
+      ],
+      "lens": 38
+     }
+    ],
+    "ease": "linear",
+    "handheld": 0.05
+   },
+   "grade": {
+    "base": "advert",
+    "vhs": 1.0,
+    "exposure": 0.8
+   },
+   "dof": {
+    "focus": 30,
+    "fstop": 5.6
+   },
+   "set": "ad"
+  }
+ ],
+ "track": [
+  {
+   "at": "start",
+   "setp": "mod",
+   "key": "screen",
+   "value": [
+    "> LIST ALL BROADCAST",
+    "  MEDIA HELD IN ARCHIVE"
+   ]
+  },
+  {
+   "at": "C13.00",
+   "setp": "mod",
+   "key": "screen",
+   "value": [
+    "1 FILE",
+    "CITIES_IN_THE_SKY",
+    "_2059_BROADCAST"
+   ]
+  },
+  {
+   "at": "beat:2",
+   "setp": "mod",
+   "key": "advert",
+   "value": true
+  },
+  {
+   "at": "beat:2",
+   "actor": "girl",
+   "play": "point_up",
+   "fade": 0.5
+  },
+  {
+   "at": "beat:2",
+   "actor": "mum",
+   "lookAt": "girl",
+   "weight": 0.7
+  },
+  {
+   "at": "C13.05",
+   "setp": "mod",
+   "key": "screen",
+   "value": [
+    "LINES 1, 6: BROADCAST 2059",
+    "LINES 2-5: ANCHOR FILE 07",
+    "UNITS PIONEER-1 TO -12"
+   ]
+  }
+ ]
+}

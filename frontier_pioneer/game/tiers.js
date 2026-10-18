@@ -21,10 +21,10 @@
  *   getSystem("tiers").api = { tier(), name(), order(type, o), built(type), sites(), structures(), advance(sim),
  *     grow(sols), terraform(), population() }
  */
-import * as THREE from "../vendor/three.module.js?v=b8cfe8e-efa5b7b7";
-import { registerSystem, getSystem } from "./systems.js?v=b8cfe8e-efa5b7b7";
-import { RULES } from "./basenet.js?v=b8cfe8e-efa5b7b7";
-import { speech, hash, rng, humanise } from "./storydata.js?v=b8cfe8e-efa5b7b7";
+import * as THREE from "../vendor/three.module.js?v=6d37c9c-9b39e129";
+import { registerSystem, getSystem } from "./systems.js?v=6d37c9c-9b39e129";
+import { RULES } from "./basenet.js?v=6d37c9c-9b39e129";
+import { speech, hash, rng, humanise } from "./storydata.js?v=6d37c9c-9b39e129";
 
 export const TIER_NAMES = ["none", "outpost", "settlement", "dome", "biome", "city", "terraforming"];
 const TIER_LINE = { 1: "KEEPER.bark.tier_outpost", 2: "KEEPER.bark.tier_settlement", 3: "KEEPER.bark.tier_dome", 4: "KEEPER.bark.tier_biome", 5: "KEEPER.bark.tier_city", 6: "KEEPER.bark.tier_terraform" };
@@ -43,6 +43,8 @@ export const PLANNED = {
   desk: { name: "School desks", build_h: 0.05, r: 6, shape: "desks", ring: 52, batch: true },
   hideout: { name: "Hideout", build_h: 0.8, r: 4, shape: "hideout", ring: 25 },
 };
+/** What it takes to reach the next tier (compute() below, in words). */
+const NEXT_NEED = { 0: "a habitat, power (an array or a battery) and an airlock", 1: "six modules, with an ISRU plant or a greenhouse", 2: "the Jezero Dome (a story build)", 3: "a biome dome, or a greenhouse with the dome", 4: "the city grows from Act III", 5: "the regional project (Act IV)" };
 export const plannedName = (t) => (PLANNED[t] ? PLANNED[t].name : humanise(t));
 
 const M = (c, o = {}) => new THREE.MeshStandardMaterial(Object.assign({ color: c, roughness: 0.55, metalness: 0.2 }, o));
@@ -272,6 +274,8 @@ const sys = {
     sites: () => (T && T.enabled ? T.sites() : []), structures: () => (T ? T.S.list.slice() : []),
     advance: (s) => T && T.advance(s), grow: (sols) => T && T.grow(sols), terraform: () => (T ? T.terraform() : 0),
     population: () => (T ? T.S.pop : 0), recompute: () => T && T.update(0.6, 0),
+    /** What the next tier asks of the settlement (the plan's manifest shows it): { tier, next, need }. */
+    next: () => { const t = T ? T.S.tier : 0; return { tier: TIER_NAMES[t], next: TIER_NAMES[t + 1] || null, need: NEXT_NEED[t] || "" }; },
     finish: (type) => { if (!T) return; for (const s of T.S.list) if (s.type === type && s.progress < 1) { s.progress = 1; T._done(s); } },
   },
   init(game) { T = new Tiers(game); },

@@ -20,8 +20,8 @@
  * The backdrop is CSS and one 2D canvas (stars): no second WebGL context
  * beside the game's.
  */
-import { SITES } from "./site.js?v=b8cfe8e-efa5b7b7";
-import { hasSave } from "./state.js?v=b8cfe8e-efa5b7b7";
+import { SITES } from "./site.js?v=6d37c9c-9b39e129";
+import { hasSave } from "./state.js?v=6d37c9c-9b39e129";
 
 const KEY = "geoid.mars_surface.campaign";
 export const FIRST_SITE = "jezero";

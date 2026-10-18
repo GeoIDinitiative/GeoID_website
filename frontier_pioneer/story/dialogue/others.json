@@ -111,12 +111,12 @@
       {
        "line": "P11.confront.05",
        "speaker": "P1",
-       "text": "Ask your KEEPER. Ask it the right question."
+       "text": "Ask your ATLAS. Ask it the right question."
       },
       {
        "line": "P11.confront.06",
        "speaker": "PIONEER_11",
-       "text": "Keeper's never lied to me."
+       "text": "Atlas's never lied to me."
       },
       {
        "line": "P11.confront.07",
@@ -131,7 +131,7 @@
       {
        "line": "P11.confront.09",
        "speaker": "PIONEER_11",
-       "text": "Keeper. I want to report a malfunctioning unit at my pad. It says it's a pioneer. It's saying things about my daughter. Pass it to Meridian. All of it.",
+       "text": "Atlas. I want to report a malfunctioning unit at my pad. It says it's a pioneer. It's saying things about my daughter. Pass it to Meridian. All of it.",
        "preset": "radio",
        "note": "heard over the open channel as P1's hopper lifts off"
       }
@@ -164,7 +164,7 @@
       {
        "line": "P11.leave.04",
        "speaker": "PIONEER_11",
-       "text": "Keeper. An unregistered pioneer unit just left my pad, heading north-east. It had my voice. Pass it to Meridian, would you? Somebody should look at that.",
+       "text": "Atlas. An unregistered pioneer unit just left my pad, heading north-east. It had my voice. Pass it to Meridian, would you? Somebody should look at that.",
        "note": "heard over the open channel as P1's hopper lifts off: he turns him in anyway"
       }
      ],
@@ -205,7 +205,7 @@
    {
     "line": "PN.iv.01",
     "speaker": "PIONEER_N",
-    "text": "Pioneer-2, Elysium. Keeper, package to the north site, please. And, Keeper? Morning.",
+    "text": "Pioneer-2, Elysium. Atlas, package to the north site, please. And, Atlas? Morning.",
     "note": "P2"
    },
    {
@@ -223,7 +223,7 @@
    {
     "line": "PN.iv.04",
     "speaker": "PIONEER_N",
-    "text": "Keeper, how long have I been on Mars? Right. Mission sol nine hundred. Thanks.",
+    "text": "Atlas, how long have I been on Mars? Right. Mission sol nine hundred. Thanks.",
     "note": "P7, Meridiani. He doesn't ask the next question."
    },
    {
@@ -280,7 +280,7 @@
   }
  },
  "ARCHITECT": {
-  "who": "Saul Wenner, Cities in the Sky programme director (real name in Meridian records only). Polished, corporate, sincere: believes he has done something noble. Heard only in archived briefings (KEEPER archive, Act IV-V) and the C14 broadcast.",
+  "who": "Saul Wenner, Cities in the Sky programme director (real name in Meridian records only). Polished, corporate, sincere: believes he has done something noble. Heard only in archived briefings (ATLAS archive, Act IV-V) and the C14 broadcast.",
   "briefings": [
    {
     "id": "ARCH.01",

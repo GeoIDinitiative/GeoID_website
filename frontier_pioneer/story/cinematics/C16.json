@@ -1,0 +1,1401 @@
+{
+ "id": "C16",
+ "title": "Fifty-Three Years",
+ "note": "Jezero Dome: real grass under artificial light. Marchetti takes her helmet off (a person in a Covenant suit; backlit by the dome's light, her face never more than a shape). Coverage of a conversation that turns on one question: over-the-shoulder pairs, closer and closer, the plaque between them in the two-shot. Each answer has its own shots; the recall signal; one hour, meant as a gift.",
+ "world": {
+  "hideAvatar": false,
+  "focus": false
+ },
+ "sets": [
+  {
+   "id": "dome",
+   "kind": "dome"
+  }
+ ],
+ "actors": [
+  {
+   "id": "p1",
+   "kind": "pioneer",
+   "set": "dome",
+   "at": [
+    5.35,
+    0,
+    4.55
+   ],
+   "yaw": -90,
+   "clip": "idle"
+  },
+  {
+   "id": "lead",
+   "kind": "covenant",
+   "set": "dome",
+   "look": {
+    "hair": "bun",
+    "material": "cloth",
+    "skin": "#9a7a66",
+    "hairColour": "#5a4a40",
+    "callsign": "MARCHETTI"
+   },
+   "at": [
+    2.65,
+    0,
+    4.55
+   ],
+   "yaw": 90,
+   "clip": "idle"
+  },
+  {
+   "id": "o1",
+   "kind": "recall",
+   "set": "dome",
+   "at": [
+    0.4,
+    0,
+    2.2
+   ],
+   "yaw": 60,
+   "clip": "guard"
+  },
+  {
+   "id": "o2",
+   "kind": "recall",
+   "set": "dome",
+   "at": [
+    -0.2,
+    0,
+    3.6
+   ],
+   "yaw": 80,
+   "clip": "guard"
+  }
+ ],
+ "lights": [
+  {
+   "id": "key",
+   "type": "spot",
+   "set": "dome",
+   "at": [
+    6.5,
+    3.2,
+    1.5
+   ],
+   "target": [
+    2.7,
+    1.5,
+    4.6
+   ],
+   "color": "#fff2e0",
+   "intensity": 40,
+   "dist": 14,
+   "angle": 30
+  },
+  {
+   "id": "rimL",
+   "type": "point",
+   "set": "dome",
+   "at": [
+    1.4,
+    2.4,
+    6.4
+   ],
+   "color": "#ffe8c8",
+   "intensity": 8,
+   "dist": 5
+  }
+ ],
+ "shots": [
+  {
+   "at": "start",
+   "name": "behind P1: she takes her helmet off; real grass, artificial light",
+   "set": "dome",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": [
+       12,
+       5,
+       -6
+      ],
+      "look": [
+       4,
+       1.4,
+       4.5
+      ],
+      "lens": 22
+     },
+     {
+      "t": 1,
+      "pos": [
+       9.5,
+       3.2,
+       -2.5
+      ],
+      "look": [
+       4,
+       1.5,
+       4.5
+      ],
+      "lens": 26
+     }
+    ],
+    "handheld": 0.15,
+    "ease": "inout"
+   },
+   "dof": {
+    "focus": "lead",
+    "fstop": 2.4
+   },
+   "grade": "dome"
+  },
+  {
+   "at": "C16.01",
+   "name": "What year do you think it is? (her, backlit)",
+   "set": "dome",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": {
+       "actor": "p1",
+       "bone": "head",
+       "o": [
+        1.232,
+        0.18,
+        -2.958
+       ]
+      },
+      "look": {
+       "actor": "lead",
+       "bone": "head"
+      },
+      "lens": 44.5
+     },
+     {
+      "t": 1,
+      "pos": {
+       "actor": "p1",
+       "bone": "head",
+       "o": [
+        1.15,
+        0.18,
+        -2.684
+       ]
+      },
+      "look": {
+       "actor": "lead",
+       "bone": "head"
+      },
+      "lens": 45.7
+     }
+    ],
+    "handheld": 0.15,
+    "ease": "linear"
+   },
+   "dof": {
+    "focus": "lead",
+    "fstop": 2.0
+   },
+   "grade": "dome"
+  },
+  {
+   "at": "C16.02",
+   "name": "P1: twenty sixty-four",
+   "set": "dome",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": {
+       "actor": "lead",
+       "bone": "head",
+       "o": [
+        -1.232,
+        0.18,
+        -2.958
+       ]
+      },
+      "look": {
+       "actor": "p1",
+       "bone": "head"
+      },
+      "lens": 44.5
+     },
+     {
+      "t": 1,
+      "pos": {
+       "actor": "lead",
+       "bone": "head",
+       "o": [
+        -1.15,
+        0.18,
+        -2.684
+       ]
+      },
+      "look": {
+       "actor": "p1",
+       "bone": "head"
+      },
+      "lens": 45.7
+     }
+    ],
+    "handheld": 0.15,
+    "ease": "linear"
+   },
+   "dof": {
+    "focus": "p1",
+    "fstop": 2.0
+   },
+   "grade": "dome"
+  },
+  {
+   "at": "C16.03",
+   "name": "It's 2114 (gently)",
+   "set": "dome",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": {
+       "actor": "lead",
+       "bone": "head",
+       "o": [
+        0.56,
+        0.1,
+        1.662
+       ]
+      },
+      "look": {
+       "actor": "lead",
+       "bone": "head"
+      },
+      "lens": 56.2
+     },
+     {
+      "t": 1,
+      "pos": {
+       "actor": "lead",
+       "bone": "head",
+       "o": [
+        0.515,
+        0.1,
+        1.496
+       ]
+      },
+      "look": {
+       "actor": "lead",
+       "bone": "head"
+      },
+      "lens": 50.7
+     }
+    ],
+    "handheld": 0.12,
+    "ease": "linear"
+   },
+   "dof": {
+    "focus": "lead",
+    "fstop": 1.8
+   },
+   "grade": "dome"
+  },
+  {
+   "at": "beat:7",
+   "name": "she nods at the bronze plaque",
+   "set": "dome",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": [
+       1.4,
+       1.5,
+       1.4
+      ],
+      "look": [
+       4.0,
+       1.5,
+       6.0
+      ],
+      "lens": 35
+     },
+     {
+      "t": 1,
+      "pos": [
+       1.7,
+       1.5,
+       1.7
+      ],
+      "look": [
+       4.0,
+       1.55,
+       6.2
+      ],
+      "lens": 38
+     }
+    ],
+    "ease": "linear"
+   },
+   "dof": {
+    "focus": "lead",
+    "fstop": 2.8
+   },
+   "grade": "dome"
+  },
+  {
+   "at": "beat:8",
+   "name": "insert: OUTPOST JEZERO \u00b7 FOUNDED 2061",
+   "set": "dome",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": [
+       4.2,
+       1.6,
+       5.3
+      ],
+      "look": [
+       4.0,
+       1.6,
+       6.92
+      ],
+      "lens": 85
+     },
+     {
+      "t": 1,
+      "pos": [
+       4.15,
+       1.6,
+       5.5
+      ],
+      "look": [
+       4.0,
+       1.6,
+       6.92
+      ],
+      "lens": 90
+     }
+    ],
+    "ease": "linear"
+   },
+   "dof": {
+    "focus": 1.5,
+    "fstop": 2.0
+   },
+   "grade": "dome"
+  },
+  {
+   "at": "C16.04",
+   "name": "two-shot, the plaque on the wall between them: fifty-three years",
+   "set": "dome",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": [
+       4.0,
+       1.45,
+       0.2
+      ],
+      "look": [
+       4.0,
+       1.45,
+       5.4
+      ],
+      "lens": 40
+     },
+     {
+      "t": 1,
+      "pos": [
+       4.0,
+       1.45,
+       1.3
+      ],
+      "look": [
+       4.0,
+       1.5,
+       5.6
+      ],
+      "lens": 40
+     }
+    ],
+    "ease": "linear"
+   },
+   "dof": {
+    "focus": 4.6,
+    "fstop": 2.8
+   },
+   "grade": "dome"
+  },
+  {
+   "at": "C16.05",
+   "name": "I slept. I only ever slept.",
+   "set": "dome",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": {
+       "actor": "p1",
+       "bone": "head",
+       "o": [
+        -0.56,
+        0.1,
+        1.662
+       ]
+      },
+      "look": {
+       "actor": "p1",
+       "bone": "head"
+      },
+      "lens": 56.2
+     },
+     {
+      "t": 1,
+      "pos": {
+       "actor": "p1",
+       "bone": "head",
+       "o": [
+        -0.515,
+        0.1,
+        1.496
+       ]
+      },
+      "look": {
+       "actor": "p1",
+       "bone": "head"
+      },
+      "lens": 50.7
+     }
+    ],
+    "handheld": 0.12,
+    "ease": "linear"
+   },
+   "dof": {
+    "focus": "p1",
+    "fstop": 1.8
+   },
+   "grade": "dome"
+  },
+  {
+   "at": "C16.06",
+   "name": "I know.",
+   "set": "dome",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": {
+       "actor": "p1",
+       "bone": "head",
+       "o": [
+        1.232,
+        0.18,
+        -2.73
+       ]
+      },
+      "look": {
+       "actor": "lead",
+       "bone": "head"
+      },
+      "lens": 49.0
+     },
+     {
+      "t": 1,
+      "pos": {
+       "actor": "p1",
+       "bone": "head",
+       "o": [
+        1.15,
+        0.18,
+        -2.457
+       ]
+      },
+      "look": {
+       "actor": "lead",
+       "bone": "head"
+      },
+      "lens": 50.2
+     }
+    ],
+    "handheld": 0.15,
+    "ease": "linear"
+   },
+   "dof": {
+    "focus": "lead",
+    "fstop": 1.8
+   },
+   "grade": "dome"
+  },
+  {
+   "at": "C16.07",
+   "name": "What are you? (she actually wants to know)",
+   "set": "dome",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": {
+       "actor": "lead",
+       "bone": "head",
+       "o": [
+        0.48,
+        0.08,
+        1.575
+       ]
+      },
+      "look": {
+       "actor": "lead",
+       "bone": "head"
+      },
+      "lens": 52.8
+     },
+     {
+      "t": 1,
+      "pos": {
+       "actor": "lead",
+       "bone": "head",
+       "o": [
+        0.442,
+        0.08,
+        1.417
+       ]
+      },
+      "look": {
+       "actor": "lead",
+       "bone": "head"
+      },
+      "lens": 47.6
+     }
+    ],
+    "handheld": 0.12,
+    "ease": "linear"
+   },
+   "dof": {
+    "focus": "lead",
+    "fstop": 1.6
+   },
+   "grade": "dome"
+  },
+  {
+   "at": "beat:13",
+   "name": "the question held on him",
+   "set": "dome",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": {
+       "actor": "p1",
+       "bone": "head",
+       "o": [
+        -0.48,
+        0.1,
+        1.575
+       ]
+      },
+      "look": {
+       "actor": "p1",
+       "bone": "head"
+      },
+      "lens": 52.8
+     },
+     {
+      "t": 1,
+      "pos": {
+       "actor": "p1",
+       "bone": "head",
+       "o": [
+        -0.442,
+        0.1,
+        1.417
+       ]
+      },
+      "look": {
+       "actor": "p1",
+       "bone": "head"
+      },
+      "lens": 47.6
+     }
+    ],
+    "handheld": 0.12,
+    "ease": "linear"
+   },
+   "dof": {
+    "focus": "p1",
+    "fstop": 1.6
+   },
+   "grade": "dome"
+  },
+  {
+   "at": "C16.08",
+   "name": "The man who built this",
+   "set": "dome",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": {
+       "actor": "lead",
+       "bone": "head",
+       "o": [
+        -1.232,
+        0.18,
+        -2.73
+       ]
+      },
+      "look": {
+       "actor": "p1",
+       "bone": "head"
+      },
+      "lens": 46.0
+     },
+     {
+      "t": 1,
+      "pos": {
+       "actor": "lead",
+       "bone": "head",
+       "o": [
+        -1.15,
+        0.18,
+        -2.457
+       ]
+      },
+      "look": {
+       "actor": "p1",
+       "bone": "head"
+      },
+      "lens": 47.2
+     }
+    ],
+    "handheld": 0.15,
+    "ease": "linear"
+   },
+   "dof": {
+    "focus": "p1",
+    "fstop": 2.0
+   },
+   "grade": "dome"
+  },
+  {
+   "at": "C16.09",
+   "name": "Then somebody should write that down",
+   "set": "dome",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": {
+       "actor": "lead",
+       "bone": "head",
+       "o": [
+        0.56,
+        0.1,
+        1.662
+       ]
+      },
+      "look": {
+       "actor": "lead",
+       "bone": "head"
+      },
+      "lens": 56.2
+     },
+     {
+      "t": 1,
+      "pos": {
+       "actor": "lead",
+       "bone": "head",
+       "o": [
+        0.515,
+        0.1,
+        1.496
+       ]
+      },
+      "look": {
+       "actor": "lead",
+       "bone": "head"
+      },
+      "lens": 50.7
+     }
+    ],
+    "handheld": 0.12,
+    "ease": "linear"
+   },
+   "dof": {
+    "focus": "lead",
+    "fstop": 1.8
+   },
+   "grade": "dome"
+  },
+  {
+   "at": "C16.10",
+   "name": "I don't know",
+   "set": "dome",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": {
+       "actor": "lead",
+       "bone": "head",
+       "o": [
+        -1.232,
+        0.18,
+        -2.73
+       ]
+      },
+      "look": {
+       "actor": "p1",
+       "bone": "head"
+      },
+      "lens": 46.0
+     },
+     {
+      "t": 1,
+      "pos": {
+       "actor": "lead",
+       "bone": "head",
+       "o": [
+        -1.15,
+        0.18,
+        -2.457
+       ]
+      },
+      "look": {
+       "actor": "p1",
+       "bone": "head"
+      },
+      "lens": 47.2
+     }
+    ],
+    "handheld": 0.15,
+    "ease": "linear"
+   },
+   "dof": {
+    "focus": "p1",
+    "fstop": 2.0
+   },
+   "grade": "dome"
+  },
+  {
+   "at": "C16.11",
+   "name": "No. Neither do I.",
+   "set": "dome",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": {
+       "actor": "lead",
+       "bone": "head",
+       "o": [
+        0.56,
+        0.1,
+        1.662
+       ]
+      },
+      "look": {
+       "actor": "lead",
+       "bone": "head"
+      },
+      "lens": 56.2
+     },
+     {
+      "t": 1,
+      "pos": {
+       "actor": "lead",
+       "bone": "head",
+       "o": [
+        0.515,
+        0.1,
+        1.496
+       ]
+      },
+      "look": {
+       "actor": "lead",
+       "bone": "head"
+      },
+      "lens": 50.7
+     }
+    ],
+    "handheld": 0.12,
+    "ease": "linear"
+   },
+   "dof": {
+    "focus": "lead",
+    "fstop": 1.8
+   },
+   "grade": "dome"
+  },
+  {
+   "at": "C16.13",
+   "name": "Rowan Ashby",
+   "set": "dome",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": {
+       "actor": "lead",
+       "bone": "head",
+       "o": [
+        -1.232,
+        0.18,
+        -2.73
+       ]
+      },
+      "look": {
+       "actor": "p1",
+       "bone": "head"
+      },
+      "lens": 46.0
+     },
+     {
+      "t": 1,
+      "pos": {
+       "actor": "lead",
+       "bone": "head",
+       "o": [
+        -1.15,
+        0.18,
+        -2.457
+       ]
+      },
+      "look": {
+       "actor": "p1",
+       "bone": "head"
+      },
+      "lens": 47.2
+     }
+    ],
+    "handheld": 0.15,
+    "ease": "linear"
+   },
+   "dof": {
+    "focus": "p1",
+    "fstop": 2.0
+   },
+   "grade": "dome"
+  },
+  {
+   "at": "C16.14",
+   "name": "she glances at her wrist: died in Galway in 2096",
+   "set": "dome",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": {
+       "actor": "p1",
+       "bone": "head",
+       "o": [
+        1.232,
+        0.18,
+        -2.958
+       ]
+      },
+      "look": {
+       "actor": "lead",
+       "bone": "head"
+      },
+      "lens": 46.0
+     },
+     {
+      "t": 1,
+      "pos": {
+       "actor": "p1",
+       "bone": "head",
+       "o": [
+        1.15,
+        0.18,
+        -2.684
+       ]
+      },
+      "look": {
+       "actor": "lead",
+       "bone": "head"
+      },
+      "lens": 47.2
+     }
+    ],
+    "handheld": 0.15,
+    "ease": "linear"
+   },
+   "dof": {
+    "focus": "lead",
+    "fstop": 2.0
+   },
+   "grade": "dome"
+  },
+  {
+   "at": "C16.15",
+   "name": "I don't think that's who you are",
+   "set": "dome",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": {
+       "actor": "lead",
+       "bone": "head",
+       "o": [
+        0.56,
+        0.1,
+        1.662
+       ]
+      },
+      "look": {
+       "actor": "lead",
+       "bone": "head"
+      },
+      "lens": 56.2
+     },
+     {
+      "t": 1,
+      "pos": {
+       "actor": "lead",
+       "bone": "head",
+       "o": [
+        0.515,
+        0.1,
+        1.496
+       ]
+      },
+      "look": {
+       "actor": "lead",
+       "bone": "head"
+      },
+      "lens": 50.7
+     }
+    ],
+    "handheld": 0.12,
+    "ease": "linear"
+   },
+   "dof": {
+    "focus": "lead",
+    "fstop": 1.6
+   },
+   "grade": "dome"
+  },
+  {
+   "at": "opt:c16_what_are_you:silence:0",
+   "name": "he says nothing; the dome fans turn",
+   "set": "dome",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": [
+       -3.5,
+       2.4,
+       -2.5
+      ],
+      "look": [
+       4.0,
+       1.3,
+       4.6
+      ],
+      "lens": 32
+     },
+     {
+      "t": 1,
+      "pos": [
+       -3.2,
+       2.3,
+       -2.2
+      ],
+      "look": [
+       4.0,
+       1.3,
+       4.6
+      ],
+      "lens": 34
+     }
+    ],
+    "ease": "linear"
+   },
+   "dof": {
+    "focus": 10,
+    "fstop": 4
+   },
+   "grade": "dome"
+  },
+  {
+   "at": "C16.16",
+   "name": "All right.",
+   "set": "dome",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": {
+       "actor": "lead",
+       "bone": "head",
+       "o": [
+        0.56,
+        0.1,
+        1.662
+       ]
+      },
+      "look": {
+       "actor": "lead",
+       "bone": "head"
+      },
+      "lens": 56.2
+     },
+     {
+      "t": 1,
+      "pos": {
+       "actor": "lead",
+       "bone": "head",
+       "o": [
+        0.515,
+        0.1,
+        1.496
+       ]
+      },
+      "look": {
+       "actor": "lead",
+       "bone": "head"
+      },
+      "lens": 50.7
+     }
+    ],
+    "handheld": 0.12,
+    "ease": "linear"
+   },
+   "dof": {
+    "focus": "lead",
+    "fstop": 1.8
+   },
+   "grade": "dome"
+  },
+  {
+   "at": "C16.17",
+   "name": "a recall signal coming (the officers in the background)",
+   "set": "dome",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": {
+       "actor": "p1",
+       "bone": "head",
+       "o": [
+        -1.12,
+        0.23,
+        -2.8
+       ]
+      },
+      "look": {
+       "actor": "lead",
+       "bone": "head"
+      },
+      "lens": 45
+     },
+     {
+      "t": 1,
+      "pos": {
+       "actor": "p1",
+       "bone": "head",
+       "o": [
+        -1.456,
+        0.23,
+        -3.299
+       ]
+      },
+      "look": {
+       "actor": "lead",
+       "bone": "head"
+      },
+      "lens": 42.4
+     }
+    ],
+    "ease": "linear",
+    "handheld": 0.12
+   },
+   "dof": {
+    "focus": "lead",
+    "fstop": 2.4
+   },
+   "grade": "dome"
+  },
+  {
+   "at": "C16.18",
+   "name": "Who told you?",
+   "set": "dome",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": {
+       "actor": "p1",
+       "bone": "head",
+       "o": [
+        -0.56,
+        0.1,
+        1.662
+       ]
+      },
+      "look": {
+       "actor": "p1",
+       "bone": "head"
+      },
+      "lens": 56.2
+     },
+     {
+      "t": 1,
+      "pos": {
+       "actor": "p1",
+       "bone": "head",
+       "o": [
+        -0.515,
+        0.1,
+        1.496
+       ]
+      },
+      "look": {
+       "actor": "p1",
+       "bone": "head"
+      },
+      "lens": 50.7
+     }
+    ],
+    "handheld": 0.12,
+    "ease": "linear"
+   },
+   "dof": {
+    "focus": "p1",
+    "fstop": 1.8
+   },
+   "grade": "dome"
+  },
+  {
+   "at": "C16.19",
+   "name": "The people who made you.",
+   "set": "dome",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": {
+       "actor": "lead",
+       "bone": "head",
+       "o": [
+        0.56,
+        0.1,
+        1.662
+       ]
+      },
+      "look": {
+       "actor": "lead",
+       "bone": "head"
+      },
+      "lens": 56.2
+     },
+     {
+      "t": 1,
+      "pos": {
+       "actor": "lead",
+       "bone": "head",
+       "o": [
+        0.515,
+        0.1,
+        1.496
+       ]
+      },
+      "look": {
+       "actor": "lead",
+       "bone": "head"
+      },
+      "lens": 50.7
+     }
+    ],
+    "handheld": 0.12,
+    "ease": "linear"
+   },
+   "dof": {
+    "focus": "lead",
+    "fstop": 1.8
+   },
+   "grade": "dome"
+  },
+  {
+   "at": "C16.20",
+   "name": "You have one hour (she means it as a gift)",
+   "set": "dome",
+   "cam": {
+    "keys": [
+     {
+      "t": 0,
+      "pos": [
+       4.0,
+       1.5,
+       1.6
+      ],
+      "look": [
+       4.0,
+       1.45,
+       4.6
+      ],
+      "lens": 45
+     },
+     {
+      "t": 1,
+      "pos": [
+       4.0,
+       1.7,
+       -0.4
+      ],
+      "look": [
+       4.0,
+       1.4,
+       4.6
+      ],
+      "lens": 35
+     }
+    ],
+    "ease": "inout"
+   },
+   "dof": {
+    "focus": 3.6,
+    "fstop": 2.8
+   },
+   "grade": "dome"
+  }
+ ],
+ "track": [
+  {
+   "at": "start",
+   "actor": "p1",
+   "lookAt": "lead",
+   "weight": 0.9
+  },
+  {
+   "at": "start",
+   "actor": "lead",
+   "lookAt": "p1",
+   "weight": 0.9
+  },
+  {
+   "at": "start+0.4",
+   "actor": "lead",
+   "play": "helmet_off",
+   "fade": 0.3
+  },
+  {
+   "at": "start+1.55",
+   "actor": "lead",
+   "helmet": false
+  },
+  {
+   "at": "start+1.55",
+   "actor": "lead",
+   "attach": {
+    "prop": "helmet",
+    "socket": "sk_grip_L",
+    "pos": [
+     0.0,
+     -0.02,
+     0.18
+    ]
+   }
+  },
+  {
+   "at": "beat:7",
+   "actor": "lead",
+   "lookAt": [
+    4.0,
+    1.6,
+    6.9
+   ],
+   "weight": 1
+  },
+  {
+   "at": "beat:7",
+   "actor": "p1",
+   "lookAt": [
+    4.0,
+    1.6,
+    6.9
+   ],
+   "weight": 0.9
+  },
+  {
+   "at": "C16.04+2.0",
+   "actor": "lead",
+   "lookAt": "p1",
+   "weight": 0.9
+  },
+  {
+   "at": "C16.04+3.0",
+   "actor": "p1",
+   "lookAt": "lead",
+   "weight": 0.9
+  },
+  {
+   "at": "C16.05",
+   "actor": "p1",
+   "play": "look_down",
+   "fade": 0.8
+  },
+  {
+   "at": "C16.07",
+   "actor": "p1",
+   "play": "idle",
+   "fade": 0.8
+  },
+  {
+   "at": "C16.08",
+   "actor": "p1",
+   "play": "gesture_talk",
+   "fade": 0.5
+  },
+  {
+   "at": "opt:c16_what_are_you:built_this:1",
+   "actor": "lead",
+   "lookAt": [
+    4.0,
+    1.6,
+    6.9
+   ],
+   "weight": 1
+  },
+  {
+   "at": "opt:c16_what_are_you:built_this:1+1.3",
+   "actor": "lead",
+   "lookAt": "p1",
+   "weight": 1
+  },
+  {
+   "at": "C16.10",
+   "actor": "p1",
+   "play": "shrug",
+   "fade": 0.4
+  },
+  {
+   "at": "opt:c16_what_are_you:rowan:1",
+   "actor": "lead",
+   "play": "wrist_talk",
+   "fade": 0.4
+  },
+  {
+   "at": "C16.14+2.0",
+   "actor": "lead",
+   "play": "hold_helmet",
+   "fade": 0.6
+  },
+  {
+   "at": "C16.17",
+   "actor": "p1",
+   "play": "idle",
+   "fade": 0.6
+  },
+  {
+   "at": "C16.20",
+   "actor": "lead",
+   "play": "nod",
+   "fade": 0.4
+  }
+ ]
+}
