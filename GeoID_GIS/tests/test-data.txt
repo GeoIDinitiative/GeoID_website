@@ -108,6 +108,8 @@ nomenclature/titania.geojson
 nomenclature/triton.geojson
 nomenclature/umbriel.geojson
 nomenclature/venus.geojson
+plate-boundaries.geojson
+plate-boundary-symbols.geojson
 rivers_10m.geojson
 seismic-risk.geojson
 soil/0/0/0.mvt
