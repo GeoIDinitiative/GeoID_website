@@ -33,7 +33,7 @@
  */
 
 import * as THREE from "/GeoID_GIS/viewer/vendor/three.module.js";
-import { currentBodyId } from "./bodies.js?v=20261018-c78433b";
+import { currentBodyId } from "./bodies.js?v=20261018-2b73dcd";
 
 const PROFILES = {
   mercury: null,
@@ -530,7 +530,23 @@ function startGlare() {
     const miss = ahead ? Math.sqrt(Math.max(toC.lengthSq() - along * along, 0)) : Infinity;
     const clear = ahead ? THREE.MathUtils.smoothstep(miss, R * 0.985, R * 1.04) : 1;
     const limb = ahead ? Math.exp(-Math.pow((miss - R * 1.008) / (R * 0.015), 2)) : 0;
-    const vis = Math.min(1.4, clear + 0.8 * limb);
+    let vis = Math.min(1.4, clear + 0.8 * limb);
+    // MOON-VIEWER MODE (and flight past a moon): the camera sits beside a
+    // moon, and THAT body hides the sun as much as the planet does. Every lit
+    // moon sphere (seenMoons, from watchMoons) is tested the same way, with
+    // the same flare as the sun clears its limb.
+    viewer.scene.traverse((n) => {
+      if (vis < 0.01 || !seenMoons.has(n) || !n.visible) return;
+      n.getWorldPosition(tmp);
+      const mr = (n.geometry?.parameters?.radius || 0) * n.getWorldScale(toC).x;
+      toC.copy(tmp).sub(cam.position);
+      const al = toC.dot(sunDir);
+      if (!(al > 0 && al < sunDist) || mr <= 0) return;
+      const mm = Math.sqrt(Math.max(toC.lengthSq() - al * al, 0));
+      const mClear = THREE.MathUtils.smoothstep(mm, mr * 0.985, mr * 1.04);
+      const mLimb = Math.exp(-Math.pow((mm - mr * 1.008) / (mr * 0.015), 2));
+      vis = Math.min(vis, Math.min(1.4, mClear + 0.8 * mLimb));
+    });
     if (vis < 0.01) return;
 
     proj.copy(sunPos).project(cam);
