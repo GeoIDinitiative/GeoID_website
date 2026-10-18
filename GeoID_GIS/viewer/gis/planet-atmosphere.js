@@ -33,7 +33,7 @@
  */
 
 import * as THREE from "/GeoID_GIS/viewer/vendor/three.module.js";
-import { currentBodyId } from "./bodies.js?v=20261018-4c697be";
+import { currentBodyId } from "./bodies.js?v=20261018-b3108d1";
 
 const PROFILES = {
   mercury: null,
@@ -78,11 +78,17 @@ const FRAG = `
   uniform float uK;
   uniform vec3 uBeta;
   uniform float uGain;
+  uniform mat3 uToLocal;   // world offsets -> the body's own (unsquashed) frame
   varying vec3 vP;
   const float TAU_PI = 6.2831853;
   void main() {
-    vec3 rd = normalize(vP - cameraPosition);
-    vec3 oc = cameraPosition - uCentre;
+    // IN THE BODY'S OWN FRAME, where it is a true sphere of radius uGround.
+    // Saturn and Jupiter are drawn flattened (Saturn ~10% at the poles) and
+    // their moons inherit the squash; done in world space the air was a
+    // sphere round an ellipsoid, with a gap at the poles (reported).
+    vec3 oc = uToLocal * (cameraPosition - uCentre);
+    vec3 rd = normalize(uToLocal * (vP - uCentre) - oc);
+    vec3 sunL = normalize(uToLocal * uSun);
     float b = dot(oc, rd);
     vec3 closest = oc - b * rd;
     float h = length(closest);
@@ -97,11 +103,11 @@ const FRAG = `
       tau = uK * exp(-(h - uGround) / uH) * sqrt(TAU_PI * h / uH);
     }
     tau = min(tau, 2.2);
-    float s = dot(n, uSun);
+    float s = dot(n, sunL);
     float lit = smoothstep(-0.06, 0.16, s);
     vec3 sunlight = exp(-uBeta * uK * 0.7 / max(s + 0.22, 0.05)) * lit;
     vec3 scatter = 1.0 - exp(-uBeta * tau);
-    float c = dot(rd, uSun);
+    float c = dot(rd, sunL);
     float phase = 0.75 * (1.0 + c * c);
     gl_FragColor = vec4(sunlight * scatter * phase * uGain * uFade, 1.0);
   }`;
@@ -141,23 +147,65 @@ function liftDaySide(THREE, material, sunView, lift = DAY_LIFT) {
   material.needsUpdate = true;
 }
 
+
+/**
+ * A scattering shell parented to its BODY, so it takes the body's tilt, spin
+ * and squash with it; the shader works in the body's local frame (uToLocal),
+ * where the body is a sphere of its geometry radius. `update(ground, h, cam)`
+ * sizes it each frame in those local units and fades it as the camera enters.
+ */
+function makeShell(body, profile, sun) {
+  const fade = { value: 1 };
+  const shell = new THREE.Mesh(
+    new THREE.SphereGeometry(1, 160, 120),
+    new THREE.ShaderMaterial({
+      uniforms: {
+        uSun: sun, uFade: fade,
+        uCentre: { value: new THREE.Vector3() },
+        uToLocal: { value: new THREE.Matrix3() },
+        uGround: { value: 1 }, uH: { value: 0.05 },
+        uK: { value: profile.k },
+        uBeta: { value: new THREE.Vector3(...profile.beta) },
+        uGain: { value: profile.gain },
+      },
+      vertexShader: VERT,
+      fragmentShader: FRAG,
+      side: THREE.FrontSide,
+      blending: THREE.AdditiveBlending,
+      transparent: true,
+      depthWrite: false,
+    }),
+  );
+  shell.userData.nonInteractive = true;
+  shell.raycast = () => {};
+  shell.renderOrder = 3;
+  shell.name = "geoid-atmosphere";
+  body.add(shell);
+  const m4 = new THREE.Matrix4();
+  const camLocal = new THREE.Vector3();
+  shell.userData.update = (ground, h, top, cam) => {
+    const u = shell.material.uniforms;
+    body.updateMatrixWorld();
+    body.getWorldPosition(u.uCentre.value);
+    u.uToLocal.value.setFromMatrix4(m4.copy(body.matrixWorld)).invert();
+    u.uGround.value = ground;
+    u.uH.value = h;
+    shell.scale.setScalar(top);
+    camLocal.copy(cam.position).applyMatrix4(m4.copy(body.matrixWorld).invert());
+    const d = camLocal.length() / ground;
+    const t = Math.min(1, Math.max(0, (d - 1.03) / 0.22));
+    fade.value = t * t * (3 - 2 * t);
+    const cutaway = Boolean(document.getElementById("core-toggle")?.checked);
+    shell.visible = !cutaway;
+  };
+  return shell;
+}
+
 function attach(viewer) {
   const { scene, globe } = viewer;
   if (!scene || !globe || globe.userData.atmosphere) return false;
   const sunLight = findSun(scene);
   if (!sunLight) return false;
-  // The globe's TRUE size in the world: its geometry radius times its world
-  // scale. GLOBE_RADIUS is the nominal 3.2, and Jupiter's globe is scaled
-  // away from it -- the air came out as a band floating off the limb with a
-  // dark gap between (seen in capture). Read each frame below, since a viewer
-  // may rescale.
-  const worldScale = new THREE.Vector3();
-  const trueRadius = () => {
-    const base = Number(globe.geometry?.parameters?.radius) || Number(viewer.GLOBE_RADIUS) || 3.2;
-    globe.getWorldScale(worldScale);
-    return base * Math.max(worldScale.x, worldScale.y, worldScale.z);
-  };
-  let R = trueRadius();
   const profile = PROFILES[currentBodyId()];
   const sunWorld = new THREE.Vector3(1, 0, 0);
   const sunView = new THREE.Vector3(1, 0, 0);
@@ -167,35 +215,8 @@ function attach(viewer) {
   liftDaySide(THREE, globe.material, sunView, LIFT_FOR[currentBodyId()] ?? DAY_LIFT);
 
   const layers = [];
-  let shell = null;
-  if (profile) {
-    shell = new THREE.Mesh(
-      new THREE.SphereGeometry(1, 160, 120),
-      new THREE.ShaderMaterial({
-        uniforms: {
-          uSun: sun, uFade: fade,
-          uCentre: { value: new THREE.Vector3() },
-          uGround: { value: R },
-          uH: { value: R * profile.h },
-          uK: { value: profile.k },
-          uBeta: { value: new THREE.Vector3(...profile.beta) },
-          uGain: { value: profile.gain },
-        },
-        vertexShader: VERT,
-        fragmentShader: FRAG,
-        side: THREE.FrontSide,
-        blending: THREE.AdditiveBlending,
-        transparent: true,
-        depthWrite: false,
-      }),
-    );
-    shell.userData.nonInteractive = true;
-    shell.raycast = () => {};
-    shell.renderOrder = 3;
-    shell.name = "geoid-atmosphere";
-    layers.push(shell);
-    (globe.parent || scene).add(shell);
-  }
+  const shell = profile ? makeShell(globe, profile, sun) : null;
+  if (shell) layers.push(shell);
 
   const relief = () => {
     const r = Number(viewer.getEffectiveRelief?.());
@@ -214,29 +235,13 @@ function attach(viewer) {
     sunWorld.normalize();
     sunView.copy(sunWorld).transformDirection(cam.matrixWorldInverse);
     if (!shell) return;
-    // THE CUTAWAY SHOWS THE INSIDE, so the air goes with the outer skin: a
-    // glow wrapped round a half-sphere read as a lit shell round nothing
-    // (reported on Venus). Every viewer carries the same #core-toggle.
-    const cutaway = Boolean(document.getElementById("core-toggle")?.checked);
-    shell.visible = globe.visible && !cutaway;
-    const u = shell.material.uniforms;
-    globe.getWorldPosition(u.uCentre.value);
-    shell.position.copy(shell.parent ? shell.parent.worldToLocal(u.uCentre.value.clone()) : u.uCentre.value);
-    R = trueRadius();
+    // In the globe's LOCAL units (its geometry radius; displacement is in the
+    // same units). The air's base sits a fifth of the relief up: at half, the
+    // limb's brightest line floated off lower terrain (reported on Mars).
+    const base = Number(globe.geometry?.parameters?.radius) || Number(viewer.GLOBE_RADIUS) || 3.2;
     const rel = relief();
-    // The air's base sits LOW -- a fifth of the relief up, below most of the
-    // ground. At half the relief (the old value) the brightest line of the
-    // limb floated off any terrain lower than that, with a dark sliver of
-    // space between (reported on Mars). Set low, the peak lands on or inside
-    // the real edge and the haze runs over it, whatever the terrain there.
-    const ground = R + rel * 0.2;
-    u.uH.value = R * profile.h;
-    u.uGround.value = ground;
-    const parentScale = shell.parent ? shell.parent.getWorldScale(new THREE.Vector3()).x || 1 : 1;
-    shell.scale.setScalar((ground + R * profile.h * TOP_IN_SCALE_HEIGHTS + rel * 0.5) / parentScale);
-    const d = cam.position.distanceTo(u.uCentre.value) / ground;
-    const t = Math.min(1, Math.max(0, (d - 1.03) / 0.22));
-    fade.value = t * t * (3 - 2 * t);
+    const ground = base + rel * 0.2;
+    shell.userData.update(ground, base * profile.h, ground + base * profile.h * TOP_IN_SCALE_HEIGHTS + rel * 0.5, cam);
   };
   globe.userData.atmosphere = layers;
   return true;
@@ -278,28 +283,8 @@ function attachMoon(viewer, mesh) {
   seenMoons.add(mesh);
   liftDaySide(THREE, mesh.material, moonSun.view, MOON_LIFT);
   const air = MOON_AIR[moonName(mesh)];
-  let shell = null;
-  const fade = { value: 1 };
-  if (air) {
-    shell = new THREE.Mesh(
-      new THREE.SphereGeometry(1, 96, 72),
-      new THREE.ShaderMaterial({
-        uniforms: {
-          uSun: { value: moonSun.world }, uFade: fade,
-          uCentre: { value: new THREE.Vector3() },
-          uGround: { value: 1 }, uH: { value: 0.05 },
-          uK: { value: air.k }, uBeta: { value: new THREE.Vector3(...air.beta) }, uGain: { value: air.gain },
-        },
-        vertexShader: VERT, fragmentShader: FRAG,
-        side: THREE.FrontSide, blending: THREE.AdditiveBlending, transparent: true, depthWrite: false,
-      }),
-    );
-    shell.userData.nonInteractive = true;
-    shell.raycast = () => {};
-    shell.renderOrder = 3;
-    shell.name = `geoid-atmosphere-${moonName(mesh)}`;
-    (mesh.parent || viewer.scene).add(shell);
-  }
+  const shell = air ? makeShell(mesh, air, { value: moonSun.world }) : null;
+  if (shell) shell.name = `geoid-atmosphere-${moonName(mesh)}`;
   const before = mesh.onBeforeRender;
   mesh.onBeforeRender = function (renderer, sc, cam, ...rest) {
     if (typeof before === "function") before.call(this, renderer, sc, cam, ...rest);
@@ -312,19 +297,9 @@ function attachMoon(viewer, mesh) {
       moonSun.view.copy(moonSun.world).transformDirection(cam.matrixWorldInverse);
     }
     if (!shell) return;
-    const cutaway = Boolean(document.getElementById("core-toggle")?.checked);
-    shell.visible = mesh.visible && !cutaway;
-    const u = shell.material.uniforms;
-    mesh.getWorldPosition(u.uCentre.value);
-    shell.position.copy(shell.parent ? shell.parent.worldToLocal(u.uCentre.value.clone()) : u.uCentre.value);
-    const R = (mesh.geometry.parameters?.radius || 1) * mesh.getWorldScale(new THREE.Vector3()).x;
-    u.uGround.value = R;
-    u.uH.value = R * air.h;
-    const parentScale = shell.parent ? shell.parent.getWorldScale(new THREE.Vector3()).x || 1 : 1;
-    shell.scale.setScalar((R + R * air.h * TOP_IN_SCALE_HEIGHTS) / parentScale);
-    const d = cam.position.distanceTo(u.uCentre.value) / R;
-    const t = Math.min(1, Math.max(0, (d - 1.03) / 0.22));
-    fade.value = t * t * (3 - 2 * t);
+    // Local units: the moon's own geometry radius, squash and all inherited.
+    const R = mesh.geometry.parameters?.radius || 1;
+    shell.userData.update(R, R * air.h, R + R * air.h * TOP_IN_SCALE_HEIGHTS, cam);
   };
 }
 
