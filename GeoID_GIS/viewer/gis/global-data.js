@@ -26,18 +26,18 @@
  * rebuilt or updated without guessing what was done to them.
  */
 
-import { runConnector } from "./research/connectors.js?v=20261018-19304b3";
-import { explainFetchFailure, dataUrl } from "./data-base.js?v=20261018-19304b3";
-import { mathsFor } from "./equations.js?v=20261018-19304b3";
+import { runConnector } from "./research/connectors.js?v=20261018-fe9f231";
+import { explainFetchFailure, dataUrl } from "./data-base.js?v=20261018-fe9f231";
+import { mathsFor } from "./equations.js?v=20261018-fe9f231";
 import {
   riskEdges, RISK_LABELS,
-} from "./cyclone-risk.js?v=20261018-19304b3";
-import { colourRange as volcanicColourRange } from "./volcanic-risk.js?v=20261018-19304b3";
-import { featureForModel, may, refusal } from "./membership.js?v=20261018-19304b3";
-import { colourRange as seismicColourRange } from "./seismic-bands.js?v=20261018-19304b3";
+} from "./cyclone-risk.js?v=20261018-fe9f231";
+import { colourRange as volcanicColourRange } from "./volcanic-risk.js?v=20261018-fe9f231";
+import { featureForModel, may, refusal } from "./membership.js?v=20261018-fe9f231";
+import { colourRange as seismicColourRange } from "./seismic-bands.js?v=20261018-fe9f231";
 // The cyclone tracks are classed on the same scale the live storm markers
 // band by, so the archive and the feed cut intensity at the same knots.
-import { SAFFIR_SIMPSON_KTS } from "./event-sources.js?v=20261018-19304b3";
+import { SAFFIR_SIMPSON_KTS } from "./event-sources.js?v=20261018-fe9f231";
 
 /** Order the groups read in, coarse to specific. */
 export const GROUPS = ["Physical", "Hydrology", "Boundaries", "Tectonics",
@@ -234,17 +234,15 @@ export const DATASETS = [
      * BAKED BY KIND, with the symbols that say which kind (2026-10-17). The
      * live `PB2002_boundaries.json` this fetched marks only subduction; Bird's
      * own steps file classes every 30 km, and services/bake-plate-boundaries.py
-     * groups it into the four kinds below and draws each kind's map symbol as
-     * short lines in the same file: barbs on the overriding plate, alternating
-     * teeth on a collision, bars across a ridge, paired half-arrows giving a
-     * transform's sense of slip. Being geometry, they take this layer's
-     * colour, weight and visibility, and the key lists four kinds because the
-     * file holds four.
+     * groups it into the four kinds below. THE MAP SYMBOLS ARE NOT IN THIS
+     * FILE: baked in alongside the lines they were read as boundary segments
+     * (reported: "symbols are being read as real faults"), so they ship as
+     * their own row, "Plate boundary symbols", directly below.
      */
     path: "/data/global/plate-boundaries.geojson",
     name: "Plate boundaries by type (Bird 2003).geojson",
     summary: "1,679 boundary lines in four kinds -- subduction, collision, "
-      + "ridge or rift, transform -- each drawn with its map symbol",
+      + "ridge or rift, transform",
     licence: "Bird (2003), PB2002 — cite the paper; redistributed via "
       + "fraxen/tectonicplates, which states no licence of its own",
     colourBy: "kind",
@@ -264,6 +262,34 @@ export const DATASETS = [
      * symbols are small strokes and vanish at a third, so the weight rose to
      * where a barb can be told from a bar.
      */
+    defaultOn: true,
+    opacity: 0.55,
+  },
+  {
+    /**
+     * THE MAP KEY FOR THE PLATE BOUNDARIES, as its own layer: barbs on the
+     * overriding plate of a subduction zone, alternating teeth on a collision,
+     * bars across a ridge or rift, paired half-arrows giving a transform's
+     * sense of slip. Symbols, not data -- each feature is named "Map symbol"
+     * and says so -- kept out of the boundary file so nothing reads them as a
+     * boundary or a fault. Untick to see the boundaries alone.
+     */
+    id: "plate-boundary-symbols",
+    home: "geology-tectonics",
+    featureNoun: "Map symbol",
+    group: "Tectonics",
+    label: "Plate boundary symbols (map key)",
+    path: "/data/global/plate-boundary-symbols.geojson",
+    name: "Plate boundary symbols (map key).geojson",
+    summary: "751 symbol strokes showing each boundary's type -- not faults or boundaries themselves",
+    licence: "Drawn by GeoID from Bird (2003), PB2002",
+    colourBy: "kind",
+    colours: {
+      "Subduction zone": "#ff5c4d",
+      "Convergent (collision)": "#ff9f43",
+      "Divergent (ridge or rift)": "#ffd166",
+      "Transform (conservative)": "#6fd08c",
+    },
     defaultOn: true,
     opacity: 0.55,
   },
@@ -1035,7 +1061,7 @@ function drawnBbox() {
 async function viewBbox() {
   try {
     const THREE = await import("../vendor/three.module.js");
-    const { visibleBounds } = await import("./view-extent.js?v=20261018-19304b3");
+    const { visibleBounds } = await import("./view-extent.js?v=20261018-fe9f231");
     const b = visibleBounds(window.GeoIDViewer, THREE);
     const ok = b && [b.minLon, b.minLat, b.maxLon, b.maxLat].every(Number.isFinite);
     return ok ? { minLon: b.minLon, minLat: b.minLat, maxLon: b.maxLon, maxLat: b.maxLat } : null;

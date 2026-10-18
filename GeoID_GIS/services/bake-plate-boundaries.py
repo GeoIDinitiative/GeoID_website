@@ -38,8 +38,9 @@ when you zoom it.
 
     python3 GeoID_GIS/services/bake-plate-boundaries.py
 
-Writes `data/global/plate-boundaries.geojson` (gitignored; published to the
-bucket by services/publish-data.py like every loose file).
+Writes `data/global/plate-boundaries.geojson` (the real boundary lines only)
+and `data/global/plate-boundary-symbols.geojson` (the map symbols), both
+gitignored and published to the bucket by services/publish-data.py.
 """
 import json
 import math
@@ -49,6 +50,12 @@ from pathlib import Path
 
 SRC = "https://raw.githubusercontent.com/fraxen/tectonicplates/master/GeoJSON/PB2002_steps.json"
 OUT = Path(__file__).resolve().parents[2] / "data" / "global" / "plate-boundaries.geojson"
+# THE SYMBOLS ARE A SEPARATE FILE (2026-10-18). Baked into the boundary file
+# they were read as boundary segments -- by the map, the click card and any
+# tool reading the layer (reported: "symbols are being read as real faults").
+# The boundary file now holds only the real lines; the barbs, bars and arrows
+# go here, each named as a symbol, and load as their own catalogue row.
+SYMBOLS_OUT = OUT.with_name("plate-boundary-symbols.geojson")
 
 KIND = {
     "SUB": "Subduction zone",
@@ -149,7 +156,7 @@ def main():
             cur = {"key": key, "pts": [a, b], "v": [p["VELOCITYLE"]], "ri": [p["VELOCITYRI"]]}
             runs.append(cur)
 
-    features, symbols = [], 0
+    features, symbol_features, symbols = [], [], 0
     for run in runs:
         name, code = run["key"]
         plates = name.replace("\\", "-").replace("/", "-").split("-")
@@ -195,8 +202,13 @@ def main():
                 for coords in symbol(code, name, run["ri"][i], p, t, nl):
                     if wraps(coords):
                         continue
-                    features.append({"type": "Feature",
-                                     "properties": dict(props, symbol=True),
+                    symbol_features.append({"type": "Feature",
+                                     "properties": {
+                                         "kind": props["kind"],
+                                         "name": f"Map symbol: {props['kind'].lower()}",
+                                         "symbol_of": name,
+                                         "note": "A map symbol showing the boundary's type, not a fault or boundary itself.",
+                                     },
                                      "geometry": {"type": "LineString", "coordinates": coords}})
                     symbols += 1
             walked += seg
@@ -204,9 +216,11 @@ def main():
     OUT.parent.mkdir(parents=True, exist_ok=True)
     OUT.write_text(json.dumps({"type": "FeatureCollection", "features": features},
                               separators=(",", ":")), encoding="utf-8")
-    lines = len(features) - symbols
-    print(f"wrote {OUT} -- {lines} boundary lines, {symbols} symbol strokes, "
-          f"{OUT.stat().st_size / 1e6:.2f} MB", file=sys.stderr)
+    SYMBOLS_OUT.write_text(json.dumps({"type": "FeatureCollection", "features": symbol_features},
+                                      separators=(",", ":")), encoding="utf-8")
+    print(f"wrote {OUT} -- {len(features)} boundary lines, "
+          f"{OUT.stat().st_size / 1e6:.2f} MB; {SYMBOLS_OUT.name} -- {symbols} symbol strokes",
+          file=sys.stderr)
 
 
 if __name__ == "__main__":
