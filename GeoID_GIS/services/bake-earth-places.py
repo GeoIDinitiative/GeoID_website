@@ -313,6 +313,16 @@ def fmt_int(n):
     return f"{int(round(n)):,}"
 
 
+# Names the gazetteer shows in place of its source's, keyed by Wikidata id so
+# only that one place changes. Natural Earth labels the Northern Ireland city
+# "Londonderry"; GeoID uses "Derry" (asked for, 2026-10-18). Cape Londonderry
+# (Australia) and Londonderry Island (Chile) are different places and keep
+# their names.
+NAME_OVERRIDES = {
+    "Q163584": "Derry",
+}
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--work", default=os.path.join(ROOT, "data", "global", ".places-work"))
@@ -324,6 +334,7 @@ def main():
     def add(cat, name, typ, lon, lat, lod, score, qid=None, facts="", source="Natural Earth 1:10m", extra=None):
         if not name or lon is None or lat is None:
             return
+        name = NAME_OVERRIDES.get(qid, name)
         item = {"name": name.strip(), "type": typ, "category": cat, "lat": round(lat, 4),
                 "lon": round(lon, 4), "lod": int(lod), "_score": score, "_qid": qid,
                 "_facts": facts, "_source": source}
