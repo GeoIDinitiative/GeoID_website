@@ -10,18 +10,18 @@
 // everything below. That is the opposite of three.js renderOrder, so the two are
 // inverted when applied.
 
-import { escapeHtml } from "./escape-html.js?v=20261018-5b852e0";
-import { bandOf } from "./draw-order.js?v=20261018-5b852e0";
-import { paintOpacity } from "./layer-opacity.js?v=20261018-5b852e0";
-import { currentBody } from "./bodies.js?v=20261018-5b852e0";
-import { samplerToRaster } from "./raster-analysis.js?v=20261018-5b852e0";
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20261018-5b852e0";
-import { datasetInfoButton } from "./catalogue-list.js?v=20261018-5b852e0";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20261018-5b852e0";
+import { escapeHtml } from "./escape-html.js?v=20261018-0065fc8";
+import { bandOf } from "./draw-order.js?v=20261018-0065fc8";
+import { paintOpacity } from "./layer-opacity.js?v=20261018-0065fc8";
+import { currentBody } from "./bodies.js?v=20261018-0065fc8";
+import { samplerToRaster } from "./raster-analysis.js?v=20261018-0065fc8";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20261018-0065fc8";
+import { datasetInfoButton } from "./catalogue-list.js?v=20261018-0065fc8";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20261018-0065fc8";
 import {
   openSymbologyDialog, geometrySummary, geometryKind,
-} from "./symbology-dialog.js?v=20261018-5b852e0";
-import { tagOf, DATA_TYPES, typeSelect, applyTag, descriptionOf, isUserInput } from "./data-tags.js?v=20261018-5b852e0";
+} from "./symbology-dialog.js?v=20261018-0065fc8";
+import { tagOf, DATA_TYPES, typeSelect, applyTag, descriptionOf, isUserInput } from "./data-tags.js?v=20261018-0065fc8";
 
 /**
  * The row grew a column and gained a tile, and .layer-row is declared twice --
@@ -139,18 +139,17 @@ const STYLE = `
 #layer-dock .layer-stack .layer-row {
   border-color: color-mix(in srgb, var(--tag, rgb(var(--nav-accent-rgb))) 70%, transparent) !important;
   border-left-color: var(--tag, rgb(var(--nav-accent-rgb))) !important;
-  /* THE BOOKMARK IS THE TAB'S: a 2 px edge and a 3 px band, read as one flat
-     5 px bar (section-activity.js draws the lit tab's the same way). The
-     row's own frame shadow follows it -- the tab's ring and glow in themes
-     that have one (--wr-shadow, mirrorTabLook), nothing in themes that don't. */
-  border-left-width: 2px !important;
-  box-shadow: inset 3px 0 0 var(--tag, rgb(var(--nav-accent-rgb))), var(--wr-shadow, 0 0 0 0 transparent) !important;
+  /* The frame shadow is the tab's -- its ring and glow in themes that have
+     one (--wr-shadow, mirrorTabLook), nothing in themes that don't. The
+     bookmark is drawn separately, below. */
+  position: relative;
+  box-shadow: var(--wr-shadow, 0 0 0 0 transparent) !important;
   transition: border-color 160ms ease, box-shadow 160ms ease;
 }
 @media (hover: hover) and (pointer: fine) {
   #layer-dock .layer-stack .layer-row:hover {
     border-color: var(--tag, rgb(var(--nav-accent-rgb))) !important;
-    box-shadow: inset 3px 0 0 var(--tag, rgb(var(--nav-accent-rgb))), var(--wr-shadow, 0 0 0 0 transparent),
+    box-shadow: var(--wr-shadow, 0 0 0 0 transparent),
       0 0 12px color-mix(in srgb, var(--tag, rgb(var(--nav-accent-rgb))) 45%, transparent) !important;
   }
 }
@@ -161,8 +160,22 @@ const STYLE = `
    the dock as --wr-* whenever the theme changes, so a square-cornered theme
    gets square rows, Outrun gets its round ones, and the names set in each
    theme's own face, tracking and case. Fallbacks are the old look. */
+/* THE BOOKMARK IS A STRAIGHT STRIP. Drawn as a border or an inset shadow it
+   follows the row's corner and curls (reported twice, in Outrun). As its own
+   5 px strip over the left edge, with the row's LEFT corners square, it is a
+   flat bar top to bottom whatever the theme's radius; the right corners keep
+   the theme's (proportional) rounding. Absolutely placed, so it takes no grid
+   cell in the row. */
+#layer-dock .layer-stack .layer-row::before {
+  content: "";
+  position: absolute;
+  left: -1px; top: -1px; bottom: -1px;
+  width: 5px;
+  background: var(--tag, rgb(var(--nav-accent-rgb)));
+  pointer-events: none;
+}
 #layer-dock .layer-stack .layer-row {
-  border-radius: var(--wr-radius, 0.4rem) !important;
+  border-radius: 0 var(--wr-radius, 0.4rem) var(--wr-radius, 0.4rem) 0 !important;
   background-color: var(--wr-bg, rgb(16, 7, 36)) !important;
   background-image: var(--wr-bgi, none) !important;
 }
@@ -185,6 +198,9 @@ const STYLE = `
   border: 0 !important;
   box-shadow: none !important;
   background: none !important;
+  /* Frameless, so it has no corner: a theme radius here clipped the first
+     row's bookmark into a curve (Outrun's 8.8 px, reported). */
+  border-radius: 0 !important;
 }
 #layer-dock #layer-dock-body {
   padding-left: 0.35rem !important;
