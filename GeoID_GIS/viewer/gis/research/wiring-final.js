@@ -1,13 +1,13 @@
-import { compileScalar } from "../field-calculator.js?v=20261018-64ee85f";
-import { wire, wirePattern } from "./spec-page.js?v=20261018-64ee85f";
-import * as store from "./project-store.js?v=20261018-64ee85f";
-import * as stats from "./stats.js?v=20261018-64ee85f";
-import * as dsp from "./dsp.js?v=20261018-64ee85f";
-import { linePlot, heatmap } from "./plot.js?v=20261018-64ee85f";
-import { column } from "./table.js?v=20261018-64ee85f";
-import { findTables, loadTable, saveTable, saveFigure } from "./pages/common.js?v=20261018-64ee85f";
-import { parseTable } from "./table.js?v=20261018-64ee85f";
-import * as ec from "./event-correlation.js?v=20261018-64ee85f";
+import { compileScalar } from "../field-calculator.js?v=20261018-be9837d";
+import { wire, wirePattern } from "./spec-page.js?v=20261018-be9837d";
+import * as store from "./project-store.js?v=20261018-be9837d";
+import * as stats from "./stats.js?v=20261018-be9837d";
+import * as dsp from "./dsp.js?v=20261018-be9837d";
+import { linePlot, heatmap } from "./plot.js?v=20261018-be9837d";
+import { column } from "./table.js?v=20261018-be9837d";
+import { findTables, loadTable, saveTable, saveFigure } from "./pages/common.js?v=20261018-be9837d";
+import { parseTable } from "./table.js?v=20261018-be9837d";
+import * as ec from "./event-correlation.js?v=20261018-be9837d";
 
 /**
  * The last of the spec's controls.
@@ -110,7 +110,7 @@ wire("Raster Tools", {
     const { path, table } = await firstTable();
     const { latAt, lonAt } = coordinateColumns(table);
     if (latAt < 0 || lonAt < 0) throw new Error("No coordinate columns to reproject.");
-    const projection = await import("../projection.js?v=20261018-64ee85f");
+    const projection = await import("../projection.js?v=20261018-be9837d");
     const rows = table.rows.map((r) => {
       const lat = Number(r[latAt]); const lon = Number(r[lonAt]);
       if (!Number.isFinite(lat) || !Number.isFinite(lon)) return [...r, "", "", ""];
@@ -167,7 +167,7 @@ wire("Vector Tools", {
     if (collections.length < 2) {
       throw new Error("A spatial join needs two GeoJSON layers in the project.");
     }
-    const g = await import("../geoprocessing.js?v=20261018-64ee85f");
+    const g = await import("../geoprocessing.js?v=20261018-be9837d");
     const joined = g.spatialJoin(collections[0].fc, collections[1].fc);
     const out = `data/processed/joined-${stamp()}.geojson`;
     await store.writeProjectFile(out, JSON.stringify(joined));
