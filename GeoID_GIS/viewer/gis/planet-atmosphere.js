@@ -33,7 +33,7 @@
  */
 
 import * as THREE from "/GeoID_GIS/viewer/vendor/three.module.js";
-import { currentBodyId } from "./bodies.js?v=20261018-bc92c1d";
+import { currentBodyId } from "./bodies.js?v=20261018-c78433b";
 
 const PROFILES = {
   mercury: null,
@@ -423,26 +423,52 @@ function watchMoons() {
 
 
 /**
- * THE SUN'S GLARE, as it moves (asked for, 2026-10-18: "the dynamic glare of
- * the sun as we move -- realism -- in all viewers"). A 2D overlay over the
- * viewer's canvas, drawn each frame from the real sun direction (the same key
- * light the shading uses): a bloom and a horizontal anamorphic streak at the
- * sun's place on screen, ghosts strung along the line from the sun through
- * the centre of the view that swing as the camera turns, and a soft veiling
- * wash when the sun is near or just off the edge of the frame. It fades out as
- * the sun passes behind the planet, with a brief brightening as it clears the
- * limb. Pointer-events none; nothing is drawn when the sun is behind the
- * camera, and reduced-transparency viewers get it at half strength.
+ * THE SUN'S GLARE, as a camera sees it (rebuilt 2026-10-18 after an ISS
+ * photograph). A 2D overlay over the viewer's canvas, drawn each frame:
+ *  - ANCHORED TO THE SUN IN THE SCENE: the visible sun disc's world position,
+ *    projected. Projecting "camera +
+ *    sun direction" put the glare beside the sun disc whenever the camera
+ *    was away from the centre -- flight, moon view (reported);
+ *  - a tight white CORE and a STARBURST: thin tapering diffraction rays of
+ *    alternating length, slightly colour-fringed;
+ *  - one long thin STREAK across the frame;
+ *  - GHOSTS -- coloured discs and small dots strung along the line from the
+ *    sun through the centre of the view, as internal lens reflections are.
+ * The rays turn with the camera's roll and swing as the sun crosses the
+ * frame; the ghosts slide along their line as the view moves. Fades as the
+ * sun goes behind the planet, with a brief flare as it clears the limb.
+ * Pointer-events none; reduced-transparency viewers get it at half strength.
  */
 function startGlare() {
-  let canvas = null, ctx = null, light = null;
+  let canvas = null, ctx = null, light = null, sunMesh = null;
   const v3 = () => new THREE.Vector3();
-  const sunDir = v3(), centre = v3(), toC = v3(), proj = v3(), camDir = v3();
+  const sunPos = v3(), sunDir = v3(), centre = v3(), toC = v3(), proj = v3(), camDir = v3(), camUp = v3(), tmp = v3();
   const reduced = (() => { try { return window.matchMedia("(prefers-reduced-transparency: reduce)").matches; } catch { return false; } })();
+  // Spikes: [angle offset in rad, length (fraction of diagonal), width px]. Alternating long/short, 16 rays.
+  // Shorter and finer than a first pass, which read as a cartoon star: in the
+  // photograph most rays die within a tenth of the frame and two or three run on.
+  const RAYS = Array.from({ length: 16 }, (_, i) => [i * Math.PI / 8 + (i % 3) * 0.04,
+    i % 4 === 0 ? 0.24 : i % 2 ? 0.06 + 0.02 * ((i * 7) % 3) : 0.11 + 0.03 * ((i * 5) % 3), i % 4 === 0 ? 1.4 : 0.9]);
+  // Ghosts along the sun->centre axis: [t, radius (fraction of diagonal), rgb, alpha, hex?]
   const GHOSTS = [
-    [0.35, 0.10, "255,210,150"], [0.62, 0.05, "150,200,255"], [0.95, 0.16, "255,170,120"],
-    [1.30, 0.035, "190,255,210"], [1.65, 0.08, "160,180,255"],
+    [0.22, 0.012, "255,240,220", 0.35, false],
+    [0.48, 0.030, "150,120,255", 0.16, true],
+    [0.70, 0.010, "120,255,170", 0.30, false],
+    [1.05, 0.060, "175,110,255", 0.11, true],
+    [1.22, 0.022, "120,255,190", 0.15, false],
+    [1.45, 0.040, "255,170,90", 0.08, true],
+    [1.70, 0.008, "220,235,255", 0.35, false],
+    [1.95, 0.085, "140,90,255", 0.07, true],
   ];
+  const poly = (x, y, r, n, rot) => {
+    ctx.beginPath();
+    for (let i = 0; i <= n; i++) {
+      const a = rot + (i * 2 * Math.PI) / n;
+      const px = x + r * Math.cos(a), py = y + r * Math.sin(a);
+      if (i) ctx.lineTo(px, py); else ctx.moveTo(px, py);
+    }
+    ctx.closePath();
+  };
   const frame = () => {
     requestAnimationFrame(frame);
     const viewer = window.GeoIDViewer;
@@ -463,70 +489,127 @@ function startGlare() {
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
     if (canvas.width !== Math.round(r.width * dpr) || canvas.height !== Math.round(r.height * dpr)) {
       canvas.width = Math.round(r.width * dpr); canvas.height = Math.round(r.height * dpr);
-      Object.assign(canvas.style, { left: `${r.left}px`, top: `${r.top}px`, width: `${r.width}px`, height: `${r.height}px` });
     }
+    Object.assign(canvas.style, { left: `${r.left}px`, top: `${r.top}px`, width: `${r.width}px`, height: `${r.height}px` });
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.globalCompositeOperation = "source-over";
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     if (host.offsetParent === null) return;
 
-    sunDir.copy(light.position);
-    if (light.target) sunDir.sub(light.target.position);
+    // The sun where the scene DRAWS it: the visible sun disc (a far, basic-
+    // material sphere) if the viewer has one -- the key light on the planet
+    // viewers is only ~10 units out, nowhere near it -- else far along the
+    // light's direction.
+    if (!sunMesh || !sunMesh.parent) {
+      sunMesh = null;
+      viewer.scene.traverse((n) => {
+        if (!sunMesh && n.isMesh && n.geometry?.type === "SphereGeometry" && n.material?.isMeshBasicMaterial
+            && n.getWorldPosition(tmp).length() > 50) sunMesh = n;
+      });
+    }
+    if (sunMesh) sunMesh.getWorldPosition(sunPos);
+    else {
+      sunPos.copy(light.position);
+      if (light.target) sunPos.sub(light.target.position);
+      sunPos.normalize().multiplyScalar(5000).add(cam.position);
+    }
+    sunDir.copy(sunPos).sub(cam.position);
     if (sunDir.lengthSq() < 1e-9) return;
+    const sunDist = sunDir.length();
     sunDir.normalize();
     cam.getWorldDirection(camDir);
-    const facing = camDir.dot(sunDir);               // 1 = looking straight at the sun
-    if (facing <= 0.05) return;                      // sun behind the camera
+    const facing = camDir.dot(sunDir);
+    if (facing <= 0.05) return;                      // behind the camera
 
-    // Is the planet in the way? Closest approach of the sun ray to its centre.
+    // The planet in the way: closest approach of the sight line to its centre.
     globe.getWorldPosition(centre);
-    const R = (globe.geometry?.parameters?.radius || 3.2) * globe.getWorldScale(v3()).x;
+    const R = (globe.geometry?.parameters?.radius || 3.2) * globe.getWorldScale(tmp).x;
     toC.copy(centre).sub(cam.position);
     const along = toC.dot(sunDir);
-    const miss = along > 0 ? Math.sqrt(Math.max(toC.lengthSq() - along * along, 0)) : Infinity;
-    const clear = along > 0 ? THREE.MathUtils.smoothstep(miss, R * 0.985, R * 1.05) : 1;
-    const limb = along > 0 ? Math.exp(-Math.pow((miss - R * 1.01) / (R * 0.02), 2)) : 0;   // just clearing the limb
-    const vis = clear + 0.6 * limb;
+    const ahead = along > 0 && along < sunDist;
+    const miss = ahead ? Math.sqrt(Math.max(toC.lengthSq() - along * along, 0)) : Infinity;
+    const clear = ahead ? THREE.MathUtils.smoothstep(miss, R * 0.985, R * 1.04) : 1;
+    const limb = ahead ? Math.exp(-Math.pow((miss - R * 1.008) / (R * 0.015), 2)) : 0;
+    const vis = Math.min(1.4, clear + 0.8 * limb);
     if (vis < 0.01) return;
 
-    proj.copy(cam.position).addScaledVector(sunDir, 1000).project(cam);
-    const W = canvas.width, H = canvas.height;
+    proj.copy(sunPos).project(cam);
+    const W = canvas.width, H = canvas.height, D = Math.hypot(W, H);
     const sx = (proj.x * 0.5 + 0.5) * W, sy = (-proj.y * 0.5 + 0.5) * H;
-    const onScreen = Math.abs(proj.x) < 1.15 && Math.abs(proj.y) < 1.15;
-    const k = (reduced ? 0.5 : 1) * vis;
-    const D = Math.hypot(W, H);
+    const cx = W / 2, cy = H / 2;
+    const k = (reduced ? 0.5 : 1) * vis * THREE.MathUtils.smoothstep(facing, 0.05, 0.6);
+    const onScreen = proj.z < 1 && Math.abs(proj.x) < 1.1 && Math.abs(proj.y) < 1.1;
+    ctx.globalCompositeOperation = "lighter";
 
-    // Veiling glare: a wash that rises as the sun nears the view.
-    const veil = Math.pow(Math.max(facing, 0), 8) * 0.1 * k;
+    // A faint veil as the sun nears the view, on or off screen.
+    const veil = Math.pow(Math.max(facing, 0), 10) * 0.08 * k;
     if (veil > 0.003) {
-      const g = ctx.createRadialGradient(sx, sy, 0, sx, sy, D * 0.9);
-      g.addColorStop(0, `rgba(255,235,205,${veil})`);
-      g.addColorStop(1, "rgba(255,235,205,0)");
+      const g = ctx.createRadialGradient(sx, sy, 0, sx, sy, D * 0.7);
+      g.addColorStop(0, `rgba(255,240,220,${veil})`);
+      g.addColorStop(1, "rgba(255,240,220,0)");
       ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
     }
     if (!onScreen) return;
-    // Bloom.
-    const bloom = ctx.createRadialGradient(sx, sy, 0, sx, sy, D * 0.11);
-    bloom.addColorStop(0, `rgba(255,252,240,${0.9 * k})`);
-    bloom.addColorStop(0.1, `rgba(255,236,200,${0.32 * k})`);
-    bloom.addColorStop(1, "rgba(255,220,170,0)");
-    ctx.fillStyle = bloom; ctx.fillRect(0, 0, W, H);
-    // Anamorphic streak.
-    const sw = D * 0.42, sh = Math.max(2, D * 0.004);
-    const streak = ctx.createLinearGradient(sx - sw, 0, sx + sw, 0);
-    streak.addColorStop(0, "rgba(170,200,255,0)");
-    streak.addColorStop(0.5, `rgba(220,235,255,${0.45 * k})`);
-    streak.addColorStop(1, "rgba(170,200,255,0)");
-    ctx.fillStyle = streak; ctx.fillRect(sx - sw, sy - sh / 2, sw * 2, sh);
-    // Ghosts along the sun-centre line: they swing as the camera turns.
-    const cx = W / 2, cy = H / 2;
-    GHOSTS.forEach(([t, size, rgb]) => {
-      const gx = sx + (cx - sx) * (1 + t), gy = sy + (cy - sy) * (1 + t);
-      const gr = D * size * 0.5;
-      const g = ctx.createRadialGradient(gx, gy, gr * 0.55, gx, gy, gr);
-      g.addColorStop(0, `rgba(${rgb},0)`);
-      g.addColorStop(0.8, `rgba(${rgb},${0.07 * k})`);
-      g.addColorStop(1, `rgba(${rgb},0)`);
-      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(gx, gy, gr, 0, Math.PI * 2); ctx.fill();
+
+    // The ray orientation: the camera's roll plus a swing with where the
+    // sun sits in the frame, so the burst turns as the view moves.
+    camUp.copy(cam.up).applyQuaternion(cam.quaternion);
+    const roll = Math.atan2(camUp.x, camUp.y);
+    const swing = 0.35 * Math.atan2(sy - cy, sx - cx);
+    const rot = 0.19 + roll + swing;
+
+    // Starburst: thin tapering rays, a faint warm/cool fringe either side.
+    ctx.save();
+    ctx.translate(sx, sy);
+    RAYS.forEach(([a, len, w]) => {
+      const L = D * len * (0.55 + 0.45 * k);
+      ctx.save();
+      ctx.rotate(rot + a);
+      const grad = ctx.createLinearGradient(0, 0, L, 0);
+      grad.addColorStop(0, `rgba(255,255,255,${0.75 * k})`);
+      grad.addColorStop(0.18, `rgba(235,240,255,${0.22 * k})`);
+      grad.addColorStop(1, "rgba(200,215,255,0)");
+      ctx.fillStyle = grad;
+      ctx.beginPath(); ctx.moveTo(0, -w * dpr); ctx.lineTo(L, 0); ctx.lineTo(0, w * dpr); ctx.closePath(); ctx.fill();
+      ctx.restore();
     });
+    ctx.restore();
+
+    // The long thin streak across the frame.
+    ctx.save();
+    ctx.translate(sx, sy);
+    ctx.rotate(rot + 0.62);
+    const sl = D * 0.6;
+    const sg = ctx.createLinearGradient(-sl, 0, sl, 0);
+    sg.addColorStop(0, "rgba(160,190,255,0)");
+    sg.addColorStop(0.42, `rgba(200,220,255,${0.18 * k})`);
+    sg.addColorStop(0.5, `rgba(255,255,255,${0.42 * k})`);
+    sg.addColorStop(0.58, `rgba(255,220,190,${0.18 * k})`);
+    sg.addColorStop(1, "rgba(255,190,150,0)");
+    ctx.fillStyle = sg; ctx.fillRect(-sl, -1.2 * dpr, sl * 2, 2.4 * dpr);
+    ctx.restore();
+
+    // Core: a hot white point with a tight halo.
+    const core = ctx.createRadialGradient(sx, sy, 0, sx, sy, D * 0.05);
+    core.addColorStop(0, `rgba(255,255,255,${Math.min(1, 1.1 * k)})`);
+    core.addColorStop(0.12, `rgba(255,252,240,${0.85 * k})`);
+    core.addColorStop(0.35, `rgba(255,236,205,${0.22 * k})`);
+    core.addColorStop(1, "rgba(255,225,190,0)");
+    ctx.fillStyle = core; ctx.beginPath(); ctx.arc(sx, sy, D * 0.05, 0, Math.PI * 2); ctx.fill();
+
+    // Ghosts along the sun -> centre axis, sliding as the view moves.
+    GHOSTS.forEach(([t, size, rgb, alpha, hex]) => {
+      const gx = sx + (cx - sx) * (1 + t), gy = sy + (cy - sy) * (1 + t);
+      const gr = D * size;
+      const g = ctx.createRadialGradient(gx, gy, 0, gx, gy, gr);
+      g.addColorStop(0, `rgba(${rgb},${alpha * 0.55 * k})`);
+      g.addColorStop(0.75, `rgba(${rgb},${alpha * k})`);
+      g.addColorStop(1, `rgba(${rgb},0)`);
+      ctx.fillStyle = g;
+      if (hex) poly(gx, gy, gr, 6, rot); else { ctx.beginPath(); ctx.arc(gx, gy, gr, 0, Math.PI * 2); }
+      ctx.fill();
+    });
+    ctx.globalCompositeOperation = "source-over";
   };
   requestAnimationFrame(frame);
 }
