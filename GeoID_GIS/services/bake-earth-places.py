@@ -328,9 +328,10 @@ DESCRIPTION_OVERRIDES = {
     "Q163584": (
         'Derry is a cathedral city in Northern Ireland. Located in County Derry, the city covers bo'
         'th banks of the River Foyle. It was also a hotspot of conflict during the Troubles, most n'
-        'otably Bloody Sunday in 1972, where during a peace protest British forces killed thirteen '
-        'people outright, and 14 others were wounded (with one later dying from his injuries); all '
-        'were Catholic. In recent times, the city is most recognised for the show Derry Girls.'
+        'otably Bloody Sunday on 30 January 1972, when British soldiers shot 26 unarmed civilians d'
+        'uring a protest march in the Bogside, killing thirteen men outright and wounding thirteen '
+        'others, one of whom later died of his injuries; all were Catholic. In recent times, the ci'
+        'ty is most recognised for the show Derry Girls.'
     ),
 }
 
