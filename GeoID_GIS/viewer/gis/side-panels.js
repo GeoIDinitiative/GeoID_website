@@ -38,7 +38,7 @@
  */
 const SHELF_NAMES = { geoprocess: "Geoprocessing", analysis: "Analysis" };
 
-import { isParked } from "./parked.js?v=20261018-7d6fd08";
+import { isParked } from "./parked.js?v=20261018-bbf746c";
 const PANELS = [
   {
     id: "preprocess",
@@ -1004,6 +1004,20 @@ input:not([type=range]):not([type=checkbox]):not([type=radio]),
  * up with it) and only the scrollbar moves out to the edge. Every theme. */
 #ui { padding-right: 12px !important; }
 #ui #ui-scroll-body { margin-right: -11px; padding-right: 11px; }
+
+/* ── Moon-viewer mode greys nothing out (2026-10-18, asked for) ──────────
+ * Each planet viewer's styles.css dimmed every section but Locations, Moon
+ * viewer and Flight to 32-38% and half saturation in moon mode -- and since
+ * the Workspace's list and the GIS / settings / analysis panels are sections
+ * too, they went grey with it. Nothing was disabled, only greyed. Undone here
+ * for every viewer at once; those rules carry long :not(#id) chains, so this
+ * needs !important to win. */
+:root[data-mode="moon"] .control-section,
+:root[data-mode="moon"] #ui .control-section {
+  opacity: 1 !important;
+  filter: none !important;
+}
+:root[data-mode="moon"] .control-section summary { cursor: pointer !important; }
 `;
 
 /**
