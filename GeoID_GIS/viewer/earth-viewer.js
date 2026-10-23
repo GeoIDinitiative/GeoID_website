@@ -2,13 +2,13 @@ import * as THREE from "./vendor/three.module.js";
 // The polygon-area rule lives in one place, with a test. Stamped by hand
 // once: stamp.py only rewrites a ?v= that already exists.
 import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
-  from "./gis/geo-utils.js?v=20261023-df8c97c";
+  from "./gis/geo-utils.js?v=20261023-b48057b";
 import { attachReliefAttributes, followRelief }
-  from "./gis/vector-render.js?v=20261023-df8c97c";
+  from "./gis/vector-render.js?v=20261023-b48057b";
 import { rockClass, crustalSetting, rockClassLabel, classificationBasis }
-  from "./gis/rock-class.js?v=20261023-df8c97c";
+  from "./gis/rock-class.js?v=20261023-b48057b";
 import { lithologyLabel }
-  from "./gis/lithology-label.js?v=20261023-df8c97c";
+  from "./gis/lithology-label.js?v=20261023-b48057b";
 
 /**
  * This module's own cache stamp, read off its own URL.
@@ -6606,7 +6606,11 @@ function fmtProp(value) {
       // A soil is classified the same way ice is: not at all by this card.
       // `crustalSetting` reads the ELEVATION, so it answers "Continental"
       // about anything on land — a glacier, a lake, or a Podzol.
-      const written = feature.ice || feature.soil;
+      // And neither is anything the GIS popup says is NOT geology (a port, an
+      // airport, a city, a railway): it was "Continental" too, the crust read
+      // off the elevation under a seaport (2026-10-23). Its heading is the
+      // layer's own noun, which the popup has already put in `type`.
+      const written = feature.ice || feature.soil || (feature.geological === false && !feature.lithology);
       const unitSetting = written ? null : crustalSetting(lithology, settingElevation);
       const classLabel = written
         ? (feature.type || null) : rockClassLabel(unitClass, unitSetting);
@@ -16560,7 +16564,24 @@ uniform float uViewportWidth;`,
 	            ? raycaster.intersectObjects(cutawayResult.interactiveObjects, false)
 	            : []),
 	        ].sort((a, b) => a.distance - b.distance);
-	        return intersections.find((entry) => isObjectActuallyVisible(entry.object) && entry.object.userData.feature) || null;
+	        /**
+	         * THE GLOBE IS IN THE WAY of anything behind it.
+	         *
+	         * Labels and pins are drawn with the depth test, so one on the far side
+	         * of the planet is never SEEN -- but a ray is not stopped by the planet,
+	         * and this picked them anyway. Measured 2026-10-23: a click on the
+	         * Heathrow marker opened the card for Lampang, a volcano in Thailand, and
+	         * one on the port of Rotterdam a fault in Colombia, with the marker that
+	         * was clicked highlighted under the wrong card. A hit further along the
+	         * ray than the globe's own surface (a hair's tolerance, for labels on
+	         * relief) is behind it -- except the cutaway's core labels, which stand
+	         * inside the globe on purpose.
+	         */
+	        const globeHit = raycaster.intersectObject(globe, false).find((entry) => entry.object.visible);
+	        const reach = globeHit ? globeHit.distance * 1.01 + 1e-4 : Infinity;
+	        const inside = new Set(cutawayResult?.interactiveObjects || []);
+	        return intersections.find((entry) => (entry.distance <= reach || inside.has(entry.object))
+	          && isObjectActuallyVisible(entry.object) && entry.object.userData.feature) || null;
 	      }
 
 	      function shouldRunEmbeddedGeoSelector(event) {

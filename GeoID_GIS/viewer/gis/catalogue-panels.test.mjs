@@ -408,11 +408,11 @@ check("and every listed group still has something in it",
 }
 
 {
-  // The submarine cables and their landing stations are EXPOSURE: what a
-  // hazard would hit, not a shape to dress the basemap with.
+  // The submarine cables and their landing stations are INFRASTRUCTURE: what
+  // a hazard would hit, not a shape to dress the basemap with.
   const cables = DATASETS.filter((d) => /^conn-(submarine-cables|cable-landings)$/.test(d.id));
-  check("the cables and their landing stations live in Hazards ▸ Exposure",
-    cables.length === 2 && cables.every((d) => d.home === "exposure"),
+  check("the cables and their landing stations live in Hazards ▸ Infrastructure",
+    cables.length === 2 && cables.every((d) => d.home === "infrastructure"),
     cables.map((d) => `${d.id}:${d.home}`).join(", "));
   // `grouped()` lists only the groups GROUPS names, so a group left out of it
   // takes every row in it off every list without a word.

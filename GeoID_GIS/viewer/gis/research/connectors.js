@@ -19,7 +19,7 @@
  */
 
 import { createLedger, latestGlaciers, pieceAreaKm2 }
-  from "../glacier-outlines.js?v=20261023-df8c97c";
+  from "../glacier-outlines.js?v=20261023-b48057b";
 
 /** N days ago as an ISO date (YYYY-MM-DD). */
 function daysAgoISO(days) {
@@ -560,6 +560,47 @@ export function firePerimetersToGeoJSON(payload) {
 // Cities, towns and villages in an area. CORS-open, no key. Needs a bbox, so it
 // requires a study area (a global Overpass query would time out).
 
+/**
+ * OVERPASS, WITH A SECOND SERVER.
+ *
+ * Every OSM row asks overpass-api.de, and that one public server sheds load:
+ * on 2026-10-23 it answered 406 to a bare request and 502 "busy, back off" to
+ * a browser's, while the bridges over Houston had loaded from it an hour
+ * before. A row that fails whenever one volunteer server is busy is a row that
+ * fails. The same query is asked of the next server in this list -- each
+ * CORS-open and keyless, verified the same day -- and the error names the
+ * last refusal when every one is busy.
+ */
+export const OVERPASS_SERVERS = [
+  "https://overpass-api.de/api/interpreter",
+  "https://overpass.private.coffee/api/interpreter",
+];
+
+/** The same request on each server in turn; `{ payload, endpoint }` from the first to answer. */
+export async function overpassFetch(url, { fetchImpl = fetch } = {}) {
+  const query = new URL(url).search;
+  let last = "";
+  for (const server of OVERPASS_SERVERS) {
+    const endpoint = `${server}${query}`;
+    try {
+      const response = await fetchImpl(endpoint, { headers: { Accept: "application/json" } });
+      if (response.ok) return { payload: await response.json(), endpoint };
+      last = `${new URL(server).host} answered HTTP ${response.status}`;
+    } catch {
+      last = `${new URL(server).host} could not be reached`;
+    }
+  }
+  throw new Error(`OpenStreetMap's Overpass servers are busy (${last}). Try again in a minute.`);
+}
+
+/** A connector `load` over a url builder and converter: Overpass with its second server. */
+function overpassLoad(urlOf, toGeoJSON) {
+  return async (opts) => {
+    const { payload, endpoint } = await overpassFetch(urlOf(opts));
+    return { geojson: toGeoJSON(payload), endpoint };
+  };
+}
+
 function overpassUrl({ bbox } = {}) {
   if (!bbox) throw new Error("OSM places needs a study area — draw one first, then fetch.");
   const query = "[out:json][timeout:25];("
@@ -701,6 +742,271 @@ export function overpassRoadsToGeoJSON(payload) {
   return { type: "FeatureCollection", features };
 }
 
+// ── OpenStreetMap bridges and buildings (Overpass API) ───────────────────────
+// What a hazard footprint is read against at street scale: the structures a
+// flood, a landslide or an ash load actually damages. The same keyless Overpass
+// service as the roads, the same box rules -- the drawn area, else the view --
+// and the same tiering by how big the box is, because a city holds thousands
+// of footbridges and a region holds millions of buildings.
+
+/**
+ * Which bridges are worth asking for over a box this size, finest first.
+ * Rail is in every tier: a railway bridge is rare, and losing one cuts a line.
+ */
+export const BRIDGE_TIERS = [
+  { maxSpan: 0.3, highway: null, says: "every bridge, footbridges included" },
+  { maxSpan: 2, highway: ["motorway", "trunk", "primary", "secondary", "tertiary"],
+    says: "road bridges down to local roads, and railway bridges" },
+  { maxSpan: 6, highway: ["motorway", "trunk", "primary"],
+    says: "bridges on the main roads, and railway bridges" },
+];
+
+const FOOT = new Set(["footway", "path", "cycleway", "pedestrian", "steps", "bridleway"]);
+const BRIDGE_ROAD_RANK = { motorway: 1, trunk: 1, primary: 2, secondary: 3, tertiary: 4 };
+
+/** The Overpass query for the bridges over a box, and which tier answered. */
+export function overpassBridgesQuery(bbox) {
+  if (!bbox) {
+    throw new Error("OSM bridges needs an area — draw one, or zoom in to a region.");
+  }
+  const span = boxSpanDeg(bbox);
+  const tier = BRIDGE_TIERS.find((t) => span <= t.maxSpan);
+  if (!tier) {
+    throw new Error(`OSM bridges: this area is ${span.toFixed(1)}° across, too large to ask `
+      + `Overpass for. Draw one under ${BRIDGE_TIERS[BRIDGE_TIERS.length - 1].maxSpan}°.`);
+  }
+  const b = bboxClause(bbox);
+  const roads = tier.highway
+    ? `way["bridge"]["bridge"!="no"]["highway"~"^(${tier.highway.join("|")})(_link)?$"](${b});`
+    : `way["bridge"]["bridge"!="no"](${b});`;
+  const rail = `way["bridge"]["bridge"!="no"]["railway"~"^(rail|light_rail|subway|narrow_gauge|tram)$"](${b});`;
+  const query = `[out:json][timeout:90];(${roads}${tier.highway ? rail : ""});out geom;`;
+  return { query, tier, span };
+}
+
+function overpassBridgesUrl({ bbox } = {}) {
+  const { query } = overpassBridgesQuery(bbox);
+  return `https://overpass-api.de/api/interpreter?data=${encodeURIComponent(query)}`;
+}
+
+/** Along-the-ground length of a [lon, lat] line, metres. */
+function lineMetres(coords) {
+  let m = 0;
+  for (let i = 1; i < coords.length; i += 1) {
+    const [x1, y1] = coords[i - 1]; const [x2, y2] = coords[i];
+    const k = Math.cos(((y1 + y2) / 2) * Math.PI / 180);
+    m += Math.hypot((x2 - x1) * k, y2 - y1) * 111320;
+  }
+  return m;
+}
+
+/**
+ * What a bridge IS, in the words its card is headed with, and how much it
+ * matters (1 = a motorway or a main railway). From what it carries: OSM tags
+ * the road or railway on the bridge way itself.
+ */
+export function bridgeKind(tags = {}) {
+  const viaduct = tags.bridge === "viaduct";
+  const highway = String(tags.highway || "").replace(/_link$/, "");
+  if (tags.railway) {
+    const tram = tags.railway === "tram";
+    return { type: `${tram ? "Tram" : "Railway"} ${viaduct ? "viaduct" : "bridge"}`, carries: `${tags.railway.replace(/_/g, " ")}`, rank: tram ? 3 : 1 };
+  }
+  if (tags.waterway) return { type: "Aqueduct", carries: tags.waterway, rank: 4 };
+  if (FOOT.has(highway)) return { type: "Footbridge", carries: highway, rank: 6 };
+  if (highway) {
+    return { type: `Road ${viaduct ? "viaduct" : "bridge"} — ${highway.replace(/_/g, " ")} road`, carries: highway, rank: BRIDGE_ROAD_RANK[highway] || 5 };
+  }
+  return { type: viaduct ? "Viaduct" : "Bridge", carries: "", rank: 5 };
+}
+
+/** How close two sections' ends may be and still be one bridge: a carriageway apart. */
+export const BRIDGE_JOIN_M = 60;
+
+/**
+ * ONE BRIDGE, NOT ITS SECTIONS.
+ *
+ * OpenStreetMap splits a bridge wherever its tags change and draws each
+ * carriageway of a dual road as its own way, so a single viaduct arrives as
+ * six ways and a readout said "4,988 bridges" over Houston where it meant
+ * about half that, with one railway trestle listed nineteen times. Sections
+ * of the same kind and name whose ends lie within BRIDGE_JOIN_M of each other
+ * -- the next section along, or the other carriageway -- are one structure.
+ * Unnamed sections are joined by the same rule, which is what keeps two
+ * nameless footbridges a street apart as two.
+ */
+export function mergeBridgeSections(features) {
+  const n = features.length;
+  const parent = Array.from({ length: n }, (_, i) => i);
+  const find = (i) => { while (parent[i] !== i) { parent[i] = parent[parent[i]]; i = parent[i]; } return i; };
+  const cell = BRIDGE_JOIN_M / 111320;
+  const grid = new Map();
+  const ends = (f) => {
+    const c = f.geometry.coordinates;
+    return [c[0], c[c.length - 1]];
+  };
+  const keyOf = (f) => `${f.properties.type}|${f.properties.name}`;
+  features.forEach((f, i) => {
+    for (const [x, y] of ends(f)) {
+      const gx = Math.floor(x / cell); const gy = Math.floor(y / cell);
+      for (let dx = -1; dx <= 1; dx += 1) {
+        for (let dy = -1; dy <= 1; dy += 1) {
+          for (const [j, ex, ey] of grid.get(`${gx + dx},${gy + dy}`) || []) {
+            if (keyOf(features[j]) !== keyOf(f)) continue;
+            const k = Math.cos(y * Math.PI / 180);
+            if (Math.hypot((ex - x) * k, ey - y) * 111320 <= BRIDGE_JOIN_M) parent[find(i)] = find(j);
+          }
+        }
+      }
+    }
+    for (const [x, y] of ends(f)) {
+      const key = `${Math.floor(x / cell)},${Math.floor(y / cell)}`;
+      (grid.get(key) || grid.set(key, []).get(key)).push([i, x, y]);
+    }
+  });
+  const groups = new Map();
+  features.forEach((f, i) => {
+    const root = find(i);
+    (groups.get(root) || groups.set(root, []).get(root)).push(f);
+  });
+  return [...groups.values()].map((members) => {
+    if (members.length === 1) return members[0];
+    members.sort((a, b) => a.properties.rank - b.properties.rank);
+    const first = members[0].properties;
+    const pick = (k) => members.map((m) => m.properties[k]).find((v) => v !== "" && v != null) ?? first[k];
+    return {
+      type: "Feature",
+      geometry: { type: "MultiLineString", coordinates: members.map((m) => m.geometry.coordinates) },
+      properties: {
+        ...first,
+        ref: pick("ref"), structure: pick("structure"), material: pick("material"), maxweight_t: pick("maxweight_t"),
+        deck_length_m: members.reduce((sum, m) => sum + m.properties.deck_length_m, 0),
+        sections: members.length,
+        osm_id: members.map((m) => m.properties.osm_id).join(" "),
+      },
+    };
+  });
+}
+
+export function overpassBridgesToGeoJSON(payload) {
+  const sections = (payload?.elements || [])
+    .filter((e) => e.type === "way" && e.tags?.bridge && e.tags.bridge !== "no")
+    .map((way) => {
+      const coordinates = wayLine(way);
+      if (!coordinates) return null;
+      const t = way.tags;
+      const kind = bridgeKind(t);
+      const props = {
+        name: t["bridge:name"] || t.name || "",
+        type: kind.type,
+        carries: kind.carries,
+        ref: t.ref || "",
+        structure: t["bridge:structure"] || "",
+        material: t.material || "",
+        // Every section's deck: both carriageways of a dual road are counted.
+        deck_length_m: Math.round(lineMetres(coordinates)),
+        maxweight_t: tagNumber(t.maxweight),
+        rank: kind.rank,
+        osm_id: `way/${way.id}`,
+      };
+      return { type: "Feature", geometry: { type: "LineString", coordinates }, properties: props };
+    })
+    .filter(Boolean);
+  return { type: "FeatureCollection", features: mergeBridgeSections(sections) };
+}
+
+/**
+ * Buildings: a box this wide or less. A square kilometre of a city is a few
+ * thousand footprints; this is about 4 km across, which is a district.
+ */
+export const BUILDING_MAX_SPAN = 0.04;
+
+/**
+ * The buildings a hazard reading names before the rest: where people are
+ * that cannot easily leave, or that a response depends on. From `amenity`
+ * first, then the building's own type.
+ */
+const CRITICAL = {
+  hospital: "Hospital", clinic: "Clinic", school: "School", kindergarten: "Kindergarten",
+  university: "University", college: "College", fire_station: "Fire station",
+  police: "Police station", nursing_home: "Care home", townhall: "Town hall",
+  shelter: "Shelter", place_of_worship: "Place of worship",
+};
+const BUILDING_WORDS = {
+  yes: "Building", house: "House", detached: "Detached house", semidetached_house: "Semi-detached house",
+  terrace: "Terraced houses", apartments: "Apartment block", residential: "Residential building",
+  commercial: "Commercial building", retail: "Shop", office: "Office building", industrial: "Industrial building",
+  warehouse: "Warehouse", garage: "Garage", garages: "Garages", shed: "Shed", barn: "Barn", farm: "Farmhouse",
+  farm_auxiliary: "Farm building", church: "Church", mosque: "Mosque", temple: "Temple", hotel: "Hotel",
+  train_station: "Railway station", transportation: "Transport building", hangar: "Hangar",
+  roof: "Roof (open-sided)", construction: "Building under construction", ruins: "Ruin",
+};
+
+export function buildingKind(tags = {}) {
+  const critical = CRITICAL[tags.amenity] || CRITICAL[tags.building] || null;
+  if (critical) return { type: critical, critical: true, rank: 1 };
+  const b = String(tags.building || "yes");
+  const word = BUILDING_WORDS[b] || `${b.charAt(0).toUpperCase()}${b.slice(1).replace(/_/g, " ")} building`;
+  const rank = ["apartments", "residential", "house", "detached", "semidetached_house", "terrace"].includes(b) ? 2
+    : ["shed", "garage", "garages", "roof", "ruins"].includes(b) ? 4 : 3;
+  return { type: word, critical: false, rank };
+}
+
+export function overpassBuildingsQuery(bbox) {
+  if (!bbox) {
+    throw new Error("OSM buildings needs an area — draw one over a town or a district.");
+  }
+  const span = boxSpanDeg(bbox);
+  if (span > BUILDING_MAX_SPAN) {
+    throw new Error(`OSM buildings: this area is ${span.toFixed(2)}° across; buildings are `
+      + `fetched over a district (under ${BUILDING_MAX_SPAN}°, about 4 km). Draw a smaller `
+      + "area, or zoom in.");
+  }
+  const b = bboxClause(bbox);
+  const query = `[out:json][timeout:90];(way["building"](${b});rel["building"]["type"="multipolygon"](${b}););out geom;`;
+  return { query, span };
+}
+
+function overpassBuildingsUrl({ bbox } = {}) {
+  const { query } = overpassBuildingsQuery(bbox);
+  return `https://overpass-api.de/api/interpreter?data=${encodeURIComponent(query)}`;
+}
+
+export function overpassBuildingsToGeoJSON(payload) {
+  const features = [];
+  for (const e of payload?.elements || []) {
+    if (!e.tags?.building) continue;
+    let geometry = null;
+    if (e.type === "way") {
+      const ring = wayLine(e);
+      if (!ring || ring.length < 4) continue;
+      const [x0, y0] = ring[0]; const [x1, y1] = ring[ring.length - 1];
+      if (x0 !== x1 || y0 !== y1) ring.push([x0, y0]);
+      geometry = { type: "Polygon", coordinates: [ring] };
+    } else if (e.type === "relation") {
+      geometry = relationPolygon(e).geometry;
+    }
+    if (!geometry) continue;
+    const t = e.tags;
+    const kind = buildingKind(t);
+    features.push({
+      type: "Feature",
+      geometry,
+      properties: {
+        name: t.name || "",
+        type: kind.type,
+        critical: kind.critical,
+        levels: tagNumber(t["building:levels"]),
+        height_m: tagNumber(t.height),
+        address: [t["addr:housenumber"], t["addr:street"]].filter(Boolean).join(" "),
+        rank: kind.rank,
+        osm_id: `${e.type}/${e.id}`,
+      },
+    });
+  }
+  return { type: "FeatureCollection", features };
+}
+
 /**
  * Settlement outlines: the polygon OSM records for each city and town in the
  * box. A box larger than this pulls the county and district boundaries that
@@ -789,10 +1095,8 @@ export function clipToBox(fc, bbox) {
 async function loadCityOutlines(opts = {}) {
   const bbox = opts.bbox || null;
   if (bbox && boxSpanDeg(bbox) <= OUTLINE_MAX_SPAN) {
-    const url = overpassOutlinesUrl(opts);
-    const response = await fetch(url, { headers: { Accept: "application/json" } });
-    if (!response.ok) throw new Error(`OSM city outlines returned HTTP ${response.status}.`);
-    return { geojson: overpassOutlinesToGeoJSON(await response.json()), endpoint: url };
+    const { payload, endpoint } = await overpassFetch(overpassOutlinesUrl(opts));
+    return { geojson: overpassOutlinesToGeoJSON(payload), endpoint };
   }
   const response = await fetch(NE_URBAN_URL, { headers: { Accept: "application/json" } });
   if (!response.ok) throw new Error(`Natural Earth urban areas returned HTTP ${response.status}.`);
@@ -1488,6 +1792,7 @@ export const CONNECTORS = {
   "osm-roads": {
     label: "OSM roads",
     attribution: "© OpenStreetMap contributors (ODbL)",
+    load: overpassLoad(overpassRoadsUrl, overpassRoadsToGeoJSON),
     url: overpassRoadsUrl,
     toGeoJSON: overpassRoadsToGeoJSON,
     filename: () => "osm_roads.geojson",
@@ -1502,9 +1807,28 @@ export const CONNECTORS = {
     filename: () => "osm_city_outlines.geojson",
     defaults: {},
   },
+  "osm-bridges": {
+    label: "OSM bridges",
+    attribution: "© OpenStreetMap contributors (ODbL)",
+    load: overpassLoad(overpassBridgesUrl, overpassBridgesToGeoJSON),
+    url: overpassBridgesUrl,
+    toGeoJSON: overpassBridgesToGeoJSON,
+    filename: () => "osm_bridges.geojson",
+    defaults: {},
+  },
+  "osm-buildings": {
+    label: "OSM buildings",
+    attribution: "© OpenStreetMap contributors (ODbL)",
+    load: overpassLoad(overpassBuildingsUrl, overpassBuildingsToGeoJSON),
+    url: overpassBuildingsUrl,
+    toGeoJSON: overpassBuildingsToGeoJSON,
+    filename: () => "osm_buildings.geojson",
+    defaults: {},
+  },
   "osm-places": {
     label: "OSM places",
     attribution: "© OpenStreetMap contributors (ODbL)",
+    load: overpassLoad(overpassUrl, overpassToGeoJSON),
     url: overpassUrl,
     toGeoJSON: overpassToGeoJSON,
     filename: () => "osm_places.geojson",

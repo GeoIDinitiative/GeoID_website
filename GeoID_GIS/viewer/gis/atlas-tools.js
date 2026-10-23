@@ -79,6 +79,23 @@ export const TOOLS = [
     args: { type: "object", properties: { hazard: { type: "string" } } },
   },
   {
+    name: "infrastructure_exposed",
+    title: "List the infrastructure inside a hazard footprint",
+    says: "Which cities and towns, seaports, airports, railways, roads, bridges, buildings and cables stand "
+      + "inside a hazard map or drawn area on the globe, classed worst first on the hazard's own scale "
+      + "(water depth, ash load, factor of safety, annual chance) and named. Cities, ports and airports "
+      + "are always read; the other layers when they are on the globe.",
+    args: {
+      type: "object",
+      properties: {
+        hazard: { type: "string", description: "Which footprint: a hazard word (flood, ash, landslide, cyclone, volcanic, seismic, fire, sea level) or a layer's name; empty for the newest hazard map" },
+        area: { type: "string", description: "\"drawn\" to cut the footprint to the drawn study area, or to read the drawn area alone" },
+        bridges: { type: "boolean", description: "Fetch OpenStreetMap bridges over the footprint first" },
+        buildings: { type: "boolean", description: "Fetch OpenStreetMap buildings over the footprint first (a district only)" },
+      },
+    },
+  },
+  {
     name: "community_near",
     title: "List community posts near the view",
     says: "Public GeoID Network posts, observations and projects near the centre of the view, with "
@@ -119,6 +136,9 @@ export function checkArgs(tool, args = {}) {
       if (spec.maximum !== undefined && v > spec.maximum) problems.push(`${name} must be at most ${spec.maximum}`);
     } else if (spec.type === "string") {
       v = String(v);
+    } else if (spec.type === "boolean") {
+      // A model writes `true` or `"true"`; anything else is no.
+      v = v === true || v === "true";
     }
     out[name] = v;
   }
@@ -161,6 +181,35 @@ export function parseToolCall(text) {
     }
   }
   return null;
+}
+
+const INFRA_WORDS = /\b(infrastructure|bridges?|ports?|seaports?|harbou?rs?|airports?|airfields?|railways?|rail(?:road)?s?|roads?|buildings?|hospitals?|schools?|cities|towns?|settlements?|cables?)\b/;
+const INSIDE_WORDS = /\b(in|inside|within|under|exposed|affected|hit|at risk|reached|reach|which|what|how many|count|list)\b/;
+const HAZARD_WORD = /\b(flood\w*|inundation|sea.?level|ash\w*|tephra|landslides?|cyclones?|hurricanes?|typhoons?|storm tracks?|volcan\w*|seismic|earthquakes?|wildfires?|fires?|alerts?|warnings?|river zones?|footprint|drawn area|study area|this area|my area)\b/;
+
+/**
+ * "Which bridges and ports are inside the flood?" as an `infrastructure_exposed`
+ * call, read without a model. Needs a thing that is infrastructure, a word
+ * that asks what is IN something, and either a hazard or an area to be in;
+ * otherwise null, so "build a road" or "the port of Catania" pass by.
+ */
+export function infrastructureCall(text) {
+  const q = String(text || "").toLowerCase();
+  const thing = q.match(INFRA_WORDS);
+  if (!thing || !INSIDE_WORDS.test(q)) return null;
+  const hazard = q.match(HAZARD_WORD);
+  if (!hazard) return null;
+  const word = hazard[1];
+  const isArea = /drawn area|study area|this area|my area/.test(word);
+  return {
+    name: "infrastructure_exposed",
+    args: {
+      ...(isArea || word === "footprint" ? {} : { hazard: word }),
+      ...(isArea || /\b(drawn|study area|this area|my area)\b/.test(q) ? { area: "drawn" } : {}),
+      ...(/\bbridges?\b/.test(q) ? { bridges: true } : {}),
+      ...(/\b(buildings?|hospitals?|schools?)\b/.test(q) ? { buildings: true } : {}),
+    },
+  };
 }
 
 /** A read intent as a tool call, or null when no tool answers that task. */

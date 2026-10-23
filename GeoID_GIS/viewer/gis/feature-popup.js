@@ -20,24 +20,24 @@
  * the same order the eye reads, so the answer is the polygon you clicked.
  */
 
-import { pointInPolygon, boundsOf, haversineMetres } from "./geometry.js?v=20261023-df8c97c";
-import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20261023-df8c97c";
+import { pointInPolygon, boundsOf, haversineMetres } from "./geometry.js?v=20261023-b48057b";
+import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20261023-b48057b";
 import {
   attachReliefAttributes, followRelief, markerRingTexture,
-} from "./vector-render.js?v=20261023-df8c97c";
-import { rockClass, crustalSetting, rockClassLabel } from "./rock-class.js?v=20261023-df8c97c";
-import { lithologyLabel } from "./lithology-label.js?v=20261023-df8c97c";
-import { isIceFeature, iceCard } from "./ice-card.js?v=20261023-df8c97c";
-import { isSoilFeature, soilCard } from "./soil-card.js?v=20261023-df8c97c";
-import { waterCard, WATER_SAID } from "./water-card.js?v=20261023-df8c97c";
-import { isRiskFeature, riskCard } from "./cyclone-risk-card.js?v=20261023-df8c97c";
-import { isVolcanicRiskFeature, volcanicRiskCard } from "./volcanic-risk-card.js?v=20261023-df8c97c";
-import { isSeismicRiskFeature, seismicRiskCard } from "./seismic-risk-card.js?v=20261023-df8c97c";
-import { isEarthquakeFeature, earthquakeCard } from "./earthquake-card.js?v=20261023-df8c97c";
-import { isZoneFeature, zoneCard } from "./volcanic-zone-card.js?v=20261023-df8c97c";
+} from "./vector-render.js?v=20261023-b48057b";
+import { rockClass, crustalSetting, rockClassLabel } from "./rock-class.js?v=20261023-b48057b";
+import { lithologyLabel } from "./lithology-label.js?v=20261023-b48057b";
+import { isIceFeature, iceCard } from "./ice-card.js?v=20261023-b48057b";
+import { isSoilFeature, soilCard } from "./soil-card.js?v=20261023-b48057b";
+import { waterCard, WATER_SAID } from "./water-card.js?v=20261023-b48057b";
+import { isRiskFeature, riskCard } from "./cyclone-risk-card.js?v=20261023-b48057b";
+import { isVolcanicRiskFeature, volcanicRiskCard } from "./volcanic-risk-card.js?v=20261023-b48057b";
+import { isSeismicRiskFeature, seismicRiskCard } from "./seismic-risk-card.js?v=20261023-b48057b";
+import { isEarthquakeFeature, earthquakeCard } from "./earthquake-card.js?v=20261023-b48057b";
+import { isZoneFeature, zoneCard } from "./volcanic-zone-card.js?v=20261023-b48057b";
 import {
   canEditRow, editableFields, applyRowChange,
-} from "./table-editor.js?v=20261023-df8c97c";
+} from "./table-editor.js?v=20261023-b48057b";
 
 /* A line has no interior, so it is picked by proximity. Scaled to the view:
    8 px worth of ground at the current altitude, floored so a click at orbital
@@ -949,8 +949,20 @@ function showViewerCard(hits, at) {
    */
   const lithology = firstOf(props, ["lith", "liths", "LITH", "rcs_d", "rock_d", "lithology"]);
   const unitClass = rockClass(lithology, props.descrip, name);
-  const unitSetting = crustalSetting(lithology,
-    at ? window.GeoIDViewer?.sampleElevationMeters?.(at.lat, at.lon) : null);
+  /**
+   * THE CRUST IS ASKED ABOUT GEOLOGY ONLY.
+   *
+   * `crustalSetting` reads "Continental" or "Oceanic" off the elevation for
+   * any point at all, so every feature that is not rock was headed by it: a
+   * port of Rotterdam, Tokyo and a railway near Frankfurt all opened as
+   * "CONTINENTAL" (2026-10-23), the fifth time after the ice, soil, risk and
+   * volcanic-zone cards below were each given their own way out. A feature
+   * with no lithology on a layer that is not a geological map has no crust to
+   * classify; its heading is the layer's own noun (`featureKind`).
+   */
+  const geological = Boolean(lithology) || isGeological(top.layer, top.feature);
+  const unitSetting = geological ? crustalSetting(lithology,
+    at ? window.GeoIDViewer?.sampleElevationMeters?.(at.lat, at.lon) : null) : null;
   const classLabel = rockClassLabel(unitClass, unitSetting);
   /**
    * ICE IS NOT A ROCK, and every line this card knows how to write was written

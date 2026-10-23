@@ -26,23 +26,24 @@
  * rebuilt or updated without guessing what was done to them.
  */
 
-import { runConnector } from "./research/connectors.js?v=20261023-df8c97c";
-import { explainFetchFailure, dataUrl } from "./data-base.js?v=20261023-df8c97c";
-import { mathsFor } from "./equations.js?v=20261023-df8c97c";
+import { runConnector } from "./research/connectors.js?v=20261023-b48057b";
+import { explainFetchFailure, dataUrl } from "./data-base.js?v=20261023-b48057b";
+import { mathsFor } from "./equations.js?v=20261023-b48057b";
 import {
   riskEdges, RISK_LABELS,
-} from "./cyclone-risk.js?v=20261023-df8c97c";
-import { colourRange as volcanicColourRange } from "./volcanic-risk.js?v=20261023-df8c97c";
-import { featureForModel, may, refusal } from "./membership.js?v=20261023-df8c97c";
-import { colourRange as seismicColourRange } from "./seismic-bands.js?v=20261023-df8c97c";
+} from "./cyclone-risk.js?v=20261023-b48057b";
+import { colourRange as volcanicColourRange } from "./volcanic-risk.js?v=20261023-b48057b";
+import { featureForModel, may, refusal } from "./membership.js?v=20261023-b48057b";
+import { colourRange as seismicColourRange } from "./seismic-bands.js?v=20261023-b48057b";
 // The cyclone tracks are classed on the same scale the live storm markers
 // band by, so the archive and the feed cut intensity at the same knots.
-import { SAFFIR_SIMPSON_KTS } from "./event-sources.js?v=20261023-df8c97c";
+import { SAFFIR_SIMPSON_KTS } from "./event-sources.js?v=20261023-b48057b";
 
 /** Order the groups read in, coarse to specific. */
 export const GROUPS = ["Physical", "Hydrology", "Boundaries", "Tectonics",
   "Ice sheets", "Hazards", "Active fires", "Perimeters",
-  "Warnings", "Climate", "Infrastructure", "Roads", "Settlements", "Live services"];
+  "Warnings", "Climate", "Settlements", "Transport", "Roads", "Structures",
+  "Infrastructure", "Live services"];
 
 /**
  * Which PANEL a dataset belongs on, where it is not the Vectors tab.
@@ -117,6 +118,13 @@ export const HOMES = {
   // Hazards ▸ Flood: the river inundation model on the streamed DEM, a TILED
   // row with its flood controls in the row's drawer. No shipped file lives here.
   flood: "flood-catalogue",
+  // Hazards ▸ Infrastructure: WHAT is there, as Exposure is who. Settlements,
+  // ports, airports, roads, railways, bridges, buildings and the cables --
+  // each an ordinary layer, and all of them counted inside a hazard footprint
+  // by `infrastructure.js` (the readout docked under this list, and Atlas's
+  // `infrastructure_exposed` tool). Roads and settlements had no home and sat
+  // on the Vectors tab; the cables sat under Exposure, which is now people.
+  infrastructure: "infrastructure-catalogue",
 };
 
 export const DATASETS = [
@@ -816,6 +824,7 @@ export const DATASETS = [
   },
   {
     id: "ne-roads-10m",
+    home: "infrastructure",
     featureNoun: "Road",
     group: "Roads",
     label: "Roads — global (Natural Earth 1:10m)",
@@ -835,6 +844,7 @@ export const DATASETS = [
   },
   {
     id: "conn-osm-roads",
+    home: "infrastructure",
     featureNoun: "Road",
     group: "Roads",
     label: "Roads — live (OpenStreetMap)",
@@ -854,6 +864,7 @@ export const DATASETS = [
   },
   {
     id: "ne-urban-10m",
+    home: "infrastructure",
     featureNoun: "Urban area",
     group: "Settlements",
     label: "Urban areas — global (Natural Earth 1:10m)",
@@ -866,6 +877,7 @@ export const DATASETS = [
   },
   {
     id: "conn-osm-city-outlines",
+    home: "infrastructure",
     featureNoun: "City outline",
     group: "Settlements",
     label: "City and town outlines — live (OpenStreetMap)",
@@ -880,6 +892,7 @@ export const DATASETS = [
   },
   {
     id: "conn-osm-places",
+    home: "infrastructure",
     featureNoun: "Place",
     group: "Settlements",
     label: "Places — live (OpenStreetMap)",
@@ -887,6 +900,107 @@ export const DATASETS = [
     name: "OSM places.geojson",
     summary: "Cities and towns from the Overpass API over the drawn study area "
       + "(a global pull is refused by the service — draw an area first).",
+    licence: "© OpenStreetMap contributors (ODbL)",
+  },
+  /**
+   * INFRASTRUCTURE, baked (bake-infrastructure.py; data/global/README.md).
+   * Every feature carries `type` -- "Large seaport — coastal, breakwater",
+   * "National capital", "Railway bridge" -- because that is the field the
+   * card heads itself with, and `rank` (1 = most important) so the exposure
+   * readout lists the biggest first whichever layer a feature came from.
+   * None is on at launch: the opening globe carries the plates alone.
+   */
+  {
+    id: "infra-places",
+    home: "infrastructure",
+    featureNoun: "Populated place",
+    group: "Settlements",
+    label: "Cities and towns — global (Natural Earth 1:10m)",
+    path: "/data/global/populated_places_10m.geojson",
+    name: "Cities and towns (Natural Earth 10m).geojson",
+    summary: "7,342 capitals, cities, towns and research stations with their "
+      + "population (the larger of the city's two estimates) and region.",
+    licence: "Natural Earth — public domain",
+    colourBy: "type",
+    pointStyle: "places",
+  },
+  {
+    id: "infra-ports",
+    home: "infrastructure",
+    featureNoun: "Seaport",
+    group: "Transport",
+    label: "Seaports — global (World Port Index)",
+    path: "/data/global/ports-wpi.geojson",
+    name: "Seaports (World Port Index).geojson",
+    summary: "3,807 ports from NGA's World Port Index (Pub. 150): harbour size "
+      + "and type, shelter, channel depth, the largest vessel taken and what "
+      + "the port handles — containers, oil, LNG, bulk.",
+    licence: "NGA World Port Index — US Government work, public domain",
+    colourBy: "harbour_size",
+    colours: { Large: "#e8553e", Medium: "#f2a23c", Small: "#4fa3d9", "Very Small": "#8fb8d8" },
+    pointStyle: "places",
+  },
+  {
+    id: "infra-airports",
+    home: "infrastructure",
+    featureNoun: "Airport",
+    group: "Transport",
+    label: "Airports — global (Natural Earth 1:10m)",
+    path: "/data/global/airports_10m.geojson",
+    name: "Airports (Natural Earth 10m).geojson",
+    summary: "893 major and regional airports, military airfields and "
+      + "spaceports, with IATA and ICAO codes. Ash closes airports at a "
+      + "dusting; this is the layer an ash footprint is read against first.",
+    licence: "Natural Earth — public domain",
+    colourBy: "type",
+    pointSymbol: "triangle",
+  },
+  {
+    id: "infra-railways",
+    home: "infrastructure",
+    featureNoun: "Railway",
+    group: "Transport",
+    label: "Railways — global (Natural Earth 1:10m)",
+    path: "/data/global/railroads_10m.geojson",
+    name: "Railways (Natural Earth 10m).geojson",
+    summary: "25,413 lines of the world's rail network — main, secondary and "
+      + "branch lines, electrified or not. 7.7 MB: a few seconds to draw.",
+    licence: "Natural Earth — public domain",
+    // One colour: the classes are on the card, and five purples over a
+    // continent's network read as one anyway.
+    colour: "#c9a0dc",
+  },
+  {
+    id: "conn-osm-bridges",
+    home: "infrastructure",
+    featureNoun: "Bridge",
+    group: "Structures",
+    label: "Bridges — live (OpenStreetMap)",
+    connector: "osm-bridges",
+    name: "OSM bridges.geojson",
+    summary: "Road, railway and foot bridges over the drawn area, or the view "
+      + "when nothing is drawn: every bridge over a town, road and rail bridges "
+      + "over a region, the main roads' over a country. Each says what it "
+      + "carries, its structure and length.",
+    areaFrom: "drawn-or-view",
+    colourBy: "type",
+    licence: "© OpenStreetMap contributors (ODbL)",
+  },
+  {
+    id: "conn-osm-buildings",
+    home: "infrastructure",
+    featureNoun: "Building",
+    group: "Structures",
+    label: "Buildings — live (OpenStreetMap)",
+    connector: "osm-buildings",
+    name: "OSM buildings.geojson",
+    summary: "Building footprints over a district (under about 4 km across): "
+      + "the drawn area, else the view. Hospitals, schools, fire and police "
+      + "stations and care homes are marked critical and listed first when a "
+      + "footprint is read.",
+    areaFrom: "drawn-or-view",
+    colourBy: "critical",
+    colours: { true: "#ff4d6d", false: "#c8c2b4" },
     licence: "© OpenStreetMap contributors (ODbL)",
   },
   {
@@ -966,10 +1080,11 @@ export const DATASETS = [
   {
     id: "conn-submarine-cables",
     featureNoun: "Submarine cable",
-    // Hazards ▸ Exposure: what a hazard would hit. A cable is infrastructure
-    // on the seabed, and it sat under Map ▸ Overlays as "Live services" only
-    // because it had no home -- filed by how it is fetched, not by what it is.
-    home: "exposure",
+    // Hazards ▸ Infrastructure: what a hazard would hit. A cable is
+    // infrastructure on the seabed, and it sat under Map ▸ Overlays as "Live
+    // services" only because it had no home -- filed by how it is fetched, not
+    // by what it is -- and then under Exposure, which is people.
+    home: "infrastructure",
     group: "Infrastructure",
     label: "Submarine cables — live (Greg's Cable Map)",
     connector: "submarine-cables",
@@ -994,7 +1109,7 @@ export const DATASETS = [
     id: "conn-cable-landings",
     featureNoun: "Cable landing station",
     // With the cables it ends: one dataset split into paths and ends.
-    home: "exposure",
+    home: "infrastructure",
     group: "Infrastructure",
     label: "Cable landing stations — live (Greg's Cable Map)",
     connector: "cable-landings",
@@ -1073,7 +1188,7 @@ function drawnBbox() {
 async function viewBbox() {
   try {
     const THREE = await import("../vendor/three.module.js");
-    const { visibleBounds } = await import("./view-extent.js?v=20261023-df8c97c");
+    const { visibleBounds } = await import("./view-extent.js?v=20261023-b48057b");
     const b = visibleBounds(window.GeoIDViewer, THREE);
     const ok = b && [b.minLon, b.minLat, b.maxLon, b.maxLat].every(Number.isFinite);
     return ok ? { minLon: b.minLon, minLat: b.minLat, maxLon: b.maxLon, maxLat: b.maxLat } : null;
