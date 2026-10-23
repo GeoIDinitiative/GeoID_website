@@ -686,9 +686,49 @@ a.s-card:hover { text-decoration: none !important; background: rgba(var(--accent
 }
 
 /* ── Feed column, sharing and media ─────────────────────────────────────────
-   The feed (and a post) read down ONE centred column; trending tags are a
-   chip row inside it, not a sidebar beside it. */
+   The feed (and a post) read down ONE centred column. On the feed, trending
+   tags and the kind filters sit in a rail in the RIGHT margin: three grid
+   tracks, the middle one the column, so the rail never moves the posts.
+   Narrower, the column gives up its centring before the rail gets cramped;
+   on a phone the rail drops in between the tabs and the posts. */
 .s-feed-col, .s-post-full, .s-thread { max-width: 46rem; margin-inline: auto; }
+.s-feed-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 46rem) minmax(13rem, 1fr);
+  column-gap: clamp(1.25rem, 2.5vw, 2.25rem);
+  align-items: start;
+}
+.s-feed-layout > .s-feed-col { grid-column: 2; grid-row: 1; width: 100%; max-width: none; margin: 0; }
+.s-feed-rail {
+  grid-column: 3;
+  grid-row: 1;
+  position: sticky;
+  top: calc(var(--nav-h, 58px) + 1.25rem);
+  max-width: 17rem;
+  max-height: calc(100vh - var(--nav-h, 58px) - 2.5rem);
+  overflow-y: auto;
+  padding-top: 3.1rem;   /* level with the tabs, below the "Feed" heading */
+  scrollbar-width: thin;
+}
+/* The rail's titles are h2s for the outline; shared.css enlarges every h2 on
+   a phone, so their size is pinned here. */
+.s-feed-rail .s-side-title { margin: 0 0 0.6rem !important; font-size: 0.7rem !important; line-height: 1.4 !important;
+  letter-spacing: 0.1em !important; font-family: inherit !important; }
+.s-feed-rail .s-chips { margin: 0 0 0.5rem; }
+.s-feed-rail .s-trending:not([hidden]) { display: block; margin: 0 0 1.6rem; padding-bottom: 1.4rem; border-bottom: 1px solid var(--line); }
+.s-trending-tags { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+@media (max-width: 1180px) {
+  .s-feed-layout { grid-template-columns: minmax(0, 46rem) minmax(12rem, 15rem); justify-content: center; }
+  .s-feed-layout > .s-feed-col { grid-column: 1; }
+  .s-feed-rail { grid-column: 2; }
+}
+@media (max-width: 760px) {
+  .s-feed-layout { display: flex; flex-direction: column; }
+  .s-feed-layout > .s-feed-col { display: contents; }
+  .s-feed-rail { order: 1; position: static; max-width: none; max-height: none; overflow: visible; padding-top: 0; margin-bottom: 0.75rem; }
+  .s-feed-stream { order: 2; }
+  .s-feed-rail .s-trending:not([hidden]) { padding-bottom: 0; border-bottom: 0; margin-bottom: 0.9rem; }
+}
 .s-trending { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; margin: 0 0 0.85rem; }
 .s-trending-label { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin-right: 0.25rem; }
 .s-tag-chip { display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.15rem 0.6rem; border-radius: 100px;

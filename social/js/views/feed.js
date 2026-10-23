@@ -29,7 +29,7 @@ export function render(root, { query }) {
       "aria-current": id === tab ? "page" : null }, label)));
   const blurb = h("p", { class: "s-muted s-tab-blurb", text: TABS.find(([id]) => id === tab)[2] });
 
-  const chips = h("div", { class: "s-chips", role: "group", "aria-label": "Filter by kind" },
+  const chips = h("div", { class: "s-chips", role: "group", "aria-labelledby": "s-rail-kinds" },
     h("a", { href: link({ kind: "" }), class: `s-chip${kind ? "" : " is-on"}`, "aria-current": kind ? null : "true" }, "All kinds"),
     Object.keys(KINDS).map((k) => h("a", { href: link({ kind: k }), class: `s-chip${k === kind ? " is-on" : ""}`,
       "aria-current": k === kind ? "true" : null }, kindLabel(k))));
@@ -55,22 +55,32 @@ export function render(root, { query }) {
       });
   }
 
-  // Trending tags sit in one quiet row above the posts rather than in a
-  // side column: a feed is read down a single centred line, and a sidebar
-  // beside it pushed the posts off-centre and crowded them on laptops.
+  // Trending tags and the kind filters live in a rail on the right, so the
+  // centre is the feed and nothing else. The rail sits in the margin the
+  // centred column leaves (see .s-feed-layout), so on a wide screen the posts
+  // stay exactly where they were; an earlier sidebar that took its width
+  // from the column pushed them off-centre.
   const trending = h("nav", { class: "s-trending", "aria-label": "Tags this fortnight", hidden: true });
   api.get("/v1/tags/trending").then((data) => {
     const list = Array.isArray(data) ? data : data?.items || [];
     if (!list.length) return;
     trending.hidden = false;
-    put(trending, h("span", { class: "s-trending-label", text: "Trending" }),
-      list.slice(0, 12).map((t) => h("a", { href: link({ tag: t.tag }), class: `s-tag-chip${t.tag === tag ? " is-on" : ""}` },
-        `#${t.tag}`, h("span", { class: "s-tag-count" }, String(t.count)))));
+    put(trending, h("h2", { class: "s-side-title", text: "Trending" }),
+      h("div", { class: "s-trending-tags" },
+        list.slice(0, 12).map((t) => h("a", { href: link({ tag: t.tag }), class: `s-tag-chip${t.tag === tag ? " is-on" : ""}` },
+          `#${t.tag}`, h("span", { class: "s-tag-count" }, String(t.count))))));
   }).catch(() => {});
 
+  const rail = h("aside", { class: "s-feed-rail", "aria-label": "Trending and filters" },
+    trending,
+    h("h2", { class: "s-side-title", id: "s-rail-kinds", text: "Filter by kind" }), chips);
+
   put(clear(root),
-    h("section", { class: "s-feed-col", "aria-label": "Feed" },
-      h("h1", { class: "s-h1", text: "Feed" }), tabs, blurb, trending, chips, tagBar, body));
+    h("div", { class: "s-feed-layout" },
+      h("section", { class: "s-feed-col", "aria-label": "Feed" },
+        h("h1", { class: "s-h1", text: "Feed" }), tabs, blurb,
+        h("div", { class: "s-feed-stream" }, tagBar, body)),
+      rail));
 }
 
 export function renderSearch(root, { query }) {
