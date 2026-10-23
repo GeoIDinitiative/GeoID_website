@@ -10,7 +10,7 @@
 import { readFileSync, existsSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { renderCard, renderModels, formatMetric, formatParam, skillWord } from "./hazard-models.js";
+import { renderCard, renderModels, formatMetric, formatParam, skillWord, regionTable, licenceRows, renderLicences } from "./hazard-models.js";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 let passed = 0;
@@ -49,6 +49,24 @@ check("undefined rates are a dash, never NaN", () => {
   ok(formatParam({ a: [1, 2] }) === "a: 1, 2", formatParam({ a: [1, 2] }));
   ok(skillWord(0.95) === "excellent" && skillWord(0.5) === "no skill" && skillWord(null) === "not assessable", "skill");
 });
+check("a region-held-out model shows a row per region, and says which could not be scored", () => {
+  const html = regionTable({ europe: { auc: 0.81, accuracy: 0.7, precision: 0.6, recall: 0.5, f1: 0.545, events: 9 },
+    oceania: { assessable: false, message: "fewer than 30 flooded cells", events: 2 } });
+  ok(html.includes(">europe<") && html.includes("0.810") && html.includes("0.545"), "europe row");
+  ok(html.includes("not assessable") && html.includes("fewer than 30"), "unscored region");
+  ok(renderCard({ ...ENTRY, validation: { ...ENTRY.validation, regions: { europe: { auc: 0.9 } } } }).includes("hm-regions"),
+    "card does not carry the region table");
+});
+
+check("licences are listed once per source, with every map that uses it", () => {
+  const data = { maps: [
+    { name: "A", model: { inputs: [{ name: "DEM", source: "Terrarium", licence: "public domain" }, { name: "Floods", source: "EMS", licence: "Copernicus open" }] } },
+    { name: "B", model: { inputs: [{ name: "DEM", source: "Terrarium", licence: "public domain" }] } }] };
+  const rows = licenceRows(data);
+  ok(rows.length === 2 && rows[0].maps.join() === "A,B", JSON.stringify(rows));
+  ok(renderLicences(data).includes("Copernicus open") && renderCard(data.maps[0]).includes("Licence: public domain"), "licence not shown");
+});
+
 check("an empty file renders a sentence, not nothing", () => {
   ok(renderModels({ maps: [] }).includes("No validated"), "empty");
 });
@@ -58,8 +76,13 @@ check("the published file holds all six maps, each scored or explicitly unassess
   ok(existsSync(PUBLISHED), "data/global/hazard-validation.json missing");
   const data = JSON.parse(readFileSync(PUBLISHED, "utf8"));
   const ids = data.maps.map((m) => m.id);
-  for (const id of ["flood-susceptibility", "landslide-susceptibility", "cyclone-risk", "seismic-risk",
+  for (const id of ["flood-susceptibility", "flood-susceptibility-fine", "flood-susceptibility-wales", "landslide-susceptibility", "cyclone-risk", "seismic-risk",
     "volcanic-risk", "volcanic-risk-holocene"]) ok(ids.includes(id), `no entry for ${id}`);
+  for (const id of ["flood-susceptibility", "flood-susceptibility-fine"]) {
+    const m = data.maps.find((x) => x.id === id);
+    ok((m.model.inputs || []).every((i) => i.licence), `${id}: an input without a licence`);
+    ok(Object.keys(m.validation.regions || {}).length >= 5, `${id}: fewer than five held-out regions`);
+  }
   data.maps.forEach((m) => {
     const v = m.validation;
     ok(m.model && Object.keys(m.model.parameters || {}).length, `${m.id}: no parameters`);

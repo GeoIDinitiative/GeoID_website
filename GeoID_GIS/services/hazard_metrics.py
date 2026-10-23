@@ -165,8 +165,8 @@ ROOT = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)),
 OUT_DIR = os.path.join(ROOT, "data", "global", "hazard-validation")
 OUT_FILE = os.path.join(ROOT, "data", "global", "hazard-validation.json")
 
-# The order the hub lists them in: the six maps GeoHUB publishes.
-ORDER = ["flood-susceptibility", "landslide-susceptibility", "cyclone-risk",
+# The order the hub lists them in: the maps GeoHUB publishes, the flood tiers first.
+ORDER = ["flood-susceptibility", "flood-susceptibility-fine", "flood-susceptibility-wales", "landslide-susceptibility", "cyclone-risk",
          "seismic-risk", "volcanic-risk", "volcanic-risk-holocene"]
 
 

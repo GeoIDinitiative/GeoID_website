@@ -63,6 +63,23 @@ function confusionTable(v) {
     </table>`;
 }
 
+/**
+ * A model validated by leaving each REGION out carries one row per region: the
+ * skill where the forest never saw the ground, which is the number that says
+ * whether "global" is earned. A region too thin to score says so in its row.
+ */
+export function regionTable(regions) {
+  const rows = Object.entries(regions || {});
+  if (!rows.length) return "";
+  const cell = (v) => `<td>${formatMetric(v)}</td>`;
+  return `<table class="hm-regions" aria-label="Validation by held-out region">
+      <thead><tr><th>held-out region</th><th>AUC</th><th>acc</th><th>prec</th><th>rec</th><th>F1</th><th>products</th></tr></thead>
+      <tbody>${rows.map(([name, r]) => (r.assessable === false
+    ? `<tr class="hm-na"><th>${esc(name.replace(/-/g, " "))}</th><td colspan="5">not assessable — ${esc(r.message || "")}</td><td>${esc(r.events ?? "")}</td></tr>`
+    : `<tr data-skill="${esc(skillWord(r.auc).replace(/ /g, "-"))}"><th>${esc(name.replace(/-/g, " "))}</th>${cell(r.auc)}${cell(r.accuracy)}${cell(r.precision)}${cell(r.recall)}${cell(r.f1)}<td>${esc(r.events ?? "")}</td></tr>`)).join("")}</tbody>
+    </table>`;
+}
+
 const METRICS = [
   ["auc", "AUC"], ["accuracy", "Accuracy"], ["precision", "Precision"],
   ["recall", "Recall"], ["f1", "F1"], ["kappa", "Kappa"],
@@ -74,7 +91,7 @@ export function renderCard(entry) {
   const m = entry.model || {};
   const assessable = v.assessable !== false && Number.isFinite(v.auc);
   const params = Object.entries(m.parameters || {});
-  const inputs = (m.inputs || []).map((i) => `<li><b>${esc(i.name)}</b> — ${esc(i.source || i.citation || "")}${i.detail ? ` <span class="hm-dim">(${esc(i.detail)})</span>` : ""}</li>`).join("");
+  const inputs = (m.inputs || []).map((i) => `<li><b>${esc(i.name)}</b> — ${esc(i.source || i.citation || "")}${i.detail ? ` <span class="hm-dim">(${esc(i.detail)})</span>` : ""}${i.licence ? `<br><span class="hm-licence">Licence: ${esc(i.licence)}</span>` : ""}</li>`).join("");
   const fills = Object.entries(m.gap_fills || {}).map(([k, f]) => `<li><b>${esc(k)}</b>: ${esc(f.method)}${Number.isFinite(f.cells) ? `, ${f.cells.toLocaleString("en-GB")} cells` : ""}${f.why ? ` <span class="hm-dim">— ${esc(f.why)}</span>` : ""}</li>`).join("");
   const metrics = METRICS.map(([k, label]) => `<div class="hm-metric"><span>${label}</span><b>${formatMetric(v[k])}</b></div>`).join("");
   return `<article class="hm-card" data-model-id="${esc(entry.id)}">
@@ -89,6 +106,7 @@ export function renderCard(entry) {
         <p class="hm-holdout">${esc(v.holdout || v.message || "")}</p>
         ${assessable ? `<div class="hm-metrics">${metrics}</div>
         ${confusionTable(v)}
+        ${regionTable(v.regions)}
         <p class="hm-dim">n = ${esc((v.n ?? 0).toLocaleString("en-GB"))} (${esc((v.positives ?? v.tp + v.fn).toLocaleString("en-GB"))} positive). Threshold: ${esc(v.threshold_rule || formatParam(v.threshold))}.</p>` : ""}
         <p class="hm-dim">${esc(v.events || "")}</p>
       </section>
@@ -103,6 +121,35 @@ export function renderCard(entry) {
     ${(entry.limits || []).length ? `<details><summary>Limits</summary><ul>${entry.limits.map((l) => `<li>${esc(l)}</li>`).join("")}</ul></details>` : ""}
     <p class="hm-foot">${esc(entry.script || "")}${entry.generated ? ` · ${esc(entry.generated.slice(0, 10))}` : ""}</p>
   </article>`;
+}
+
+/**
+ * Every input's licence, once each, for the hub's Metadata panel: what the
+ * published models were built from and on what terms. A licence that does not
+ * permit the use a member pays for is a fault in the product, so it is listed
+ * where a reader looks for provenance, not only inside each model's card.
+ */
+export function licenceRows(data) {
+  const seen = new Map();
+  for (const map of data?.maps || []) {
+    for (const input of map.model?.inputs || []) {
+      const source = input.source || input.citation || input.name;
+      const licence = input.licence || "";
+      const key = `${source}|${licence}`;
+      if (!seen.has(key)) seen.set(key, { source, licence, maps: new Set() });
+      seen.get(key).maps.add(map.name);
+    }
+  }
+  return [...seen.values()].map((r) => ({ ...r, maps: [...r.maps] }));
+}
+
+export function renderLicences(data) {
+  const rows = licenceRows(data);
+  if (!rows.length) return "";
+  return `<section class="hm-licences"><h3>Model data and licences</h3><table>
+      <thead><tr><th>source</th><th>licence</th><th>used by</th></tr></thead>
+      <tbody>${rows.map((r) => `<tr><td>${esc(r.source)}</td><td>${esc(r.licence || "stated in the source's citation")}</td><td>${esc(r.maps.join("; "))}</td></tr>`).join("")}</tbody>
+    </table></section>`;
 }
 
 export function renderModels(data) {
@@ -142,6 +189,12 @@ const CSS = `
 .hm-cm tbody th { text-align: left; font-weight: 500; color: rgba(255,255,255,0.5); }
 .hm-cm td { font-variant-numeric: tabular-nums; }
 .hm-cm small { margin-left: 0.3rem; font-size: 0.6rem; color: rgba(255,255,255,0.4); }
+.hm-regions { border-collapse: collapse; font-size: 0.72rem; margin: 0.2rem 0 0.4rem; width: 100%; }
+.hm-regions th, .hm-regions td { padding: 0.18rem 0.4rem; border-bottom: 1px solid rgba(255,255,255,0.06); text-align: right; font-variant-numeric: tabular-nums; }
+.hm-regions th:first-child { text-align: left; font-weight: 500; text-transform: capitalize; }
+.hm-regions thead th { color: rgba(255,255,255,0.5); font-weight: 500; }
+.hm-regions tr[data-skill="weak"] td:nth-child(2), .hm-regions tr[data-skill="no-skill"] td:nth-child(2) { color: #ff8a80; }
+.hm-regions tr.hm-na td { text-align: left; color: rgba(255,255,255,0.45); }
 .hm-tp, .hm-tn { background: rgba(61,143,78,0.16); }
 .hm-fp, .hm-fn { background: rgba(215,25,28,0.12); }
 .hm-params dl { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 0.15rem 0.6rem;
@@ -151,6 +204,12 @@ const CSS = `
 .hm-card details { margin-top: 0.4rem; font-size: 0.76rem; }
 .hm-card summary { cursor: pointer; color: rgba(255,255,255,0.6); }
 .hm-card ul { margin: 0.3rem 0 0; padding-left: 1.1rem; }
+.hm-licence { font-size: 0.68rem; color: rgba(255,255,255,0.5); }
+.hm-licences { margin-top: 0.8rem; }
+.hm-licences h3 { margin: 0 0 0.35rem; font-size: 0.8rem; }
+.hm-licences table { border-collapse: collapse; width: 100%; font-size: 0.72rem; }
+.hm-licences th, .hm-licences td { text-align: left; padding: 0.22rem 0.45rem; border-bottom: 1px solid rgba(255,255,255,0.06); vertical-align: top; }
+.hm-licences th { color: rgba(255,255,255,0.5); font-weight: 500; }
 .hm-dim { color: rgba(255,255,255,0.5); font-size: 0.74rem; margin: 0.2rem 0; }
 .hm-foot { margin: 0.45rem 0 0; font-size: 0.66rem; color: rgba(255,255,255,0.35); }
 :root[data-theme="light"] .hm-card { background: rgba(0,0,0,0.02); border-color: rgba(0,0,0,0.1); }
@@ -168,7 +227,10 @@ async function mount() {
   try {
     const response = await fetch(SOURCE, { cache: "no-cache" });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    body.innerHTML = renderModels(await response.json());
+    const data = await response.json();
+    body.innerHTML = renderModels(data);
+    const licences = document.getElementById("metadata-licences");
+    if (licences) licences.innerHTML = renderLicences(data);
   } catch (error) {
     body.innerHTML = `<p class="hm-dim">Model validation could not be loaded (${esc(error.message)}).</p>`;
   }

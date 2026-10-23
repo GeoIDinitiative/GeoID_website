@@ -724,8 +724,8 @@ def write_png(grid, path, threshold):
 def entry(rep, events, skipped, rf_all, threshold, now):
     imp = sorted(zip([f for f, _ in FEATURES], rf_all.feature_importances_.round(4).tolist()), key=lambda kv: -kv[1])
     return {
-        "id": "flood-susceptibility",
-        "name": "Flood susceptibility (random forest, Wales)",
+        "id": "flood-susceptibility-wales",
+        "name": "Flood susceptibility — Wales (random forest on NRW records)",
         "hazard": "flood",
         "product": "data/global/flood-susceptibility-wales-current.tif — today's map; the NI prototype's "
                    "weighted overlay (ni-flood.js) remains the in-browser screening map",
@@ -796,7 +796,7 @@ def main():
         with open(model_path, "rb") as f:
             saved = pickle.load(f)
         now = current(saved["rf"], stack, mask, saved["threshold"])
-        prev = json.loads((REPO / "data/global/hazard-validation/flood-susceptibility.json").read_text())
+        prev = json.loads((REPO / "data/global/hazard-validation/flood-susceptibility-wales.json").read_text())
         prev["current"] = now
         prev.pop("generated", None)
         hazard_metrics.write_entry(prev)

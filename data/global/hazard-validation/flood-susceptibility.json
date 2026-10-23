@@ -1,18 +1,22 @@
 {
  "id": "flood-susceptibility",
- "name": "Flood susceptibility (random forest, Wales)",
+ "name": "Flood susceptibility \u2014 global (random forest, 0.1\u00b0)",
  "hazard": "flood",
- "product": "data/global/flood-susceptibility-wales-current.tif \u2014 today's map; the NI prototype's weighted overlay (ni-flood.js) remains the in-browser screening map",
+ "product": "data/global/flood-ml/flood-susceptibility-0p1.hotlink-ok.tif (as of 2026-10-21)",
  "model": {
-  "method": "Random forest classifier on (cell, event) pairs: static terrain, geology, land cover and climate at the cell plus that event's own rainfall; the output is the share of trees voting 'flooded'.",
+  "method": "Random forest on (cell, event) rows: terrain, land cover, soil and climate at the cell plus that event's rainfall; trained on Copernicus EMS flood delineations in six regions.",
   "parameters": {
-   "trees": 300,
-   "min_samples_leaf": 10,
+   "n_estimators": 100,
+   "max_depth": 10,
+   "min_samples_leaf": 20,
    "max_features": "sqrt",
+   "n_jobs": 2,
    "random_state": 1,
    "negatives_per_positive": 2,
-   "positives_per_event_cap": 4000,
-   "channel_threshold_km2": 2.0,
+   "positives_per_event_cap": 2500,
+   "positive_rule": "\u22652% of the analysed cell flooded",
+   "channel_rule": "\u226550 cells drain through it",
+   "decision_threshold_published": 0.5224,
    "features": [
     "elevation_m",
     "slope_deg",
@@ -21,311 +25,339 @@
     "channel_distance_m",
     "twi",
     "curvature",
-    "deposit_score",
-    "alluvium",
-    "peat",
-    "built_frac",
     "water_frac",
-    "wetland_frac",
-    "tree_frac",
-    "crop_frac",
+    "trees_frac",
+    "flooded_veg_frac",
+    "crops_frac",
+    "built_frac",
+    "bare_frac",
+    "range_frac",
+    "soil_thickness_m",
     "rain_normal_mm",
     "rain_3day_max_mm",
     "rain_30day_mm"
    ],
    "feature_importance_gini": [
     [
-     "deposit_score",
-     0.1355
-    ],
-    [
      "hand_m",
-     0.1306
+     0.1758
     ],
     [
-     "rain_normal_mm",
-     0.1186
-    ],
-    [
-     "elevation_m",
-     0.1157
+     "soil_thickness_m",
+     0.0909
     ],
     [
      "rain_30day_mm",
-     0.1126
-    ],
-    [
-     "alluvium",
-     0.1021
-    ],
-    [
-     "rain_3day_max_mm",
-     0.0694
-    ],
-    [
-     "slope_deg",
-     0.0484
+     0.0908
     ],
     [
      "twi",
-     0.0425
+     0.0896
     ],
     [
-     "curvature",
-     0.0274
+     "rain_3day_max_mm",
+     0.083
     ],
     [
      "channel_distance_m",
-     0.0264
+     0.0716
+    ],
+    [
+     "rain_normal_mm",
+     0.068
     ],
     [
      "log10_upstream_km2",
-     0.0243
+     0.0642
     ],
     [
-     "built_frac",
-     0.0225
+     "slope_deg",
+     0.0641
     ],
     [
-     "tree_frac",
-     0.0129
+     "elevation_m",
+     0.0607
     ],
     [
-     "crop_frac",
-     0.0058
+     "curvature",
+     0.0477
+    ],
+    [
+     "crops_frac",
+     0.0366
+    ],
+    [
+     "range_frac",
+     0.0186
+    ],
+    [
+     "trees_frac",
+     0.015
     ],
     [
      "water_frac",
-     0.0038
+     0.0141
     ],
     [
-     "wetland_frac",
-     0.0013
+     "built_frac",
+     0.0069
     ],
     [
-     "peat",
+     "flooded_veg_frac",
+     0.0021
+    ],
+    [
+     "bare_frac",
      0.0002
     ]
    ],
-   "decision_threshold_published_map": 0.2443
+   "training_rows": 3023,
+   "training_products": 142
   },
   "inputs": [
    {
     "name": "Historical floods",
-    "source": "Natural Resources Wales, Historic Flood Map (OGL v3)",
-    "detail": "127 dated events used; excluded: {'before 1979-02': 175, '1 January placeholder': 8, 'undated': 0}"
-   },
-   {
-    "name": "Satellite land cover",
-    "source": "ESA WorldCover 2021 v200 (Sentinel-1/2, CC BY 4.0)",
-    "detail": "10 m classes read at 33 m, as fractions per cell"
+    "source": "Copernicus Emergency Management Service rapid mapping, delineation and first-estimate products (observed flood extent, area of interest, not-analysed areas)",
+    "licence": "Copernicus data: free, full and open, any use with attribution (\u00a9 European Union, Copernicus Emergency Management Service)",
+    "detail": "open API, activations EMSR656 (2023) onward"
    },
    {
     "name": "Elevation",
-    "source": "Terrarium DEM (AWS Open Data; SRTM/GMTED/OS Terrain), zoom 10",
-    "detail": "slope, HAND, upstream area, channel distance, TWI, curvature derived here"
+    "source": "Terrarium DEM (AWS Open Data; SRTM, GMTED, ETOPO1)",
+    "licence": "public domain / attribution by source",
+    "detail": "slope, HAND, upstream area, channel distance, TWI, curvature (flood-ml.js)"
    },
    {
-    "name": "Superficial geology",
-    "source": "BGS Geology 625k (OGL; Contains British Geological Survey materials \u00a9 UKRI)"
+    "name": "Satellite land cover",
+    "source": "Esri / Impact Observatory / Microsoft Sentinel-2 10 m land cover, 2020",
+    "licence": "CC BY 4.0",
+    "detail": "class fractions per cell; chosen over ESA WorldCover because the page can read it (CORS)"
    },
    {
-    "name": "Rainfall, climate",
-    "source": "Met Office HadUK-Grid 1991-2020 annual normals (OGL)"
+    "name": "Soil",
+    "source": "Pelletier et al. 2016, soil and sediment thickness, 1 km (ORNL DAAC, doi:10.3334/ORNLDAAC/1304)",
+    "licence": "NASA ORNL DAAC: free to use with citation"
    },
    {
-    "name": "Rainfall, past events",
-    "source": "NOAA CPC Global Unified Gauge-Based Daily Precipitation, 0.5\u00b0 (public domain)"
+    "name": "Rainfall, climate and events",
+    "source": "NOAA CPC Global Unified Gauge-Based daily precipitation, 0.5\u00b0",
+    "licence": "public domain (US Government)"
    },
    {
     "name": "Rainfall, now",
-    "source": "Open-Meteo forecast API, the feed GeoHUB's Forecast panel reads",
-    "detail": "issued 2026-10-23, window 2026-09-23..2026-10-29"
+    "source": "CPC realtime, as of 2026-10-21",
+    "licence": "public domain (US Government)"
    }
   ],
-  "grid": "900 x 1050 cells of 0.003 x 0.002 deg (~204 x 221 m), Wales high-water-mark mask",
+  "grid": "0.1\u00b0 global lattice, 60\u00b0S-84\u00b0N; Terrarium zoom 5",
   "gap_fills": {
-   "elevation_m": {
-    "method": "none needed; seabed cells dropped from the mask",
-    "cells": 53,
-    "why": "Terrarium has no voids over Wales; cells below -5 m inside the high-water mark are estuary bathymetry and are not modelled"
-   },
-   "slope_deg": {
-    "method": "nearest valid cell",
-    "cells": 7132,
-    "why": "the coastal ring where a central difference reaches the sea"
-   },
-   "curvature": {
-    "method": "nearest valid cell",
-    "cells": 7140,
-    "why": "the coastal ring where a central difference reaches the sea"
-   },
-   "twi": {
-    "method": "nearest valid cell",
-    "cells": 7132,
-    "why": "the coastal ring where a central difference reaches the sea"
-   },
-   "deposit_score": {
-    "method": "not a gap: no superficial unit means bedrock at surface, scored 0.2",
-    "cells": 301362,
-    "why": "the NI acceptance run lost two thirds of South Wales treating this as no-data"
-   },
-   "built_frac": {
-    "method": "nearest valid cell",
-    "cells": 0,
-    "why": "WorldCover no-data pixels (none expected over land)"
+   "soil_thickness_m": {
+    "method": "nearest valid cell (flood-ml.js fillNearest)",
+    "cells": 61070
    },
    "water_frac": {
-    "method": "nearest valid cell",
-    "cells": 0,
-    "why": "WorldCover no-data pixels (none expected over land)"
+    "method": "nearest valid cell (flood-ml.js fillNearest)",
+    "cells": 0
    },
-   "wetland_frac": {
-    "method": "nearest valid cell",
-    "cells": 0,
-    "why": "WorldCover no-data pixels (none expected over land)"
+   "trees_frac": {
+    "method": "nearest valid cell (flood-ml.js fillNearest)",
+    "cells": 0
    },
-   "tree_frac": {
-    "method": "nearest valid cell",
-    "cells": 0,
-    "why": "WorldCover no-data pixels (none expected over land)"
+   "flooded_veg_frac": {
+    "method": "nearest valid cell (flood-ml.js fillNearest)",
+    "cells": 0
    },
-   "crop_frac": {
-    "method": "nearest valid cell",
-    "cells": 0,
-    "why": "WorldCover no-data pixels (none expected over land)"
+   "crops_frac": {
+    "method": "nearest valid cell (flood-ml.js fillNearest)",
+    "cells": 0
+   },
+   "built_frac": {
+    "method": "nearest valid cell (flood-ml.js fillNearest)",
+    "cells": 0
+   },
+   "bare_frac": {
+    "method": "nearest valid cell (flood-ml.js fillNearest)",
+    "cells": 0
+   },
+   "range_frac": {
+    "method": "nearest valid cell (flood-ml.js fillNearest)",
+    "cells": 0
    },
    "rain_normal_mm": {
-    "method": "inverse-distance weighting, power 2, 8 nearest 12 km cells",
-    "cells": 462559,
-    "why": "HadUK-Grid's 12 km cells do not tile the coast or lakes (Lough Neagh and Slieve Donard came back empty in NI); every land cell is interpolated from 190 cell centres so none is left out"
+    "method": "nearest valid cell (flood-ml.js fillNearest)",
+    "cells": 1171
    },
-   "cpc_daily": {
-    "method": "inverse-distance weighting across that day's other half-degree cells",
-    "cells": 79050,
-    "why": "a CPC cell with no gauge report on a day"
+   "rain_3day_max_mm": {
+    "method": "nearest valid cell (flood-ml.js fillNearest)",
+    "cells": 0
+   },
+   "rain_30day_mm": {
+    "method": "nearest valid cell (flood-ml.js fillNearest)",
+    "cells": 0
    }
   }
  },
  "validation": {
-  "n": 46343,
-  "tp": 2508,
-  "fp": 1731,
-  "tn": 40949,
-  "fn": 1155,
-  "accuracy": 0.9377,
-  "precision": 0.5916,
-  "recall": 0.6847,
-  "f1": 0.6348,
-  "kappa": 0.6009,
-  "specificity": 0.9594,
-  "auc": 0.9586,
-  "threshold": 0.33774684492553586,
-  "threshold_rule": "Youden's J on the TRAINING events' out-of-bag predictions, fixed before the test set was scored",
-  "positives": 3663,
-  "negatives": 42680,
-  "holdout": "temporal: trained on 37 events before 2005, scored on 72 events from 2005 to 2025",
-  "events": "NRW Historic Flood Map outlines (cells inside an event's outline = 1; cells of Wales outside it on the same dates = 0, two per positive and at least 500 per event)",
-  "extra": {
-   "oob_auc_training": 0.991,
-   "auc_without_rainfall": 0.9582,
-   "permutation_importance_auc": [
-    [
-     "elevation_m",
-     0.0385
-    ],
-    [
-     "rain_30day_mm",
-     0.0217
-    ],
-    [
-     "hand_m",
-     0.0209
-    ],
-    [
-     "rain_normal_mm",
-     0.015
-    ],
-    [
-     "built_frac",
-     0.0055
-    ],
-    [
-     "rain_3day_max_mm",
-     0.0045
-    ],
-    [
-     "channel_distance_m",
-     0.0035
-    ],
-    [
-     "slope_deg",
-     0.003
-    ],
-    [
-     "curvature",
-     0.0022
-    ],
-    [
-     "log10_upstream_km2",
-     0.0021
-    ],
-    [
-     "deposit_score",
-     0.002
-    ],
-    [
-     "alluvium",
-     0.0017
-    ],
-    [
-     "twi",
-     0.0012
-    ],
-    [
-     "tree_frac",
-     0.001
-    ],
-    [
-     "water_frac",
-     0.0007
-    ],
-    [
-     "crop_frac",
-     0.0002
-    ],
-    [
-     "peat",
-     -0.0
-    ],
-    [
-     "wetland_frac",
-     -0.0
-    ]
-   ],
-   "train_rows": 48831,
-   "test_rows": 46343
+  "n": 3023,
+  "tp": 998,
+  "fp": 534,
+  "tn": 901,
+  "fn": 590,
+  "accuracy": 0.6282,
+  "precision": 0.6514,
+  "recall": 0.6285,
+  "f1": 0.6397,
+  "auc": 0.6737,
+  "kappa": 0.2559,
+  "positives": 1588,
+  "negatives": 1435,
+  "threshold": null,
+  "threshold_rule": "per region: Youden's J on the out-of-bag votes of the forest trained on the OTHER regions",
+  "holdout": "leave one region out: 6 of 6 regions each scored by a forest that never saw it (142 EMS delineation products)",
+  "events": "Copernicus EMS: cells inside the observed flood extent = 1; cells analysed (area of interest \u2229 image footprint, minus not-analysed and mapped water) and not flooded = 0",
+  "regions": {
+   "americas": {
+    "n": 425,
+    "tp": 117,
+    "fp": 114,
+    "tn": 150,
+    "fn": 44,
+    "accuracy": 0.6282,
+    "precision": 0.5065,
+    "recall": 0.7267,
+    "f1": 0.5969,
+    "kappa": 0.2718,
+    "specificity": 0.5682,
+    "auc": 0.7076,
+    "threshold": 0.5764505056262376,
+    "threshold_rule": "Youden on the other regions' OOB votes",
+    "positives": 161,
+    "negatives": 264,
+    "events": 15,
+    "skill": "fair"
+   },
+   "asia": {
+    "n": 371,
+    "tp": 134,
+    "fp": 45,
+    "tn": 90,
+    "fn": 102,
+    "accuracy": 0.6038,
+    "precision": 0.7486,
+    "recall": 0.5678,
+    "f1": 0.6458,
+    "kappa": 0.215,
+    "specificity": 0.6667,
+    "auc": 0.7084,
+    "threshold": 0.526234487269961,
+    "threshold_rule": "Youden on the other regions' OOB votes",
+    "positives": 236,
+    "negatives": 135,
+    "events": 18,
+    "skill": "fair"
+   },
+   "africa": {
+    "n": 391,
+    "tp": 240,
+    "fp": 116,
+    "tn": 7,
+    "fn": 28,
+    "accuracy": 0.6317,
+    "precision": 0.6742,
+    "recall": 0.8955,
+    "f1": 0.7692,
+    "kappa": -0.059,
+    "specificity": 0.0569,
+    "auc": 0.5843,
+    "threshold": 0.5261812233912792,
+    "threshold_rule": "Youden on the other regions' OOB votes",
+    "positives": 268,
+    "negatives": 123,
+    "events": 14,
+    "skill": "weak"
+   },
+   "mediterranean": {
+    "n": 755,
+    "tp": 228,
+    "fp": 82,
+    "tn": 274,
+    "fn": 171,
+    "accuracy": 0.6649,
+    "precision": 0.7355,
+    "recall": 0.5714,
+    "f1": 0.6432,
+    "kappa": 0.3366,
+    "specificity": 0.7697,
+    "auc": 0.7472,
+    "threshold": 0.5290399374133318,
+    "threshold_rule": "Youden on the other regions' OOB votes",
+    "positives": 399,
+    "negatives": 356,
+    "events": 43,
+    "skill": "fair"
+   },
+   "europe-north-west": {
+    "n": 633,
+    "tp": 129,
+    "fp": 65,
+    "tn": 247,
+    "fn": 192,
+    "accuracy": 0.594,
+    "precision": 0.6649,
+    "recall": 0.4019,
+    "f1": 0.501,
+    "kappa": 0.1924,
+    "specificity": 0.7917,
+    "auc": 0.6529,
+    "threshold": 0.5883438992884116,
+    "threshold_rule": "Youden on the other regions' OOB votes",
+    "positives": 321,
+    "negatives": 312,
+    "events": 23,
+    "skill": "weak"
+   },
+   "europe-central-east": {
+    "n": 448,
+    "tp": 150,
+    "fp": 112,
+    "tn": 133,
+    "fn": 53,
+    "accuracy": 0.6317,
+    "precision": 0.5725,
+    "recall": 0.7389,
+    "f1": 0.6452,
+    "kappa": 0.2749,
+    "specificity": 0.5429,
+    "auc": 0.6966,
+    "threshold": 0.564767206026803,
+    "threshold_rule": "Youden on the other regions' OOB votes",
+    "positives": 203,
+    "negatives": 245,
+    "events": 29,
+    "skill": "weak"
+   }
   }
  },
  "current": {
-  "issued": "2026-10-23",
-  "rain_window": "2026-09-23..2026-10-29",
-  "rain_3day_max_mm": 91.7,
-  "rain_30day_max_mm": 128.2,
-  "cells_over_threshold": 25732,
-  "share_over_threshold": 0.0556,
-  "file": "data/global/flood-susceptibility-wales-current.tif",
-  "preview": "/home/owen/GeoID_webpage_v1/data/global/.flood-rf-work/current.png"
+  "as_of": "2026-10-21",
+  "rain": "CPC realtime: wettest 3 days of the last 7, and the 30 before",
+  "cells": 1560174,
+  "share_over_threshold": 0.1777,
+  "threshold": 0.5224,
+  "file": "data/global/flood-ml/flood-susceptibility-0p1.hotlink-ok.tif",
+  "preview": "/home/owen/GeoID_webpage_v1/data/global/.flood-global-work/current_coarse.png"
  },
  "limits": [
-  "An outline's absence is not a dry record: NRW maps the floods it knows of, so some negatives were wet.",
-  "Event rainfall is a 0.5\u00b0 gauge analysis; a convective storm smaller than a cell is smoothed away.",
-  "Repeat floods in the same towns put correlated cells in train and test; the temporal split keeps the events apart, not the places.",
-  "The hold-out tests WHERE a storm floods, not WHETHER: each event's dry cells share its rain, so rainfall barely moves the held-out AUC (see auc_without_rainfall). How the map responds to today's rain is the forest's learnt between-event contrast and is not separately validated here.",
-  "Negatives run at least 500 per event, so small events carry many more than two per positive; accuracy and specificity are read at that mix (positives/negatives on the card).",
-  "Probabilities are relative (two negatives per positive in training), not annual chances; the decision threshold is what turns them into a map.",
-  "Trained on Wales; transfer elsewhere (the NI prototype area) is an extrapolation of the same recipe, as the landslide recipe's South Wales validation was."
+  "The open EMS API covers activations from 2023 on: 90 floods, three quarters in Europe. The Americas, Africa and Asia are each scored on a handful of activations, and their numbers carry that uncertainty.",
+  "Negatives are cells the analysts looked at and did not map as flooded. EMS areas of interest are drawn around the affected ground, so the dry cells sit beside the flood: harder to separate than random dry land, which makes AUC conservative -- and a mapper's omission (a flooded street under trees) is counted as dry.",
+  "Flood traces and flooded areas are both taken as flooded; modelled extents are not used.",
+  "Each activation is one region's rows; activations share rivers and mapping teams, which is why the hold-out is by REGION rather than by cell -- a random cell split would score near 0.99 and mean nothing.",
+  "Probabilities are relative (two dry cells per flooded one in training); the threshold turns them into a map.",
+  "Land cover is 2020 for every event.",
+  "The 0.1\u00b0 map leans European: most training floods are, so European lowlands read redder than ground of the same shape elsewhere -- the Africa held-out AUC (0.58 at 0.1\u00b0) is the measure of how far that carries.",
+  "D8 on a 0.1\u00b0 DEM draws parallel flow lines across very flat basins (the Congo, the Amazon floodplain): the streaks there are routing artefacts, not rivers.",
+  "Terrain at a window's edge sees no upstream area beyond it, so a big river entering a 1\u00b0 window reads smaller than it is -- the same on the page, which uses the same window logic."
  ],
- "script": "GeoID_GIS/services/bake-flood-rf.py",
- "generated": "2026-10-23T19:50:31Z"
+ "script": "GeoID_GIS/services/bake-flood-global.py",
+ "generated": "2026-10-23T22:02:25Z"
 }

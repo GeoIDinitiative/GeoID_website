@@ -14,9 +14,9 @@
  */
 
 import { floodState, dischargeState, dischargeMean, rebuildSheet, sheetLayer }
-  from "./dem-layer.js?v=20261023-d95af1d";
+  from "./dem-layer.js?v=20261023-5a6980b";
 import { SCENARIOS, DEFAULTS, stageRise, meanFlowFromWidth, flowRatio }
-  from "./inundation.js?v=20261023-d95af1d";
+  from "./inundation.js?v=20261023-5a6980b";
 
 const byId = (id) => document.getElementById(id);
 const say = (message) => { const n = byId("flood-status"); if (n) n.textContent = message || ""; };
@@ -273,9 +273,31 @@ function initDischarge() {
   renderDischarge();
 }
 
+/**
+ * The flood forest's "Run here again": the run itself is flood-ml-run.js,
+ * imported on the press so the page pays for it only when it is asked for.
+ */
+function initFloodMl() {
+  const button = byId("flood-ml-rerun");
+  if (!button) return;
+  const status = (m) => { const n = byId("flood-ml-status"); if (n) n.textContent = m || ""; };
+  button.addEventListener("click", async () => {
+    button.disabled = true;
+    try {
+      const mod = await import(`./flood-ml-run.js${new URL(import.meta.url).search}`);
+      await mod.showArea({ onProgress: status });
+    } catch (error) {
+      status(`Not run: ${error.message}`);
+    } finally {
+      button.disabled = false;
+    }
+  });
+}
+
 function initAll() {
   init();
   initDischarge();
+  initFloodMl();
 }
 
 if (document.readyState === "loading") {
