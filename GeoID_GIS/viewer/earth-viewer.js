@@ -9,6 +9,8 @@ import { rockClass, crustalSetting, rockClassLabel, classificationBasis }
   from "./gis/rock-class.js?v=20261023-9468c0f";
 import { lithologyLabel }
   from "./gis/lithology-label.js?v=20261023-9468c0f";
+import { formatLatLon }
+  from "./gis/coord-format.js?v=20261023-9468c0f";
 
 /**
  * This module's own cache stamp, read off its own URL.
@@ -22174,15 +22176,24 @@ uniform float uViewportWidth;`,
         });
       }
 
-      renderer.domElement.addEventListener("pointermove", (event) => {
-        // Model mode hides the globe and the studio owns the cursor readout,
-        // filling it from its own local frame. Letting this run there would
-        // find no surface under the pointer and blank the readout on every
-        // mouse move, fighting the studio for the same element.
-        if (document.body.dataset.viewMode === "model") return;
+      /**
+       * THE READOUT FOLLOWS THE VIEW, not only the mouse.
+       *
+       * It was written on pointermove alone, so after a flight -- a search, a
+       * tour, a programmatic fly-to -- it went on naming the ground the mouse
+       * last crossed: over Houston it read 50.10°N 8.66°E, Frankfurt, the view
+       * before (2026-10-24). The render loop now re-reads it when the camera
+       * moves or the globe turns, at the last pointer over the canvas, or at
+       * the view's centre when there is none.
+       */
+      let readoutPointer = null;
+      let readoutDirty = true;
+      let readoutAt = 0;
+      let readoutSpin = NaN;
+      function refreshCursorReadout(clientX, clientY) {
         const _rawSurfaceHit = measureMode
-          ? intersectMeasurementSurface(event.clientX, event.clientY)
-          : intersectAnySurface(event.clientX, event.clientY);
+          ? intersectMeasurementSurface(clientX, clientY)
+          : intersectAnySurface(clientX, clientY);
         // In core view, only accept hits on the visible (unclipped) side of the cut plane
         const surfaceHit = _rawSurfaceHit && (
           !coreToggle.checked ||
@@ -22208,8 +22219,12 @@ uniform float uViewportWidth;`,
             ? null
             : sampleElevationMeters(elevationSampler, latLon.lat, latLon.lon);
           cursorReadout.hidden = false;
-          const lonSuffix = surfaceHit.context?.kind === "moon" ? "W" : "E";
-          cursorReadout.innerHTML = `${latLon.lat.toFixed(2)}°, ${latLon.lon.toFixed(2)}°${lonSuffix} | ${formatElevationWithColor(elevationMeters)}`;
+          // A moon keeps its own west-positive °W; Earth is said −180..180,
+          // east or west (coord-format.js) -- Pittsburgh read "280.00°E".
+          const where = surfaceHit.context?.kind === "moon"
+            ? `${latLon.lat.toFixed(2)}°, ${latLon.lon.toFixed(2)}°W`
+            : formatLatLon(latLon.lat, latLon.lon);
+          cursorReadout.innerHTML = `${where} | ${formatElevationWithColor(elevationMeters)}`;
           lastScaleSampleLat = latLon.lat;
           lastScaleSampleAt = performance.now();
           if (surfaceHit.context?.kind === "moon") {
@@ -22273,6 +22288,28 @@ uniform float uViewportWidth;`,
           lastScaleSampleLat = null;
           lastScaleSampleAt = 0;
         }
+      }
+      function refreshReadoutForView() {
+        const rect = renderer.domElement.getBoundingClientRect();
+        if (!rect.width || !rect.height) return;
+        const at = readoutPointer || { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+        refreshCursorReadout(at.x, at.y);
+      }
+      renderer.domElement.addEventListener("pointerleave", () => {
+        readoutPointer = null;
+        readoutDirty = true;
+      });
+
+      renderer.domElement.addEventListener("pointermove", (event) => {
+        // Model mode hides the globe and the studio owns the cursor readout,
+        // filling it from its own local frame. Letting this run there would
+        // find no surface under the pointer and blank the readout on every
+        // mouse move, fighting the studio for the same element.
+        if (document.body.dataset.viewMode === "model") return;
+        readoutPointer = { x: event.clientX, y: event.clientY };
+        readoutDirty = false;
+        readoutAt = performance.now();
+        refreshCursorReadout(event.clientX, event.clientY);
         const rect = renderer.domElement.getBoundingClientRect();
         pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
         pointer.y = -(((event.clientY - rect.top) / rect.height) * 2 - 1);
@@ -23445,7 +23482,7 @@ uniform float uViewportWidth;`,
             return;
           }
           cursorReadout.hidden = false;
-          cursorReadout.innerHTML = `${lat.toFixed(2)}°, ${lon.toFixed(2)}°E `
+          cursorReadout.innerHTML = `${formatLatLon(lat, lon)} `
             + `| ${formatElevationWithColor(elevationMeters)}`;
         },
         // Leaving GeoID mode has to take the pin with it, otherwise a location
@@ -23696,6 +23733,16 @@ ${error && error.message ? error.message : error}`;
         _rs.moving = _camMovedSq > 5e-6 || _camRotated > 5e-4;
         _rs.camPos.copy(camera.position);
         _rs.camQuat.copy(camera.quaternion);
+        // The coordinate readout re-read when the view changes under it: the
+        // camera moved, or the globe turned. A few times a second at most,
+        // and once more after it settles.
+        if (_rs.moving || Math.abs(globe.rotation.y - readoutSpin) > 1e-6) readoutDirty = true;
+        if (readoutDirty && document.body.dataset.viewMode !== "model" && performance.now() - readoutAt > 250) {
+          readoutDirty = false;
+          readoutAt = performance.now();
+          readoutSpin = globe.rotation.y;
+          try { refreshReadoutForView(); } catch (error) { /* the next frame tries again */ }
+        }
         // Heavy passes run every frame when still; every 3rd frame when moving.
         const _heavyFrame = !_rs.moving || (_rs.frame % 3 === 0);
         // ─────────────────────────────────────────────────────────────────────
