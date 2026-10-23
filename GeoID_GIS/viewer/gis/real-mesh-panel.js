@@ -22,8 +22,8 @@
  */
 
 import * as THREE from "../vendor/three.module.js";
-import { parseMesh } from "./gales-results.js?v=20261023-54abc23";
-import { meshFlagReport } from "./mesh-flags.js?v=20261023-54abc23";
+import { parseMesh } from "./gales-results.js?v=20261023-d312760";
+import { meshFlagReport } from "./mesh-flags.js?v=20261023-d312760";
 
 const MODEL_TO_SCENE = new THREE.Matrix4().makeRotationX(-Math.PI / 2);
 const ASK_ABOVE_BYTES = 60e6;

@@ -31,14 +31,14 @@
 import * as THREE from "../vendor/three.module.js";
 import {
   WORLD, sampleScalar, rampPalette, wrapLon, compassPoint, beaufort, isGlobal,
-} from "./flow-field.js?v=20261023-54abc23";
-import { shadingMesh, disposeMesh, layerShown, currentViewBox } from "./flow-layer.js?v=20261023-54abc23";
-import { refreshPolygonOptions, resolvePolygonExtent } from "./extent-picker.js?v=20261023-54abc23";
+} from "./flow-field.js?v=20261023-d312760";
+import { shadingMesh, disposeMesh, layerShown, currentViewBox } from "./flow-layer.js?v=20261023-d312760";
+import { refreshPolygonOptions, resolvePolygonExtent } from "./extent-picker.js?v=20261023-d312760";
 import {
   IFS_REPO, IFS_REGISTRY, IFS_CREDIT, IFS_VARIABLES, T0_MS, LAST_MS, STEP_MS, POINTS,
   timeIndex, reducedGrid, latticeFor, regrid, rangeOf, decodeBlosc, asFloat32, levelOffset, windFrom,
   featherWeight, underAlpha,
-} from "./ifs-grid.js?v=20261023-54abc23";
+} from "./ifs-grid.js?v=20261023-d312760";
 
 const LAYER_NAME = "ECMWF IFS analysis";
 /** One opacity for the sheet wherever it is, patch or world (see `underAlpha`). */
@@ -508,8 +508,11 @@ function buildDrawer() {
     });
     return b;
   };
+  // Itself a `.row`, so the panel's `.row > .input` rule dresses the date and
+  // the hour exactly as it dresses every other select; laid out as a line.
   const line = document.createElement("div");
-  line.style.cssText = "display:flex;align-items:center;gap:0.2rem;min-width:0";
+  line.className = "row";
+  line.style.cssText = "flex-direction:row;align-items:center;gap:0.2rem;margin:0;min-width:0";
   line.append(step("◀◀", -4 * STEP_MS), step("◀", -STEP_MS), day, hour, step("▶", STEP_MS), step("▶▶", 4 * STEP_MS));
   show();
   const time = document.createElement("label");
