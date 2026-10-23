@@ -62,6 +62,11 @@
     .page-jump { justify-content: center; width: 100%; }
     .journal { max-width: 72rem; margin: 0 auto; padding: 2.5rem 1.5rem 4.5rem; }
     .journal-hero { margin-bottom: 1.6rem; }
+    /* On the photo-band pages the header is a full-width band (bands.css). */
+    .bands .journal { padding-top: 0; }
+    .bands .journal-hero { margin-bottom: 2.5rem; }
+    .bands .journal-hero .cx-inner { padding-top: clamp(4.5rem, 8vw, 7rem); padding-bottom: clamp(3.5rem, 6vw, 5rem); }
+    .bands .journal-lead { color: rgba(236, 232, 248, 0.82); }
     .journal-hero .section-title { margin-bottom: 0.6rem; }
     .journal-lead { color: var(--muted); line-height: 1.7; max-width: 44rem; margin: 0; }
 
@@ -211,8 +216,9 @@
   <script src="/scripts/v2-site.js?v=20261024-256a6da" defer></script>
   <link rel="stylesheet" href="/styles/skins/synthwave.css">
   <link rel="stylesheet" href="/styles/site-nav.css?v=20261024-256a6da">
+  <link rel="stylesheet" href="/styles/bands.css?v=20261024-256a6da">
 </head>
-<body>
+<body class="bands">
   <nav class="site-nav" role="navigation" aria-label="Primary navigation">
     <a class="nav-wordmark" href="/" aria-label="GeoID Initiative Home">
       <img class="nav-brand-icon" src="/assets/GeoID_logo_icon.png" alt="">
@@ -252,10 +258,14 @@
     </section>
     <main class="journal" id="journal">
       <div id="journal-index">
-        <header class="journal-hero">
+        <header class="journal-hero cx-band">
+          <img class="cx-bg" src="/assets/photos/sandstone.webp" alt="" decoding="async">
+          <div class="cx-shade shade-left"></div>
+          <div class="cx-inner">
           <span class="section-label">Journal</span>
           <h1 class="section-title">Posts, technical notes and releases</h1>
           <p class="journal-lead">Writing from the founder; the methods behind GeoHUB's six hazard models — the forecast landslide and flood model, probabilistic ashfall, the merged seismic record — written up so they can be checked and cited; and every release as it ships.</p>
+          </div>
         </header>
         <div class="journal-bar">
           <div class="journal-filters" role="group" aria-label="Show">
@@ -271,6 +281,19 @@
       </div>
       <article class="reader" id="journal-reader" hidden></article>
     </main>
+      <!-- Photo credits -->
+      <section class="cx-band cx-credits" aria-label="Photo credits">
+        <div class="cx-inner">
+          <details>
+            <summary>Photo credits</summary>
+            <ul>
+              <li><a href="https://commons.wikimedia.org/wiki/File:Grand_Canyon_Supergroup,_Stromatolites_in_Bass_Limestone_0019_-_Flickr_-_Grand_Canyon_NPS.jpg" target="_blank" rel="noopener">Grand Canyon Supergroup, Stromatolites in Bass Limestone 0019 - Flickr - Grand Canyon NPS</a> &middot; Grand Canyon National Park &middot; Public domain</li>
+              <li>Photographs resized and cropped for this page; licences as listed on each Wikimedia Commons file page.</li>
+            </ul>
+          </details>
+        </div>
+      </section>
+
       <footer class="site-footer">
         <div class="footer-inner">
           <div class="footer-content">

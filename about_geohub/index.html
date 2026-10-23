@@ -873,8 +873,9 @@
   <link rel="stylesheet" href="/styles/site-nav.css?v=20261024-256a6da">
   <link rel="stylesheet" href="/styles/earth-explorers.css?v=20261024-256a6da">
   <link rel="stylesheet" href="/styles/site-unify.css?v=20261024-256a6da">
+  <link rel="stylesheet" href="/styles/bands.css?v=20261024-256a6da">
 </head>
-<body>
+<body class="bands">
   <nav class="site-nav" role="navigation" aria-label="Primary navigation">
     <a class="nav-wordmark" href="/" aria-label="GeoID Initiative Home">
       <img class="nav-brand-icon" src="/assets/GeoID_logo_icon.png" alt="">
@@ -915,13 +916,11 @@
     </section>
     <div class="page-inner">
 
-      <!-- ── Hero — the earthquake record playing through time ── -->
+      <!-- ── Hero — the Blue Marble (the 1280px record video it replaced was too soft at full width) ── -->
       <div class="hero-tile" id="hero">
         <div class="hero-slides" id="heroSlides">
-          <div class="hero-slide active" style="background-image: url('/assets/opt/geohub-hero-poster.webp');"></div>
+          <div class="hero-slide active" style="background-image: url('/assets/photos/blue-marble.webp');"></div>
         </div>
-        <video class="hero-video" src="/assets/opt/geohub-hero.mp4" poster="/assets/opt/geohub-hero-poster.webp"
-               autoplay muted loop playsinline preload="metadata" aria-hidden="true" tabindex="-1"></video>
         <div class="hero-overlay"></div>
         <div class="hero-content">
           <img class="hero-logo-img" src="/assets/GeoID_logo_icon.png" alt="" loading="lazy" decoding="async">
@@ -1070,6 +1069,8 @@
 
       <!-- ── One workspace, four modes ── -->
       <div class="cyan-tile" id="modes">
+        <img class="cx-bg" src="/assets/photos/himalaya.webp" alt="" loading="lazy" decoding="async">
+        <div class="cx-shade shade-even"></div>
         <div class="cyan-tile-content">
           <h2 class="tile-title">One Workspace, Four Modes</h2>
           <div class="tile-desc">
@@ -1169,7 +1170,7 @@
         </div>
       </div>
       <div class="photo-tile" id="worlds-grid">
-        <div class="photo-tile-bg" style="background-image: url('/assets/opt/planet_explorer.webp'); opacity: 0.22;"></div>
+        <div class="photo-tile-bg" style="background-image: url('/assets/photos/jupiter.webp'); opacity: 0.55;"></div>
         <div class="photo-tile-overlay"></div>
         <div class="photo-tile-content" style="text-align:center;">
           <h2 class="tile-title">Every Viewer, and What It Is Built From</h2>
@@ -1241,7 +1242,7 @@
 
       <!-- ── The hazard models: what membership opens ── -->
       <div class="photo-tile" id="models">
-        <div class="photo-tile-bg" style="background-image: url('/GeoID_initiative/photos/flood.jpeg');"></div>
+        <div class="photo-tile-bg" style="background-image: url('/assets/photos/hurricane.webp');"></div>
         <div class="photo-tile-overlay"></div>
         <div class="photo-tile-content" style="text-align:center;">
           <span class="tile-label">Membership · £49.99 a year</span>
@@ -1313,6 +1314,8 @@
 
       <!-- ── Vision ── -->
       <div class="cyan-tile vision-tile" id="vision">
+        <img class="cx-bg" src="/assets/photos/coyote-buttes.webp" alt="" loading="lazy" decoding="async">
+        <div class="cx-shade shade-left"></div>
         <div class="vision-left">
           <h2 class="tile-title">Democratizing Geohazard Science</h2>
           <p class="tile-desc">Critical hazard data — accessible, portable, and globally distributed.</p>
@@ -1553,6 +1556,23 @@
       </div>
 
       <!-- ── Footer ── -->
+      <!-- Photo credits -->
+      <section class="cx-band cx-credits" aria-label="Photo credits">
+        <div class="cx-inner">
+          <details>
+            <summary>Photo credits</summary>
+            <ul>
+              <li><a href="https://commons.wikimedia.org/wiki/File:The_Blue_Marble_4463x4163_(signpost_crop).jpg" target="_blank" rel="noopener">The Blue Marble 4463x4163 (signpost crop)</a> &middot; NASA. Photo taken by either Harrison Schmitt or Ron Evans (of the Apollo 17 crew). &middot; Public domain</li>
+              <li><a href="https://commons.wikimedia.org/wiki/File:Himalayas.jpg" target="_blank" rel="noopener">Himalayas</a> &middot; NASA &middot; Public domain</li>
+              <li><a href="https://commons.wikimedia.org/wiki/File:Jupiter_Southern_Hemisphere_-_Juno_(34724022251).png" target="_blank" rel="noopener">Jupiter Southern Hemisphere - Juno (34724022251)</a> &middot; NASA/JPL-Caltech/MSSS/SwRI/Gerald Eichstädt/Justin Cowart &middot; Public domain</li>
+              <li><a href="https://commons.wikimedia.org/wiki/File:Dramatic_Views_of_Hurricane_Florence_from_the_International_Space_Station_From_9_12_(42828603210)_(cropped).jpg" target="_blank" rel="noopener">Dramatic Views of Hurricane Florence from the International Space Station From 9 12 (42828603210) (cropped)</a> &middot; NASA/Goddard Space Flight Center &middot; <a href="https://creativecommons.org/licenses/by/2.0" target="_blank" rel="noopener">CC BY 2.0</a></li>
+              <li><a href="https://commons.wikimedia.org/wiki/File:Paw_Hole_(8138360146).jpg" target="_blank" rel="noopener">Paw Hole (8138360146)</a> &middot; John Fowler from Placitas, NM, USA &middot; <a href="https://creativecommons.org/licenses/by/2.0" target="_blank" rel="noopener">CC BY 2.0</a></li>
+              <li>Photographs resized and cropped for this page; licences as listed on each Wikimedia Commons file page.</li>
+            </ul>
+          </details>
+        </div>
+      </section>
+
       <footer class="site-footer">
         <div class="footer-inner">
           <div class="footer-content">

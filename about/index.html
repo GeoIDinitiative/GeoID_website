@@ -988,8 +988,9 @@
   <link rel="stylesheet" href="/styles/skins/synthwave.css">
   <link rel="stylesheet" href="/styles/site-nav.css?v=20261024-256a6da">
   <link rel="stylesheet" href="/styles/site-unify.css?v=20261024-256a6da">
+  <link rel="stylesheet" href="/styles/bands.css?v=20261024-256a6da">
 </head>
-<body>
+<body class="bands">
   <nav class="site-nav" role="navigation" aria-label="Primary navigation">
     <a class="nav-wordmark" href="/" aria-label="GeoID Initiative Home">
       <img class="nav-brand-icon" src="/assets/GeoID_logo_icon.png" alt="">
@@ -1033,9 +1034,9 @@
       <!-- ── Hero — slideshow background ── -->
       <div class="hero-tile" id="hero">
         <div class="hero-slides" id="heroSlides">
-          <div class="hero-slide active" style="background-image: url('/assets/opt/hero_iceland2.webp');"></div>
-          <div class="hero-slide" style="background-image: url('/assets/opt/planet_explorer.webp');"></div>
-          <div class="hero-slide" style="background-image: url('/assets/opt/fieldwork.webp');"></div>
+          <div class="hero-slide active" style="background-image: url('/assets/photos/lava-rivers.webp');"></div>
+          <div class="hero-slide" style="background-image: url('/assets/photos/earth-limb.webp');"></div>
+          <div class="hero-slide" style="background-image: url('/assets/photos/grand-canyon.webp');"></div>
         </div>
         <div class="hero-overlay"></div>
         <div class="hero-content">
@@ -1053,6 +1054,8 @@
 
       <!-- ── What is GeoID ── -->
       <div class="cyan-tile" id="what">
+        <img class="cx-bg" src="/assets/photos/alps-aerial.webp" alt="" loading="lazy" decoding="async">
+        <div class="cx-shade shade-even"></div>
         <div class="cyan-tile-content">
           <h2 class="tile-title">One Workspace, Two Ways In</h2>
           <div class="tile-desc">
@@ -1136,7 +1139,7 @@
 
       <!-- ── The ecosystem: GeoHUB and its three facets ── -->
       <div class="photo-tile" id="products">
-        <div class="photo-tile-bg" style="background-image: url('/assets/opt/signal.webp');"></div>
+        <div class="photo-tile-bg" style="background-image: url('/assets/photos/earth-night.webp');"></div>
         <div class="photo-tile-overlay"></div>
         <div class="photo-tile-content">
           <h2 class="tile-title">The GeoID Ecosystem</h2>
@@ -1205,7 +1208,7 @@
 
       <!-- ── CTA — photo background ── -->
       <div class="cta-tile">
-        <div class="photo-tile-bg" style="background-image: url('/GeoID_initiative/photos/raised.jpg');"></div>
+        <div class="photo-tile-bg" style="background-image: url('/assets/photos/causeway.webp');"></div>
         <div class="photo-tile-overlay"></div>
         <div class="cta-content cta-content--wide">
           <h2>Use It, Check It, Build On It</h2>
@@ -1245,6 +1248,24 @@
       </div>
 
       <!-- ── Footer ── -->
+      <!-- Photo credits -->
+      <section class="cx-band cx-credits" aria-label="Photo credits">
+        <div class="cx-inner">
+          <details>
+            <summary>Photo credits</summary>
+            <ul>
+              <li><a href="https://commons.wikimedia.org/wiki/File:Iceland%27s_Fagradalsfjall_volcano.png" target="_blank" rel="noopener">Iceland&#x27;s Fagradalsfjall volcano</a> &middot; Mokslo Sriuba &middot; <a href="https://creativecommons.org/licenses/by-sa/4.0" target="_blank" rel="noopener">CC BY-SA 4.0</a></li>
+              <li><a href="https://commons.wikimedia.org/wiki/File:Iss064e002872_(Nov_1,_2020)_---_The_Earth%27s_limb,_or_horizon,_with_the_Sun%27s_glint_beaming_off_the_Pacific_Ocean_and_San_Francisco_Bay,_is_pictured_as_the_International_Space_Station_orbited_off_the_coast_of_Californi.jpg" target="_blank" rel="noopener">Iss064e002872 (Nov 1, 2020) --- The Earth&#x27;s limb, or horizon, with the Sun&#x27;s glint beaming off the Pacific Ocean and San Francisco Bay, is pictured as the International Space Station orbited off the coast of Californi</a> &middot; NASA Johnson Space Center &middot; Public domain</li>
+              <li><a href="https://commons.wikimedia.org/wiki/File:Grand_Canyon_Supergroup_Hakatai_Shale_with_Basalt_Dike.jpg" target="_blank" rel="noopener">Grand Canyon Supergroup Hakatai Shale with Basalt Dike</a> &middot; Carl Bowman - Public Domain &middot; Public domain</li>
+              <li><a href="https://commons.wikimedia.org/wiki/File:Alps_Plane.jpg" target="_blank" rel="noopener">Alps Plane</a> &middot; Richard Bartz, Munich Makro Freak &middot; <a href="https://creativecommons.org/licenses/by-sa/2.5" target="_blank" rel="noopener">CC BY-SA 2.5</a></li>
+              <li><a href="https://commons.wikimedia.org/wiki/File:ISS-46_Northern_India_at_night.jpg" target="_blank" rel="noopener">ISS-46 Northern India at night</a> &middot; NASA &middot; Public domain</li>
+              <li><a href="https://commons.wikimedia.org/wiki/File:Giant%27s_Causeway_basalt_columns_(3).JPG" target="_blank" rel="noopener">Giant&#x27;s Causeway basalt columns (3)</a> &middot; Adam Bishop &middot; <a href="https://creativecommons.org/licenses/by-sa/3.0" target="_blank" rel="noopener">CC BY-SA 3.0</a></li>
+              <li>Photographs resized and cropped for this page; licences as listed on each Wikimedia Commons file page.</li>
+            </ul>
+          </details>
+        </div>
+      </section>
+
       <footer class="site-footer">
         <div class="footer-inner">
           <div class="footer-content">

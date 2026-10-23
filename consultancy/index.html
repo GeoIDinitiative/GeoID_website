@@ -91,59 +91,14 @@
       border-color: transparent;
     }
 
-    /* ── The band ── */
-    .cx-band {
-      position: relative;
-      width: 100vw;
-      margin-left: calc(50% - 50vw);
-      isolation: isolate;
-      scroll-margin-top: calc(var(--nav-h) + 2.5rem);
-    }
-    .cx-band + .cx-band { border-top: 1px solid rgba(255, 255, 255, 0.06); }
-    .cx-bg {
-      position: absolute !important;
-      inset: 0;
-      z-index: -2;
-      width: 100% !important;
-      height: 100% !important;
-      max-width: none !important;
-      max-height: none !important;
-      object-fit: cover;
-      display: block;
-    }
-    .cx-shade { position: absolute; inset: 0; z-index: -1; }
-    /* Three shades: from the left (text on the left), from the bottom, and
-       an even wash for bands whose content spans the width. */
-    .shade-left   { background: linear-gradient(90deg, rgba(8,0,20,0.94) 0%, rgba(8,0,20,0.82) 38%, rgba(8,0,20,0.35) 72%, rgba(8,0,20,0.15) 100%); }
-    .shade-right  { background: linear-gradient(270deg, rgba(8,0,20,0.94) 0%, rgba(8,0,20,0.82) 38%, rgba(8,0,20,0.35) 72%, rgba(8,0,20,0.15) 100%); }
-    .shade-bottom { background: linear-gradient(180deg, rgba(8,0,20,0.20) 0%, rgba(8,0,20,0.55) 45%, rgba(8,0,20,0.96) 100%); }
-    .shade-even   { background: rgba(8,0,20,0.80); }
-    .shade-heavy  { background: rgba(8,0,20,0.90); }
 
-    .cx-inner {
-      max-width: 76rem;
-      margin: 0 auto;
-      padding: clamp(5rem, 9vw, 8.5rem) clamp(1.25rem, 5vw, 3rem);
-    }
-    .cx-narrow { max-width: 38rem; }
-    .cx-case .cx-narrow { max-width: 46rem; }
-    .cx-right { margin-left: auto; }
 
+    /* Band primitives (.cx-band, .cx-bg, .cx-shade, .cx-inner…) are in /styles/bands.css. */
     .cx-band .tile-title { margin-bottom: 1.25rem; }
     .cx-band .tile-desc { color: rgba(236, 232, 248, 0.80); line-height: 1.75; margin: 0; max-width: 46rem; }
     .cx-band p { line-height: 1.75; }
     .cx-plain .tile-desc { color: var(--muted); }
-
-    .cx-kicker {
-      display: inline-block;
-      font-family: "Public Sans", sans-serif;
-      font-size: 12px;
-      font-weight: 600;
-      letter-spacing: 0.14em;
-      text-transform: uppercase;
-      color: var(--accent);
-      margin-bottom: 0.9rem;
-    }
+    .cx-case .cx-narrow { max-width: 46rem; }
 
     /* ── Hero ── */
     .cx-top { min-height: min(calc(100vh - var(--nav-h) - 2.6rem), 56rem); display: flex; align-items: flex-end; }
@@ -596,13 +551,6 @@
     .enq-form button { width: 100%; cursor: pointer; border: none; }
     .f-note { color: var(--muted); font-size: 0.8rem; line-height: 1.6; margin: 0.9rem 0 0; }
 
-    /* ── Photo credits ── */
-    .cx-credits summary { cursor: pointer; color: var(--muted); font-size: 0.85rem; }
-    .cx-credits summary:hover { color: var(--text); }
-    .cx-credits ul { list-style: none; margin: 1rem 0 0; padding: 0; columns: 2; column-gap: 3rem; }
-    .cx-credits li { break-inside: avoid; color: var(--muted); font-size: 0.78rem; line-height: 1.55; margin-bottom: 0.55rem; }
-    .cx-credits a { color: rgba(236, 232, 248, 0.82); }
-    .cx-credits .cx-inner { padding-top: 2.5rem; padding-bottom: 2.5rem; }
 
     /* ── Footer ── */
     .site-footer {
@@ -671,7 +619,6 @@
       .cx-col, .cx-cols[style*="--n:4"] .cx-col:nth-child(3) { padding: 1.75rem 0; border-left: none; border-top: 1px solid rgba(255, 255, 255, 0.16); }
       .cx-col:first-child { padding-top: 0; border-top: none; }
       .cx-enq { grid-template-columns: 1fr; }
-      .shade-left, .shade-right { background: rgba(8,0,20,0.80); }
       .cx-case .cx-inner { min-height: 0; }
     }
     @media (max-width: 640px) {
@@ -681,7 +628,6 @@
       .legal-toc ol { grid-template-columns: 1fr; }
       .cx-score { grid-template-columns: 1fr 3rem; row-gap: 0.5rem; }
       .cx-score .cx-bar { grid-column: 1 / -1; grid-row: 2; }
-      .cx-credits ul { columns: 1; }
       .page-utility { display: none !important; }
       .footer-content { grid-template-columns: 1fr; gap: 2rem; }
       .footer-bottom { flex-direction: column; text-align: center; }
@@ -695,6 +641,7 @@
   <link rel="stylesheet" href="/styles/skins/synthwave.css">
   <link rel="stylesheet" href="/styles/site-nav.css?v=20261024-256a6da">
   <link rel="stylesheet" href="/styles/site-unify.css?v=20261024-256a6da">
+  <link rel="stylesheet" href="/styles/bands.css?v=20261024-256a6da">
 </head>
 <body>
   <nav class="site-nav" role="navigation" aria-label="Primary navigation">

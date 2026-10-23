@@ -1,0 +1,223 @@
+/* ═══════════════════════════════════════════════════════════════════════
+   Photo bands: full-bleed photographic sections instead of framed tiles
+   (2026-10-24)
+
+   Built for /consultancy/ and then carried to the About pages. Two parts:
+
+   1. The band primitives (.cx-*): a band is a photo (an <img>, so it
+      lazy-loads), a shade for legibility, and a centred column of content.
+      Class names carry a cx- prefix because shared.css has broad mobile
+      rules on [class*="hero-"], [class*="-section"], [class*="grid"] and
+      `section img` that would otherwise re-pad the bands and cap the
+      photos at 55vh.
+
+   2. Adapters, scoped to <body class="bands">: they turn the tiles those
+      pages already have (.hero-tile, .photo-tile, .cyan-tile, .cta-tile,
+      .section-panel) into bands and unbox the cards inside them, so the
+      pages keep their markup, ids and scripts. Loaded after site-unify.css,
+      whose tile margins and paddings are !important, hence these are too.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* ── 1. Band primitives ─────────────────────────────────────────────── */
+.cx-band {
+  position: relative;
+  width: 100vw;
+  margin-left: calc(50% - 50vw);
+  isolation: isolate;
+  scroll-margin-top: calc(var(--nav-h) + 2.5rem);
+}
+.cx-band + .cx-band { border-top: 1px solid rgba(255, 255, 255, 0.06); }
+.cx-bg {
+  position: absolute !important;
+  inset: 0;
+  z-index: -2;
+  width: 100% !important;
+  height: 100% !important;
+  max-width: none !important;
+  max-height: none !important;
+  object-fit: cover;
+  display: block;
+}
+.cx-shade { position: absolute; inset: 0; z-index: -1; }
+/* From the left (text on the left), the right, the bottom, and two even washes. */
+.shade-left   { background: linear-gradient(90deg, rgba(8,0,20,0.94) 0%, rgba(8,0,20,0.82) 38%, rgba(8,0,20,0.35) 72%, rgba(8,0,20,0.15) 100%); }
+.shade-right  { background: linear-gradient(270deg, rgba(8,0,20,0.94) 0%, rgba(8,0,20,0.82) 38%, rgba(8,0,20,0.35) 72%, rgba(8,0,20,0.15) 100%); }
+.shade-bottom { background: linear-gradient(180deg, rgba(8,0,20,0.20) 0%, rgba(8,0,20,0.55) 45%, rgba(8,0,20,0.96) 100%); }
+.shade-even   { background: rgba(8,0,20,0.80); }
+.shade-heavy  { background: rgba(8,0,20,0.90); }
+
+.cx-inner {
+  max-width: 76rem;
+  margin: 0 auto;
+  padding: clamp(5rem, 9vw, 8.5rem) clamp(1.25rem, 5vw, 3rem);
+}
+.cx-narrow { max-width: 38rem; }
+.cx-right { margin-left: auto; }
+
+.cx-kicker {
+  display: inline-block;
+  font-family: "Public Sans", sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 0.9rem;
+}
+
+@media (max-width: 820px) {
+  .shade-left, .shade-right { background: rgba(8,0,20,0.80); }
+}
+
+/* ── 2. Adapters for the existing tile pages ────────────────────────── */
+body.bands .page-wrap { overflow-x: clip; }
+body.bands .page-utility { margin-bottom: 0 !important; }
+
+body.bands {
+  /* Same edge as a .cx-inner column: centred 76rem, then its own padding. */
+  --band-gut: calc(max(0px, 50vw - 38rem) + clamp(1.25rem, 5vw, 3rem));
+  --band-pad: clamp(5rem, 9vw, 8.5rem);
+  --band-rule: rgba(255, 255, 255, 0.14);
+}
+
+body.bands :is(.hero-tile, .photo-tile, .cyan-tile, .cta-tile, .section-panel) {
+  position: relative;
+  width: 100vw !important;
+  max-width: none !important;
+  box-sizing: border-box;
+  margin: 0 0 0 calc(50% - 50vw) !important;
+  padding: var(--band-pad) var(--band-gut) !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  background: transparent !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  isolation: isolate;
+  overflow: hidden;
+}
+body.bands :is(.hero-tile, .photo-tile, .cyan-tile, .cta-tile, .section-panel)
+  + :is(.hero-tile, .photo-tile, .cyan-tile, .cta-tile, .section-panel) {
+  border-top: 1px solid rgba(255, 255, 255, 0.06) !important;
+}
+/* The tile now carries the padding; its old content wrappers do not. */
+body.bands :is(.hero-content, .photo-tile-content, .cyan-tile-content, .cta-content, .tile-body) {
+  padding: 0 !important;
+  max-width: none !important;
+  width: 100%;
+  position: relative;
+  z-index: 2;
+}
+
+/* Heroes: tall, sharp, the copy over the photograph. */
+body.bands .hero-tile {
+  min-height: min(calc(100vh - var(--nav-h) - 2.6rem), 52rem);
+  display: flex;
+  align-items: center;
+}
+body.bands :is(.hero-bg, .hero-slides, .photo-tile-bg, .hero-video) { z-index: 0; }
+body.bands .hero-bg { opacity: 0.9 !important; }
+body.bands .photo-tile-bg { opacity: 0.88; }
+body.bands :is(.hero-overlay, .photo-tile-overlay) {
+  z-index: 1;
+  background: linear-gradient(180deg, rgba(8,0,20,0.62) 0%, rgba(8,0,20,0.74) 55%, rgba(8,0,20,0.90) 100%) !important;
+}
+body.bands .hero-tile .hero-overlay {
+  background:
+    linear-gradient(180deg, rgba(8,0,20,0.10) 0%, rgba(8,0,20,0.45) 55%, rgba(8,0,20,0.92) 100%),
+    linear-gradient(90deg, rgba(8,0,20,0.70) 0%, rgba(8,0,20,0.15) 70%) !important;
+}
+/* A band can also take a photo directly (an <img class="cx-bg">) with a
+   .cx-shade over it; inside a tile they sit under the content. */
+body.bands :is(.cyan-tile, .section-panel, .cta-tile, .photo-tile) > .cx-bg { z-index: 0; }
+body.bands :is(.cyan-tile, .section-panel, .cta-tile, .photo-tile) > .cx-shade { z-index: 1; }
+body.bands :is(.cyan-tile, .section-panel) > :not(.cx-bg):not(.cx-shade) { position: relative; z-index: 2; }
+
+/* The Earth Explorer blocks (earth-explorers.css) are a section around a
+   framed article: the section becomes the band, the article loses its frame. */
+body.bands :is(.about-explorer-section, .earth-section) {
+  width: 100vw;
+  box-sizing: border-box;
+  margin: 0 0 0 calc(50% - 50vw) !important;
+  padding: var(--band-pad) var(--band-gut) !important;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+body.bands :is(.about-explorer-tile, .earth-info-tile) {
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  overflow: visible;
+}
+body.bands :is(.about-explorer-header, .about-explorer-body, .earth-info-header, .earth-info-body) {
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+}
+body.bands :is(.about-explorer-header, .earth-info-header) { padding-top: 0 !important; }
+
+/* ── Cards lose their boxes: a hairline above each, no frame ── */
+body.bands :is(.solution-card, .track-card, .involve-card, .collab-card, .team-card,
+               .program-card, .shot-card, .world-card, .support-card, .donate-panel) {
+  background: transparent !important;
+  border: 0 !important;
+  border-top: 1px solid var(--band-rule) !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  transform: none !important;
+  padding: 1.5rem 0 0 !important;
+  text-align: left;
+}
+body.bands :is(.solution-card, .track-card, .involve-card, .collab-card, .team-card,
+               .program-card, .shot-card, .world-card, .support-card, .donate-panel):hover {
+  background: transparent !important;
+  box-shadow: none !important;
+  border-color: var(--band-rule) !important;
+  border-top-color: var(--accent) !important;
+}
+body.bands :is(.cards-grid-3, .two-tracks-grid, .involve-grid, .collab-grid, .team-grid,
+               .shot-grid, .worlds-grid, .support-grid) {
+  background: transparent !important;
+  border: 0 !important;
+  gap: clamp(2rem, 4vw, 3.5rem) clamp(1.5rem, 3.5vw, 3rem) !important;
+  margin-top: clamp(2.5rem, 5vw, 4rem) !important;
+}
+/* A plain container (a form, an embed) on a band: no frame of its own. */
+body.bands .questionnaire-panel {
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  padding: 0 !important;
+}
+
+/* Pictures inside unboxed cards keep a crisp edge but no frame. */
+body.bands :is(.team-photo, .program-media, .shot-card > img) {
+  border-radius: 2px;
+  overflow: hidden;
+  margin-bottom: 1.1rem;
+}
+body.bands :is(.team-body, .program-content, .shot-card-body) { padding: 0 !important; }
+
+/* Section headings on the old panels read as band headings. */
+body.bands :is(.section-panel, .cyan-tile, .photo-tile, .cta-tile) :is(.tile-title, .section-title, h2) {
+  font-family: "Archivo", system-ui, sans-serif;
+}
+
+@media (max-width: 720px) {
+  body.bands :is(.hero-tile, .photo-tile, .cyan-tile, .cta-tile, .section-panel) {
+    padding: clamp(3.5rem, 12vw, 5rem) clamp(1.1rem, 5vw, 1.5rem) !important;
+  }
+  body.bands .hero-tile { min-height: 32rem; }
+}
+
+/* ── Photo credits, at the foot of a page ── */
+.cx-credits summary { cursor: pointer; color: var(--muted); font-size: 0.85rem; }
+.cx-credits summary:hover { color: var(--text); }
+.cx-credits ul { list-style: none; margin: 1rem 0 0; padding: 0; columns: 2; column-gap: 3rem; }
+.cx-credits li { break-inside: avoid; color: var(--muted); font-size: 0.78rem; line-height: 1.55; margin-bottom: 0.55rem; }
+.cx-credits a { color: rgba(236, 232, 248, 0.82); }
+.cx-credits .cx-inner { padding-top: 2.5rem; padding-bottom: 2.5rem; }
+@media (max-width: 640px) { .cx-credits ul { columns: 1; } }
