@@ -991,14 +991,6 @@ a.s-stat:focus-visible, button.s-stat:focus-visible { color: var(--text); outlin
   .s-app .s-card.s-post-card[data-topic] { border-width: 2px; border-color: rgb(var(--topic-rgb)); }
 }
 
-/* The sounds switch: an icon button among the header's actions. */
-.s-hdr-sound { display: inline-flex; align-items: center; justify-content: center; width: 2rem; height: 2rem; padding: 0;
-  border: 1px solid transparent; border-radius: 100px; background: transparent; color: var(--muted); cursor: pointer;
-  transition: color 150ms ease, background-color 150ms ease, border-color 150ms ease; }
-.s-hdr-sound .s-ico { width: 18px; height: 18px; }
-.s-hdr-sound[aria-pressed="true"] { color: var(--accent); border-color: rgba(var(--accent-rgb), 0.5); }
-@media (hover: hover) and (pointer: fine) { .s-hdr-sound:hover { color: var(--text); background: rgba(255, 255, 255, 0.06); } }
-.s-hdr-sound:focus-visible { outline: 2px solid rgba(var(--accent-rgb), 0.7); outline-offset: 1px; }
 
 /* Atlas's mark is fixed in the page's top-right corner (atlas-host.js). Where
    the margin beside the column is narrower than the mark, the column steps in

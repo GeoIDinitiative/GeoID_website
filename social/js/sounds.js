@@ -1,5 +1,6 @@
 /**
- * Interface sounds for the GeoID Network: OFF until the member turns them on.
+ * Interface sounds for the GeoID Network: always on (owner, 2026-10-23 --
+ * the header switch was removed).
  *
  * Three sounds, each tied to one moment so it is obvious what caused it, and
  * each fired on the same frame as what it confirms:
@@ -11,18 +12,10 @@
  *
  * Synthesised with Web Audio rather than loaded, so there are no files to
  * fetch and no new origins in the page's policy. Quiet (peak gain 0.06) and
- * short (under 400 ms). The choice is remembered per browser.
+ * short (under 400 ms). A browser that blocks audio until the first gesture
+ * simply stays silent until then.
  */
-const KEY = "geoid:network-sounds";
 let ctx = null;
-
-export function soundsOn() {
-  try { return localStorage.getItem(KEY) === "1"; } catch (error) { return false; }
-}
-export function setSounds(on) {
-  try { localStorage.setItem(KEY, on ? "1" : "0"); } catch (error) { /* this visit only */ }
-  if (on) play("tick", true);
-}
 
 /** One sine note with a fast attack and an exponential tail. */
 function note(ac, freq, start, dur, peak) {
@@ -44,9 +37,8 @@ const SHAPES = {
   arrive: [[880, 0, 0.22, 0.06], [1175, 0.14, 0.32, 0.05]],
 };
 
-/** Play a named sound if the member has sounds on (or `force`). Never throws. */
-export function play(name, force = false) {
-  if (!force && !soundsOn()) return;
+/** Play a named sound. Never throws. */
+export function play(name) {
   const shape = SHAPES[name];
   if (!shape) return;
   try {

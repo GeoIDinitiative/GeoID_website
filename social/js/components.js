@@ -3,15 +3,15 @@
  * claim came from, and the interaction bar. All of it built with h(), so all
  * user content is text.
  */
-import { play } from "./sounds.js?v=20261023-758e84c";
-import * as api from "./api.js?v=20261023-758e84c";
-import { store, myHandle, refreshMe } from "./store.js?v=20261023-758e84c";
+import { play } from "./sounds.js?v=20261023-3c2cf02";
+import * as api from "./api.js?v=20261023-3c2cf02";
+import { store, myHandle, refreshMe } from "./store.js?v=20261023-3c2cf02";
 import {
   h, clear, ago, timeEl, toast, modal, copyText, field, select, input, textarea,
   extLink, empty, errorBox, loading, busy, confirmDialog, put,
-} from "./dom.js?v=20261023-758e84c";
-import { topicOf } from "./topics.js?v=20261023-758e84c";
-import { cardPreview } from "./embed.js?v=20261023-758e84c";
+} from "./dom.js?v=20261023-3c2cf02";
+import { topicOf } from "./topics.js?v=20261023-3c2cf02";
+import { cardPreview } from "./embed.js?v=20261023-3c2cf02";
 
 // ── Vocabulary (CONTRACT.md enumerations) ──────────────────────────────────
 
@@ -247,8 +247,6 @@ const ICONS = {
   send: ["M20 4 9.5 14.5", "M20 4l-6.5 16-4-5.5-5.5-4z"],
   fork: ["M7 4.5v6a3 3 0 0 0 3 3h4a3 3 0 0 0 3-3v-6", "M12 13.5v6"],
   check: ["M5 12.5l4.5 4.5L19 7.5"],
-  "sound-on": ["M4.5 9.5h3l4.5-4v13l-4.5-4h-3z", "M15.5 9a4 4 0 0 1 0 6", "M18 6.5a7.5 7.5 0 0 1 0 11"],
-  "sound-off": ["M4.5 9.5h3l4.5-4v13l-4.5-4h-3z", "M16 9.5l5 5", "M21 9.5l-5 5"],
 };
 const SVG_NS = "http://www.w3.org/2000/svg";
 export function icon(name) {

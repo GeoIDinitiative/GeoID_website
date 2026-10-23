@@ -5,32 +5,31 @@
  * (or resolve to) a cleanup function -- a poll to stop, a map to release --
  * which runs when the route changes.
  */
-import { play, soundsOn, setSounds } from "./sounds.js?v=20261023-758e84c";
-import * as api from "./api.js?v=20261023-758e84c";
-import { store, onMe, refreshMe, setUnread } from "./store.js?v=20261023-758e84c";
-import { h, clear, errorBox, pollWhileVisible, put } from "./dom.js?v=20261023-758e84c";
-import { avatar, icon } from "./components.js?v=20261023-758e84c";
-import { createBackdrop } from "./backdrop.js?v=20261023-758e84c";
-import { registerAtlasHost } from "./atlas-host.js?v=20261023-758e84c";
-import { liveSocket } from "./chat.js?v=20261023-758e84c";
+import * as api from "./api.js?v=20261023-3c2cf02";
+import { store, onMe, refreshMe, setUnread } from "./store.js?v=20261023-3c2cf02";
+import { h, clear, errorBox, pollWhileVisible, put } from "./dom.js?v=20261023-3c2cf02";
+import { avatar } from "./components.js?v=20261023-3c2cf02";
+import { createBackdrop } from "./backdrop.js?v=20261023-3c2cf02";
+import { registerAtlasHost } from "./atlas-host.js?v=20261023-3c2cf02";
+import { liveSocket } from "./chat.js?v=20261023-3c2cf02";
 
-import * as feed from "./views/feed.js?v=20261023-758e84c";
-import * as compose from "./views/compose.js?v=20261023-758e84c";
-import * as post from "./views/post.js?v=20261023-758e84c";
-import * as profile from "./views/profile.js?v=20261023-758e84c";
-import * as people from "./views/people.js?v=20261023-758e84c";
-import * as communities from "./views/communities.js?v=20261023-758e84c";
-import * as teams from "./views/teams.js?v=20261023-758e84c";
-import * as projects from "./views/projects.js?v=20261023-758e84c";
-import * as reviews from "./views/reviews.js?v=20261023-758e84c";
-import * as inbox from "./views/inbox.js?v=20261023-758e84c";
-import * as map from "./views/map.js?v=20261023-758e84c";
-import * as opps from "./views/opportunities.js?v=20261023-758e84c";
-import * as mod from "./views/mod.js?v=20261023-758e84c";
-import * as settings from "./views/settings.js?v=20261023-758e84c";
-import * as orgs from "./views/orgs.js?v=20261023-758e84c";
-import * as onboarding from "./views/onboarding.js?v=20261023-758e84c";
-import * as requests from "./views/requests.js?v=20261023-758e84c";
+import * as feed from "./views/feed.js?v=20261023-3c2cf02";
+import * as compose from "./views/compose.js?v=20261023-3c2cf02";
+import * as post from "./views/post.js?v=20261023-3c2cf02";
+import * as profile from "./views/profile.js?v=20261023-3c2cf02";
+import * as people from "./views/people.js?v=20261023-3c2cf02";
+import * as communities from "./views/communities.js?v=20261023-3c2cf02";
+import * as teams from "./views/teams.js?v=20261023-3c2cf02";
+import * as projects from "./views/projects.js?v=20261023-3c2cf02";
+import * as reviews from "./views/reviews.js?v=20261023-3c2cf02";
+import * as inbox from "./views/inbox.js?v=20261023-3c2cf02";
+import * as map from "./views/map.js?v=20261023-3c2cf02";
+import * as opps from "./views/opportunities.js?v=20261023-3c2cf02";
+import * as mod from "./views/mod.js?v=20261023-3c2cf02";
+import * as settings from "./views/settings.js?v=20261023-3c2cf02";
+import * as orgs from "./views/orgs.js?v=20261023-3c2cf02";
+import * as onboarding from "./views/onboarding.js?v=20261023-3c2cf02";
+import * as requests from "./views/requests.js?v=20261023-3c2cf02";
 
 const ROUTES = [
   ["/", feed.render, "Feed"],
@@ -101,13 +100,6 @@ function buildHeader(host) {
   header.notifs = h("a", { href: "#/notifications", class: "s-hdr-icon" }, "Notifications", header.notBadge);
   header.modLink = h("a", { href: "#/mod", hidden: true }, "Moderation");
   header.who = h("div", { class: "s-who" });
-  // Sounds: off until asked for; the button says which way it is.
-  const sound = h("button", { type: "button", class: "s-hdr-sound", "aria-pressed": String(soundsOn()),
-    title: "Interface sounds", "aria-label": "Interface sounds" });
-  const drawSound = () => { const on = soundsOn(); sound.setAttribute("aria-pressed", String(on)); sound.replaceChildren(icon(on ? "sound-on" : "sound-off")); };
-  sound.addEventListener("click", () => { setSounds(!soundsOn()); drawSound(); });
-  drawSound();
-  header.sound = sound;
   const search = h("input", { type: "search", name: "q", placeholder: "Search posts, people, projects", "aria-label": "Search GeoID Network", minlength: 2 });
   const searchForm = h("form", { class: "s-search", role: "search" }, search);
   searchForm.addEventListener("submit", (e) => { e.preventDefault(); if (search.value.trim().length >= 2) location.hash = `#/search?q=${encodeURIComponent(search.value.trim())}`; });
@@ -115,7 +107,7 @@ function buildHeader(host) {
     h("div", { class: "s-hdr-top" },
       h("a", { class: "s-brand", href: "#/" }, h("span", { class: "geohub-word" }, h("span", { class: "geohub-prefix" }, "Geo"), "ID"), " Network"),
       searchForm,
-      h("div", { class: "s-hdr-actions" }, h("a", { class: "btn-primary s-btn-sm", href: "#/compose" }, "New post"), header.messages, header.notifs, header.sound, header.who)),
+      h("div", { class: "s-hdr-actions" }, h("a", { class: "btn-primary s-btn-sm", href: "#/compose" }, "New post"), header.messages, header.notifs, header.who)),
     h("nav", { class: "s-subnav", "aria-label": "GeoID Network" }, header.links, header.modLink));
 }
 
