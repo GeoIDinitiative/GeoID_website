@@ -44,7 +44,7 @@ TRAILS = {
     "everest/index.html":          [GEOHUB, ("Mount Everest — ASCENT", "/everest/")],
     "membership/index.html":       [("Membership", "/membership/")],
     "team/index.html":             [ABOUT, ("Our Team", "/team/")],
-    "consultancy/index.html":      [ABOUT, ("Consultancy", "/consultancy/")],
+    "consultancy/index.html":      [("Consultancy", "/consultancy/")],
     "get-involved/index.html":     [ABOUT, ("Get Involved", "/get-involved/")],
     "updates/index.html":          [ABOUT, ("Journal", "/updates/")],
     "researchers/index.html":      [("For Researchers", "/researchers/")],
