@@ -1,0 +1,355 @@
+{
+ "id": "flood-susceptibility-fine",
+ "name": "Flood susceptibility \u2014 on demand (random forest, ~250 m)",
+ "hazard": "flood",
+ "product": "computed in the page over the view or a drawn area narrower than 1.5\u00b0 (flood-ml-run.js)",
+ "model": {
+  "method": "Random forest on (cell, event) rows: terrain, land cover, soil and climate at the cell plus that event's rainfall; trained on Copernicus EMS flood delineations in six regions.",
+  "parameters": {
+   "n_estimators": 100,
+   "max_depth": 10,
+   "min_samples_leaf": 20,
+   "max_features": "sqrt",
+   "n_jobs": 2,
+   "random_state": 1,
+   "negatives_per_positive": 2,
+   "positives_per_event_cap": 2500,
+   "positive_rule": "cell centre inside the observed flood",
+   "channel_rule": "\u226550 cells drain through it",
+   "decision_threshold_published": 0.3431,
+   "features": [
+    "elevation_m",
+    "slope_deg",
+    "hand_m",
+    "log10_upstream_km2",
+    "channel_distance_m",
+    "twi",
+    "curvature",
+    "water_frac",
+    "trees_frac",
+    "flooded_veg_frac",
+    "crops_frac",
+    "built_frac",
+    "bare_frac",
+    "range_frac",
+    "soil_thickness_m",
+    "rain_normal_mm",
+    "rain_3day_max_mm",
+    "rain_30day_mm"
+   ],
+   "feature_importance_gini": [
+    [
+     "hand_m",
+     0.2409
+    ],
+    [
+     "water_frac",
+     0.1693
+    ],
+    [
+     "elevation_m",
+     0.1367
+    ],
+    [
+     "channel_distance_m",
+     0.0734
+    ],
+    [
+     "soil_thickness_m",
+     0.0639
+    ],
+    [
+     "twi",
+     0.0467
+    ],
+    [
+     "rain_normal_mm",
+     0.0425
+    ],
+    [
+     "rain_30day_mm",
+     0.0375
+    ],
+    [
+     "rain_3day_max_mm",
+     0.0374
+    ],
+    [
+     "slope_deg",
+     0.0367
+    ],
+    [
+     "log10_upstream_km2",
+     0.0343
+    ],
+    [
+     "trees_frac",
+     0.0253
+    ],
+    [
+     "built_frac",
+     0.0175
+    ],
+    [
+     "crops_frac",
+     0.0133
+    ],
+    [
+     "curvature",
+     0.0101
+    ],
+    [
+     "flooded_veg_frac",
+     0.0075
+    ],
+    [
+     "range_frac",
+     0.0047
+    ],
+    [
+     "bare_frac",
+     0.0025
+    ]
+   ],
+   "training_rows": 684109,
+   "training_products": 262
+  },
+  "inputs": [
+   {
+    "name": "Historical floods",
+    "source": "Copernicus Emergency Management Service rapid mapping, delineation and first-estimate products (observed flood extent, area of interest, not-analysed areas)",
+    "licence": "Copernicus data: free, full and open, any use with attribution (\u00a9 European Union, Copernicus Emergency Management Service)",
+    "detail": "open API, activations EMSR656 (2023) onward"
+   },
+   {
+    "name": "Elevation",
+    "source": "Terrarium DEM (AWS Open Data; SRTM, GMTED, ETOPO1)",
+    "licence": "public domain / attribution by source",
+    "detail": "slope, HAND, upstream area, channel distance, TWI, curvature (flood-ml.js)"
+   },
+   {
+    "name": "Satellite land cover",
+    "source": "Esri / Impact Observatory / Microsoft Sentinel-2 10 m land cover, 2020",
+    "licence": "CC BY 4.0",
+    "detail": "class fractions per cell; chosen over ESA WorldCover because the page can read it (CORS)"
+   },
+   {
+    "name": "Soil",
+    "source": "Pelletier et al. 2016, soil and sediment thickness, 1 km (ORNL DAAC, doi:10.3334/ORNLDAAC/1304)",
+    "licence": "NASA ORNL DAAC: free to use with citation"
+   },
+   {
+    "name": "Rainfall, climate and events",
+    "source": "NOAA CPC Global Unified Gauge-Based daily precipitation, 0.5\u00b0",
+    "licence": "public domain (US Government)"
+   },
+   {
+    "name": "Rainfall, now",
+    "source": "Open-Meteo forecast (the page)",
+    "licence": "CC BY 4.0 (Open-Meteo.com)"
+   }
+  ],
+  "grid": "0.0025\u00b0 (~250 m) lattice over the view; Terrarium zoom 10",
+  "gap_fills": {
+   "soil_thickness_m": {
+    "method": "nearest valid cell (flood-ml.js fillNearest)",
+    "cells": 196799
+   },
+   "water_frac": {
+    "method": "nearest valid cell (flood-ml.js fillNearest)",
+    "cells": 0
+   },
+   "trees_frac": {
+    "method": "nearest valid cell (flood-ml.js fillNearest)",
+    "cells": 0
+   },
+   "flooded_veg_frac": {
+    "method": "nearest valid cell (flood-ml.js fillNearest)",
+    "cells": 0
+   },
+   "crops_frac": {
+    "method": "nearest valid cell (flood-ml.js fillNearest)",
+    "cells": 0
+   },
+   "built_frac": {
+    "method": "nearest valid cell (flood-ml.js fillNearest)",
+    "cells": 0
+   },
+   "bare_frac": {
+    "method": "nearest valid cell (flood-ml.js fillNearest)",
+    "cells": 0
+   },
+   "range_frac": {
+    "method": "nearest valid cell (flood-ml.js fillNearest)",
+    "cells": 0
+   },
+   "rain_normal_mm": {
+    "method": "nearest valid cell (flood-ml.js fillNearest)",
+    "cells": 0
+   },
+   "rain_3day_max_mm": {
+    "method": "nearest valid cell (flood-ml.js fillNearest)",
+    "cells": 0
+   },
+   "rain_30day_mm": {
+    "method": "nearest valid cell (flood-ml.js fillNearest)",
+    "cells": 0
+   }
+  }
+ },
+ "validation": {
+  "n": 684109,
+  "tp": 170879,
+  "fp": 177172,
+  "tn": 280103,
+  "fn": 55955,
+  "accuracy": 0.6592,
+  "precision": 0.491,
+  "recall": 0.7533,
+  "f1": 0.5945,
+  "auc": 0.7507,
+  "kappa": 0.3225,
+  "positives": 226834,
+  "negatives": 457275,
+  "threshold": null,
+  "threshold_rule": "per region: Youden's J on the out-of-bag votes of the forest trained on the OTHER regions",
+  "holdout": "leave one region out: 6 of 6 regions each scored by a forest that never saw it (262 EMS delineation products)",
+  "events": "Copernicus EMS: cells inside the observed flood extent = 1; cells analysed (area of interest \u2229 image footprint, minus not-analysed and mapped water) and not flooded = 0",
+  "regions": {
+   "americas": {
+    "n": 76987,
+    "tp": 18456,
+    "fp": 21510,
+    "tn": 29598,
+    "fn": 7423,
+    "accuracy": 0.6242,
+    "precision": 0.4618,
+    "recall": 0.7132,
+    "f1": 0.5606,
+    "kappa": 0.2577,
+    "specificity": 0.5791,
+    "auc": 0.7127,
+    "threshold": 0.34516549246321376,
+    "threshold_rule": "Youden on the other regions' OOB votes",
+    "positives": 25879,
+    "negatives": 51108,
+    "events": 24,
+    "skill": "fair"
+   },
+   "asia": {
+    "n": 134818,
+    "tp": 35770,
+    "fp": 40289,
+    "tn": 49581,
+    "fn": 9178,
+    "accuracy": 0.6331,
+    "precision": 0.4703,
+    "recall": 0.7958,
+    "f1": 0.5912,
+    "kappa": 0.2963,
+    "specificity": 0.5517,
+    "auc": 0.7545,
+    "threshold": 0.3568513884411934,
+    "threshold_rule": "Youden on the other regions' OOB votes",
+    "positives": 44948,
+    "negatives": 89870,
+    "events": 32,
+    "skill": "fair"
+   },
+   "africa": {
+    "n": 130890,
+    "tp": 36430,
+    "fp": 47786,
+    "tn": 39548,
+    "fn": 7126,
+    "accuracy": 0.5805,
+    "precision": 0.4326,
+    "recall": 0.8364,
+    "f1": 0.5702,
+    "kappa": 0.2344,
+    "specificity": 0.4528,
+    "auc": 0.7017,
+    "threshold": 0.36280644539600815,
+    "threshold_rule": "Youden on the other regions' OOB votes",
+    "positives": 43556,
+    "negatives": 87334,
+    "events": 25,
+    "skill": "fair"
+   },
+   "mediterranean": {
+    "n": 150930,
+    "tp": 36074,
+    "fp": 30123,
+    "tn": 71022,
+    "fn": 13711,
+    "accuracy": 0.7096,
+    "precision": 0.5449,
+    "recall": 0.7246,
+    "f1": 0.6221,
+    "kappa": 0.3938,
+    "specificity": 0.7022,
+    "auc": 0.7755,
+    "threshold": 0.34964928615473184,
+    "threshold_rule": "Youden on the other regions' OOB votes",
+    "positives": 49785,
+    "negatives": 101145,
+    "events": 78,
+    "skill": "fair"
+   },
+   "europe-north-west": {
+    "n": 120966,
+    "tp": 28651,
+    "fp": 22584,
+    "tn": 58678,
+    "fn": 11053,
+    "accuracy": 0.7219,
+    "precision": 0.5592,
+    "recall": 0.7216,
+    "f1": 0.6301,
+    "kappa": 0.413,
+    "specificity": 0.7221,
+    "auc": 0.7934,
+    "threshold": 0.34940890007962516,
+    "threshold_rule": "Youden on the other regions' OOB votes",
+    "positives": 39704,
+    "negatives": 81262,
+    "events": 58,
+    "skill": "fair"
+   },
+   "europe-central-east": {
+    "n": 69518,
+    "tp": 15498,
+    "fp": 14880,
+    "tn": 31676,
+    "fn": 7464,
+    "accuracy": 0.6786,
+    "precision": 0.5102,
+    "recall": 0.6749,
+    "f1": 0.5811,
+    "kappa": 0.3284,
+    "specificity": 0.6804,
+    "auc": 0.7434,
+    "threshold": 0.35107979320267263,
+    "threshold_rule": "Youden on the other regions' OOB votes",
+    "positives": 22962,
+    "negatives": 46556,
+    "events": 45,
+    "skill": "fair"
+   }
+  }
+ },
+ "current": null,
+ "limits": [
+  "The open EMS API covers activations from 2023 on: 90 floods, three quarters in Europe. The Americas, Africa and Asia are each scored on a handful of activations, and their numbers carry that uncertainty.",
+  "Negatives are cells the analysts looked at and did not map as flooded. EMS areas of interest are drawn around the affected ground, so the dry cells sit beside the flood: harder to separate than random dry land, which makes AUC conservative -- and a mapper's omission (a flooded street under trees) is counted as dry.",
+  "Flood traces and flooded areas are both taken as flooded; modelled extents are not used.",
+  "Each activation is one region's rows; activations share rivers and mapping teams, which is why the hold-out is by REGION rather than by cell -- a random cell split would score near 0.99 and mean nothing.",
+  "Probabilities are relative (two dry cells per flooded one in training); the threshold turns them into a map.",
+  "Land cover is 2020 for every event.",
+  "The 0.1\u00b0 map leans European: most training floods are, so European lowlands read redder than ground of the same shape elsewhere -- the Africa held-out AUC (0.58 at 0.1\u00b0) is the measure of how far that carries.",
+  "D8 on a 0.1\u00b0 DEM draws parallel flow lines across very flat basins (the Congo, the Amazon floodplain): the streaks there are routing artefacts, not rivers.",
+  "Terrain at a window's edge sees no upstream area beyond it, so a big river entering a 1\u00b0 window reads smaller than it is -- the same on the page, which uses the same window logic."
+ ],
+ "script": "GeoID_GIS/services/bake-flood-global.py",
+ "generated": "2026-10-23T22:02:25Z"
+}

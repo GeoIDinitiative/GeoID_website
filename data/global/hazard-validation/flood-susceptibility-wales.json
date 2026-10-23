@@ -1,0 +1,331 @@
+{
+ "id": "flood-susceptibility-wales",
+ "name": "Flood susceptibility \u2014 Wales (random forest on NRW records)",
+ "hazard": "flood",
+ "product": "data/global/flood-susceptibility-wales-current.tif \u2014 today's map; the NI prototype's weighted overlay (ni-flood.js) remains the in-browser screening map",
+ "model": {
+  "method": "Random forest classifier on (cell, event) pairs: static terrain, geology, land cover and climate at the cell plus that event's own rainfall; the output is the share of trees voting 'flooded'.",
+  "parameters": {
+   "trees": 300,
+   "min_samples_leaf": 10,
+   "max_features": "sqrt",
+   "random_state": 1,
+   "negatives_per_positive": 2,
+   "positives_per_event_cap": 4000,
+   "channel_threshold_km2": 2.0,
+   "features": [
+    "elevation_m",
+    "slope_deg",
+    "hand_m",
+    "log10_upstream_km2",
+    "channel_distance_m",
+    "twi",
+    "curvature",
+    "deposit_score",
+    "alluvium",
+    "peat",
+    "built_frac",
+    "water_frac",
+    "wetland_frac",
+    "tree_frac",
+    "crop_frac",
+    "rain_normal_mm",
+    "rain_3day_max_mm",
+    "rain_30day_mm"
+   ],
+   "feature_importance_gini": [
+    [
+     "deposit_score",
+     0.1355
+    ],
+    [
+     "hand_m",
+     0.1306
+    ],
+    [
+     "rain_normal_mm",
+     0.1186
+    ],
+    [
+     "elevation_m",
+     0.1157
+    ],
+    [
+     "rain_30day_mm",
+     0.1126
+    ],
+    [
+     "alluvium",
+     0.1021
+    ],
+    [
+     "rain_3day_max_mm",
+     0.0694
+    ],
+    [
+     "slope_deg",
+     0.0484
+    ],
+    [
+     "twi",
+     0.0425
+    ],
+    [
+     "curvature",
+     0.0274
+    ],
+    [
+     "channel_distance_m",
+     0.0264
+    ],
+    [
+     "log10_upstream_km2",
+     0.0243
+    ],
+    [
+     "built_frac",
+     0.0225
+    ],
+    [
+     "tree_frac",
+     0.0129
+    ],
+    [
+     "crop_frac",
+     0.0058
+    ],
+    [
+     "water_frac",
+     0.0038
+    ],
+    [
+     "wetland_frac",
+     0.0013
+    ],
+    [
+     "peat",
+     0.0002
+    ]
+   ],
+   "decision_threshold_published_map": 0.2443
+  },
+  "inputs": [
+   {
+    "name": "Historical floods",
+    "source": "Natural Resources Wales, Historic Flood Map (OGL v3)",
+    "detail": "127 dated events used; excluded: {'before 1979-02': 175, '1 January placeholder': 8, 'undated': 0}"
+   },
+   {
+    "name": "Satellite land cover",
+    "source": "ESA WorldCover 2021 v200 (Sentinel-1/2, CC BY 4.0)",
+    "detail": "10 m classes read at 33 m, as fractions per cell"
+   },
+   {
+    "name": "Elevation",
+    "source": "Terrarium DEM (AWS Open Data; SRTM/GMTED/OS Terrain), zoom 10",
+    "detail": "slope, HAND, upstream area, channel distance, TWI, curvature derived here"
+   },
+   {
+    "name": "Superficial geology",
+    "source": "BGS Geology 625k (OGL; Contains British Geological Survey materials \u00a9 UKRI)"
+   },
+   {
+    "name": "Rainfall, climate",
+    "source": "Met Office HadUK-Grid 1991-2020 annual normals (OGL)"
+   },
+   {
+    "name": "Rainfall, past events",
+    "source": "NOAA CPC Global Unified Gauge-Based Daily Precipitation, 0.5\u00b0 (public domain)"
+   },
+   {
+    "name": "Rainfall, now",
+    "source": "Open-Meteo forecast API, the feed GeoHUB's Forecast panel reads",
+    "detail": "issued 2026-10-23, window 2026-09-23..2026-10-29"
+   }
+  ],
+  "grid": "900 x 1050 cells of 0.003 x 0.002 deg (~204 x 221 m), Wales high-water-mark mask",
+  "gap_fills": {
+   "elevation_m": {
+    "method": "none needed; seabed cells dropped from the mask",
+    "cells": 53,
+    "why": "Terrarium has no voids over Wales; cells below -5 m inside the high-water mark are estuary bathymetry and are not modelled"
+   },
+   "slope_deg": {
+    "method": "nearest valid cell",
+    "cells": 7132,
+    "why": "the coastal ring where a central difference reaches the sea"
+   },
+   "curvature": {
+    "method": "nearest valid cell",
+    "cells": 7140,
+    "why": "the coastal ring where a central difference reaches the sea"
+   },
+   "twi": {
+    "method": "nearest valid cell",
+    "cells": 7132,
+    "why": "the coastal ring where a central difference reaches the sea"
+   },
+   "deposit_score": {
+    "method": "not a gap: no superficial unit means bedrock at surface, scored 0.2",
+    "cells": 301362,
+    "why": "the NI acceptance run lost two thirds of South Wales treating this as no-data"
+   },
+   "built_frac": {
+    "method": "nearest valid cell",
+    "cells": 0,
+    "why": "WorldCover no-data pixels (none expected over land)"
+   },
+   "water_frac": {
+    "method": "nearest valid cell",
+    "cells": 0,
+    "why": "WorldCover no-data pixels (none expected over land)"
+   },
+   "wetland_frac": {
+    "method": "nearest valid cell",
+    "cells": 0,
+    "why": "WorldCover no-data pixels (none expected over land)"
+   },
+   "tree_frac": {
+    "method": "nearest valid cell",
+    "cells": 0,
+    "why": "WorldCover no-data pixels (none expected over land)"
+   },
+   "crop_frac": {
+    "method": "nearest valid cell",
+    "cells": 0,
+    "why": "WorldCover no-data pixels (none expected over land)"
+   },
+   "rain_normal_mm": {
+    "method": "inverse-distance weighting, power 2, 8 nearest 12 km cells",
+    "cells": 462559,
+    "why": "HadUK-Grid's 12 km cells do not tile the coast or lakes (Lough Neagh and Slieve Donard came back empty in NI); every land cell is interpolated from 190 cell centres so none is left out"
+   },
+   "cpc_daily": {
+    "method": "inverse-distance weighting across that day's other half-degree cells",
+    "cells": 79050,
+    "why": "a CPC cell with no gauge report on a day"
+   }
+  }
+ },
+ "validation": {
+  "n": 46343,
+  "tp": 2508,
+  "fp": 1731,
+  "tn": 40949,
+  "fn": 1155,
+  "accuracy": 0.9377,
+  "precision": 0.5916,
+  "recall": 0.6847,
+  "f1": 0.6348,
+  "kappa": 0.6009,
+  "specificity": 0.9594,
+  "auc": 0.9586,
+  "threshold": 0.33774684492553586,
+  "threshold_rule": "Youden's J on the TRAINING events' out-of-bag predictions, fixed before the test set was scored",
+  "positives": 3663,
+  "negatives": 42680,
+  "holdout": "temporal: trained on 37 events before 2005, scored on 72 events from 2005 to 2025",
+  "events": "NRW Historic Flood Map outlines (cells inside an event's outline = 1; cells of Wales outside it on the same dates = 0, two per positive and at least 500 per event)",
+  "extra": {
+   "oob_auc_training": 0.991,
+   "auc_without_rainfall": 0.9582,
+   "permutation_importance_auc": [
+    [
+     "elevation_m",
+     0.0385
+    ],
+    [
+     "rain_30day_mm",
+     0.0217
+    ],
+    [
+     "hand_m",
+     0.0209
+    ],
+    [
+     "rain_normal_mm",
+     0.015
+    ],
+    [
+     "built_frac",
+     0.0055
+    ],
+    [
+     "rain_3day_max_mm",
+     0.0045
+    ],
+    [
+     "channel_distance_m",
+     0.0035
+    ],
+    [
+     "slope_deg",
+     0.003
+    ],
+    [
+     "curvature",
+     0.0022
+    ],
+    [
+     "log10_upstream_km2",
+     0.0021
+    ],
+    [
+     "deposit_score",
+     0.002
+    ],
+    [
+     "alluvium",
+     0.0017
+    ],
+    [
+     "twi",
+     0.0012
+    ],
+    [
+     "tree_frac",
+     0.001
+    ],
+    [
+     "water_frac",
+     0.0007
+    ],
+    [
+     "crop_frac",
+     0.0002
+    ],
+    [
+     "peat",
+     -0.0
+    ],
+    [
+     "wetland_frac",
+     -0.0
+    ]
+   ],
+   "train_rows": 48831,
+   "test_rows": 46343
+  }
+ },
+ "current": {
+  "issued": "2026-10-23",
+  "rain_window": "2026-09-23..2026-10-29",
+  "rain_3day_max_mm": 91.7,
+  "rain_30day_max_mm": 128.2,
+  "cells_over_threshold": 25732,
+  "share_over_threshold": 0.0556,
+  "file": "data/global/flood-susceptibility-wales-current.tif",
+  "preview": "/home/owen/GeoID_webpage_v1/data/global/.flood-rf-work/current.png"
+ },
+ "limits": [
+  "An outline's absence is not a dry record: NRW maps the floods it knows of, so some negatives were wet.",
+  "Event rainfall is a 0.5\u00b0 gauge analysis; a convective storm smaller than a cell is smoothed away.",
+  "Repeat floods in the same towns put correlated cells in train and test; the temporal split keeps the events apart, not the places.",
+  "The hold-out tests WHERE a storm floods, not WHETHER: each event's dry cells share its rain, so rainfall barely moves the held-out AUC (see auc_without_rainfall). How the map responds to today's rain is the forest's learnt between-event contrast and is not separately validated here.",
+  "Negatives run at least 500 per event, so small events carry many more than two per positive; accuracy and specificity are read at that mix (positives/negatives on the card).",
+  "Probabilities are relative (two negatives per positive in training), not annual chances; the decision threshold is what turns them into a map.",
+  "Trained on Wales; transfer elsewhere (the NI prototype area) is an extrapolation of the same recipe, as the landslide recipe's South Wales validation was."
+ ],
+ "script": "GeoID_GIS/services/bake-flood-rf.py",
+ "generated": "2026-10-23T21:02:44Z"
+}

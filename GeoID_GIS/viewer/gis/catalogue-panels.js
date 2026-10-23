@@ -29,15 +29,15 @@
 
 import {
   HOMES, MIRRORS, grouped, addDataset, layerForDataset, loadLaunchDefaults,
-} from "./global-data.js?v=20261023-b48057b";
-import { isParked } from "./parked.js?v=20261023-b48057b";
-import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20261023-b48057b";
-import { holdLaunch } from "./launch-ready.js?v=20261023-b48057b";
-import { mathsFor } from "./equations.js?v=20261023-b48057b";
+} from "./global-data.js?v=20261023-7743849";
+import { isParked } from "./parked.js?v=20261023-7743849";
+import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20261023-7743849";
+import { holdLaunch } from "./launch-ready.js?v=20261023-7743849";
+import { mathsFor } from "./equations.js?v=20261023-7743849";
 import { bandOf, bandRows, bandSymbology, describeFilter, magOf }
-  from "./seismic-magnitude.js?v=20261023-b48057b";
+  from "./seismic-magnitude.js?v=20261023-7743849";
 import { filterVolcanoes, yearRankOf, yearWords, DEFAULT_YEAR_RANK }
-  from "./volcano-filter.js?v=20261023-b48057b";
+  from "./volcano-filter.js?v=20261023-7743849";
 
 const byId = (id) => document.getElementById(id);
 
@@ -459,6 +459,67 @@ const TILED = {
     layerOf: () => window.GeoIDDemSheets?.sheetLayer?.("discharge") || null,
     load: () => window.GeoIDDemSheets.addSheet("discharge", sayIn("flood-status")),
     unload: () => { window.GeoIDDemSheets?.removeSheet?.("discharge"); sayIn("flood-status")(""); },
+  }, {
+    // The trained model, beside the physical ones: where floods HAVE happened
+    // on ground like this, learnt from satellite-mapped floods in seven
+    // regions. Two rows because it is two tiers -- the baked 0.1° world, and
+    // a 250 m run over the view once it is narrow enough (flood-ml-run.js).
+    id: "flood-ml-global",
+    group: "Susceptibility (machine learning)",
+    label: "Flood susceptibility — global (random forest, 0.1°)",
+    title: "How likely ground is to flood in a major storm, everywhere from 60°S to 84°N: a random forest "
+      + "trained on the Global Flood Database's satellite-mapped floods, fed this week's rain. "
+      + "Validated region by region — the numbers are in the Analysis Hub's Models tab.",
+    info: {
+      summary: "A random forest on terrain (height above the nearest channel, upstream area, slope, "
+        + "wetness index), Sentinel-2 land cover, soil thickness and rainfall — the climate, and a "
+        + "storm's wettest 3 days and the 30 before. Trained on 63 floods in seven regions; each region "
+        + "is scored by a forest that never saw it. P(flooded) is RELATIVE, not an annual chance.",
+      citation: "Floods: Global Flood Database v1, Tellman et al. (2021), Nature 596 (CC BY-NC 4.0). "
+        + "Heights: Mapzen Terrain Tiles (AWS Open Data). Land cover: Esri / Impact Observatory "
+        + "Sentinel-2 10 m (CC BY 4.0). Soil: Pelletier et al. (2016). Rain: NOAA CPC (public domain)",
+    },
+    ready: () => true,
+    layerOf: () => (window.GeoIDImportManager?.getLayers?.() || [])
+      .find((l) => l.name === "Flood susceptibility — global (random forest).tif") || null,
+    load: async () => {
+      const mod = await import(`./flood-ml-run.js${new URL(import.meta.url).search}`);
+      return mod.showGlobal({ onProgress: sayIn("flood-status") });
+    },
+    unload: async () => {
+      const mod = await import(`./flood-ml-run.js${new URL(import.meta.url).search}`);
+      const layer = mod.layerNamed(mod.GLOBAL_NAME);
+      if (layer) window.GeoIDImportManager?.removeLayer?.(layer.id);
+      sayIn("flood-status")("");
+    },
+  }, {
+    id: "flood-ml-area",
+    group: "Susceptibility (machine learning)",
+    label: "Flood susceptibility — here (random forest, 250 m)",
+    title: "The same forest at 250 m over the view or your drawn study area (up to 1.5° across), "
+      + "computed in the page from the same inputs it was trained on, with Open-Meteo's rain for this "
+      + "week. Re-run from the controls under the row after moving.",
+    info: {
+      summary: "The fine tier of the flood forest: trained at 250 m on a 1° window of each mapped flood, "
+        + "validated by leaving each region out. Elevation tiles, land cover and soil are fetched for "
+        + "the box and turned into features by flood-ml.js — the same module the training ran — so "
+        + "what the forest sees here is what it learnt from.",
+      citation: "As the global row; rain now: Open-Meteo (CC BY 4.0)",
+    },
+    settings: "flood-ml-controls",
+    ready: () => true,
+    layerOf: () => (window.GeoIDImportManager?.getLayers?.() || [])
+      .find((l) => l.name === "Flood susceptibility — here (random forest, 250 m).tif") || null,
+    load: async () => {
+      const mod = await import(`./flood-ml-run.js${new URL(import.meta.url).search}`);
+      return mod.showArea({ onProgress: sayIn("flood-ml-status") });
+    },
+    unload: async () => {
+      const mod = await import(`./flood-ml-run.js${new URL(import.meta.url).search}`);
+      const layer = mod.layerNamed(mod.AREA_NAME);
+      if (layer) window.GeoIDImportManager?.removeLayer?.(layer.id);
+      sayIn("flood-ml-status")("");
+    },
   }],
   /**
    * THE MEAN CLIMATE, as two readings of the streamed DEM — the same function

@@ -114,6 +114,11 @@ data/global/cyclone-risk-years.json
 # The MERRA-2 climate normals the TEMP and PRESSURE readouts read: published
 # gzipped to the bucket like every other loose file, fingerprinted in sources.json.
 data/global/climate-normals.json
+# The flood random forest's products (bake-flood-global.py): the 0.1 deg global
+# map, the exported forests the page evaluates, the CPC rain normal. Megabytes,
+# re-derivable, served from the bucket like the loose files above.
+data/global/flood-ml/*.json
+data/global/flood-ml/*.tif
 # the place-name gazetteer (bake-earth-places.py) streams from the bucket
 data/global/earth-places.json
 data/global/ice/names.json

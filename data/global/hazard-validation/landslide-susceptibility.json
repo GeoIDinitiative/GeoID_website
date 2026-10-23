@@ -1,0 +1,120 @@
+{
+ "id": "landslide-susceptibility",
+ "name": "Landslide susceptibility (Recipe A, ranked classes)",
+ "hazard": "landslide",
+ "product": "ni-prototype/data/ni_landslide_susceptibility_quantile.tif (NI), validated on Wales",
+ "model": {
+  "method": "Weighted overlay of reclassified factors (1-5), slope-gated, ranked into quantile classes (docs/ni-prototype/methodology.md Recipe A; recipe.mjs)",
+  "parameters": {
+   "weights": {
+    "slope": 0.35,
+    "lithology": 0.25,
+    "rainfall": 0.15,
+    "drainage": 0.1
+   },
+   "weights_renormalised_over": 0.85,
+   "slope_classes_deg": "0-5:1, 5-12:2, 12-20:3, 20-30:4, >30:5",
+   "rainfall_classes_mm": "<900:1, 900-1100:2, 1100-1300:3, 1300-1600:4, >1600:5",
+   "drainage_classes_m": "<50:5, 50-100:4, 100-250:3, 250-500:2, >500:1",
+   "lithology": "BGS 625k rcs_d scored 1-5 by recipe.mjs lithologyScore()",
+   "slope_gate": "index = 1 below 2\u00b0, capped at 2.5 below 5\u00b0",
+   "quantile_shares": [
+    0.35,
+    0.2,
+    0.15,
+    0.2,
+    0.1
+   ],
+   "quantile_breaks_wales": [
+    2.1764705181121826,
+    2.5,
+    2.7647056579589844,
+    3.3529412746429443
+   ],
+   "land_cover": "not used (CORINE not fetched); weights renormalise over the four"
+  },
+  "inputs": [
+   {
+    "name": "Elevation and slope",
+    "source": "Terrarium DEM, the flood bake's common grid"
+   },
+   {
+    "name": "Bedrock geology",
+    "source": "BGS Geology 625k (OGL; Contains British Geological Survey materials \u00a9 UKRI)"
+   },
+   {
+    "name": "Rainfall",
+    "source": "Met Office HadUK-Grid 1991-2020 annual normals, IDW (OGL)"
+   },
+   {
+    "name": "Drainage",
+    "source": "channels draining >= 2 km\u00b2 on the DEM (recipe.mjs uses OSM waterways)"
+   },
+   {
+    "name": "Landslide inventory",
+    "source": "BGS National Landslide Database index (OGL)"
+   }
+  ],
+  "grid": "900 x 1050 cells of 0.003 x 0.002 deg (~204 m); recipe.mjs ran at 100 m",
+  "gap_fills": {
+   "lithology": {
+    "method": "nearest valid cell",
+    "cells": 19322,
+    "why": "cells between BGS 625k bedrock polygons at the coast"
+   }
+  }
+ },
+ "validation": {
+  "n": 2826,
+  "tp": 448,
+  "fp": 439,
+  "tn": 974,
+  "fn": 965,
+  "accuracy": 0.5032,
+  "precision": 0.5051,
+  "recall": 0.3171,
+  "f1": 0.3896,
+  "kappa": 0.0064,
+  "specificity": 0.6893,
+  "auc": 0.5336,
+  "threshold": 4,
+  "threshold_rule": "class >= 4 (High + Very High, the worst 30% of the ground by quantile construction) is 'predicted landslide'",
+  "positives": 1413,
+  "negatives": 1413,
+  "share_of_slides_in_high_classes": 0.3171,
+  "share_of_area_in_high_classes": 0.3158,
+  "success_rate_auc": 0.5327,
+  "holdout": "spatial: 1413 inventoried slides in Mid and North Wales (north of 51.95 N), ground that played no part in choosing the slope gate or the class rule",
+  "events": "BGS National Landslide Database, Wales (OGL); absences sampled 1:1 from cells with no record",
+  "extra": {
+   "south_wales_tuning_region": {
+    "n": 2706,
+    "tp": 1033,
+    "fp": 320,
+    "tn": 1033,
+    "fn": 320,
+    "accuracy": 0.7635,
+    "precision": 0.7635,
+    "recall": 0.7635,
+    "f1": 0.7635,
+    "kappa": 0.527,
+    "auc": 0.8316,
+    "share_of_slides_in_high_classes": 0.7635,
+    "share_of_area_in_high_classes": 0.2361
+   },
+   "south_wales_slides": 1353,
+   "acceptance_criterion": ">= 70% of slides in High + Very High, those classes <= 30% of area",
+   "criterion_met_holdout": false
+  }
+ },
+ "limits": [
+  "THE RECIPE DOES NOT TRANSFER NORTH. 59% of the Mid/North Wales slides sit on cells under 5\u00b0 at this grid (stream-bank and coastal slides in Ceredigion and the till cliffs), against 16% in South Wales, so the slope gate -- tuned on South Wales valley sides -- floors most of them. The South Wales figure reproduces the acceptance report; the held-out figure is the one to believe outside it.",
+  "The lithology factor barely discriminates in Wales: the Lower Palaeozoic 'MUDSTONE, SILTSTONE AND SANDSTONE' units score 5 under recipe.mjs's /^MUDSTONE/ rule, about three quarters of the land.",
+  "Slope at ~210 m reads lower than at 100 m, so fewer cells reach the steep slope classes than in the NI/South Wales runs; the quantile classes are rank-based and absorb most of it.",
+  "The inventory is biased to roads, railways and surveyed valleys; absences sampled at random include unrecorded slides.",
+  "Drainage proximity here is DEM channels, not the OSM waterways recipe.mjs used.",
+  "Northern Ireland itself cannot be scored: GSNI publishes no open inventory (n = 1 in the BGS index)."
+ ],
+ "script": "GeoID_GIS/services/validate-landslide.py",
+ "generated": "2026-10-23T19:26:45Z"
+}
