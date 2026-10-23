@@ -31,14 +31,14 @@
 import * as THREE from "../vendor/three.module.js";
 import {
   WORLD, sampleScalar, rampPalette, wrapLon, compassPoint, beaufort, isGlobal,
-} from "./flow-field.js?v=20261023-a92d76b";
-import { shadingMesh, disposeMesh, layerShown, currentViewBox } from "./flow-layer.js?v=20261023-a92d76b";
-import { refreshPolygonOptions, resolvePolygonExtent } from "./extent-picker.js?v=20261023-a92d76b";
+} from "./flow-field.js?v=20261023-9d94c66";
+import { shadingMesh, disposeMesh, layerShown, currentViewBox } from "./flow-layer.js?v=20261023-9d94c66";
+import { refreshPolygonOptions, resolvePolygonExtent } from "./extent-picker.js?v=20261023-9d94c66";
 import {
   IFS_REPO, IFS_REGISTRY, IFS_CREDIT, IFS_VARIABLES, T0_MS, LAST_MS, STEP_MS, POINTS,
   timeIndex, reducedGrid, latticeFor, regrid, rangeOf, decodeBlosc, asFloat32, levelOffset, windFrom,
   featherWeight, underAlpha,
-} from "./ifs-grid.js?v=20261023-a92d76b";
+} from "./ifs-grid.js?v=20261023-9d94c66";
 
 const LAYER_NAME = "ECMWF IFS analysis";
 /** One opacity for the sheet wherever it is, patch or world (see `underAlpha`). */
@@ -515,10 +515,13 @@ function buildDrawer() {
   const dayBack = step("◀◀", -4 * STEP_MS);
   const dayOn = step("▶▶", 4 * STEP_MS);
   // Itself a `.row`, so the panel's `.row > .input` rule dresses the date
-  // exactly as it dresses every other control; laid out as a line.
+  // exactly as it dresses every other control; laid out as a line. Width 0
+  // with a 100% minimum: full width when laid out, but nothing toward the
+  // drawer's intrinsic size, so a narrow panel makes the LINE overflow (which
+  // `fit` sees) rather than widening the whole drawer past the panel.
   const line = document.createElement("div");
   line.className = "row";
-  line.style.cssText = "flex-direction:row;align-items:center;gap:0.2rem;margin:0;min-width:0";
+  line.style.cssText = "flex-direction:row;align-items:center;gap:0.2rem;margin:0;width:0;min-width:100%";
   line.append(dayBack, step("◀", -STEP_MS), day, hour, step("▶", STEP_MS), dayOn);
   const fit = () => {
     dayBack.hidden = false;
