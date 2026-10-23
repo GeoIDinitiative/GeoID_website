@@ -2,13 +2,13 @@ import * as THREE from "./vendor/three.module.js";
 // The polygon-area rule lives in one place, with a test. Stamped by hand
 // once: stamp.py only rewrites a ?v= that already exists.
 import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
-  from "./gis/geo-utils.js?v=20261023-5f60cff";
+  from "./gis/geo-utils.js?v=20261023-a25a8ee";
 import { attachReliefAttributes, followRelief }
-  from "./gis/vector-render.js?v=20261023-5f60cff";
+  from "./gis/vector-render.js?v=20261023-a25a8ee";
 import { rockClass, crustalSetting, rockClassLabel, classificationBasis }
-  from "./gis/rock-class.js?v=20261023-5f60cff";
+  from "./gis/rock-class.js?v=20261023-a25a8ee";
 import { lithologyLabel }
-  from "./gis/lithology-label.js?v=20261023-5f60cff";
+  from "./gis/lithology-label.js?v=20261023-a25a8ee";
 
 /**
  * This module's own cache stamp, read off its own URL.
@@ -14604,7 +14604,10 @@ function fmtProp(value) {
         // dissolves rather than blinks.
         const now = performance.now();
         if (now - airCheckedAt > 500) { airCheckedAt = now; airTarget = airYieldsToMaps() ? 0 : 1; }
-        airKeep += (airTarget - airKeep) * 0.12;
+        // By time, not by frame: ~0.3 s either way at any frame rate.
+        const dt = Math.min(1000, now - (airEasedAt || now));
+        airEasedAt = now;
+        airKeep += (airTarget - airKeep) * (1 - Math.exp(-dt / 100));
         if (Math.abs(airTarget - airKeep) < 0.003) airKeep = airTarget;
         // uFade 0 is additive black: nothing drawn. The shell stays "visible"
         // so this hook keeps running and can bring the air back.
@@ -14629,6 +14632,7 @@ function fmtProp(value) {
       let airKeep = 1;
       let airTarget = 1;
       let airCheckedAt = 0;
+      let airEasedAt = 0;
       function airYieldsToMaps() {
         const layers = window.GeoIDImportManager?.getLayers?.() || [];
         return layers.some((layer) => {
