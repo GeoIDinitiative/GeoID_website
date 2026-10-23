@@ -616,6 +616,7 @@
 
     .data-table {
       width: 100%;
+      min-width: 36rem;
       border-collapse: collapse;
       margin: 0.5rem 0 1rem;
       font-size: 0.88rem;
@@ -641,13 +642,265 @@
 
     .legal-meta { color: var(--muted); font-size: 0.82rem; margin: 0.75rem 0 0; }
 
+
+    /* ── Ways to engage: three sizes of engagement ── */
+    .tier-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: var(--u-card-gap, 1.5rem);
+      margin-top: clamp(2rem, 4vw, 3rem);
+    }
+    .tier {
+      display: flex;
+      flex-direction: column;
+      border: 1px solid var(--line);
+      border-radius: 0.9rem;
+      padding: 1.6rem 1.5rem 1.5rem;
+      background: rgba(255, 255, 255, 0.015);
+    }
+    .tier.core {
+      border-color: rgba(var(--accent-rgb), 0.55);
+      background: linear-gradient(180deg, rgba(var(--accent-rgb), 0.09), rgba(var(--accent-rgb), 0.015) 60%);
+    }
+    .tier-head { display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; }
+    .tier h3 {
+      font-family: "Archivo", system-ui, sans-serif;
+      font-size: 1.3rem;
+      letter-spacing: -0.02em;
+      color: var(--text);
+      margin: 0;
+    }
+    .tier-time {
+      flex: none;
+      font-family: "Public Sans", sans-serif;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--accent);
+    }
+    .tier-q { color: var(--text); font-size: 0.95rem; line-height: 1.55; margin: 0.7rem 0 0.6rem; opacity: 0.9; }
+    .tier > p { color: var(--muted); font-size: 0.9rem; line-height: 1.65; margin: 0 0 1rem; }
+    .tier ul { list-style: none; margin: 0 0 1.2rem; padding: 0; display: grid; gap: 0.45rem; }
+    .tier li { position: relative; padding-left: 1.05rem; color: rgba(236, 232, 248, 0.78); font-size: 0.86rem; line-height: 1.5; }
+    .tier li::before { content: ""; position: absolute; left: 0; top: 0.55em; width: 0.4rem; height: 1px; background: var(--accent); }
+    .tier-fee {
+      margin-top: auto;
+      padding-top: 0.9rem;
+      border-top: 1px solid var(--line);
+      color: var(--muted);
+      font-size: 0.84rem;
+    }
+    .tier-fee strong { color: var(--text); }
+    .fine { color: var(--muted); font-size: 0.82rem; line-height: 1.6; margin: 1.25rem 0 0; }
+
+    /* ── Track record ── */
+    .case {
+      display: grid;
+      grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+      border: 1px solid var(--line);
+      border-radius: 0.9rem;
+      overflow: hidden;
+      background: rgba(255, 255, 255, 0.015);
+      margin-top: var(--u-card-gap, 1.5rem);
+    }
+    .case:first-of-type { margin-top: clamp(2rem, 4vw, 3rem); }
+    .case:nth-of-type(even) { grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr); }
+    .case:nth-of-type(even) .case-media { order: 2; }
+    .case-media { position: relative; min-height: 17rem; margin: 0; }
+    .case-media img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
+    .case-body { padding: clamp(1.5rem, 3vw, 2.25rem); }
+    .case-kind {
+      font-family: "Public Sans", sans-serif;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--accent);
+    }
+    .case h3 {
+      font-family: "Archivo", system-ui, sans-serif;
+      font-size: 1.35rem;
+      letter-spacing: -0.02em;
+      color: var(--text);
+      margin: 0.45rem 0 0.7rem;
+    }
+    .case p { color: var(--muted); font-size: 0.92rem; line-height: 1.7; margin: 0 0 0.8rem; }
+    .case-stats { display: flex; flex-wrap: wrap; gap: 1.6rem; margin: 1rem 0; }
+    .case-stat strong {
+      display: block;
+      font-family: "Archivo", system-ui, sans-serif;
+      font-size: 1.7rem;
+      letter-spacing: -0.03em;
+      color: var(--text);
+      line-height: 1.1;
+    }
+    .case-stat span { color: var(--muted); font-size: 0.78rem; line-height: 1.4; display: block; max-width: 11rem; }
+    .case-lesson {
+      border-left: 2px solid var(--accent);
+      padding: 0.15rem 0 0.15rem 0.9rem;
+      color: rgba(236, 232, 248, 0.88) !important;
+      margin-bottom: 0 !important;
+    }
+
+    .scores {
+      margin-top: clamp(2rem, 4vw, 3rem);
+      border: 1px solid var(--line);
+      border-radius: 0.9rem;
+      padding: 1.4rem 1.5rem;
+    }
+    .scores h3 {
+      font-family: "Archivo", system-ui, sans-serif;
+      font-size: 1.1rem;
+      color: var(--text);
+      margin: 0 0 0.35rem;
+    }
+    .scores > p { color: var(--muted); font-size: 0.88rem; line-height: 1.6; margin: 0 0 1.1rem; }
+    .score-row {
+      display: grid;
+      grid-template-columns: 11rem 1fr 3.2rem;
+      align-items: center;
+      gap: 0.9rem;
+      padding: 0.45rem 0;
+      border-top: 1px solid var(--line);
+      font-size: 0.86rem;
+    }
+    .score-row .name { color: var(--text); }
+    .score-row .name small { display: block; color: var(--muted); font-size: 0.74rem; }
+    .score-bar { position: relative; height: 8px; border-radius: 4px; background: rgba(255, 255, 255, 0.06); overflow: hidden; }
+    .score-bar i { position: absolute; inset: 0 auto 0 0; border-radius: 4px; background: var(--accent); }
+    .score-bar.weak i { background: #f7bd68; }
+    .score-row .val { text-align: right; font-family: "Archivo", system-ui, sans-serif; color: var(--text); }
+
+    /* ── FAQ ── */
+    .faq { margin-top: clamp(1.75rem, 3vw, 2.5rem); border-top: 1px solid var(--line); }
+    .faq details { border-bottom: 1px solid var(--line); }
+    .faq summary {
+      list-style: none;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 1rem;
+      padding: 1.1rem 0.25rem;
+      font-family: "Archivo", system-ui, sans-serif;
+      font-size: 1.04rem;
+      color: var(--text);
+    }
+    .faq summary::-webkit-details-marker { display: none; }
+    .faq summary::after {
+      content: "+";
+      flex: none;
+      width: 1.6rem;
+      height: 1.6rem;
+      display: grid;
+      place-items: center;
+      border: 1px solid var(--line);
+      border-radius: 50%;
+      color: var(--accent);
+      font-family: "Public Sans", sans-serif;
+      transition: transform 0.2s;
+    }
+    .faq details[open] summary::after { transform: rotate(45deg); }
+    .faq summary:hover { color: var(--accent); }
+    .faq .ans { padding: 0 0.25rem 1.2rem; max-width: 52rem; }
+    .faq .ans p { color: var(--muted); font-size: 0.93rem; line-height: 1.75; margin: 0 0 0.6rem; }
+    .faq .ans p:last-child { margin-bottom: 0; }
+    .faq .ans a { color: var(--accent); }
+
+    /* ── Enquiry form ── */
+    .enq {
+      display: grid;
+      grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr);
+      gap: clamp(1.5rem, 4vw, 3.5rem);
+      position: relative;
+      z-index: 2;
+      padding: clamp(2rem, 4vw, 3.5rem) clamp(1.5rem, 4vw, 3rem);
+      text-align: left;
+      width: 100%;
+    }
+    .enq-intro p { color: rgba(236, 232, 248, 0.82); line-height: 1.75; margin: 0 0 1rem; }
+    .enq-intro ol { margin: 1.25rem 0 0; padding-left: 1.2rem; color: rgba(236, 232, 248, 0.82); line-height: 1.7; font-size: 0.93rem; }
+    .enq-intro li { margin-bottom: 0.4rem; }
+    .enq-intro a { color: var(--text); }
+    .enq-form {
+      border: 1px solid var(--line);
+      border-radius: 0.9rem;
+      background: rgba(8, 0, 20, 0.82);
+      backdrop-filter: blur(14px);
+      padding: clamp(1.25rem, 3vw, 1.9rem);
+    }
+    .f-row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.9rem; }
+    .f-group { display: flex; flex-direction: column; gap: 0.35rem; margin-bottom: 0.95rem; min-width: 0; }
+    .f-group label, .f-group legend {
+      font-family: "Public Sans", sans-serif;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--muted);
+      padding: 0;
+    }
+    .f-group .opt { text-transform: none; letter-spacing: 0; font-weight: 400; opacity: 0.8; }
+    .enq-form input[type="text"], .enq-form input[type="email"], .enq-form select, .enq-form textarea {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 0.65rem 0.8rem;
+      border: 1px solid var(--line);
+      border-radius: 0.5rem;
+      background: rgba(255, 255, 255, 0.04);
+      color: var(--text);
+      font: inherit;
+      font-size: 0.92rem;
+      transition: border-color 0.18s, background 0.18s;
+    }
+    .enq-form textarea { min-height: 7rem; resize: vertical; }
+    .enq-form select option { background: #120a26; }
+    .enq-form input:focus, .enq-form select:focus, .enq-form textarea:focus {
+      outline: none;
+      border-color: rgba(var(--accent-rgb), 0.7);
+      background: rgba(var(--accent-rgb), 0.06);
+    }
+    fieldset.f-group { border: none; margin: 0 0 0.95rem; padding: 0; }
+    .chips { display: flex; flex-wrap: wrap; gap: 0.45rem; margin-top: 0.15rem; }
+    .chip { position: relative; }
+    .chip input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+    .chip span {
+      display: inline-block;
+      padding: 0.4rem 0.75rem;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      color: var(--muted);
+      font-size: 0.84rem;
+      text-transform: none !important;
+      letter-spacing: 0 !important;
+      cursor: pointer;
+      transition: all 0.18s;
+    }
+    .chip input:checked + span { border-color: var(--accent); color: var(--text); background: rgba(var(--accent-rgb), 0.16); }
+    .chip input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 2px; }
+    .consent {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 0.6rem;
+      align-items: start;
+      color: var(--muted);
+      font-size: 0.84rem;
+      line-height: 1.6;
+      margin: 0.3rem 0 1.1rem;
+    }
+    .consent input { margin-top: 0.3rem; accent-color: var(--accent); }
+    .consent a { color: var(--accent); }
+    .enq-form button { width: 100%; cursor: pointer; border: none; }
+    .f-note { color: var(--muted); font-size: 0.8rem; line-height: 1.6; margin: 0.9rem 0 0; }
+    .f-note a { color: var(--text); }
+
     /* ── Closing call to action ── */
     .cta-tile {
       min-height: 22rem;
       display: flex;
       align-items: center;
       justify-content: center;
-      text-align: center;
     }
     .cta-bg {
       position: absolute;
@@ -744,6 +997,7 @@
       .who-grid { grid-template-columns: 1fr 1fr; }
       .c-facts { grid-template-columns: 1fr 1fr; }
       .footer-content { grid-template-columns: 1fr 1fr; }
+      .tier-grid { grid-template-columns: 1fr; max-width: 40rem; }
       .legal-wrap { grid-template-columns: 1fr; }
       .legal-toc { position: static; border-left: none; padding-left: 0; }
       .legal-toc ol { grid-template-columns: 1fr 1fr; column-gap: 1.5rem; }
@@ -754,6 +1008,10 @@
       .split.flip .split-media { order: 0; }
       .split-media { min-height: 16rem; }
       .scope-grid { grid-template-columns: 1fr; }
+      .case, .case:nth-of-type(even) { grid-template-columns: 1fr; }
+      .case:nth-of-type(even) .case-media { order: 0; }
+      .case-media { min-height: 14rem; }
+      .enq { grid-template-columns: 1fr; }
     }
 
     @media (max-width: 640px) {
@@ -764,6 +1022,9 @@
       .footer-bottom { flex-direction: column; text-align: center; }
       .page-utility { display: none !important; }
       .c-fact { padding: 0.8rem 1rem; }
+      .f-row { grid-template-columns: 1fr; gap: 0; }
+      .score-row { grid-template-columns: 1fr 3rem; }
+      .score-row .score-bar { grid-column: 1 / -1; grid-row: 2; }
     }
 
     @media print {
@@ -810,10 +1071,12 @@
     <section class="page-utility" aria-label="On this page">
       <div class="page-jump">
         <a href="#assessments">Assessments</a>
+        <a href="#engage">Engagements</a>
         <a href="#process">How it works</a>
+        <a href="#record">Track record</a>
         <a href="#scope">Scope</a>
-        <a href="#who">Who it's for</a>
-        <a href="#terms">Terms &amp; data protection</a>
+        <a href="#faq">FAQ</a>
+        <a href="#terms">Terms</a>
         <a href="#enquire">Enquire</a>
       </div>
     </section>
@@ -965,6 +1228,50 @@
         </div>
       </section>
 
+
+      <!-- Ways to engage -->
+      <section class="c-tile section-pad" id="engage">
+        <h2 class="c-title">Three sizes of engagement</h2>
+        <p class="c-lead">Every engagement is scoped to the question, but most fall into one of three sizes. The scoping call settles which one fits, or whether something smaller would do.</p>
+        <div class="tier-grid">
+          <article class="tier">
+            <div class="tier-head"><h3>Rapid screen</h3><span class="tier-time">~1&ndash;2 weeks</span></div>
+            <p class="tier-q">&ldquo;Is there a hazard question here worth paying to answer?&rdquo;</p>
+            <p>One hazard, one site or small area, using GeoHUB's screening models and the public record. Tells you whether a fuller study is warranted, and what it should look at.</p>
+            <ul>
+              <li>Short technical memo with maps</li>
+              <li>Hazard record and setting summary</li>
+              <li>Recommendation on next steps</li>
+            </ul>
+            <p class="tier-fee"><strong>Fixed fee</strong> &middot; quoted after scoping</p>
+          </article>
+          <article class="tier core">
+            <div class="tier-head"><h3>Focused assessment</h3><span class="tier-time">~3&ndash;6 weeks</span></div>
+            <p class="tier-q">&ldquo;How exposed is this place, under which scenarios, and how sure are we?&rdquo;</p>
+            <p>One or two hazards with a model built for the area, scenarios agreed with you, and validation against local records wherever they exist. The core service.</p>
+            <ul>
+              <li>Full report, assumptions register and uncertainty statement</li>
+              <li>Scenario maps as figures and GIS layers</li>
+              <li>Local validation where an inventory exists</li>
+              <li>Interim results review and walk-through call</li>
+            </ul>
+            <p class="tier-fee"><strong>Fixed fee</strong> &middot; quoted after scoping</p>
+          </article>
+          <article class="tier">
+            <div class="tier-head"><h3>Modelling study</h3><span class="tier-time">~6&ndash;12 weeks</span></div>
+            <p class="tier-q">&ldquo;What does the physics say at this site, and what does it depend on?&rdquo;</p>
+            <p>Bespoke numerical modelling, including finite-element work with GALES, or a multi-hazard study where one process drives another.</p>
+            <ul>
+              <li>Model set-up from real terrain and geology</li>
+              <li>Parameter and sensitivity study</li>
+              <li>Method note written to peer-review standard</li>
+            </ul>
+            <p class="tier-fee"><strong>Fixed fee or staged</strong> &middot; quoted after scoping</p>
+          </article>
+        </div>
+        <p class="fine">Timescales are indicative and run from the point the scope is agreed and the data are in hand. Fees depend on the area, the hazards, the data available and the deliverables, and are always agreed in writing before work begins. Site visits, where wanted, are quoted separately with travel at cost.</p>
+      </section>
+
       <!-- Process -->
       <section class="c-tile split flip" id="process">
         <div class="split-body">
@@ -993,6 +1300,74 @@
           <img src="/assets/opt/learn.webp" alt="A hand writing notes with a pen beside a notebook and coffee cup" loading="lazy" decoding="async">
           <figcaption>Every stage ends in a written record</figcaption>
         </figure>
+      </section>
+
+
+      <!-- Track record -->
+      <section class="c-tile section-pad" id="record">
+        <h2 class="c-title">Track record: scored, not asserted</h2>
+        <p class="c-lead">The models behind the assessments are tested against events they were not built from, and the results are reported whether they flatter the model or not. Three examples, including one where the answer was &ldquo;this does not transfer&rdquo;.</p>
+
+        <article class="case">
+          <figure class="case-media">
+            <img src="/assets/opt/geohub-radar.webp" alt="Great Britain and Ireland on the GeoHUB globe with a rainfall radar overlay" loading="lazy" decoding="async">
+          </figure>
+          <div class="case-body">
+            <span class="case-kind">Landslide susceptibility &middot; Wales</span>
+            <h3>A good score where it was tuned, and a candid one where it wasn't</h3>
+            <p>A regional landslide susceptibility model built from terrain, geology and rainfall was validated against 1,242 inventoried landslides in South Wales. Two corrections &mdash; area-share classes and a slope gate &mdash; were kept only because they measurably improved the fit.</p>
+            <div class="case-stats">
+              <div class="case-stat"><strong>0.841</strong><span>success-rate AUC, South Wales</span></div>
+              <div class="case-stat"><strong>74%</strong><span>of landslides in the classes covering 27.5% of the ground</span></div>
+              <div class="case-stat"><strong>0.534</strong><span>AUC on held-out Mid &amp; North Wales: little skill</span></div>
+            </div>
+            <p class="case-lesson">Why it matters to you: a model's score belongs to the place it was tested. Every focused assessment checks against local records rather than borrowing a regional number.</p>
+          </div>
+        </article>
+
+        <article class="case">
+          <figure class="case-media">
+            <img src="/assets/opt/etna_subsurface.webp" alt="A 3D model of the subsurface beneath Mount Etna with magma bodies and fracture networks" loading="lazy" decoding="async">
+          </figure>
+          <div class="case-body">
+            <span class="case-kind">Volcano dynamics &middot; Mount Etna &middot; PhD research</span>
+            <h3>Finite-element modelling, and a negative result stated precisely</h3>
+            <p>Doctoral research with the University of Pisa and INGV: GALES finite-element models of magma mixing beneath Etna predicted the very-long-period ground tilt it should produce. A matched-filter search of tilt records from an eruptive and a quiet period looked for those signals.</p>
+            <div class="case-stats">
+              <div class="case-stat"><strong>12,406</strong><span>candidate windows screened</span></div>
+              <div class="case-stat"><strong>0</strong><span>confirmed detections</span></div>
+              <div class="case-stat"><strong>2.7&ndash;9.8</strong><span>signal-to-noise detection limit, per station</span></div>
+            </div>
+            <p class="case-lesson">Why it matters to you: knowing what the data cannot show is a result. Reports say so plainly, with the limit quantified, rather than stretching a weak signal into a conclusion.</p>
+          </div>
+        </article>
+
+        <article class="case">
+          <figure class="case-media">
+            <img src="/assets/opt/malaga.webp" alt="Cars piled in a mud-covered street after a flash flood" loading="lazy" decoding="async">
+          </figure>
+          <div class="case-body">
+            <span class="case-kind">Flood susceptibility &middot; global screening</span>
+            <h3>Trained on the past, tested on the twenty years after it</h3>
+            <p>GeoHUB's flood susceptibility model was trained on floods before 2005 and scored on the floods of 2005&ndash;2025 that it had never seen &mdash; the same way a client's question is really asked: what happens next?</p>
+            <div class="case-stats">
+              <div class="case-stat"><strong>0.959</strong><span>AUC on held-out 2005&ndash;2025 events</span></div>
+              <div class="case-stat"><strong>69%</strong><span>of flooded cells caught at the working threshold</span></div>
+              <div class="case-stat"><strong>31%</strong><span>missed &mdash; and reported, not hidden</span></div>
+            </div>
+            <p class="case-lesson">Why it matters to you: a high headline score still misses floods. The miss rate goes in the report next to the hit rate, so you know how much weight a map can bear.</p>
+          </div>
+        </article>
+
+        <div class="scores">
+          <h3>Held-out scores for the GeoHUB screening models</h3>
+          <p>Area under the ROC curve on events after each model's training period (0.5 is no skill, 1 is a perfect ranking; bars run from 0.5 to 1). These are the global and regional screening models that a focused assessment starts from, not the site-specific models it builds.</p>
+          <div class="score-row"><span class="name">Seismic<small>M&ge;5, 2006&ndash;2025</small></span><span class="score-bar" aria-hidden="true"><i style="width:92%"></i></span><span class="val">0.960</span></div>
+          <div class="score-row"><span class="name">Flood<small>events 2005&ndash;2025</small></span><span class="score-bar" aria-hidden="true"><i style="width:91.8%"></i></span><span class="val">0.959</span></div>
+          <div class="score-row"><span class="name">Tropical cyclone<small>seasons 2010&ndash;2025</small></span><span class="score-bar" aria-hidden="true"><i style="width:88.2%"></i></span><span class="val">0.941</span></div>
+          <div class="score-row"><span class="name">Volcanic<small>Holocene record, eruptions 2000&ndash;2025</small></span><span class="score-bar" aria-hidden="true"><i style="width:69.4%"></i></span><span class="val">0.847</span></div>
+          <div class="score-row"><span class="name">Landslide<small>held-out Mid &amp; North Wales</small></span><span class="score-bar weak" aria-hidden="true"><i style="width:6.8%"></i></span><span class="val">0.534</span></div>
+        </div>
       </section>
 
       <!-- Scope -->
@@ -1052,6 +1427,50 @@
             <h3>Developers &amp; landowners</h3>
             <p>An early, desk-based view of the hazards around a site before committing to a full investigation by a chartered practice.</p>
           </article>
+        </div>
+      </section>
+
+
+      <!-- FAQ -->
+      <section class="c-tile section-pad" id="faq">
+        <h2 class="c-title">Questions clients ask</h2>
+        <div class="faq">
+          <details>
+            <summary>How much does an assessment cost?</summary>
+            <div class="ans"><p>Each engagement has a fixed fee, agreed in writing before any work starts. The fee depends on the size of the area, the number of hazards, how much data already exists and what you need delivered. The scoping call is free and you are under no obligation afterwards.</p></div>
+          </details>
+          <details>
+            <summary>Can the report be used for a planning application or building control?</summary>
+            <div class="ans"><p>Not on its own, unless the proposal expressly says it is being prepared for that purpose. Statutory submissions such as site-specific flood risk assessments usually need to follow a set format and be signed off by a suitably chartered professional. A GeoID assessment can be a valuable input to that work, and we are happy to work alongside the practice that takes responsibility for it.</p></div>
+          </details>
+          <details>
+            <summary>Are you chartered?</summary>
+            <div class="ans"><p>No. The service is led by a computational geoscientist with doctoral research in numerical hazard modelling. Where a project needs chartered sign-off, we work as a specialist modelling subcontractor to a chartered engineer or geologist, who retains that responsibility. See clause 04 of the terms below.</p></div>
+          </details>
+          <details>
+            <summary>Do you visit the site?</summary>
+            <div class="ans"><p>Assessments are desk-based by default, which keeps them quick and affordable. A site walkover can be added where it would change the answer, for example to check drainage or evidence of past movement. It is quoted separately. Intrusive investigation such as drilling or sampling is not offered.</p></div>
+          </details>
+          <details>
+            <summary>What information should I have ready?</summary>
+            <div class="ans"><p>The location and extent of the site or area, what decision the assessment is meant to inform, your deadline, and anything you already hold: surveys, drawings, borehole logs, photographs, or records of past floods or slope movement. None of this is essential to start; the scoping call will identify what helps most.</p></div>
+          </details>
+          <details>
+            <summary>Where do you work?</summary>
+            <div class="ans"><p>GeoID is based in Northern Ireland and works across the UK and Ireland and internationally. Most of the global datasets the models use cover the whole world, but data quality varies by country. Where local data are thin, the proposal says so before you commit.</p></div>
+          </details>
+          <details>
+            <summary>How sure can I be of the results?</summary>
+            <div class="ans"><p>Every hazard model simplifies the ground, so every result carries uncertainty. Reports tell you how much: each one includes an assumptions register, an uncertainty statement and, where local records exist, a validation score. Read the results with those, and see clause 02 of the terms below.</p></div>
+          </details>
+          <details>
+            <summary>What happens if you find a mistake after delivery, or I do?</summary>
+            <div class="ans"><p>We tell you promptly about any error we find that materially affects a conclusion. If you find one, report it within ninety days; if the error is ours and within scope, we correct and reissue the report at no cost, or refund the affected part. The details are in clause 06.</p></div>
+          </details>
+          <details>
+            <summary>Will my site or my results appear in GeoHUB or the Journal?</summary>
+            <div class="ans"><p>No, not without your written consent. Client sites, data and results are confidential and are never placed in the public parts of GeoHUB. If you would like a private GeoHUB project to explore the results, it is set up for you alone.</p></div>
+          </details>
         </div>
       </section>
 
@@ -1190,7 +1609,8 @@
               </div>
               <p><strong>Personal data inside project data.</strong> Site data you send may contain personal data &mdash; property addresses, landowner names, photographs, records of affected households. We ask you to share only what the assessment needs and to remove or pseudonymise personal data where you can. Where we process personal data on your behalf, we act as your <strong>processor</strong>: we process it only on your documented instructions, for the purpose of the engagement, and will sign a data processing agreement meeting Article 28 of the UK GDPR on request. We do not process special category data unless this is agreed in writing beforehand.</p>
               <p><strong>Security.</strong> Project data is stored on encrypted devices and access-controlled storage, accessed only by the people working on your project, and never sold, shared for marketing, or used to train models for anyone else. We do not carry out automated decision-making about individuals.</p>
-              <p><strong>Transfers.</strong> Some of the service providers we use (for example email and cloud storage) may process data outside the UK. Where they do, we rely on UK adequacy regulations or the International Data Transfer Agreement or Addendum to protect it.</p>
+              <p><strong>Enquiry form.</strong> The enquiry form on this page is delivered by Formspree, a form-handling service based in the United States, which passes your message to our email inbox. Only send what is needed to describe your question at this stage.</p>
+              <p><strong>Transfers.</strong> Some of the service providers we use (for example Formspree, email and cloud storage) may process data outside the UK. Where they do, we rely on UK adequacy regulations or the International Data Transfer Agreement or Addendum to protect it.</p>
               <p><strong>Return and deletion.</strong> At the end of an engagement we will return or securely delete data you supplied, at your choice, keeping only what is needed for the project record described above. We will tell you without undue delay, and within 72 hours of becoming aware where the law requires it, of any personal data breach affecting data we hold for you.</p>
               <p><strong>Your rights.</strong> You may ask to access, correct, erase, restrict or port your personal data, or object to its processing, by emailing <a href="mailto:geoid.initiative@gmail.com">geoid.initiative@gmail.com</a>. We will respond within one month. You also have the right to complain to the Information Commissioner's Office (<a href="https://ico.org.uk/" target="_blank" rel="noopener">ico.org.uk</a>), though we would appreciate the chance to resolve your concern first.</p>
             </div>
@@ -1213,15 +1633,83 @@
       <section class="c-tile cta-tile" id="enquire">
         <div class="cta-bg" aria-hidden="true"></div>
         <div class="cta-overlay"></div>
-        <div class="cta-content">
-          <h2 class="c-title">Start with a scoping call</h2>
-          <p>Tell us where the site is, which hazard concerns you, and what decision the answer has to support. We'll reply within a few working days to arrange a call.</p>
-          <div class="hero-actions">
-            <a class="btn-primary" href="mailto:geoid.initiative@gmail.com?subject=Geohazard%20assessment%20enquiry">Email an enquiry</a>
-            <a class="btn-ghost" href="/contact/">Contact form</a>
-            <a class="btn-ghost" href="/team/">Meet the team</a>
+        <div class="enq">
+          <div class="enq-intro">
+            <h2 class="c-title">Start with a scoping call</h2>
+            <p>Tell us where the site is, which hazard concerns you, and what decision the answer has to support. We reply within a few working days to arrange a call.</p>
+            <ol>
+              <li>Send the form, or email <a href="mailto:geoid.initiative@gmail.com?subject=Geohazard%20assessment%20enquiry">geoid.initiative@gmail.com</a></li>
+              <li>A free, no-obligation scoping call</li>
+              <li>A written proposal with a fixed fee</li>
+              <li>Work starts only when you accept it</li>
+            </ol>
           </div>
-          <p class="cta-mail">Or write to <a href="mailto:geoid.initiative@gmail.com">geoid.initiative@gmail.com</a>. Please don't send personal data or confidential site data until we have agreed how it will be handled.</p>
+          <form class="enq-form" action="https://formspree.io/f/xlgvpopb" method="POST">
+            <input type="hidden" name="_subject" value="Consultancy enquiry: geohazard assessment">
+            <input type="hidden" name="interest" value="consultancy">
+            <div class="f-row">
+              <div class="f-group">
+                <label for="enq-name">Name</label>
+                <input type="text" id="enq-name" name="name" autocomplete="name" required>
+              </div>
+              <div class="f-group">
+                <label for="enq-email">Email</label>
+                <input type="email" id="enq-email" name="email" autocomplete="email" required>
+              </div>
+            </div>
+            <div class="f-row">
+              <div class="f-group">
+                <label for="enq-org">Organisation <span class="opt">(optional)</span></label>
+                <input type="text" id="enq-org" name="organisation" autocomplete="organization">
+              </div>
+              <div class="f-group">
+                <label for="enq-where">Site or region</label>
+                <input type="text" id="enq-where" name="location" placeholder="e.g. a town, valley or grid reference" required>
+              </div>
+            </div>
+            <fieldset class="f-group">
+              <legend>Hazards of interest</legend>
+              <div class="chips">
+                <label class="chip"><input type="checkbox" name="hazards" value="landslide"><span>Landslide</span></label>
+                <label class="chip"><input type="checkbox" name="hazards" value="flood"><span>Flood</span></label>
+                <label class="chip"><input type="checkbox" name="hazards" value="volcanic"><span>Volcanic</span></label>
+                <label class="chip"><input type="checkbox" name="hazards" value="seismic"><span>Seismic</span></label>
+                <label class="chip"><input type="checkbox" name="hazards" value="glacial"><span>Glacial flood</span></label>
+                <label class="chip"><input type="checkbox" name="hazards" value="modelling"><span>Numerical modelling</span></label>
+                <label class="chip"><input type="checkbox" name="hazards" value="unsure"><span>Not sure yet</span></label>
+              </div>
+            </fieldset>
+            <div class="f-row">
+              <div class="f-group">
+                <label for="enq-size">Likely size</label>
+                <select id="enq-size" name="engagement">
+                  <option value="">Not sure</option>
+                  <option value="rapid-screen">Rapid screen</option>
+                  <option value="focused-assessment">Focused assessment</option>
+                  <option value="modelling-study">Modelling study</option>
+                </select>
+              </div>
+              <div class="f-group">
+                <label for="enq-when">Needed by</label>
+                <select id="enq-when" name="timeframe">
+                  <option value="">Flexible</option>
+                  <option value="under-1-month">Within a month</option>
+                  <option value="1-3-months">1&ndash;3 months</option>
+                  <option value="3-plus-months">3 months or more</option>
+                </select>
+              </div>
+            </div>
+            <div class="f-group">
+              <label for="enq-msg">The question, and the decision it supports</label>
+              <textarea id="enq-msg" name="message" placeholder="What do you need to know, and what will you do with the answer? Mention any data you already have." required></textarea>
+            </div>
+            <label class="consent">
+              <input type="checkbox" name="consent" value="yes" required>
+              <span>I have read the <a href="#terms">terms and limitations</a> and the <a href="/privacy/">Privacy Policy</a>, and agree that GeoID may use these details to reply to my enquiry. I have not included confidential site data or personal data about anyone else.</span>
+            </label>
+            <button type="submit" class="btn-primary">Send enquiry</button>
+            <p class="f-note">Sent securely through Formspree, our form provider (see clause 11). Sending an enquiry creates no obligation on either side.</p>
+          </form>
         </div>
       </section>
 
