@@ -66,7 +66,11 @@
       "upstream": null,
       "advisories": null,
       "licence": "this repository's",
-      "sha256": ["9ee4f9ce4546eaa0", "6ee2b640eb303edf", "6a99cf3cd0a1459a"],
+      "sha256": [
+        "9ee4f9ce4546eaa0",
+        "6ee2b640eb303edf",
+        "6a99cf3cd0a1459a"
+      ],
       "copies": 9,
       "note": "THREE DIFFERENT VERSIONS across nine copies, which is drift rather than a supply-chain risk -- it is our code. Recorded so the divergence is visible; converging them is its own change."
     },
@@ -91,6 +95,17 @@
       "sha256": "0a52c611b0e2ef7b",
       "copies": 1,
       "note": "Frontier Pioneer only; keep at the same revision as that page's three.module.js."
+    },
+    {
+      "name": "icechunk",
+      "version": "icechunk-js 0.6.1 + fzstd 0.1.1 (flatbuffers 25.9.23, @msgpack/msgpack 3.1.3)",
+      "version_source": "the header comment of the bundle, which names each package and version",
+      "upstream": "https://github.com/EarthyScience/icechunk-js",
+      "advisories": "https://github.com/EarthyScience/icechunk-js/security/advisories",
+      "licence": "MIT (icechunk-js, fzstd), Apache-2.0 (flatbuffers), ISC (@msgpack/msgpack)",
+      "sha256": "c8456e69e1d12aa4",
+      "copies": 1,
+      "note": "One esbuild 0.24.2 ES-module bundle of `export { IcechunkStore } from 'icechunk-js'; export { decompress as zstdDecompress } from 'fzstd'`. Loaded lazily by gis/ifs-analysis.js to read the ECMWF IFS analysis archive on AWS."
     }
   ]
 }
