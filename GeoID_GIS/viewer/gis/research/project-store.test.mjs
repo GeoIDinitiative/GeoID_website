@@ -274,7 +274,7 @@ await (async () => {
 })();
 
 // ── A project's Social link, and reading a project without opening it ──────
-// The GeoHUB Social link (`social: {project_id, version, role, linked_at}`) is
+// The GeoID Network link (`social: {project_id, version, role, linked_at}`) is
 // ordinary metadata: written by updateMetadata, read back by every list. The
 // list reads each row with readProjectMeta, which must NOT open the project --
 // opening announces to every listener and moves the header's project chip.

@@ -8,11 +8,11 @@
  * them. Finishing or skipping is remembered on the server
  * (POST /v1/me/onboarding), so it does not come back on another device.
  */
-import * as api from "../api.js?v=20261023-e08bb6a";
-import { store, refreshMe } from "../store.js?v=20261023-e08bb6a";
-import { h, clear, field, input, toast, busy, errorBox, loading, empty, put } from "../dom.js?v=20261023-e08bb6a";
-import { act, userChip, requireSignIn } from "../components.js?v=20261023-e08bb6a";
-import { myAffiliations } from "./orgs.js?v=20261023-e08bb6a";
+import * as api from "../api.js?v=20261023-c5add11";
+import { store, refreshMe } from "../store.js?v=20261023-c5add11";
+import { h, clear, field, input, toast, busy, errorBox, loading, empty, put } from "../dom.js?v=20261023-c5add11";
+import { act, userChip, requireSignIn } from "../components.js?v=20261023-c5add11";
+import { myAffiliations } from "./orgs.js?v=20261023-c5add11";
 
 // Starting points, as tags() stores them; members can add their own.
 const TOPICS = ["volcanology", "seismology", "landslides", "floods", "hydrology", "glaciology", "geomorphology",
@@ -30,7 +30,7 @@ async function finish(where = "#/") {
 
 export async function render(root, { query }) {
   if (!store.me) {
-    put(clear(root), h("h1", { class: "s-h1", text: "Welcome to GeoHUB Social" }),
+    put(clear(root), h("h1", { class: "s-h1", text: "Welcome to GeoID Network" }),
       empty("Sign in to set up your profile.", "Reading public posts needs no account."),
       h("a", { class: "btn-primary", href: api.signInUrl() }, "Sign in"));
     return undefined;
@@ -38,7 +38,7 @@ export async function render(root, { query }) {
   let step = Math.min(Math.max(Number(query.step) || 0, 0), STEPS.length - 1);
   const body = h("div", { class: "s-wizard-body" });
   const progress = h("ol", { class: "s-wizard-steps", "aria-label": "Steps" });
-  const heading = h("h1", { class: "s-h1", text: "Welcome to GeoHUB Social" });
+  const heading = h("h1", { class: "s-h1", text: "Welcome to GeoID Network" });
 
   const go = (n) => { step = n; draw(); };
   const next = () => (step < STEPS.length - 1 ? go(step + 1) : finish());
@@ -71,7 +71,7 @@ export async function render(root, { query }) {
     const form = h("form", { class: "s-form" },
       h("h2", { class: "s-h2", text: "What should people call you?" }),
       field("Name", name, "As it appears on your papers helps: publication checks compare it with the author list."),
-      field("Handle", handle, "Your address on GeoHUB Social: lower-case letters, numbers and _ (3–30)."));
+      field("Handle", handle, "Your address on GeoID Network: lower-case letters, numbers and _ (3–30)."));
     put(form, nav(form, { onSave: async () => {
       const patch = { name: name.value };
       if (handle.value && handle.value !== u.handle) patch.handle = handle.value.toLowerCase();

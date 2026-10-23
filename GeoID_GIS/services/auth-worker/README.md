@@ -179,11 +179,11 @@ query string is logged, so what is logged has to be worth little.
 `{ token, expires }`: an HS256 token with audience `social`, carrying the
 email, name, plan and membership re-read at that moment, for one hour. Signed
 out it answers `401 { error }`. The page holds it in memory and sends it to
-GeoHUB Social as `Authorization: Bearer`, never in a URL; the session cookie is
+GeoID Network as `Authorization: Bearer`, never in a URL; the session cookie is
 host-only and never reaches that Worker, which is why this exists. Audience
 `social` opens nothing on this service.
 
-**Deploying GeoHUB Social:** the social Worker
+**Deploying GeoID Network:** the social Worker
 (`GeoID_GIS/services/social-worker/`) verifies these tokens itself, so both
 Workers hold the **same `SOCIAL_JWT_SECRET`** —
 `npx wrangler secret put SOCIAL_JWT_SECRET` in each, with the same value. It is

@@ -1,10 +1,10 @@
 /** #/communities and #/c/:slug — forums with rules, FAQ, resources, members and events. */
-import * as api from "../api.js?v=20261023-e08bb6a";
-import { store, refreshMe } from "../store.js?v=20261023-e08bb6a";
+import * as api from "../api.js?v=20261023-c5add11";
+import { store, refreshMe } from "../store.js?v=20261023-c5add11";
 import {
   h, clear, field, input, select, textarea, toast, busy, splitList, errorBox, loading, empty, confirmDialog, extLink, modal, put,
-} from "../dom.js?v=20261023-e08bb6a";
-import { act, pagedList, postCard, userChip, followButton, tagList, requireSignIn } from "../components.js?v=20261023-e08bb6a";
+} from "../dom.js?v=20261023-c5add11";
+import { act, pagedList, postCard, userChip, followButton, tagList, requireSignIn } from "../components.js?v=20261023-c5add11";
 
 export function renderList(root) {
   const list = h("div", { class: "s-list" }, loading());
@@ -65,7 +65,7 @@ export async function renderOne(root, { params, query }) {
   const isMember = !!role && role !== "requested";
   const tab = ["threads", "about", "members", "events"].includes(query.tab) ? query.tab : "threads";
   const kind = ["question", "discussion"].includes(query.kind) ? query.kind : "";
-  document.title = `${c.name} — GeoHUB Social`;
+  document.title = `${c.name} — GeoID Network`;
 
   const join = h("div", { class: "s-actions" });
   if (!role) {

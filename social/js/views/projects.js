@@ -6,15 +6,15 @@
  * Workspace handoff: GeoHUB puts {title, world, manifest} in
  * sessionStorage['geoid:social-workspace'] and opens #/projects/new.
  */
-import * as api from "../api.js?v=20261023-e08bb6a";
-import { store } from "../store.js?v=20261023-e08bb6a";
+import * as api from "../api.js?v=20261023-c5add11";
+import { store } from "../store.js?v=20261023-c5add11";
 import {
   h, clear, field, input, select, textarea, checkbox, toast, busy, splitList, errorBox, loading, empty,
   confirmDialog, modal, timeEl, dateToEpoch, dateText, put,
-} from "../dom.js?v=20261023-e08bb6a";
+} from "../dom.js?v=20261023-c5add11";
 import {
   act, pagedList, postCard, userChip, followButton, tagList, requireSignIn, LICENCES, WORLDS, ROLES, share,
-} from "../components.js?v=20261023-e08bb6a";
+} from "../components.js?v=20261023-c5add11";
 
 const WS_KEY = "geoid:social-workspace";
 // The Worker's four stages (CONTRACT.md): a project grows from an idea into an
@@ -129,7 +129,7 @@ export async function renderOne(root, { params }) {
   const role = data.access?.role || "public";
   const rank = { public: 0, viewer: 1, commenter: 2, forker: 3, editor: 4, owner: 5 }[role] || 0;
   const reload = () => renderOne(root, { params });
-  document.title = `${p.title} — GeoHUB Social`;
+  document.title = `${p.title} — GeoID Network`;
   const world = p.world || "earth";
 
   const actions = h("div", { class: "s-actions" },

@@ -15,7 +15,7 @@ import { runJobs, reminders, prune, FREQUENT, DAILY } from "../cron.js";
 
 const ANA = "ana@example.com";
 const BOB = "bob@example.com";
-const MAIL_ENV = { RESEND_API_KEY: "re_test", MAIL_FROM: "GeoHUB Social <social@example.com>" };
+const MAIL_ENV = { RESEND_API_KEY: "re_test", MAIL_FROM: "GeoID Network <social@example.com>" };
 
 const uid = (env, handle) => env.DB.raw.prepare("SELECT id FROM users WHERE handle = ?").get(handle).id;
 const rows = (env, sql, ...a) => env.DB.raw.prepare(sql).all(...a);
@@ -170,7 +170,7 @@ test("digest: unread notifications not already mailed, once a day, nothing priva
   assert.match(digest.text, /started following you/);
   assert.ok(!digest.text.includes("Private words") && !digest.text.includes("sent you a message"));
   assert.match(digest.html, /<html lang="en">/);
-  assert.match(digest.html, /Unsubscribe from all GeoHUB Social email/);
+  assert.match(digest.html, /Unsubscribe from all GeoID Network email/);
 
   out = await sendDigests(env, now() + 3600, { fetchImpl: stub.fetchImpl });
   assert.equal(out.sent, 0, "not twice in a day");

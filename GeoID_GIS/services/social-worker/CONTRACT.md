@@ -1,4 +1,4 @@
-# GeoHUB Social — API contract (v1)
+# GeoID Network — API contract (v1)
 
 Base: `https://social.geoidinitiative.com` (local: `http://localhost:8790` via
 `npx wrangler dev --var DEV_AUTH:1`). Every path below is under `/v1`.
@@ -70,7 +70,7 @@ Kind-specific `meta`:
 | POST/DELETE `/v1/posts/:id/bookmark` `{collection}` ; GET `/v1/me/bookmarks?collection=` | |
 | POST `/v1/posts/:id/verify` `{verdict, note}` | observations only, not by author |
 | POST `/v1/posts/:id/fork` `{title?, visibility?}` | only if allow_fork; new post copies scene/method/meta/sources with `forked_from`; increments fork_count; notifies author → Post |
-| GET `/v1/posts/:id/cite` | `{ text, bibtex, url }` (APA-ish; author name, year, title, "GeoHUB Social", url) |
+| GET `/v1/posts/:id/cite` | `{ text, bibtex, url }` (APA-ish; author name, year, title, "GeoID Network", url) |
 | GET `/v1/posts/:id/forks` | list of Post |
 
 ## media.js

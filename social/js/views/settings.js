@@ -1,9 +1,9 @@
 /** #/settings — privacy, contact, matcher, notifications, follows, blocks, and your data. */
-import * as api from "../api.js?v=20261023-e08bb6a";
-import { store, refreshMe, myHandle } from "../store.js?v=20261023-e08bb6a";
-import { h, clear, field, input, select, checkbox, toast, busy, errorBox, loading, empty, modal, put } from "../dom.js?v=20261023-e08bb6a";
-import { act, userChip, requireSignIn } from "../components.js?v=20261023-e08bb6a";
-import { myAffiliations } from "./orgs.js?v=20261023-e08bb6a";
+import * as api from "../api.js?v=20261023-c5add11";
+import { store, refreshMe, myHandle } from "../store.js?v=20261023-c5add11";
+import { h, clear, field, input, select, checkbox, toast, busy, errorBox, loading, empty, modal, put } from "../dom.js?v=20261023-c5add11";
+import { act, userChip, requireSignIn } from "../components.js?v=20261023-c5add11";
+import { myAffiliations } from "./orgs.js?v=20261023-c5add11";
 
 // The kinds the API knows (NOTIFY_KINDS in social-worker/profiles.js); a
 // toggle for any other name would be silently ignored by the server.
@@ -36,7 +36,7 @@ export function render(root, { query = {} } = {}) {
       field("Who can message you directly", contact),
       field("Collaboration availability", availability),
       matcher,
-      h("p", { class: "s-hint", text: "Each post has its own visibility, and each location its own precision — chosen when you post. Your email address is never shown to anyone on GeoHUB Social." })),
+      h("p", { class: "s-hint", text: "Each post has its own visibility, and each location its own precision — chosen when you post. Your email address is never shown to anyone on GeoID Network." })),
     h("fieldset", {}, h("legend", {}, "Notify me when…"), h("div", { class: "s-check-grid" }, notifyBoxes)),
     mail.el,
     status,
@@ -89,7 +89,7 @@ export function render(root, { query = {} } = {}) {
 
 const ORCID_RESULT = {
   linked: ["Your ORCID iD is verified.", "info"],
-  taken: ["That ORCID iD is already verified on another GeoHUB Social account.", "error"],
+  taken: ["That ORCID iD is already verified on another GeoID Network account.", "error"],
   cancelled: ["ORCID sign-in was cancelled. Nothing changed.", "error"],
   expired: ["That ORCID sign-in took too long or was not for this account. Try again.", "error"],
   failed: ["ORCID did not confirm an iD. Try again.", "error"],
@@ -122,7 +122,7 @@ function identitySection(query) {
       return;
     }
     put(orcid,
-      h("p", { class: "s-muted", text: "Sign in at ORCID to prove the iD is yours. GeoHUB Social asks ORCID only for your iD (scope /authenticate) and is sent back here." }),
+      h("p", { class: "s-muted", text: "Sign in at ORCID to prove the iD is yours. GeoID Network asks ORCID only for your iD (scope /authenticate) and is sent back here." }),
       h("button", { type: "button", class: "btn-primary s-btn-sm", onClick: () => act(async () => {
         const out = await api.get("/v1/orcid/start");
         if (out?.url) location.href = out.url;
@@ -250,14 +250,14 @@ function emailFieldset() {
     boxes = (data.kinds || []).map((k) => [k.id, checkbox(`mail_${k.id}`, k.label, chosen.includes(k.id))]);
     el.lastChild.remove();
     put(el,
-      h("div", { class: "s-mail-modes", role: "radiogroup", "aria-label": "How often GeoHUB Social emails you" },
+      h("div", { class: "s-mail-modes", role: "radiogroup", "aria-label": "How often GeoID Network emails you" },
         radio("off", "No email"),
         radio("digest", "A daily digest", "Unread notifications, once a day, only when there are some."),
         radio("immediate", "A daily digest, and straight away for…")),
       h("div", { class: "s-check-grid s-mail-kinds", role: "group", "aria-label": "Email straight away for" }, boxes.map(([, b]) => b)),
       h("p", { class: "s-hint", text: "Email goes to the address you sign in with, which is never shown to anyone. Message emails say who wrote, never what they wrote. Every email has a one-click unsubscribe link." }),
       data.unsubscribed ? h("p", { class: "s-hint", text: "You unsubscribed from an email link. Choose again here to turn email back on." }) : null,
-      data.sending ? null : h("p", { class: "s-hint s-mail-off", text: "Email is not switched on for GeoHUB Social yet. Your choice is saved and used once it is." }));
+      data.sending ? null : h("p", { class: "s-hint s-mail-off", text: "Email is not switched on for GeoID Network yet. Your choice is saved and used once it is." }));
     sync();
   }).catch((error) => el.lastChild.replaceWith(errorBox(error)));
   return {
@@ -292,7 +292,7 @@ function yourData() {
   deleteBtn.addEventListener("click", () => deleteDialog());
   return h("section", { class: "s-section s-danger-zone", "aria-labelledby": "data-h" },
     h("h2", { class: "s-h2", id: "data-h", text: "Your data" }),
-    h("p", { class: "s-muted", text: "A JSON file of your profile, posts, comments, messages, follows, bookmarks, projects, grants and reviews — everything GeoHUB Social holds about you, including the email address your account is linked to." }),
+    h("p", { class: "s-muted", text: "A JSON file of your profile, posts, comments, messages, follows, bookmarks, projects, grants and reviews — everything GeoID Network holds about you, including the email address your account is linked to." }),
     exportBtn,
     h("p", { class: "s-muted", text: "Deleting your Social account cannot be undone." }),
     deleteBtn);
@@ -300,7 +300,7 @@ function yourData() {
 
 function deleteDialog() {
   const handle = myHandle();
-  modal("Delete your GeoHUB Social account", (close) => {
+  modal("Delete your GeoID Network account", (close) => {
     const confirmBox = input("confirm", { autocomplete: "off", spellcheck: "false", required: true });
     const status = h("p", { class: "s-form-status", role: "status", "aria-live": "polite" });
     const form = h("form", {},

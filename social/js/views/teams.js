@@ -1,9 +1,9 @@
 /** #/teams and #/t/:slug — members and roles, invites, a task board, team chat and projects. */
-import * as api from "../api.js?v=20261023-e08bb6a";
-import { store, myHandle, refreshMe } from "../store.js?v=20261023-e08bb6a";
-import { h, clear, field, input, select, textarea, toast, busy, errorBox, loading, empty, confirmDialog, modal, put } from "../dom.js?v=20261023-e08bb6a";
-import { act, userChip, pagedList, requireSignIn } from "../components.js?v=20261023-e08bb6a";
-import { chatPanel } from "../chat.js?v=20261023-e08bb6a";
+import * as api from "../api.js?v=20261023-c5add11";
+import { store, myHandle, refreshMe } from "../store.js?v=20261023-c5add11";
+import { h, clear, field, input, select, textarea, toast, busy, errorBox, loading, empty, confirmDialog, modal, put } from "../dom.js?v=20261023-c5add11";
+import { act, userChip, pagedList, requireSignIn } from "../components.js?v=20261023-c5add11";
+import { chatPanel } from "../chat.js?v=20261023-c5add11";
 
 const TEAM_ROLES = [["lead", "Lead"], ["editor", "Editor"], ["member", "Member"], ["viewer", "Viewer (read-only)"]];
 
@@ -60,7 +60,7 @@ export async function renderOne(root, { params, query }) {
   const isLead = myRole === "lead";
   const canEdit = myRole === "lead" || myRole === "editor" || myRole === "member";
   const tab = ["board", "chat", "members", "projects"].includes(query.tab) ? query.tab : (myRole ? "board" : "members");
-  document.title = `${t.name} — GeoHUB Social`;
+  document.title = `${t.name} — GeoID Network`;
   const reload = () => renderOne(root, { params, query });
 
   const head = h("header", { class: "s-community-head" }, h("h1", { class: "s-h1", text: t.name }),

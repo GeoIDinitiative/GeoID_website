@@ -63,7 +63,7 @@ export const TOOLS = [
   {
     name: "community_near",
     title: "List community posts near the view",
-    says: "Public GeoHUB Social posts, observations and projects near the centre of the view, with "
+    says: "Public GeoID Network posts, observations and projects near the centre of the view, with "
       + "who posted them and how each says it was made. Community content, unverified unless marked.",
     args: {
       type: "object",

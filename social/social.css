@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════════════════════════
-   GeoHUB Social — page styles.
+   GeoID Network — page styles.
 
    Built on the site's own tokens (--text --muted --accent --accent-rgb
    --line --line-strong --panel --bg-1 --bg-2 --radius --nav-h) and its
@@ -801,3 +801,126 @@ select option, select optgroup { background-color: #0b1020; color: #e6edf7; }
   .s-mapfull-canvas { position: relative; height: 55vh; min-height: 20rem; }
   .s-mapfull-zoom { top: auto; bottom: 3.6rem; flex-direction: row; }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   MATERIALS AND MOTION — the GeoID Network's depth layer.
+
+   One dark material, in two weights, over the loading screen's photographs
+   (backdrop.js): structure (header, panels) is the heavier, more opaque
+   glass; content (cards) is lighter. Never light glass on light glass.
+   Edges catch light at the top (a brighter top border) the way a real pane
+   does. Every value here is a token so the whole layer can be tuned at once.
+   ═══════════════════════════════════════════════════════════════════════ */
+:root {
+  --n-ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --n-glass: rgba(9, 12, 28, 0.62);          /* content: cards */
+  --n-glass-heavy: rgba(7, 9, 22, 0.78);     /* structure: header, panels, sidebars */
+  --n-glass-edge: rgba(255, 255, 255, 0.07);
+  --n-glass-top: rgba(255, 255, 255, 0.13);
+  --n-blur: blur(16px) saturate(135%);
+  --n-shadow: 0 12px 32px rgba(0, 0, 0, 0.28), 0 1px 0 rgba(255, 255, 255, 0.03) inset;
+  --n-radius: 14px;
+}
+
+/* The backdrop: fixed, dimmed, still. A veil darkens it toward the bottom
+   so long pages stay readable. */
+.s-backdrop { position: fixed; inset: 0; z-index: -1; overflow: hidden; background: rgb(4, 6, 16); pointer-events: none; }
+.s-backdrop img {
+  position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover;
+  opacity: 0; filter: saturate(0.9) brightness(0.85);
+  transition: opacity 400ms var(--n-ease-out);
+}
+.s-backdrop img.is-on { opacity: 0.55; }
+.s-backdrop-veil { position: absolute; inset: 0;
+  background: radial-gradient(130% 90% at 50% 10%, rgba(4, 6, 16, 0.05), rgba(4, 6, 16, 0.6) 75%),
+              linear-gradient(180deg, rgba(4, 6, 16, 0.1), rgba(4, 6, 16, 0.7)); }
+/* The photograph's credit: a quiet line at the end of the page, never over content. */
+.s-backdrop-credit { max-width: 76rem; margin: 0 auto; padding: 0 1rem 1.5rem; text-align: right;
+  font-size: 0.7rem; letter-spacing: 0.02em; color: rgba(220, 230, 245, 0.5); }
+body:not(.s-has-backdrop) .s-backdrop-credit { display: none; }
+/* The site's own page background would sit on top of the fixed layer. */
+html:has(body.s-has-backdrop) { background: rgb(4, 6, 16); }
+body.s-has-backdrop, body.s-has-backdrop .page-wrap { background: transparent !important; }
+
+/* Structure: the app header becomes a floating pane. */
+.s-header {
+  background: var(--n-glass-heavy); -webkit-backdrop-filter: var(--n-blur); backdrop-filter: var(--n-blur);
+  border: 1px solid var(--n-glass-edge); border-top-color: var(--n-glass-top); border-radius: calc(var(--n-radius) + 2px);
+  padding: 0.85rem 1.1rem 0; box-shadow: var(--n-shadow); margin-bottom: 1.4rem;
+}
+.s-subnav a { padding-bottom: 0.7rem; }
+
+/* Content: posts and list rows become glass cards with air between them. */
+.s-app .s-list { gap: 0.7rem; }
+.s-app .s-list > .s-card, .s-app .s-card.s-post-card {
+  padding: 1rem 1.15rem 0.95rem; border: 1px solid var(--n-glass-edge); border-top-color: var(--n-glass-top);
+  border-radius: var(--n-radius); background: var(--n-glass);
+  -webkit-backdrop-filter: var(--n-blur); backdrop-filter: var(--n-blur); box-shadow: var(--n-shadow);
+}
+.s-card.is-reshare { border-left: 2px solid rgba(var(--accent-rgb), 0.55); }
+
+/* Heavier panes for the reading surfaces: a post, its thread, side panels,
+   forms, the map's people panel. */
+.s-post-full, .s-thread, .s-side, .s-compose, .s-form, .s-provenance, .s-mapfull-panel, .s-empty {
+  background: var(--n-glass-heavy); -webkit-backdrop-filter: var(--n-blur); backdrop-filter: var(--n-blur);
+  border: 1px solid var(--n-glass-edge); border-top-color: var(--n-glass-top); border-radius: var(--n-radius);
+  padding: 1.1rem 1.25rem; box-shadow: var(--n-shadow);
+}
+.s-side { border-left: 1px solid var(--n-glass-edge); padding: 1rem 1.1rem; }
+.s-post-full .s-provenance, .s-compose .s-form, .s-form .s-form { background: rgba(255, 255, 255, 0.025); box-shadow: none;
+  -webkit-backdrop-filter: none; backdrop-filter: none; }
+.s-mapfull-panel { border-radius: 0; border-width: 0 0 0 1px; }
+
+/* Scientific reading: numbers line up, labels are quiet small capitals,
+   display type tightens as it grows. */
+.s-card-meta, .s-counts, .s-mapfull-status, .s-tag-count, .s-badge-n, time, .s-person-why { font-variant-numeric: tabular-nums; }
+.s-side-title, .s-trending-label { font-size: 0.7rem; letter-spacing: 0.1em; text-transform: uppercase; }
+.s-h1 { letter-spacing: -0.025em; }
+
+/* ── Motion ────────────────────────────────────────────────────────────
+   Feedback on press, instantly; hover only where there is a mouse; the
+   first cards of a list arrive in a short stagger (state indication) and
+   later ones without delay. Nothing loops. */
+.s-app button, .s-app .btn-primary, .s-app .btn-ghost, .s-act, .s-mini-act, .s-chip, .s-tag-chip, .s-icon-btn {
+  transition: transform 120ms var(--n-ease-out), background-color 150ms ease, border-color 150ms ease, color 150ms ease;
+}
+.s-app button:active, .s-app .btn-primary:active, .s-app .btn-ghost:active,
+.s-act:active, .s-mini-act:active, .s-chip:active, .s-tag-chip:active, .s-icon-btn:active { transform: scale(0.97); }
+.s-list > .s-card { transition: border-color 160ms ease, background-color 160ms ease; }
+@media (hover: hover) and (pointer: fine) {
+  .s-list > .s-card:hover { border-color: rgba(var(--accent-rgb), 0.28); background: rgba(12, 16, 36, 0.7); }
+}
+@keyframes n-rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+@keyframes n-fade { from { opacity: 0; } to { opacity: 1; } }
+.s-list > .s-card { animation: n-rise 260ms var(--n-ease-out) both; }
+.s-list > .s-card:nth-child(2) { animation-delay: 40ms; }
+.s-list > .s-card:nth-child(3) { animation-delay: 80ms; }
+.s-list > .s-card:nth-child(4) { animation-delay: 120ms; }
+.s-list > .s-card:nth-child(5) { animation-delay: 160ms; }
+.s-list > .s-card:nth-child(6) { animation-delay: 200ms; }
+
+@media (prefers-reduced-motion: reduce) {
+  .s-list > .s-card { animation: n-fade 150ms ease both; animation-delay: 0ms !important; }
+  .s-app button:active, .s-act:active, .s-mini-act:active, .s-chip:active, .s-tag-chip:active, .s-icon-btn:active,
+  .s-app .btn-primary:active, .s-app .btn-ghost:active { transform: none; }
+  .s-backdrop img { transition: none; }
+}
+/* Reduced transparency: solid panes, no photograph behind text. */
+@media (prefers-reduced-transparency: reduce) {
+  .s-backdrop img { display: none; }
+  .s-header, .s-list > .s-card, .s-card.s-post-card, .s-post-full, .s-thread, .s-side, .s-compose, .s-form, .s-mapfull-panel, .s-empty {
+    background: rgb(10, 13, 28); -webkit-backdrop-filter: none; backdrop-filter: none;
+  }
+}
+@media (prefers-contrast: more) {
+  :root { --n-glass: rgb(8, 10, 24); --n-glass-heavy: rgb(6, 8, 20); --n-glass-edge: rgba(255, 255, 255, 0.35); --n-glass-top: rgba(255, 255, 255, 0.45); }
+}
+
+/* One radius for every pane in the Network. v2-site.css squares anything
+   whose class contains "card"/"panel"/"header" site-wide (with !important,
+   on purpose: the flat surface is the site's language). The Network's
+   frosted panes are the exception the owner asked for, so they are scoped
+   here and nowhere else. */
+.s-app .s-list > .s-card, .s-app .s-card.s-post-card, .s-app .s-link-card,
+.s-app .s-post-full, .s-app .s-thread, .s-app .s-side, .s-app .s-compose, .s-app .s-form,
+.s-app .s-provenance, .s-app .s-empty, .s-app .s-header { border-radius: var(--n-radius) !important; }

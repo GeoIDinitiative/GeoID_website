@@ -1,5 +1,5 @@
 /**
- * DOM helpers for GeoHUB Social.
+ * DOM helpers for GeoID Network.
  *
  * EVERY PIECE OF USER CONTENT GOES IN AS TEXT. `h()` turns string children
  * into text nodes and never touches innerHTML, so a post body, a name or a
@@ -147,7 +147,7 @@ export function empty(title, detail, action) {
 export function errorBox(error, retry) {
   const status = error && error.status;
   let lead = "Something went wrong.";
-  if (status === 0) lead = "Could not reach GeoHUB Social.";
+  if (status === 0) lead = "Could not reach GeoID Network.";
   else if (status === 401) lead = "You need to sign in for this.";
   else if (status === 403) lead = "You don't have access to this.";
   else if (status === 404) lead = "Not found — it may have been removed, or it isn't shared with you.";

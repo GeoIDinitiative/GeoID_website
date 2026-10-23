@@ -355,7 +355,7 @@ test("questions, bookmarks, verifications, citations", async () => {
   assert.equal((await api(env, "POST", `/v1/posts/${text.id}/verify`, { as: BOB, body: { verdict: "confirm" } })).status, 400);
 
   const cite = await api(env, "GET", `/v1/posts/${obs.id}/cite`);
-  assert.match(cite.body.text, /^ana \(\d{4}\)\. Ash fall\. GeoHUB Social\. http/);
+  assert.match(cite.body.text, /^ana \(\d{4}\)\. Ash fall\. GeoID Network\. http/);
   assert.match(cite.body.bibtex, /@misc\{geohub_/);
   assert.equal((await api(env, "GET", `/v1/posts/${q.id}/cite`)).status, 404);
 });

@@ -8,15 +8,15 @@
  * affiliation" on a member means their sign-in address belongs to one of a
  * verified organisation's domains -- the address itself is never shown.
  */
-import * as api from "../api.js?v=20261023-e08bb6a";
-import { store, refreshMe } from "../store.js?v=20261023-e08bb6a";
+import * as api from "../api.js?v=20261023-c5add11";
+import { store, refreshMe } from "../store.js?v=20261023-c5add11";
 import {
   h, clear, field, input, select, textarea, toast, busy, splitList, errorBox, loading, empty, extLink, modal,
   confirmDialog, dateToEpoch, put,
-} from "../dom.js?v=20261023-e08bb6a";
+} from "../dom.js?v=20261023-c5add11";
 import {
   act, pagedList, postCard, userChip, followButton, requireSignIn, OPP_TYPES, plural,
-} from "../components.js?v=20261023-e08bb6a";
+} from "../components.js?v=20261023-c5add11";
 
 export const ORG_KINDS = [["university", "University"], ["survey", "Geological survey"], ["agency", "Government agency"],
   ["company", "Company"], ["nonprofit", "Non-profit"], ["other", "Other"]];
@@ -35,8 +35,8 @@ function orgLogo(org, size = 48) {
 
 export function orgVerifiedBadge(org) {
   return org.verified
-    ? h("span", { class: "s-verified", title: "Checked by GeoHUB Social's admins" }, "Verified organisation")
-    : h("span", { class: "s-selfdecl", title: "Proposed by members and not yet checked by GeoHUB Social's admins" }, "Unverified");
+    ? h("span", { class: "s-verified", title: "Checked by GeoID Network's admins" }, "Verified organisation")
+    : h("span", { class: "s-selfdecl", title: "Proposed by members and not yet checked by GeoID Network's admins" }, "Unverified");
 }
 
 // ── Directory ──────────────────────────────────────────────────────────────
@@ -111,7 +111,7 @@ function orgDialog(existing, { locked = false, onSaved } = {}) {
       field("Email domains", f.domains, "Comma-separated, e.g. leeds.ac.uk. Members whose sign-in address is at one of these (or a subdomain) get a verified affiliation once the organisation is verified. Free mail providers are refused."),
       field("Website", f.website), field("Location", f.location), field("About", f.description),
       field("Logo (optional)", logo, "PNG, JPEG or WebP. Anyone can see it."),
-      existing ? null : h("p", { class: "s-hint", text: "It is listed straight away, marked unverified, and you become its first admin. GeoHUB Social's admins verify organisations." }),
+      existing ? null : h("p", { class: "s-hint", text: "It is listed straight away, marked unverified, and you become its first admin. GeoID Network's admins verify organisations." }),
       status,
       h("div", { class: "s-actions" }, h("button", { type: "submit", class: "btn-primary" }, existing ? "Save" : "Propose"),
         h("button", { type: "button", class: "btn-ghost", onClick: () => close() }, "Cancel")));
@@ -148,7 +148,7 @@ async function renderOne(root, { params, query }) {
   const o = data.org;
   const v = data.viewer || {};
   const again = () => renderOne(root, { params, query });
-  document.title = `${o.name} — GeoHUB Social`;
+  document.title = `${o.name} — GeoID Network`;
 
   const actions = h("div", { class: "s-actions" });
   if (v.member) {

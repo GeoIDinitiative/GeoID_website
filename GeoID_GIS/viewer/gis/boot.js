@@ -1,4 +1,4 @@
-import { ready } from "./shell.js?v=20261023-e08bb6a";
+import { ready } from "./shell.js?v=20261023-c5add11";
 
 /**
  * The GIS layer's entry point on a planet page.
@@ -108,7 +108,7 @@ const MODULES = [
   "./layer-export-dialog.js",
   "./side-panels.js",
   "./project.js",
-  // GeoHUB Social: the Community layer, `?post=`/`?project=`, Share. After
+  // GeoID Network: the Community layer, `?post=`/`?project=`, Share. After
   // project.js, whose dialog carries its Share buttons.
   "./social-bridge.js",
   "./polygons.js",
@@ -119,7 +119,7 @@ const MODULES = [
   "./atlas-assistant.js",
 ];
 
-const VERSION = "?v=20261023-e08bb6a";
+const VERSION = "?v=20261023-c5add11";
 
 async function boot() {
   const shell = await ready;

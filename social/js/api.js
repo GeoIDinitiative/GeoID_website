@@ -1,5 +1,5 @@
 /**
- * The one door to the GeoHUB Social API (CONTRACT.md in
+ * The one door to the GeoID Network API (CONTRACT.md in
  * GeoID_GIS/services/social-worker).
  *
  * WHO IS ASKING. The site session is an httpOnly cookie on the auth Worker's
@@ -96,7 +96,7 @@ function qs(query) {
 
 let mock = null;
 async function viaMock(method, path, query, body) {
-  if (!mock) mock = await import("./dev-mock.js?v=20261023-e08bb6a");
+  if (!mock) mock = await import("./dev-mock.js?v=20261023-c5add11");
   const { status, data } = await mock.handle(method, path, query || {}, body);
   if (status >= 400) throw new ApiError(status, (data && data.error) || `HTTP ${status}`, data);
   return data;
@@ -112,7 +112,7 @@ export async function request(method, path, { query, body, form, raw = false } =
     return data;
   }
   const root = base();
-  if (!root) throw new ApiError(0, "GeoHUB Social is not configured on this page.");
+  if (!root) throw new ApiError(0, "GeoID Network is not configured on this page.");
   const send = async (retry) => {
     const headers = {};
     const dev = devUser();
@@ -131,7 +131,7 @@ export async function request(method, path, { query, body, form, raw = false } =
     try {
       res = await fetch(`${root}${path}${qs(query)}`, { method, headers, body: payload });
     } catch (error) {
-      throw new ApiError(0, "Could not reach GeoHUB Social. Check your connection and try again.");
+      throw new ApiError(0, "Could not reach GeoID Network. Check your connection and try again.");
     }
     // A 401 with a token in hand may be a token that just lapsed: one retry
     // with a fresh one, then believe it.

@@ -75,7 +75,7 @@ function mailSecret(env) {
   return base ? `${base}\u0000mail` : "";
 }
 
-/** A link that turns off all GeoHUB Social email for `userId`, valid two years. */
+/** A link that turns off all GeoID Network email for `userId`, valid two years. */
 export async function unsubscribeToken(env, userId, t = now()) {
   const secret = mailSecret(env);
   if (!secret) return "";
@@ -189,20 +189,20 @@ export function layout({ heading, intro, lines, settingsUrl, unsubscribeUrl, foo
   const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(heading)}</title></head>
 <body style="margin:0;padding:24px;background:#ffffff;color:#1a1a1a;font:16px/1.5 -apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif">
 <div style="max-width:560px;margin:0 auto">
-<p style="margin:0 0 16px 0;font-weight:600;letter-spacing:.02em">GeoHUB Social</p>
+<p style="margin:0 0 16px 0;font-weight:600;letter-spacing:.02em">GeoID Network</p>
 <h1 style="font-size:20px;margin:0 0 12px 0">${esc(heading)}</h1>
 ${intro ? `<p style="margin:0 0 16px 0">${esc(intro)}</p>` : ""}
 <ul style="padding-left:20px;margin:0 0 24px 0">${items}</ul>
 <hr style="border:0;border-top:1px solid #d0d0d0;margin:24px 0">
 <p style="font-size:14px;color:#444444;margin:0 0 8px 0">${esc(footer)}</p>
-<p style="font-size:14px;color:#444444;margin:0"><a href="${esc(settingsUrl)}" style="color:#0b4f8a">Choose which emails you get</a> · <a href="${esc(unsubscribeUrl)}" style="color:#0b4f8a">Unsubscribe from all GeoHUB Social email</a></p>
+<p style="font-size:14px;color:#444444;margin:0"><a href="${esc(settingsUrl)}" style="color:#0b4f8a">Choose which emails you get</a> · <a href="${esc(unsubscribeUrl)}" style="color:#0b4f8a">Unsubscribe from all GeoID Network email</a></p>
 </div></body></html>`;
   const text = [
-    "GeoHUB Social", "", heading, "", ...(intro ? [intro, ""] : []),
+    "GeoID Network", "", heading, "", ...(intro ? [intro, ""] : []),
     ...lines.flatMap((l) => [`- ${l.text}`, `  ${l.href}`]),
     "", "--", footer,
     `Choose which emails you get: ${settingsUrl}`,
-    `Unsubscribe from all GeoHUB Social email: ${unsubscribeUrl}`,
+    `Unsubscribe from all GeoID Network email: ${unsubscribeUrl}`,
   ].join("\n");
   return { html, text };
 }
@@ -221,7 +221,7 @@ async function envelope(env, user, { subject, heading, intro, lines, footer }) {
 
 /** The email for notifications mailed as they happened. */
 export async function composeImmediate(env, user, lines) {
-  const subject = lines.length === 1 ? str(lines[0].text, 120) : `${lines.length} new notifications on GeoHUB Social`;
+  const subject = lines.length === 1 ? str(lines[0].text, 120) : `${lines.length} new notifications on GeoID Network`;
   return envelope(env, user, {
     subject,
     heading: lines.length === 1 ? "You have a new notification" : `You have ${lines.length} new notifications`,
@@ -235,7 +235,7 @@ export async function composeImmediate(env, user, lines) {
 export async function composeDigest(env, user, lines, more = 0) {
   const total = lines.length + more;
   return envelope(env, user, {
-    subject: `Your GeoHUB Social digest: ${total} unread notification${total === 1 ? "" : "s"}`,
+    subject: `Your GeoID Network digest: ${total} unread notification${total === 1 ? "" : "s"}`,
     heading: "While you were away",
     intro: more ? `The latest ${lines.length} of ${total} unread notifications:` : "",
     lines: more ? [...lines, { text: `See all ${total} notifications`, href: siteLink(env, "#/notifications?unread=1") }] : lines,
@@ -454,9 +454,9 @@ async function patchPrefs(ctx) {
 
 function page(title, paragraphs, form = "") {
   const body = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>${esc(title)} — GeoHUB Social</title></head>
+<title>${esc(title)} — GeoID Network</title></head>
 <body style="margin:0;padding:32px 16px;background:#ffffff;color:#1a1a1a;font:17px/1.55 -apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif">
-<main style="max-width:520px;margin:0 auto"><p style="font-weight:600">GeoHUB Social</p><h1 style="font-size:24px">${esc(title)}</h1>
+<main style="max-width:520px;margin:0 auto"><p style="font-weight:600">GeoID Network</p><h1 style="font-size:24px">${esc(title)}</h1>
 ${paragraphs.map((p) => `<p>${p}</p>`).join("\n")}${form}</main></body></html>`;
   return new Response(body, {
     status: 200,
@@ -473,7 +473,7 @@ const settingsLinkHtml = (env) => `<a href="${esc(siteLink(env, "#/settings"))}"
 
 /**
  * GET: the link in every email. One click, no sign-in: the signed token says
- * whose mail to stop. It turns off ALL GeoHUB Social email (digest and
+ * whose mail to stop. It turns off ALL GeoID Network email (digest and
  * immediate), says so, and offers an undo in case a link scanner or a slip
  * of the finger clicked it.
  * POST: the same, for mail clients that implement RFC 8058 one-click.
@@ -493,7 +493,7 @@ async function unsubscribe(ctx) {
   const undo = `<form method="post" action="/v1/mail/resubscribe?t=${esc(encodeURIComponent(token))}">
 <button type="submit" style="font:inherit;padding:8px 16px;border:1px solid #0b4f8a;background:#ffffff;color:#0b4f8a;border-radius:6px;cursor:pointer">Undo: turn email back on</button></form>`;
   return page("You are unsubscribed", [
-    "GeoHUB Social will not send you any more email. Your notifications are still there in the app.",
+    "GeoID Network will not send you any more email. Your notifications are still there in the app.",
     `To choose some emails again, use ${settingsLinkHtml(env)}.`], undo);
 }
 

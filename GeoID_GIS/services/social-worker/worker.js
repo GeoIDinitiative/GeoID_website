@@ -1,5 +1,5 @@
 /**
- * GeoHUB Social: the network for people, projects and knowledge about the
+ * GeoID Network: the network for people, projects and knowledge about the
  * physical world. Deployed as its own Worker at social.geoidinitiative.com.
  *
  * The routes are listed in CONTRACT.md and implemented one module per area;

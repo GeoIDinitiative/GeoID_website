@@ -1,19 +1,19 @@
 /** #/post/:id — one post in full, its provenance, the interaction bar and the thread. */
-import * as api from "../api.js?v=20261023-e08bb6a";
-import { store, myHandle } from "../store.js?v=20261023-e08bb6a";
+import * as api from "../api.js?v=20261023-c5add11";
+import { store, myHandle } from "../store.js?v=20261023-c5add11";
 import {
   h, clear, timeEl, toast, modal, field, select, textarea, busy, extLink, errorBox, loading,
   confirmDialog, empty, dateText, put,
-} from "../dom.js?v=20261023-e08bb6a";
+} from "../dom.js?v=20261023-c5add11";
 import {
   userChip, kindBadge, provenanceBadge, hasProvenance, verificationBadge, geohubHref, tagList, REACTIONS, LICENCES, VISIBILITY,
   PROVENANCE, act, requireSignIn, followButton, reportDialog, share, postUrl, citeDialog, bookmarkDialog,
   reshareButton, quoteDialog, sendPostDialog,
   postCard, kindLabel,
-} from "../components.js?v=20261023-e08bb6a";
-import { compareSlider, resolveImageRef, timeChart, measurementsBlock, gallery } from "../rich.js?v=20261023-e08bb6a";
-import { parseVideoLink, videoEmbed } from "../embed.js?v=20261023-e08bb6a";
-import { eventPanel } from "./opportunities.js?v=20261023-e08bb6a";
+} from "../components.js?v=20261023-c5add11";
+import { compareSlider, resolveImageRef, timeChart, measurementsBlock, gallery } from "../rich.js?v=20261023-c5add11";
+import { parseVideoLink, videoEmbed } from "../embed.js?v=20261023-c5add11";
+import { eventPanel } from "./opportunities.js?v=20261023-c5add11";
 
 export async function render(root, { params }) {
   const id = params.id;
@@ -23,7 +23,7 @@ export async function render(root, { params }) {
     put(clear(root), errorBox(error, () => render(root, { params })));
     return;
   }
-  document.title = `${p.title || kindLabel(p.kind)} — GeoHUB Social`;
+  document.title = `${p.title || kindLabel(p.kind)} — GeoID Network`;
   const mine = !!store.me && p.author?.handle === myHandle();
   const comments = h("section", { class: "s-thread", "aria-labelledby": "thread-h" });
   put(clear(root),
@@ -242,7 +242,7 @@ function actionBar(p, mine, focusComment) {
     reshareButton(p),
     p.visibility === "public" && store.me && !mine ? h("button", { type: "button", class: "s-act", onClick: () => quoteDialog(p) }, "Quote") : null,
     h("button", { type: "button", class: "s-act", onClick: () => (store.me ? sendPostDialog(p) : requireSignIn("send posts")) }, "Send to…"),
-    h("button", { type: "button", class: "s-act", onClick: () => share(postUrl(p.id), p.title || "GeoHUB Social") }, "Share link"),
+    h("button", { type: "button", class: "s-act", onClick: () => share(postUrl(p.id), p.title || "GeoID Network") }, "Share link"),
     h("button", { type: "button", class: "s-act", onClick: () => citeDialog(p.id) }, "Cite"));
   // Collaboration track: ask specialists for help with (or about) this post.
   put(bar, h("a", { class: "s-act", href: `#/requests?new=1&post=${encodeURIComponent(p.id)}` }, "Ask for help…"));

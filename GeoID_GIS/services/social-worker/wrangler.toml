@@ -1,4 +1,4 @@
-# GeoHUB Social. Deploy from this directory with `npx wrangler deploy`.
+# GeoID Network. Deploy from this directory with `npx wrangler deploy`.
 # Setup, once (see README.md):
 #   npx wrangler d1 create geoid-social          -> paste the id below
 #   npx wrangler r2 bucket create geoid-social-media
@@ -23,7 +23,7 @@ DEV_AUTH = "0"
 # Email (mail.js): the sender, on the domain geoid-auth already sends from on
 # Resend. Nothing is sent until the RESEND_API_KEY secret is also set
 # (`npx wrangler secret put RESEND_API_KEY`). Digests go out from this UTC hour.
-MAIL_FROM = "GeoHUB Social <social@geoidinitiative.com>"
+MAIL_FROM = "GeoID Network <social@geoidinitiative.com>"
 DIGEST_HOUR_UTC = "7"
 
 [[d1_databases]]

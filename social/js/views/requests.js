@@ -11,13 +11,13 @@
  * Entry points: "Ask for help…" on a post and on a project open
  * #/requests?new=1&post=<id> or &project=<id>.
  */
-import * as api from "../api.js?v=20261023-e08bb6a";
-import { store } from "../store.js?v=20261023-e08bb6a";
+import * as api from "../api.js?v=20261023-c5add11";
+import { store } from "../store.js?v=20261023-c5add11";
 import {
   h, clear, field, input, select, textarea, toast, busy, splitList, errorBox, loading, empty, modal,
   timeEl, dateToEpoch, dateText, put,
-} from "../dom.js?v=20261023-e08bb6a";
-import { act, pagedList, userChip, requireSignIn, confirmDialog } from "../components.js?v=20261023-e08bb6a";
+} from "../dom.js?v=20261023-c5add11";
+import { act, pagedList, userChip, requireSignIn, confirmDialog } from "../components.js?v=20261023-c5add11";
 
 export const REQUEST_KINDS = [
   ["join_project", "Join a project"], ["review_method", "Review a method"], ["contribute_dataset", "Contribute a dataset"],
@@ -112,7 +112,7 @@ async function renderNew(root, query) {
     title: input("title", { required: true, maxlength: 200, placeholder: "e.g. Check the unwrapping in my Etna InSAR workflow" }),
     detail: textarea("detail", { rows: 5, maxlength: 5000 }),
     skills: input("skills", { value: (about?.skills || []).join(", "), placeholder: "insar, python" }),
-    audience: select("audience", [["member", "Only the people I name"], ["community", "Members of a community"], ["everyone", "Anyone on GeoHUB Social"]], "member"),
+    audience: select("audience", [["member", "Only the people I name"], ["community", "Members of a community"], ["everyone", "Anyone on GeoID Network"]], "member"),
     handles: input("handles", { placeholder: "handles, comma-separated", autocomplete: "off" }),
     community: select("community", [["", "Choose"], ...(store.me.communities || []).map((c) => [c.slug, c.name])], ""),
     team: select("team", [["", "Just me"], ...(store.me.teams || []).map((t) => [t.slug, t.name])], ""),
@@ -178,7 +178,7 @@ async function renderOne(root, rid) {
   const role = data.viewer_role || "reader";
   const reload = () => renderOne(root, rid);
   const path = `/v1/requests/${enc(rid)}`;
-  document.title = `${r.title || "Request"} — GeoHUB Social`;
+  document.title = `${r.title || "Request"} — GeoID Network`;
 
   const setStatus = (to, confirmText) => act(async () => {
     if (confirmText && !(await confirmDialog(STATUS[to], confirmText, STATUS[to]))) return;

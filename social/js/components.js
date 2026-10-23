@@ -3,13 +3,13 @@
  * claim came from, and the interaction bar. All of it built with h(), so all
  * user content is text.
  */
-import * as api from "./api.js?v=20261023-e08bb6a";
-import { store, myHandle, refreshMe } from "./store.js?v=20261023-e08bb6a";
+import * as api from "./api.js?v=20261023-c5add11";
+import { store, myHandle, refreshMe } from "./store.js?v=20261023-c5add11";
 import {
   h, clear, ago, timeEl, toast, modal, copyText, field, select, input, textarea,
   extLink, empty, errorBox, loading, busy, confirmDialog, put,
-} from "./dom.js?v=20261023-e08bb6a";
-import { cardPreview } from "./embed.js?v=20261023-e08bb6a";
+} from "./dom.js?v=20261023-c5add11";
+import { cardPreview } from "./embed.js?v=20261023-c5add11";
 
 // ── Vocabulary (CONTRACT.md enumerations) ──────────────────────────────────
 
@@ -276,7 +276,7 @@ export function quoteDialog(p) {
 
 export function sendPostDialog(p) {
   messageDialog([], "Send this post", {
-    body: `${p.title || "A post on GeoHUB Social"}\n${postUrl(p.id)}`,
+    body: `${p.title || "A post on GeoID Network"}\n${postUrl(p.id)}`,
     stay: true,
     hint: "It arrives in their messages with a link to the post. Add a line of your own if you like.",
   });

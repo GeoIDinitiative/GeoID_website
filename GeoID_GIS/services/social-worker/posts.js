@@ -943,8 +943,8 @@ async function cite(ctx) {
   const name = author.name || author.handle;
   const bib = (s) => String(s).replace(/[{}\\]/g, "");
   return {
-    text: `${name} (${year}). ${title}. GeoHUB Social. ${link}`,
-    bibtex: `@misc{geohub_${post.id.replace(/[^a-z0-9]/gi, "")},\n  author = {${bib(name)}},\n  title = {${bib(title)}},\n  year = {${year}},\n  howpublished = {GeoHUB Social},\n  url = {${link}}\n}`,
+    text: `${name} (${year}). ${title}. GeoID Network. ${link}`,
+    bibtex: `@misc{geohub_${post.id.replace(/[^a-z0-9]/gi, "")},\n  author = {${bib(name)}},\n  title = {${bib(title)}},\n  year = {${year}},\n  howpublished = {GeoID Network},\n  url = {${link}}\n}`,
     url: link,
   };
 }

@@ -1,5 +1,5 @@
 /**
- * The collaboration half of GeoHUB Social: projects and grants, teams,
+ * The collaboration half of GeoID Network: projects and grants, teams,
  * communities, reviews, messages, moderation, reputation and the matcher.
  *
  * Rows the other modules would normally create (posts, media) are inserted

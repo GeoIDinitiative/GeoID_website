@@ -1,11 +1,11 @@
 /** #/reviews, #/reviews/new and #/r/:id — peer review of draft papers. */
-import * as api from "../api.js?v=20261023-e08bb6a";
-import { store, myHandle } from "../store.js?v=20261023-e08bb6a";
+import * as api from "../api.js?v=20261023-c5add11";
+import { store, myHandle } from "../store.js?v=20261023-c5add11";
 import {
   h, clear, field, input, select, textarea, toast, busy, splitList, errorBox, loading, empty, confirmDialog,
   timeEl, dateToEpoch, dateText, extLink, epochToDate, put,
-} from "../dom.js?v=20261023-e08bb6a";
-import { act, pagedList, userChip, requireSignIn } from "../components.js?v=20261023-e08bb6a";
+} from "../dom.js?v=20261023-c5add11";
+import { act, pagedList, userChip, requireSignIn } from "../components.js?v=20261023-c5add11";
 
 const RECS = [["accept", "Accept as is"], ["minor", "Minor revisions"], ["major", "Major revisions"], ["reject", "Reject / not ready"]];
 // The Worker's severities (reviews.js SEVERITIES); any other value is a 400.
@@ -102,7 +102,7 @@ export async function renderOne(root, { params }) {
   const meAsReviewer = reviewers.find((x) => x.user?.handle === myHandle());
   const reload = () => renderOne(root, { params });
   const closed = r.status === "closed";
-  document.title = `${r.title} — Review — GeoHUB Social`;
+  document.title = `${r.title} — Review — GeoID Network`;
 
   const openDoc = async () => {
     try {

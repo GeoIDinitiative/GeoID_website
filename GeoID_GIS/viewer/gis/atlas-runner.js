@@ -8,7 +8,7 @@
  * words rather than failing somewhere a reader cannot see.
  */
 
-import { toolByName, checkArgs } from "./atlas-tools.js?v=20261023-e08bb6a";
+import { toolByName, checkArgs } from "./atlas-tools.js?v=20261023-c5add11";
 
 const STAMP = new URL(import.meta.url).search || "";
 
@@ -80,7 +80,7 @@ const RUNNERS = {
 
   async community_near(args) {
     const S = window.GeoIDSocial;
-    if (!S?.near) return { text: "GeoHUB Social is not loaded on this page.", actions: [] };
+    if (!S?.near) return { text: "GeoID Network is not loaded on this page.", actions: [] };
     const out = await S.near({ radiusKm: args.radiusKm ?? 50 });
     return {
       text: out.text,

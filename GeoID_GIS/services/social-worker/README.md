@@ -1,4 +1,4 @@
-# GeoHUB Social — the network service
+# GeoID Network — the network service
 
 A second Cloudflare Worker beside `geoid-auth`, at `social.geoidinitiative.com`.
 The API it serves is in [CONTRACT.md](CONTRACT.md); the page that uses it is

@@ -1,33 +1,34 @@
 /**
- * GeoHUB Social: boot, the app header and the hash router.
+ * GeoID Network: boot, the app header and the hash router.
  *
  * Routes are #/path?query. A view's render(root, {params, query}) may return
  * (or resolve to) a cleanup function -- a poll to stop, a map to release --
  * which runs when the route changes.
  */
-import * as api from "./api.js?v=20261023-e08bb6a";
-import { store, onMe, refreshMe, setUnread } from "./store.js?v=20261023-e08bb6a";
-import { h, clear, errorBox, pollWhileVisible, put } from "./dom.js?v=20261023-e08bb6a";
-import { avatar } from "./components.js?v=20261023-e08bb6a";
-import { liveSocket } from "./chat.js?v=20261023-e08bb6a";
+import * as api from "./api.js?v=20261023-c5add11";
+import { store, onMe, refreshMe, setUnread } from "./store.js?v=20261023-c5add11";
+import { h, clear, errorBox, pollWhileVisible, put } from "./dom.js?v=20261023-c5add11";
+import { avatar } from "./components.js?v=20261023-c5add11";
+import { createBackdrop } from "./backdrop.js?v=20261023-c5add11";
+import { liveSocket } from "./chat.js?v=20261023-c5add11";
 
-import * as feed from "./views/feed.js?v=20261023-e08bb6a";
-import * as compose from "./views/compose.js?v=20261023-e08bb6a";
-import * as post from "./views/post.js?v=20261023-e08bb6a";
-import * as profile from "./views/profile.js?v=20261023-e08bb6a";
-import * as people from "./views/people.js?v=20261023-e08bb6a";
-import * as communities from "./views/communities.js?v=20261023-e08bb6a";
-import * as teams from "./views/teams.js?v=20261023-e08bb6a";
-import * as projects from "./views/projects.js?v=20261023-e08bb6a";
-import * as reviews from "./views/reviews.js?v=20261023-e08bb6a";
-import * as inbox from "./views/inbox.js?v=20261023-e08bb6a";
-import * as map from "./views/map.js?v=20261023-e08bb6a";
-import * as opps from "./views/opportunities.js?v=20261023-e08bb6a";
-import * as mod from "./views/mod.js?v=20261023-e08bb6a";
-import * as settings from "./views/settings.js?v=20261023-e08bb6a";
-import * as orgs from "./views/orgs.js?v=20261023-e08bb6a";
-import * as onboarding from "./views/onboarding.js?v=20261023-e08bb6a";
-import * as requests from "./views/requests.js?v=20261023-e08bb6a";
+import * as feed from "./views/feed.js?v=20261023-c5add11";
+import * as compose from "./views/compose.js?v=20261023-c5add11";
+import * as post from "./views/post.js?v=20261023-c5add11";
+import * as profile from "./views/profile.js?v=20261023-c5add11";
+import * as people from "./views/people.js?v=20261023-c5add11";
+import * as communities from "./views/communities.js?v=20261023-c5add11";
+import * as teams from "./views/teams.js?v=20261023-c5add11";
+import * as projects from "./views/projects.js?v=20261023-c5add11";
+import * as reviews from "./views/reviews.js?v=20261023-c5add11";
+import * as inbox from "./views/inbox.js?v=20261023-c5add11";
+import * as map from "./views/map.js?v=20261023-c5add11";
+import * as opps from "./views/opportunities.js?v=20261023-c5add11";
+import * as mod from "./views/mod.js?v=20261023-c5add11";
+import * as settings from "./views/settings.js?v=20261023-c5add11";
+import * as orgs from "./views/orgs.js?v=20261023-c5add11";
+import * as onboarding from "./views/onboarding.js?v=20261023-c5add11";
+import * as requests from "./views/requests.js?v=20261023-c5add11";
 
 const ROUTES = [
   ["/", feed.render, "Feed"],
@@ -98,15 +99,15 @@ function buildHeader(host) {
   header.notifs = h("a", { href: "#/notifications", class: "s-hdr-icon" }, "Notifications", header.notBadge);
   header.modLink = h("a", { href: "#/mod", hidden: true }, "Moderation");
   header.who = h("div", { class: "s-who" });
-  const search = h("input", { type: "search", name: "q", placeholder: "Search posts, people, projects", "aria-label": "Search GeoHUB Social", minlength: 2 });
+  const search = h("input", { type: "search", name: "q", placeholder: "Search posts, people, projects", "aria-label": "Search GeoID Network", minlength: 2 });
   const searchForm = h("form", { class: "s-search", role: "search" }, search);
   searchForm.addEventListener("submit", (e) => { e.preventDefault(); if (search.value.trim().length >= 2) location.hash = `#/search?q=${encodeURIComponent(search.value.trim())}`; });
   put(host, 
     h("div", { class: "s-hdr-top" },
-      h("a", { class: "s-brand", href: "#/" }, h("span", { class: "geohub-word" }, h("span", { class: "geohub-prefix" }, "Geo"), "HUB"), " Social"),
+      h("a", { class: "s-brand", href: "#/" }, h("span", { class: "geohub-word" }, h("span", { class: "geohub-prefix" }, "Geo"), "ID"), " Network"),
       searchForm,
       h("div", { class: "s-hdr-actions" }, h("a", { class: "btn-primary s-btn-sm", href: "#/compose" }, "New post"), header.messages, header.notifs, header.who)),
-    h("nav", { class: "s-subnav", "aria-label": "GeoHUB Social" }, header.links, header.modLink));
+    h("nav", { class: "s-subnav", "aria-label": "GeoID Network" }, header.links, header.modLink));
 }
 
 function drawWho() {
@@ -155,12 +156,13 @@ async function route(main) {
   cleanup = null;
   const { path, query } = parseHash();
   markActive(path);
+  backdrop?.show(path);
   let found = null; let params = {};
   for (const r of ROUTES) {
     const m = r.regex.exec(path);
     if (m) { found = r; r.names.forEach((n, i) => { params[n] = decodeURIComponent(m[i + 1]); }); break; }
   }
-  document.title = `${found ? found.title : "Not found"} — GeoHUB Social`;
+  document.title = `${found ? found.title : "Not found"} — GeoID Network`;
   if (!found) {
     put(clear(main), errorBox({ status: 404, message: "There is no page at this address." }));
     return;
@@ -179,6 +181,23 @@ async function route(main) {
     heading.focus({ preventScroll: true });
   }
   window.scrollTo(0, 0);
+  enterView(main);
+}
+
+/**
+ * A new view arrives with a short rise and fade, so a section change reads as
+ * one surface replacing another rather than a flash (preventing a jarring
+ * change). 220 ms on the strong ease-out; reduced motion keeps only the fade.
+ * WAAPI, so a quick second navigation simply retargets from wherever it is.
+ */
+const EASE_OUT = "cubic-bezier(0.23, 1, 0.32, 1)";
+function enterView(main) {
+  if (typeof main.animate !== "function") return;
+  const still = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+  main.animate(still
+    ? [{ opacity: 0 }, { opacity: 1 }]
+    : [{ opacity: 0, transform: "translateY(6px)" }, { opacity: 1, transform: "none" }],
+  { duration: still ? 150 : 220, easing: EASE_OUT });
 }
 
 /**
@@ -202,16 +221,21 @@ async function maybeWelcome() {
   } catch (error) { /* an older Worker without the route: no welcome */ }
 }
 
+let backdrop = null;
+
 async function boot() {
   const app = document.getElementById("social-app");
   if (!app) return;
   const hdr = h("header", { class: "s-header" });
   const main = h("main", { class: "s-main", id: "social-main", tabindex: "-1" });
   put(clear(app), hdr, main);
+  backdrop = createBackdrop();
+  document.body.prepend(backdrop.root);
+  app.after(backdrop.credit);
   buildHeader(hdr);
   onMe(drawWho);
   if (!api.base() && !api.mockOn()) {
-    put(main, errorBox({ status: 0, message: "GeoHUB Social is not configured on this page." }));
+    put(main, errorBox({ status: 0, message: "GeoID Network is not configured on this page." }));
     return;
   }
   await refreshMe();

@@ -575,7 +575,7 @@ async function exportMe(ctx) {
   const { notify_json: notifyJson, ...profileRest } = profile;
   const data = {
     exported_at: now(),
-    note: "Everything GeoHUB Social holds about you. Other people appear by handle only.",
+    note: "Everything GeoID Network holds about you. Other people appear by handle only.",
     profile: { ...profileRest, notify: parse(notifyJson, {}) },
     profile_items: await rowsOf(env, "SELECT * FROM profile_items WHERE user_id = ?", u),
     study_areas: await rowsOf(env, "SELECT * FROM study_areas WHERE user_id = ?", u),

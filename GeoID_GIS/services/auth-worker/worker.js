@@ -12,7 +12,7 @@
  *   GET  /auth/callback/email?token=                        the link, followed
  *   GET  /auth/me            (cookie)                       who is this
  *   POST /auth/data-token    (cookie)                       a short pass for the bucket
- *   POST /auth/social-token  (cookie)                       an hour's pass for GeoHUB Social
+ *   POST /auth/social-token  (cookie)                       an hour's pass for GeoID Network
  *   POST /auth/signout       (cookie)                       drop the session
  *   POST /stripe/webhook     (Stripe-Signature)             a payment became a membership
  *
@@ -748,11 +748,11 @@ async function route(request, env) {
       }, 200, head);
     }
 
-    // ── a pass for GeoHUB Social ───────────────────────────────────────────
+    // ── a pass for GeoID Network ───────────────────────────────────────────
     if (url.pathname === "/auth/social-token") {
       if (request.method !== "POST") return json({ error: "POST only." }, 405, head);
       const claims = await verify(credential(request), env.JWT_SECRET, { audience: "site" });
-      if (!claims) return json({ error: "Sign in to use GeoHUB Social." }, 401, head);
+      if (!claims) return json({ error: "Sign in to use GeoID Network." }, 401, head);
       const holds = await membership(env, claims.email);
       const now = Math.floor(Date.now() / 1000);
       /**

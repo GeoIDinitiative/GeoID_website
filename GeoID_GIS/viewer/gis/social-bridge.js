@@ -1,12 +1,12 @@
 import * as THREE from "../vendor/three.module.js";
-import { authService } from "./membership.js?v=20261023-e08bb6a";
-import { currentBodyId, currentBody, getBody, metresPerUnit } from "./bodies.js?v=20261023-e08bb6a";
-import { latLonToVector3 } from "./geo-utils.js?v=20261023-e08bb6a";
+import { authService } from "./membership.js?v=20261023-c5add11";
+import { currentBodyId, currentBody, getBody, metresPerUnit } from "./bodies.js?v=20261023-c5add11";
+import { latLonToVector3 } from "./geo-utils.js?v=20261023-c5add11";
 import { visibleBounds, viewFocus, altitudeUnits, onViewSettled, viewChangedEnough }
-  from "./view-extent.js?v=20261023-e08bb6a";
-import { DATASETS, layerNameOf, addDataset } from "./global-data.js?v=20261023-e08bb6a";
-import { paintByField } from "./symbology-dialog.js?v=20261023-e08bb6a";
-import * as projectStore from "./research/project-store.js?v=20261023-e08bb6a";
+  from "./view-extent.js?v=20261023-c5add11";
+import { DATASETS, layerNameOf, addDataset } from "./global-data.js?v=20261023-c5add11";
+import { paintByField } from "./symbology-dialog.js?v=20261023-c5add11";
+import * as projectStore from "./research/project-store.js?v=20261023-c5add11";
 import {
   socialBase, viewRequest, mapUrl, mapToFeatures, featuresKey, readDeepLink, worldUrl,
   cameraFromScene, layersToEnable, annotationsToFeatures, bannerText, buildSharePayload,
@@ -19,10 +19,10 @@ import {
   buildModelMeta, modelSettingsFromConfig, boxRing, describeModel, postWorld,
   interestRequest, interestUrl, interestToFeatures, communityLayerName, COMMUNITY_MODES,
   INTEREST_LAYER_NAME, INTEREST_SOURCE, TREND_COLOURS,
-} from "./social-core.js?v=20261023-e08bb6a";
+} from "./social-core.js?v=20261023-c5add11";
 
 /**
- * GeoHUB Social, inside the viewer.
+ * GeoID Network, inside the viewer.
  *
  * Five things, and the seam to the network is one small client:
  *
@@ -78,7 +78,7 @@ let tokenInFlight = null;
 let tokenRefusedUntil = 0;
 
 /**
- * A bearer for GeoHUB Social, minted by the auth service against the session
+ * A bearer for GeoID Network, minted by the auth service against the session
  * cookie (`POST /auth/social-token`). Held in memory only: it says who
  * somebody is, so it never goes into storage or a URL. A refusal is
  * remembered for a minute so a signed-out reader panning the map does not
@@ -125,7 +125,7 @@ async function fetchJson(path, { auth = false } = {}) {
   let body = null;
   try { body = await res.json(); } catch (_e) { body = null; }
   if (!res.ok) {
-    const error = new Error(body?.error || `GeoHUB Social answered ${res.status}`);
+    const error = new Error(body?.error || `GeoID Network answered ${res.status}`);
     error.status = res.status;
     throw error;
   }
@@ -139,7 +139,7 @@ async function fetchJson(path, { auth = false } = {}) {
 async function sendJson(path, body, { method = "POST" } = {}) {
   const t = await socialToken();
   if (!t) {
-    const error = new Error("Sign in first — GeoHUB Social uses your GeoID account.");
+    const error = new Error("Sign in first — GeoID Network uses your GeoID account.");
     error.status = 401;
     throw error;
   }
@@ -151,7 +151,7 @@ async function sendJson(path, body, { method = "POST" } = {}) {
   let answer = null;
   try { answer = await res.json(); } catch (_e) { answer = null; }
   if (!res.ok) {
-    const error = new Error(answer?.error || `GeoHUB Social answered ${res.status}`);
+    const error = new Error(answer?.error || `GeoID Network answered ${res.status}`);
     error.status = res.status;
     throw error;
   }
@@ -316,7 +316,7 @@ async function refreshCommunity({ force = false } = {}) {
       ? interestUrl(base(), { world: currentBodyId(), bbox, z })
       : mapUrl(base(), { world: currentBodyId(), bbox, z }));
   } catch (error) {
-    if (seq === community.seq) community.say(`GeoHUB Social did not answer (${error.message}).`);
+    if (seq === community.seq) community.say(`GeoID Network did not answer (${error.message}).`);
     return;
   }
   // A slower answer for a view already left behind (or the other mode's)
@@ -347,7 +347,7 @@ async function refreshCommunity({ force = false } = {}) {
       source,
       citation: source,
       crs: "Planetocentric latitude/longitude, as posted",
-      format: interest ? "live GeoHUB Social map of interest" : "live GeoHUB Social feed",
+      format: interest ? "live GeoID Network map of interest" : "live GeoID Network feed",
       featureCount: fc.features.length,
     };
     layer.info = { ...(layer.info || {}), source, citation: source };
@@ -400,7 +400,7 @@ function setCommunityMode(mode) {
   community.key = "";
   if (manager()) removeCommunityLayers();
   if (community.on) {
-    community.say(next === "interest" ? "Asking GeoHUB Social where people work in view…" : "Asking GeoHUB Social what is in view…");
+    community.say(next === "interest" ? "Asking GeoID Network where people work in view…" : "Asking GeoID Network what is in view…");
     community.lastBox = null;
     void refreshCommunity({ force: true });
   }
@@ -414,7 +414,7 @@ function setCommunity(on) {
   if (community.on) {
     const viewer = viewerReady();
     if (!viewer) { community.say("The globe is still starting — try again in a moment."); community.on = false; if (tick) tick.checked = false; return false; }
-    community.say("Asking GeoHUB Social what is in view…");
+    community.say("Asking GeoID Network what is in view…");
     community.lastBox = null;
     community.key = "";
     // Polled on the camera, settled not continuous: a drag across a continent
@@ -476,7 +476,7 @@ function communityCard(feature) {
   note.textContent = "Community content — unverified unless marked.";
   const open = document.createElement("a");
   open.className = "button small";
-  open.textContent = "Open in Social";
+  open.textContent = "Open in the Network";
   open.href = validId(p.social_id) ? socialHref(p.kind, p.social_id) : SOCIAL_APP;
   // The Social app is a page of the site, not of the viewer's frame.
   open.target = "_top";
@@ -613,7 +613,7 @@ async function openPost(id) {
   } catch (error) {
     banner(error.status === 404
       ? "That shared post isn't available — it may be private, removed, or the link is wrong."
-      : `GeoHUB Social did not answer (${error.message}).`);
+      : `GeoID Network did not answer (${error.message}).`);
     return;
   }
   const world = postWorld(post);
@@ -635,7 +635,7 @@ async function fetchWorkspace(id, version = null) {
   } catch (error) {
     error.message = error.status === 404 || error.status === 401 || error.status === 403
       ? "That project's workspace isn't available to you — it may be private, or you may need to sign in."
-      : `GeoHUB Social did not answer (${error.message}).`;
+      : `GeoID Network did not answer (${error.message}).`;
     throw error;
   }
 }
@@ -821,7 +821,7 @@ async function openSharePicker({ kind = "scene" } = {}) {
   overlay.setAttribute("aria-modal", "true");
   overlay.setAttribute("aria-labelledby", "ssp-title");
   const form = node("form", "ssp-panel");
-  const title = node("h2", null, "Share to GeoHUB Social");
+  const title = node("h2", null, "Share to GeoID Network");
   title.id = "ssp-title";
 
   const model = modelShareMeta();
@@ -875,7 +875,7 @@ async function openSharePicker({ kind = "scene" } = {}) {
   const actions = node("div", "ssp-actions");
   const cancel = node("button", "button secondary", "Cancel");
   cancel.type = "button";
-  const go = node("button", "button", "Continue to Social");
+  const go = node("button", "button", "Continue to the Network");
   go.type = "submit";
   actions.append(cancel, go);
 
@@ -917,7 +917,7 @@ async function openSharePicker({ kind = "scene" } = {}) {
   (kinds.querySelector("input:checked") || titleInput).focus();
 
   if (!await signedIn()) {
-    destNote.textContent = "Sign in to GeoHUB Social to share into your teams, communities and projects.";
+    destNote.textContent = "Sign in to GeoID Network to share into your teams, communities and projects.";
     return;
   }
   try {
@@ -934,7 +934,7 @@ async function openSharePicker({ kind = "scene" } = {}) {
       ? "A team, community or project post is seen only by its members."
       : "You are not in any teams, communities or projects yet — this goes to the public feed.";
   } catch (error) {
-    destNote.textContent = `Only the public feed for now — GeoHUB Social did not answer (${error.message}).`;
+    destNote.textContent = `Only the public feed for now — GeoID Network did not answer (${error.message}).`;
   }
 }
 
@@ -1034,7 +1034,7 @@ function applyModelSettings(pipeline, s, notes) {
 }
 
 function shareModelButton(id, className) {
-  const b = node("button", className, "Share model to Social");
+  const b = node("button", className, "Share model to the Network");
   b.type = "button";
   b.id = id;
   b.title = "Post this model's settings — never its mesh files — to the public feed, a team, a community or a project.";
@@ -1043,7 +1043,7 @@ function shareModelButton(id, className) {
 }
 
 /**
- * "Share model to Social" on both of the model's doors: under the Model
+ * "Share model to the Network" on both of the model's doors: under the Model
  * Builder's six steps in the GIS toolbox, and in the Meshing Studio's Export
  * menu beside "Model package". Polled for, as the panels themselves are: the
  * Model Builder renders into a tab add-data.js builds whenever it gets to it.
@@ -1107,7 +1107,7 @@ async function publishActive({ title, summary, visibility, team_slug }) {
   if (built.error) throw new Error(built.error);
   const answer = await sendJson("/v1/projects", built.body);
   const project = answer?.project && typeof answer.project === "object" ? answer.project : answer;
-  if (!validId(project?.id)) throw new Error("GeoHUB Social did not say which project it made.");
+  if (!validId(project?.id)) throw new Error("GeoID Network did not say which project it made.");
   // The workspace sent with the publish is version 1 (contract: projects.js).
   const link = makeSocialLink({ project_id: project.id, version: remoteVersion(answer) || 1, role: "owner" });
   await projectStore.updateMetadata({ social: link });
@@ -1118,7 +1118,7 @@ async function publishActive({ title, summary, visibility, team_slug }) {
 async function pushActive(note) {
   const active = activeProject();
   const link = readSocialLink(active?.meta);
-  if (!link) throw new Error("This project is not on GeoHUB Social yet.");
+  if (!link) throw new Error("This project is not on GeoID Network yet.");
   sameWorld(active);
   const built = pushVersionBody({ manifest: currentManifest(active), note });
   if (built.error) throw new Error(built.error);
@@ -1143,7 +1143,7 @@ async function keepWorkspace(id, answer) {
 async function pullActive() {
   const active = activeProject();
   const link = readSocialLink(active?.meta);
-  if (!link) throw new Error("This project is not on GeoHUB Social.");
+  if (!link) throw new Error("This project is not on GeoID Network.");
   const answer = await fetchWorkspace(link.project_id);
   let role = link.role;
   try { role = (await remoteProject(link.project_id))?.access?.role || role; } catch (_e) { /* keep the stored role */ }
@@ -1200,14 +1200,14 @@ async function paintActiveLink(host, say, repaint) {
   host.textContent = "";
   const active = activeProject();
   if (!active) {
-    host.appendChild(node("p", "research-note", "Open a project to publish it to GeoHUB Social or see its link."));
+    host.appendChild(node("p", "research-note", "Open a project to publish it to GeoID Network or see its link."));
     return;
   }
   const link = readSocialLink(active.meta);
   if (!link) {
-    host.appendChild(node("p", "research-note", `"${active.name}" is not on GeoHUB Social.`));
+    host.appendChild(node("p", "research-note", `"${active.name}" is not on GeoID Network.`));
     const row = node("div", "gis-btn-row");
-    const open = smallButton("Publish to Social…", () => { form.hidden = !form.hidden; });
+    const open = smallButton("Publish to the Network…", () => { form.hidden = !form.hidden; });
     row.appendChild(open);
     host.appendChild(row);
     const form = node("div", "social-publish-form");
@@ -1257,8 +1257,8 @@ async function paintActiveLink(host, say, repaint) {
     host.appendChild(form);
     if (!await signedIn()) {
       open.disabled = true;
-      open.title = "Sign in first — GeoHUB Social uses your GeoID account.";
-      host.appendChild(node("p", "research-note", "Sign in to publish to GeoHUB Social."));
+      open.title = "Sign in first — GeoID Network uses your GeoID account.";
+      host.appendChild(node("p", "research-note", "Sign in to publish to GeoID Network."));
       return;
     }
     meAnswer().then((me) => {
@@ -1271,15 +1271,15 @@ async function paintActiveLink(host, say, repaint) {
     return;
   }
 
-  const head = node("p", "research-note", `On GeoHUB Social · version ${link.version} · ${link.role}`);
+  const head = node("p", "research-note", `On GeoID Network · version ${link.version} · ${link.role}`);
   host.appendChild(head);
   const row = node("div", "gis-btn-row");
-  row.appendChild(linkAnchor("Open on Social", socialHref("project", link.project_id)));
+  row.appendChild(linkAnchor("Open on the Network", socialHref("project", link.project_id)));
   host.appendChild(row);
   // Signed out, a private project answers 404 -- which must not read as
   // "deleted" and offer to forget a link that is fine.
   if (!await signedIn()) {
-    host.appendChild(node("p", "research-note", "Sign in to GeoHUB Social to check for newer versions or push one."));
+    host.appendChild(node("p", "research-note", "Sign in to GeoID Network to check for newer versions or push one."));
     return;
   }
   let answer = null;
@@ -1288,7 +1288,7 @@ async function paintActiveLink(host, say, repaint) {
   } catch (error) {
     if (error.status === 404 || error.status === 403) {
       host.appendChild(node("p", "research-note is-error",
-        "That Social project isn't available to you any more — it may have been deleted, or your access removed."));
+        "That Network project isn't available to you any more — it may have been deleted, or your access removed."));
       row.appendChild(smallButton("Forget the link", async () => {
         try { await projectStore.updateMetadata({ social: null }); repaint(); } catch (e) { say(e.message, true); }
       }));
@@ -1298,7 +1298,7 @@ async function paintActiveLink(host, say, repaint) {
     return;
   }
   const st = linkState(link, answer);
-  head.textContent = `On GeoHUB Social · version ${st.local}${st.remote ? ` of ${st.remote}` : ""} · ${st.role}`;
+  head.textContent = `On GeoID Network · version ${st.local}${st.remote ? ` of ${st.remote}` : ""} · ${st.role}`;
   if (st.behind) {
     row.appendChild(smallButton(`Update from Social (v${st.remote})`, async () => {
       say(`Pulling version ${st.remote}…`);
@@ -1318,7 +1318,7 @@ async function paintActiveLink(host, say, repaint) {
     });
     pushRow.append(note, push);
     host.appendChild(pushRow);
-    if (st.behind) host.appendChild(node("p", "research-note", "Social has a newer version than this project — update first, or your push will replace it."));
+    if (st.behind) host.appendChild(node("p", "research-note", "The Network has a newer version than this project — update first, or your push will replace it."));
   } else {
     host.appendChild(node("p", "research-note", st.why));
   }
@@ -1330,7 +1330,7 @@ async function paintShared(host, say, repaint) {
   host.textContent = "";
   host.appendChild(node("h4", "project-block-title", "Shared with me"));
   if (!await signedIn()) {
-    host.appendChild(node("p", "research-note", "Sign in to GeoHUB Social to see projects shared with you."));
+    host.appendChild(node("p", "research-note", "Sign in to GeoID Network to see projects shared with you."));
     return;
   }
   const [lists, links] = await Promise.all([projectLists(), localLinks()]);
@@ -1367,7 +1367,7 @@ async function paintShared(host, say, repaint) {
 }
 
 /**
- * GeoHUB Social for saved projects: the open project's link, and "Shared with
+ * GeoID Network for saved projects: the open project's link, and "Shared with
  * me". One block, built here, shown by both places GeoHUB lists projects --
  * the Project dialog (project.js) and the Research Hub's Projects page -- so
  * the two cannot drift into two ideas of what a linked project is.
@@ -1397,7 +1397,7 @@ async function decorateProjectRow(row, dir) {
 }
 
 /**
- * The GeoHUB Social block for the Project dialog (project.js asks for it).
+ * The GeoID Network block for the Project dialog (project.js asks for it).
  *
  * Not behind membership: posting is open to anybody signed in to Social, and
  * Social asks them to sign in. Share opens the picker (what, and where);
@@ -1405,11 +1405,11 @@ async function decorateProjectRow(row, dir) {
  */
 function projectBlock(_active) {
   const block = node("div", "project-block");
-  block.appendChild(node("h3", "project-block-title", "GeoHUB Social"));
+  block.appendChild(node("h3", "project-block-title", "GeoID Network"));
   block.appendChild(node("p", "research-note",
     "Share this view, a model or a repository — to the public feed, or into one of your teams, communities or projects."));
   const row = node("div", "gis-btn-row");
-  const share = node("button", "button secondary", "Share to Social…");
+  const share = node("button", "button secondary", "Share to the Network…");
   share.type = "button";
   share.id = "social-share-view";
   share.addEventListener("click", () => { void openSharePicker({ kind: "scene" }); });
@@ -1440,12 +1440,12 @@ function install(tries = 0) {
   wrap.dataset.toolIcon = "1";
   wrap.innerHTML = `
     <summary style="display:flex;align-items:center;gap:0.5rem;">
-      <span style="flex:1 1 auto;min-width:0;">Community (GeoHUB Social)</span>
+      <span style="flex:1 1 auto;min-width:0;">Community (GeoID Network)</span>
       <input id="social-community-toggle" type="checkbox"
         aria-label="Show community posts near the view" title="Show community posts near the view">
     </summary>
     <div class="gis-tool-body">
-      <p class="compact-copy">Public posts, observations and projects the GeoHUB Social community has
+      <p class="compact-copy">Public posts, observations and projects the GeoID Network community has
         placed on this world, refreshed as the view settles. Community content — unverified unless a
         post says how it was observed or modelled.</p>
       <label class="row"><span>Show</span>
@@ -1454,7 +1454,7 @@ function install(tries = 0) {
           <option value="interest">Study interest (people)</option>
         </select>
       </label>
-      <div class="gis-btn-row"><button type="button" class="button secondary small" id="social-share-view-panel">Share to Social…</button></div>
+      <div class="gis-btn-row"><button type="button" class="button secondary small" id="social-share-view-panel">Share to the Network…</button></div>
       <p class="compact-copy" id="social-community-status" aria-live="polite"></p>
     </div>`;
   const stack = sectionBody.querySelector(".control-stack") || sectionBody;

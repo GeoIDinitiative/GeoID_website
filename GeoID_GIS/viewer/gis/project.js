@@ -1,8 +1,8 @@
-import * as store from "./research/project-store.js?v=20261023-e08bb6a";
-import { currentBodyId, currentBody } from "./bodies.js?v=20261023-e08bb6a";
-import { ready as shellReady } from "./shell.js?v=20261023-e08bb6a";
-import { may, refusal } from "./membership.js?v=20261023-e08bb6a";
-import { lockCard, lockMark } from "./feature-locks.js?v=20261023-e08bb6a";
+import * as store from "./research/project-store.js?v=20261023-c5add11";
+import { currentBodyId, currentBody } from "./bodies.js?v=20261023-c5add11";
+import { ready as shellReady } from "./shell.js?v=20261023-c5add11";
+import { may, refusal } from "./membership.js?v=20261023-c5add11";
+import { lockCard, lockMark } from "./feature-locks.js?v=20261023-c5add11";
 
 /**
  * The folder button in the sidebar header.
@@ -146,7 +146,7 @@ async function render() {
   body.appendChild(folder);
 
   /**
-   * GeoHUB Social lives here, beside the folder it is the public counterpart
+   * GeoID Network lives here, beside the folder it is the public counterpart
    * of: "keep this" and "show this". Share (what, and to which feed, team,
    * community or project), the open project's link -- publish, push, update
    * -- and "Shared with me". Built by social-bridge.js, which owns all of it;
@@ -228,7 +228,7 @@ async function render() {
     // The world is only worth showing when the list spans more than one.
     if (showAllWorlds && home) row.appendChild(el("span", "research-list-tag", home));
     if (active?.dir === dir) row.appendChild(el("span", "research-list-tag", "open"));
-    // Which of these are on GeoHUB Social, read from each one's own metadata.
+    // Which of these are on GeoID Network, read from each one's own metadata.
     void window.GeoIDSocial?.decorateProjectRow?.(row, dir);
     row.addEventListener("click", async () => {
       try {

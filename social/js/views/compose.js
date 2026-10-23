@@ -6,18 +6,18 @@
  * a scene post with that view. The key is removed once the post is published
  * or the reader discards it.
  */
-import * as api from "../api.js?v=20261023-e08bb6a";
-import { store } from "../store.js?v=20261023-e08bb6a";
+import * as api from "../api.js?v=20261023-c5add11";
+import { store } from "../store.js?v=20261023-c5add11";
 import {
   h, clear, field, input, select, textarea, checkbox, toast, busy, splitList,
   dateToEpoch, epochToDate, errorBox, loading, put,
-} from "../dom.js?v=20261023-e08bb6a";
+} from "../dom.js?v=20261023-c5add11";
 import {
   KINDS, PROVENANCE, LICENCES, VISIBILITY, OPP_TYPES, EVENT_FORMATS, WORLDS, requireSignIn, kindLabel,
   hasProvenance,
-} from "../components.js?v=20261023-e08bb6a";
-import { parseVideoLink } from "../embed.js?v=20261023-e08bb6a";
-import { createMap } from "../mapcore.js?v=20261023-e08bb6a";
+} from "../components.js?v=20261023-c5add11";
+import { parseVideoLink } from "../embed.js?v=20261023-c5add11";
+import { createMap } from "../mapcore.js?v=20261023-c5add11";
 
 const SHARE_KEY = "geoid:social-share";
 
@@ -94,7 +94,7 @@ function buildForm(root, { existing, handed, initialKind, query }) {
     const add = (...nodes) => put(kindBox, ...nodes);
     if (kind === "scene") {
       if (!scene) {
-        add(h("p", { class: "s-hint", text: "Scenes are made in GeoHUB: open a world, set up the view, and use Share → GeoHUB Social. You can also give the world here and add the view later." }));
+        add(h("p", { class: "s-hint", text: "Scenes are made in GeoHUB: open a world, set up the view, and use Share → GeoID Network. You can also give the world here and add the view later." }));
         kf.world = select("world", WORLDS.map((w) => [w, w[0].toUpperCase() + w.slice(1)]), p.world || "earth");
         add(field("World", kf.world));
       } else {
@@ -116,7 +116,7 @@ function buildForm(root, { existing, handed, initialKind, query }) {
       add(m.config || m.domain ? h("div", { class: "s-handoff" }, h("p", {}, h("strong", {}, "Model setup from GeoHUB"),
           page ? ` · opens in ${page}` : "", m.domain?.world ? ` · ${m.domain.world}` : "",
           Array.isArray(m.domain?.bbox) ? ` · area ${m.domain.bbox.map((v) => Number(v).toFixed(2)).join(", ")}` : "")) :
-          h("p", { class: "s-hint", text: "Models are shared from a GeoHUB model page (Share model to Social), which attaches the setup. You can still describe one here." }),
+          h("p", { class: "s-hint", text: "Models are shared from a GeoHUB model page (Share model to the Network), which attaches the setup. You can still describe one here." }),
         field("Mesher", kf.mesher), field("Solver", kf.solver),
         field("Parameters (JSON)", kf.params, "Name, value and unit for each — readers see these before opening the model."));
     } else if (kind === "repo") {

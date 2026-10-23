@@ -1,9 +1,9 @@
 /** #/messages, #/messages/:id and #/notifications. */
-import * as api from "../api.js?v=20261023-e08bb6a";
-import { store, setUnread, myHandle } from "../store.js?v=20261023-e08bb6a";
-import { h, clear, errorBox, loading, empty, timeEl, toast, confirmDialog, put } from "../dom.js?v=20261023-e08bb6a";
-import { act, userChip, messageDialog, avatar, pagedList } from "../components.js?v=20261023-e08bb6a";
-import { chatPanel } from "../chat.js?v=20261023-e08bb6a";
+import * as api from "../api.js?v=20261023-c5add11";
+import { store, setUnread, myHandle } from "../store.js?v=20261023-c5add11";
+import { h, clear, errorBox, loading, empty, timeEl, toast, confirmDialog, put } from "../dom.js?v=20261023-c5add11";
+import { act, userChip, messageDialog, avatar, pagedList } from "../components.js?v=20261023-c5add11";
+import { chatPanel } from "../chat.js?v=20261023-c5add11";
 
 function signedOut(root, title, what) {
   put(clear(root), h("h1", { class: "s-h1", text: title }), empty(`Sign in to see your ${what}.`),
@@ -116,7 +116,7 @@ export function renderNotifications(root, { query }) {
       const to = REF_ROUTES[n.ref_type]?.(n.ref_id) || "#/notifications";
       const link = h("a", { class: `s-card s-notif${n.read ? "" : " is-unread"}`, href: to },
         n.actor ? avatar(n.actor, 32) : null,
-        h("div", {}, h("p", {}, h("strong", {}, n.actor ? (n.actor.name || n.actor.handle) : "GeoHUB Social"), " ", KIND_TEXT[n.kind] || n.kind,
+        h("div", {}, h("p", {}, h("strong", {}, n.actor ? (n.actor.name || n.actor.handle) : "GeoID Network"), " ", KIND_TEXT[n.kind] || n.kind,
           n.text ? h("span", { class: "s-muted" }, `: ${n.text}`) : null), timeEl(n.created_at)),
         n.read ? null : h("span", { class: "s-dot", "aria-label": "unread" }));
       link.addEventListener("click", () => { if (!n.read) api.post("/v1/notifications/read", { ids: [n.id] }).catch(() => {}); });

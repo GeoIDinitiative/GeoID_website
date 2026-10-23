@@ -1,5 +1,5 @@
 /**
- * GeoHUB Social, the arithmetic half: no DOM, no three.js, no fetch.
+ * GeoID Network, the arithmetic half: no DOM, no three.js, no fetch.
  *
  * `social-bridge.js` is what meets the page -- the Community layer, the shared
  * scene, the Share buttons -- and every decision it makes that could be wrong
@@ -10,7 +10,7 @@
  * a west-positive world is every post on the far side of the planet; neither
  * announces itself in a browser.
  *
- * ONE LONGITUDE CONVENTION ON THE WIRE. GeoHUB Social stores and serves
+ * ONE LONGITUDE CONVENTION ON THE WIRE. GeoID Network stores and serves
  * planetocentric EAST-positive longitude in -180..180 for every world, the way
  * a GeoJSON file does. Three of this app's viewers (Mercury, Jupiter, Saturn)
  * place a coordinate by its WEST longitude -- see `bodies.js`, and
@@ -29,12 +29,12 @@ export const WORKSPACE_KEY = "geoid:social-workspace";
 export const BASE_OVERRIDE_KEY = "geoid:social-base";
 
 /** What the Community layer says it is, in the layer box and on its card. */
-export const COMMUNITY_LAYER_NAME = "Community — GeoHUB Social";
-export const COMMUNITY_SOURCE = "GeoHUB Social (community content — unverified unless marked)";
+export const COMMUNITY_LAYER_NAME = "Community — GeoID Network";
+export const COMMUNITY_SOURCE = "GeoID Network (community content — unverified unless marked)";
 export const ANNOTATION_LAYER_NAME = "Shared scene — annotations";
 
 /**
- * An id as GeoHUB Social mints them (`lib.js` id(): a prefix and random
+ * An id as GeoID Network mints them (`lib.js` id(): a prefix and random
  * base-36). Checked before it goes into a URL or a fetch path, so a crafted
  * `?post=../../v1/me` is not a request.
  */
@@ -273,8 +273,8 @@ export function featuresKey(fc) {
 /* ── Study interest: the map of where people work, as discs ────────────── */
 
 /** What the interest layer says it is. A different row from the posts layer, so neither is mistaken for the other. */
-export const INTEREST_LAYER_NAME = "Community study interest — GeoHUB Social";
-export const INTEREST_SOURCE = "GeoHUB Social (community study areas and public posts — sized by researchers, not by posts)";
+export const INTEREST_LAYER_NAME = "Community study interest — GeoID Network";
+export const INTEREST_SOURCE = "GeoID Network (community study areas and public posts — sized by researchers, not by posts)";
 export const COMMUNITY_MODES = ["posts", "interest"];
 export const communityLayerName = (mode) => (mode === "interest" ? INTEREST_LAYER_NAME : COMMUNITY_LAYER_NAME);
 
@@ -539,7 +539,7 @@ export function bannerText(post) {
 const num = (v, places) => (Number.isFinite(Number(v)) ? round(Number(v), places) : null);
 
 /**
- * The view as GeoHUB Social's `scene` shape.
+ * The view as GeoID Network's `scene` shape.
  *
  * `focus` is the point at the centre of the screen (view-extent's
  * `viewFocus`), in the viewer's own longitude; it goes out east-positive.
@@ -729,7 +729,7 @@ export function readSocialLink(meta) {
 
 /** A fresh link, as written into metadata/project.json. Each user's is their own. */
 export function makeSocialLink({ project_id, version = 0, role = "viewer" } = {}, now = new Date()) {
-  if (!validId(project_id)) throw new Error("That is not a GeoHUB Social project id.");
+  if (!validId(project_id)) throw new Error("That is not a GeoID Network project id.");
   return {
     project_id: String(project_id),
     version: wholeVersion(version),
@@ -803,13 +803,13 @@ export function publishProjectBody({
   const vis = String(visibility || "").toLowerCase();
   if (!PUBLISH_VISIBILITY.includes(vis)) return { error: `Visibility must be one of ${PUBLISH_VISIBILITY.join(", ")}.` };
   const slug = String(team_slug || "").trim();
-  if (slug && !validSlug(slug)) return { error: "That team is not one GeoHUB Social knows." };
+  if (slug && !validSlug(slug)) return { error: "That team is not one GeoID Network knows." };
   if (vis === "team" && !slug) return { error: "Choose which of your teams can see it." };
   const body = { title: t, summary: String(summary || "").trim().slice(0, 2000), world: normWorld(world), visibility: vis };
   if (slug) body.team_slug = slug;
   if (manifest) {
     if (jsonBytes(manifest) > MAX_WORKSPACE_BYTES) {
-      return { error: "This workspace's manifest is over GeoHUB Social's 48 KB limit — hide or remove some layers and try again." };
+      return { error: "This workspace's manifest is over GeoID Network's 48 KB limit — hide or remove some layers and try again." };
     }
     body.workspace = manifest;
   }
@@ -820,7 +820,7 @@ export function publishProjectBody({
 export function pushVersionBody({ manifest = null, note = "" } = {}) {
   if (!manifest || typeof manifest !== "object") return { error: "There is no workspace to push." };
   if (jsonBytes(manifest) > MAX_WORKSPACE_BYTES) {
-    return { error: "This workspace's manifest is over GeoHUB Social's 48 KB limit — hide or remove some layers and try again." };
+    return { error: "This workspace's manifest is over GeoID Network's 48 KB limit — hide or remove some layers and try again." };
   }
   return { body: { manifest, note: String(note || "").trim().slice(0, 500) } };
 }
@@ -979,7 +979,7 @@ export function buildShareHandoff({ kind = "scene", target = null, scene = null,
     return { error: "There is no model to share yet — set up the Model Builder's study area first." };
   }
   if (jsonBytes(meta.config || {}) > MAX_MODEL_CONFIG_BYTES) {
-    return { error: "This model's settings are over GeoHUB Social's 32 KB limit." };
+    return { error: "This model's settings are over GeoID Network's 32 KB limit." };
   }
   return { handoff: { ...head, title: named, meta } };
 }
@@ -1111,7 +1111,7 @@ export function capModelConfig(config, limit = MAX_MODEL_CONFIG_BYTES) {
     }
   }
   if (omitted.length) out.omitted = omitted;
-  if (jsonBytes(out) > limit) return { error: "This model's settings are over GeoHUB Social's 32 KB limit even without its points and fields." };
+  if (jsonBytes(out) > limit) return { error: "This model's settings are over GeoID Network's 32 KB limit even without its points and fields." };
   return { config: out, omitted };
 }
 

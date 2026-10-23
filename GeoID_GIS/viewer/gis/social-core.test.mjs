@@ -1,5 +1,5 @@
 /**
- * GeoHUB Social in the viewer: the decisions that go wrong without a sound.
+ * GeoID Network in the viewer: the decisions that go wrong without a sound.
  *
  *     node GeoID_GIS/viewer/gis/social-core.test.mjs
  *
@@ -11,7 +11,7 @@
  *  - CLUSTER/POINT MARKERS: hidden or 0,0 points must never be drawn, and the
  *    provenance label must never be upgraded;
  *  - DEEP LINKS: only the id alphabet reaches a fetch path;
- *  - the SHARE PAYLOAD: GeoHUB Social's `scene` shape, east-positive on the wire;
+ *  - the SHARE PAYLOAD: GeoID Network's `scene` shape, east-positive on the wire;
  *  - the SHELL HAND-OFF: the real inline scripts from index.html, transit and a
  *    planet viewer, run in a sandbox, so `?post=` is proved to arrive where the
  *    viewer reads it -- not a copy of the logic that could agree with itself;
@@ -173,7 +173,7 @@ ok(share.layers[0].id === "ne-coast" && share.layers[1].id === "session:7" && sh
   "layers carry the catalogue id where there is one");
 ok(share.annotations[0].lon === -5 && share.time === 1792000000, "annotations east-positive; time whole seconds");
 ok(["world", "camera", "layers", "annotations", "time"].every((k) => k in share)
-  && ["lat", "lon", "alt", "heading", "pitch"].every((k) => k in share.camera), "GeoHUB Social's scene shape");
+  && ["lat", "lon", "alt", "heading", "pitch"].every((k) => k in share.camera), "GeoID Network's scene shape");
 ok(buildSharePayload({ focus: null }).camera === null, "no ground in view, no camera");
 const ws = buildWorkspacePayload({ title: "", world: "mars", manifest: { layers: [] } });
 ok(ws.title === "Untitled GeoHUB project" && ws.world === "mars" && Array.isArray(ws.manifest.layers), "workspace payload");

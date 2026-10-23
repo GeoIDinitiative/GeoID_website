@@ -275,12 +275,12 @@ export function icsFor(env, post, organiserName = "") {
     str(post.body, 4000),
     meta.url ? `Join: ${meta.url}` : "",
     organiserName ? `Organised by ${organiserName}` : "",
-    `On GeoHUB Social: ${link}`,
+    `On GeoID Network: ${link}`,
   ].filter(Boolean).join("\n\n");
   const lines = [
     "BEGIN:VCALENDAR",
     "VERSION:2.0",
-    "PRODID:-//GeoID Initiative//GeoHUB Social//EN",
+    "PRODID:-//GeoID Initiative//GeoID Network//EN",
     "CALSCALE:GREGORIAN",
     "METHOD:PUBLISH",
     "BEGIN:VEVENT",
