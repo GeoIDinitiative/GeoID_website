@@ -297,6 +297,46 @@ export const CATEGORY_KT = {
   STY: 140, ST: 140, EX: 45, ET: 45, PT: 45, PTC: 45, LO: 30, DB: 25, SD: 30, MH: 110,
 };
 
+/** The wind range, kt, each class word stands for — what an eased wind is held inside. */
+export const CATEGORY_RANGE_KT = {
+  TD: [0, 33], SD: [0, 33], LO: [0, 33], DB: [0, 33],
+  TS: [34, 63], SS: [34, 63], STS: [48, 63],
+  HU: [64, 200], TY: [64, 200], MH: [96, 200], STY: [130, 200], ST: [130, 200],
+  H1: [64, 82], H2: [83, 95], H3: [96, 112], H4: [113, 136], H5: [137, 200],
+  EX: [0, 200], ET: [0, 200], PT: [0, 200], PTC: [0, 200],
+};
+
+/**
+ * The forecast's strengths, eased from the last MEASURED wind. A class word
+ * alone is a coarse number — "HU" is 64 kt and a 160 kt super typhoon alike —
+ * so a fix that only has its class is moved from the measured wind toward the
+ * strength of the next fix whose class differs (or, with no change ahead,
+ * toward its own class mid-point at the end of the track), linearly in time,
+ * and held inside its own class's range. Fixes before the measurement keep
+ * their mid-points. Mutates and returns `fixes` (time-ordered).
+ */
+export function easeCategoryWinds(fixes) {
+  let r = -1;
+  fixes.forEach((f, i) => { if (Number.isFinite(f.wind) && f.windFrom !== "category" && f.windFrom !== "eased") r = i; });
+  if (r < 0) return fixes;
+  const w0 = fixes[r].wind;
+  const t0 = fixes[r].time;
+  for (let i = r + 1; i < fixes.length; i += 1) {
+    const f = fixes[i];
+    if (f.windFrom !== "category" || !f.cls) continue;
+    let n = i + 1;
+    while (n < fixes.length && fixes[n].cls === f.cls) n += 1;
+    const end = n < fixes.length ? fixes[n] : fixes.at(-1);
+    const target = n < fixes.length ? end.wind : CATEGORY_KT[f.cls];
+    const span = end.time - t0;
+    const frac = span > 0 ? Math.min(1, (f.time - t0) / span) : 1;
+    const [lo, hi] = CATEGORY_RANGE_KT[f.cls] || [0, 250];
+    f.wind = Math.min(hi, Math.max(lo, w0 + (target - w0) * frac));
+    f.windFrom = "eased";
+  }
+  return fixes;
+}
+
 const centreOf = (ring) => {
   const pts = ring.length > 1 && ring[0][0] === ring.at(-1)[0] && ring[0][1] === ring.at(-1)[1] ? ring.slice(0, -1) : ring;
   const ref = pts[0][0];
@@ -350,21 +390,27 @@ export function readGdacsGeometry(fc, nowMs = Date.now()) {
     }
     if (g?.type === "LineString" && /^line/.test(klass) && g.coordinates?.length >= 2) {
       const kt = CATEGORY_KT[String(p.polygonlabel || "").trim().toUpperCase()];
-      if (kt) segments.push({ start: g.coordinates[0], end: g.coordinates.at(-1), kt });
+      if (kt) segments.push({ start: g.coordinates[0], end: g.coordinates.at(-1), kt, cls: String(p.polygonlabel).trim().toUpperCase() });
       continue;
     }
     const radii = g?.type === "Polygon" && (/pointradii/i.test(String(p.featuretype || "")) || /^point_polygon/.test(klass));
     if (g?.type !== "Point" && !radii) continue;
     const [lon, lat] = radii ? centreOf(g.coordinates[0]) : g.coordinates;
+    // The centroid is the storm NOW: its `todate` (the advisory). Its
+    // `fromdate` is when the storm began — read first, it filed a 160 kt
+    // super typhoon's measured wind under the day it formed (2026-10-23).
+    const centroid = /centroid/.test(klass);
     const time = radii
       ? parseLabelTime(p.polygonlabel, Number.isFinite(issued) ? issued : nowMs)
-      : TIME_KEYS.map((k) => parseTime(p[k])).find(Number.isFinite);
+      : centroid
+        ? [parseTime(p.todate), issued].find(Number.isFinite)
+        : TIME_KEYS.map((k) => parseTime(p[k])).find(Number.isFinite);
     if (!Number.isFinite(time)) continue;
     // The episode's centroid — dated the advisory, placed at the storm now —
     // carries the strength only as its "severity". Every other feature
     // carries the same block too, so it is read from the centroid alone:
     // spread to every fix it made a weakening storm 160 kt all the way.
-    const severity = /centroid/.test(klass) && /km\/h/i.test(String(p.severitydata?.severityunit || ""))
+    const severity = centroid && /km\/h/i.test(String(p.severitydata?.severityunit || ""))
       ? Number(p.severitydata.severity) : NaN;
     const windRaw = [...WIND_KEYS.map((k) => Number(p[k])), severity].find((x) => Number.isFinite(x) && x > 0);
     const fix = {
@@ -386,7 +432,7 @@ export function readGdacsGeometry(fc, nowMs = Date.now()) {
     for (const fix of [...past, ...forecast]) {
       if (Number.isFinite(fix.wind)) continue;
       const seg = segments.find((s) => near(s.start, fix.lon, fix.lat)) || segments.find((s) => near(s.end, fix.lon, fix.lat));
-      if (seg) { fix.wind = seg.kt; fix.windFrom = "category"; }
+      if (seg) { fix.wind = seg.kt; fix.windFrom = "category"; fix.cls = seg.cls; }
     }
   }
   const byTime = (a, b) => a.time - b.time;
@@ -402,6 +448,7 @@ export function readGdacsGeometry(fc, nowMs = Date.now()) {
   }, []);
   past.splice(0, past.length, ...once(past));
   forecast.splice(0, forecast.length, ...once(forecast));
+  easeCategoryWinds([...past, ...forecast]);
   // The forecast starts from the latest observed position.
   const start = past.at(-1);
   const track = start ? [start, ...forecast.filter((f) => f.time > start.time)] : forecast;

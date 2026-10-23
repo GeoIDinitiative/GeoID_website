@@ -5,14 +5,14 @@
 import {
   coneRadiusKm, distanceKm, interpolateTrack, destination, bearing, conePolygon, inRing,
   threatTo, gdacsStorms, readGdacsGeometry, parseTime, saffirSimpson, gdacsCycloneListUrl,
-  parseLabelTime, CATEGORY_KT,
+  parseLabelTime, CATEGORY_KT, CATEGORY_RANGE_KT, easeCategoryWinds,
 } from "./cyclone-cone.js";
 
 let pass = 0;
 let fail = 0;
-function ok(cond, msg) {
+function ok(cond, msg, detail = "") {
   if (cond) pass += 1;
-  else { fail += 1; console.error("FAIL:", msg); }
+  else { fail += 1; console.error("FAIL:", msg, detail); }
 }
 const near = (a, b, tol) => Math.abs(a - b) <= tol;
 process.on("exit", () => {
@@ -143,11 +143,44 @@ ok(gdacsCycloneListUrl(10, t0).includes("eventlist=TC"), "the list asks for cycl
   ok(near(g.track[0].lat, 40, 1e-9) && near(g.track[0].lon, -65.8, 1e-9), "a circle's centre is the fix");
   ok(g.track[0].time === Date.UTC(2026, 9, 22, 21) && g.track.at(-1).time === Date.UTC(2026, 9, 23, 18), "label times, the year from the advisory");
   ok(near(g.track[0].wind, 120.37 / 1.852, 1e-9) && !g.track[0].windFrom, "now: the reported severity wins over the class");
-  ok(g.track[1].wind === CATEGORY_KT.TS && g.track[1].windFrom === "category", "ahead: strength from the segment leaving the fix");
+  // Ahead: the class from the segment leaving the fix, the number eased from
+  // the measured 65 kt toward the TS mid-point at the track's end (9 h of 21).
+  const eased = 120.37 / 1.852 + (CATEGORY_KT.TS - 120.37 / 1.852) * (9 / 21);
+  ok(g.track[1].cls === "TS" && g.track[1].windFrom === "eased" && near(g.track[1].wind, eased, 1e-9), "ahead: the class read, the strength eased from the measurement", g.track[1].wind);
   ok(g.past[0].wind === CATEGORY_KT.TS, "observed fixes too");
-  ok(g.forecast[0].wind === CATEGORY_KT.TS, "the event's severity on a fix is not that fix's wind");
+  ok(Math.abs(g.forecast[0].wind - 296 / 1.852) > 50 && g.forecast[0].wind <= CATEGORY_RANGE_KT.TS[1], "the event's severity on a fix is not that fix's wind");
   ok(g.track.at(-1).wind === CATEGORY_KT.TS, "the last fix from the segment arriving");
   ok(Array.isArray(g.cone) && g.cone.length === 33, "the agency's cone");
   ok(parseLabelTime("02/01 06:00 UTC", Date.UTC(2026, 11, 31, 18)) === Date.UTC(2027, 0, 2, 6), "a January fix of a December advisory is next year");
   ok(Number.isNaN(parseLabelTime("Uncertainty Cones", Date.now())), "a label that is not a time");
+}
+
+// The centroid is the storm NOW. It carries fromdate (when the storm formed)
+// and todate (the advisory); read by fromdate, a 160 kt super typhoon's
+// measured wind was filed under the day it formed and the track ran on class
+// mid-points — "HU", 80 kt (Champi, 2026-10-23).
+{
+  const ring = (lon, lat) => [Array.from({ length: 9 }, (_, k) => [lon + 0.03 * Math.cos(k * Math.PI / 4), lat + 0.03 * Math.sin(k * Math.PI / 4)])];
+  const fix = (lon, lat, label) => ({ type: "Feature", geometry: { type: "Polygon", coordinates: ring(lon, lat) },
+    properties: { Class: "Point_Polygon_Point_x", featuretype: "PointRadii", polygondate: "2026-10-23T00:00:00", polygonlabel: label } });
+  const seg = (a, b, cat) => ({ type: "Feature", geometry: { type: "LineString", coordinates: [a, b] }, properties: { Class: "Line_Line_x", polygonlabel: cat } });
+  const fc = { type: "FeatureCollection", features: [
+    { type: "Feature", geometry: { type: "Point", coordinates: [123.8, 22.7] }, properties: { Class: "Point_Centroid",
+      fromdate: "2026-10-14T12:00:00", todate: "2026-10-23T00:00:00", severitydata: { severity: 296.2944, severityunit: "km/h" } } },
+    fix(124.3, 21.9, "22/10 18:00 UTC"), fix(123.8, 22.7, "23/10 00:00 UTC"), fix(122.9, 24.2, "23/10 12:00 UTC"),
+    fix(122.7, 25.5, "24/10 00:00 UTC"), fix(123.4, 27.3, "24/10 12:00 UTC"),
+    seg([124.3, 21.9], [123.8, 22.7], "HU"), seg([123.8, 22.7], [122.9, 24.2], "HU"), seg([122.9, 24.2], [122.7, 25.5], "HU"),
+    seg([122.7, 25.5], [123.4, 27.3], "HU"), seg([123.4, 27.3], [124.3, 29.0], "TS"),
+  ] };
+  const g = readGdacsGeometry(fc, Date.UTC(2026, 9, 23, 21));
+  const kt = 296.2944 / 1.852;
+  ok(g.track[0].time === Date.UTC(2026, 9, 23, 0) && near(g.track[0].wind, kt, 1e-9), "the centroid is dated by its todate and keeps its measured wind", g.track[0].wind);
+  ok(!g.past.some((f) => f.time === Date.UTC(2026, 9, 14, 12)), "and is not filed under the day the storm formed");
+  // HU at 12 h and 24 h, then TS (50) at 36 h: eased linearly from 160 kt.
+  ok(near(g.track[1].wind, kt + (50 - kt) * (12 / 36), 1e-9) && near(g.track[2].wind, kt + (50 - kt) * (24 / 36), 1e-9), "HU fixes ease from the measurement toward the next class");
+  ok(g.track[3].wind <= 63 && g.track[3].wind >= 34, "a TS fix stays inside the TS range");
+  ok(g.past[0].wind === CATEGORY_KT.HU && g.past[0].windFrom === "category", "fixes before the measurement keep their class mid-points");
+  // Without a measurement nothing is eased.
+  const bare = easeCategoryWinds([{ time: 0, wind: 80, windFrom: "category", cls: "HU" }, { time: 1, wind: 50, windFrom: "category", cls: "TS" }]);
+  ok(bare[0].wind === 80 && bare[1].wind === 50, "no measured wind: class mid-points stand");
 }
