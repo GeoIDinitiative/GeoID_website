@@ -100,6 +100,13 @@ instance with its own connection state, and Atlas insisted the sidecar was not
 connected while the hub was talking to it happily. Exactly the module-identity
 trap above: `stamp.py` only rewrites stamps that already exist, so a new tag must
 be given one by hand once.
+## flight_risk: "how risky is a flight from X to Y"
+
+A flight question is read BEFORE the run verbs (`readTask` in
+`atlas-intent.js`): a flight word, a risk word and a route
+(`readRoute`: "from X to Y", "between X and Y", "flight X to Y"). The tool
+runs `GeoIDFlightRisk.assess` (hazards.md, "Flight route risk").
+
 ## The Atlas verification ledger: forecasts checked against what happened
 
 `atlas-ledger.js` (pure, 47 checks) and `atlas-ledger-page.js` (the page

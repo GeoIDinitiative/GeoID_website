@@ -15,11 +15,11 @@
  * here, how close, and when" through `window.GeoIDCycloneForecast.threatTo`.
  */
 
-import { buildVectorLayerResult } from "./vector-render.js?v=20261023-b1f251a";
+import { buildVectorLayerResult } from "./vector-render.js?v=20261023-df8c97c";
 import {
   gdacsCycloneListUrl, gdacsGeometryUrl, gdacsStorms, readGdacsGeometry, interpolateTrack,
   conePolygon, threatTo, saffirSimpson,
-} from "./cyclone-cone.js?v=20261023-b1f251a";
+} from "./cyclone-cone.js?v=20261023-df8c97c";
 
 export const LAYER_NAME = "Active cyclones — forecast track and cone (GDACS)";
 const CREDIT = "GDACS — European Commission Joint Research Centre, from the warning agencies' "
@@ -111,6 +111,7 @@ export function stormFeatures(storm) {
         part: "fix", name: `${name} — ${fmt(p.time)}`, kind: "Forecast position",
         valid: fmt(p.time),
         wind_kt: Number.isFinite(p.wind) ? Math.round(p.wind) : null,
+        wind_source: p.windFrom === "category" ? "mid-point of the advisory's class" : "reported",
         strength: categoryLabel(p.wind),
         lead_h: Math.round((p.time - (storm.track[0]?.time ?? p.time)) / 3_600_000),
       },

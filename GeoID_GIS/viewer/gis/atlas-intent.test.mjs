@@ -5,7 +5,7 @@
  */
 
 import {
-  readTask, readSize, readTime, readPlace, matchVolcano, volcanoKey, readIntent, readDuration,
+  readTask, readSize, readTime, readPlace, matchVolcano, volcanoKey, readIntent, readDuration, readRoute,
 } from "./atlas-intent.js";
 
 let pass = 0; let fail = 0;
@@ -68,3 +68,16 @@ const intent = readIntent(PROMPT, { nowMs: NOW, zoneOffsetMin: 120 });
 ok(intent.task === "ashfall" && intent.vei === 2 && intent.place === "mount etna"
   && intent.time.ms === Date.UTC(2026, 9, 11, 14, 0), "the whole prompt, read");
 ok(readDuration("follow it for 12 hours") === 12 && readDuration("for 2 days") === 48, "a follow time");
+
+// A flight's risk is a question, not a command.
+{
+  const t = Date.UTC(2026, 9, 23, 12);
+  const a = readIntent("How risky is a flight from London to New York today?", { nowMs: t });
+  ok(a?.task === "flight" && a.route.from === "London" && a.route.to === "New York", "a flight from X to Y", JSON.stringify(a?.route));
+  const b = readIntent("Is it safe to fly from Miami to San Juan tomorrow at 9am", { nowMs: t });
+  ok(b?.task === "flight" && b.route.to === "San Juan" && b.time.ms === Date.UTC(2026, 9, 24, 9), "the time is read as for any task");
+  ok(readRoute("flight LHR to JFK risk")?.to === "JFK", "a trailing 'risk' is not part of the place");
+  ok(readRoute("turbulence on flights between Tokyo and Sydney")?.from === "Tokyo", "between X and Y");
+  ok(readTask("how risky is the flight") === null, "a flight with no ends is not a route");
+  ok(readTask("model ash from Etna to the sea at 4pm") === "ashfall", "ash still reads as ash");
+}

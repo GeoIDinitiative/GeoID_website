@@ -23,9 +23,9 @@ import { STLLoader } from "../vendor/STLLoader.js";
 import {
   AIR_SOURCES, AIR_CATEGORIES, SHIP_CATEGORIES, readDigitraffic, foldAisStream, aisStreamSubscription,
   boxAbout, deadReckon, radiusForView, mergeRecords, cardRows, headingBasis, KT_TO_MS,
-} from "./traffic-feeds.js?v=20261023-b1f251a";
-import { isParked } from "./parked.js?v=20261023-b1f251a";
-import { followFrame, FOLLOW_PITCH_MAX } from "./satellites.js?v=20261023-b1f251a";
+} from "./traffic-feeds.js?v=20261023-df8c97c";
+import { isParked } from "./parked.js?v=20261023-df8c97c";
+import { followFrame, FOLLOW_PITCH_MAX } from "./satellites.js?v=20261023-df8c97c";
 
 const KM_TO_UNITS = 3.2 / 6371;
 const M_TO_UNITS = KM_TO_UNITS / 1000;
@@ -1178,7 +1178,7 @@ function wireSpec(spec) {
   document.getElementById(spec.ids.symbology)?.addEventListener("click", async () => {
     const layer = layerOf(spec);
     if (!layer) { say(spec, "Turn the tracker on first — symbology colours the live layer."); return; }
-    const dialog = await import("./symbology-dialog.js?v=20261023-b1f251a");
+    const dialog = await import("./symbology-dialog.js?v=20261023-df8c97c");
     dialog.openSymbologyDialog(layer);
   });
   window.GeoIDImportManager?.onChange?.(() => {
@@ -1256,6 +1256,20 @@ if (typeof window !== "undefined") {
         return { x: (v.x * 0.5 + 0.5) * rect.width + rect.left, y: (-v.y * 0.5 + 0.5) * rect.height + rect.top };
       }
       return null;
+    },
+    /**
+     * For the flight-risk route: the aircraft held now, plain, and which one
+     * is open in the card (or followed), if any.
+     */
+    aircraft() {
+      const t = trackers.air;
+      const plain = (r) => ({
+        id: r.id, name: r.name, lat: r.lat, lon: r.lon, altM: r.altM, onGround: r.onGround,
+        headingDeg: r.headingDeg, speedMs: r.speedMs, timeMs: r.timeMs, callsign: r.props?.callsign || null,
+      });
+      if (!t) return { list: [], selected: null };
+      const sel = t.follow?.record || t.selected || null;
+      return { list: [...t.held.values()].map(plain), selected: sel ? plain(t.held.get(sel.id) || sel) : null };
     },
     /** Open, fly to and follow a craft by id ("air:4ca87d", "ship:230145000") or name. */
     focus(key) {

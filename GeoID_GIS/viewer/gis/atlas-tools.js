@@ -48,6 +48,24 @@ export const TOOLS = [
     args: { type: "object", properties: { description: { type: "string" } } },
   },
   {
+    name: "flight_risk",
+    title: "How risky a flight is, along its route",
+    says: "The great-circle route between two airports (or a live aircraft's onward path), flown at a "
+      + "typical profile from the time given, with the hazards it passes through integrated along it: "
+      + "active tropical cyclones (GDACS forecast and cone), clear-air turbulence and thunderstorms from "
+      + "GFS, and ash from the last ash model. Answers the route's total in equivalent km at the limit, "
+      + "the worst segment and the lowest factor of safety; draws the route and its risk profile.",
+    args: {
+      type: "object",
+      properties: {
+        from: { type: "string", description: "Departure airport: IATA/ICAO code, city or airport name" },
+        to: { type: "string", description: "Arrival airport: IATA/ICAO code, city or airport name" },
+        depart: { type: "string", description: "Departure time, ISO 8601 with a zone (default: now)" },
+        callsign: { type: "string", description: "A live aircraft's callsign instead of from/to (it must be on the Aircraft layer)" },
+      },
+    },
+  },
+  {
     name: "total_risk",
     title: "Score the total risk at a place",
     says: "Every hazard model that can answer for the centre of the view, combined hour by hour into one factor of safety.",
@@ -163,6 +181,10 @@ export function callFromIntent(intent) {
       return { name: "chamber", args: { description: intent.text } };
     case "risk":
       return { name: "total_risk", args: {} };
+    case "flight":
+      return intent.route
+        ? { name: "flight_risk", args: { from: intent.route.from, to: intent.route.to, depart: new Date(intent.time?.ms ?? Date.now()).toISOString() } }
+        : null;
     default:
       return null;
   }
