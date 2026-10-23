@@ -5850,3 +5850,16 @@ none.
 page downloads it), `forest-coarse.json`, `rain-normal-cpc.json`,
 `current.json`. Refresh today's map with `bake-flood-global.py current`.
 
+- **Crossing the cone is not passing the storm.** The cyclone term is time
+  matched: at each sample the storm is where its forecast puts it AT THE
+  AIRCRAFT'S TIME. HKG–NRT on 2026-10-23 20:43 UTC crossed Champi's cone,
+  but over ground the storm reaches three days later; at the time it passed,
+  the centre was 235 km away, expected wind 29 kt (u = 0.46, under the ½
+  ramp), so zero is right. MNL–ICN at 23:20 UTC passed 62 km from it:
+  70.6 kt expected, u = 1.10, 291 eq km, all cyclone.
+- **The centroid is dated by `todate`, not `fromdate`.** GDACS's centroid
+  carries both; `fromdate` is when the storm formed. Read first, it filed
+  Champi's measured 160 kt under 14 October, and the track ran on class
+  mid-points ("HU" = 80 kt for a super typhoon). Forecast fixes that only
+  have a class are now eased linearly from the measured wind toward the next
+  class's strength, inside their own class range (`easeCategoryWinds`).

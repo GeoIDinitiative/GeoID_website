@@ -111,7 +111,8 @@ export function stormFeatures(storm) {
         part: "fix", name: `${name} — ${fmt(p.time)}`, kind: "Forecast position",
         valid: fmt(p.time),
         wind_kt: Number.isFinite(p.wind) ? Math.round(p.wind) : null,
-        wind_source: p.windFrom === "category" ? "mid-point of the advisory's class" : "reported",
+        wind_source: p.windFrom === "category" ? "mid-point of the advisory's class"
+          : p.windFrom === "eased" ? "eased from the measured wind toward the next class" : "reported",
         strength: categoryLabel(p.wind),
         lead_h: Math.round((p.time - (storm.track[0]?.time ?? p.time)) / 3_600_000),
       },
