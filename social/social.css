@@ -834,6 +834,10 @@ select option, select optgroup { background-color: #0b1020; color: #e6edf7; }
 .s-backdrop-veil { position: absolute; inset: 0;
   background: radial-gradient(130% 90% at 50% 10%, rgba(4, 6, 16, 0.05), rgba(4, 6, 16, 0.6) 75%),
               linear-gradient(180deg, rgba(4, 6, 16, 0.1), rgba(4, 6, 16, 0.7)); }
+/* The photograph's credit: a quiet line at the end of the page, never over content. */
+.s-backdrop-credit { max-width: 76rem; margin: 0 auto; padding: 0 1rem 1.5rem; text-align: right;
+  font-size: 0.7rem; letter-spacing: 0.02em; color: rgba(220, 230, 245, 0.5); }
+.s-backdrop-credit:empty { display: none; }
 /* The site's own page background would sit on top of the fixed layer. */
 html:has(body.s-has-backdrop) { background: rgb(4, 6, 16); }
 body.s-has-backdrop, body.s-has-backdrop .page-wrap { background: transparent !important; }
@@ -921,7 +925,7 @@ body.s-has-backdrop, body.s-has-backdrop .page-wrap { background: transparent !i
 .s-app .s-post-full, .s-app .s-thread, .s-app .s-side, .s-app .s-compose, .s-app .s-form,
 .s-app .s-provenance, .s-app .s-empty, .s-app .s-header { border-radius: var(--n-radius) !important; }
 
-/* ── Graticule, instruments and card stats ─────────────────────────────── */
+/* ── Graticule and card stats ─────────────────────────────── */
 
 /* A faint 15° graticule over the photograph: the page reads as a chart
    plate, not wallpaper. Static; drawn with gradients, no image. */
@@ -934,29 +938,6 @@ body.s-has-backdrop, body.s-has-backdrop .page-wrap { background: transparent !i
   background-size: 120px 120px, 120px 120px, 24px 24px, 24px 24px;
   -webkit-mask-image: radial-gradient(120% 80% at 50% 30%, #000 30%, transparent 85%);
           mask-image: radial-gradient(120% 80% at 50% 30%, #000 30%, transparent 85%); }
-
-/* The instrument strip: live readings in a monospaced row under the nav. */
-.s-instruments { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.2rem 1.4rem;
-  margin-top: 0.55rem; padding-top: 0.5rem; border-top: 1px solid rgba(255, 255, 255, 0.06);
-  font: 500 0.72rem/1.4 ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
-  color: rgba(215, 225, 245, 0.78); font-variant-numeric: tabular-nums; }
-.s-inst, .s-inst-plate { display: inline-flex; align-items: baseline; gap: 0.45rem; min-width: 0; }
-.s-inst-key { text-transform: uppercase; letter-spacing: 0.08em; font-size: 0.64rem; color: rgba(160, 180, 215, 0.6); }
-.s-inst-val a { color: inherit; text-decoration: none; font-weight: 700; }
-.s-inst-val a:hover, .s-inst-val a:focus-visible { text-decoration: underline; }
-.s-inst-val[data-tone="active"] a { color: #f5c26b; }
-.s-inst-val[data-tone="storm"] a { color: #ff7a6b; }
-.s-inst-val[data-tone="quiet"] a { color: #7fe0c2; }
-.s-inst-clock { letter-spacing: 0.04em; }
-.s-inst-plate { margin-left: auto; color: rgba(215, 225, 245, 0.6); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
-.s-inst-plate .s-inst-val { overflow: hidden; text-overflow: ellipsis; }
-.s-inst-src { color: rgba(160, 180, 215, 0.45); }
-.s-inst-plate.is-new { animation: n-fade 300ms var(--n-ease-out) both; }
-@media (max-width: 720px) {
-  .s-instruments { gap: 0.2rem 0.9rem; }
-  .s-inst-plate { margin-left: 0; flex-basis: 100%; }
-  .s-inst-src { display: none; }
-}
 
 /* Card stats: icon + count, bottom-right of every post tile. */
 .s-card-foot .s-stats { margin-left: auto; }
@@ -980,3 +961,41 @@ a.s-stat:focus-visible, button.s-stat:focus-visible { color: var(--text); outlin
 .s-app .s-stats a.s-stat:hover, .s-app .s-stats button.s-stat:hover, .s-app .s-stats .s-stat:focus-visible { color: var(--text); }
 .s-app .s-stats .s-stat-btn[aria-pressed="true"] { color: var(--accent); }
 .s-app .s-stats .s-stat.is-answered { color: #7fe0c2; }
+
+/* ── Topic outlines ──────────────────────────────────────────────────────
+   A post's field colours its edge (topics.js): volcanology red-orange,
+   seismology amber, water blue... A thicker stroke, and a glow that breathes
+   slowly -- 3.2 s a cycle, opacity only, on a pseudo-element so nothing is
+   laid out or repainted under the text. Reduced motion holds it still. */
+.s-app .s-card.s-post-card[data-topic] {
+  position: relative;
+  border: 1.5px solid rgba(var(--topic-rgb), 0.72);
+  box-shadow: 0 0 0 1px rgba(var(--topic-rgb), 0.18), 0 0 18px rgba(var(--topic-rgb), 0.16), var(--n-shadow);
+}
+.s-app .s-card.s-post-card[data-topic]::after {
+  content: ""; position: absolute; inset: -2px; border-radius: inherit; pointer-events: none;
+  box-shadow: 0 0 26px 3px rgba(var(--topic-rgb), 0.42), inset 0 0 14px rgba(var(--topic-rgb), 0.12);
+  opacity: 0.35;
+  animation: n-topic-breathe 3.2s ease-in-out infinite alternate;
+}
+.s-app .s-list > .s-card.s-post-card[data-topic]:nth-child(2n)::after { animation-delay: -1.1s; }
+.s-app .s-list > .s-card.s-post-card[data-topic]:nth-child(3n)::after { animation-delay: -2.2s; }
+@keyframes n-topic-breathe { to { opacity: 0.95; } }
+.s-topic { display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.72rem; padding: 0.1rem 0.5rem;
+  border-radius: 100px; border: 1px solid rgba(var(--topic-rgb), 0.6); color: rgb(var(--topic-rgb)); }
+.s-topic::before { content: ""; width: 0.45rem; height: 0.45rem; border-radius: 50%; background: rgb(var(--topic-rgb)); }
+@media (prefers-reduced-motion: reduce) {
+  .s-app .s-card.s-post-card[data-topic]::after { animation: none; opacity: 0.6; }
+}
+@media (prefers-contrast: more) {
+  .s-app .s-card.s-post-card[data-topic] { border-width: 2px; border-color: rgb(var(--topic-rgb)); }
+}
+
+/* The sounds switch: an icon button among the header's actions. */
+.s-hdr-sound { display: inline-flex; align-items: center; justify-content: center; width: 2rem; height: 2rem; padding: 0;
+  border: 1px solid transparent; border-radius: 100px; background: transparent; color: var(--muted); cursor: pointer;
+  transition: color 150ms ease, background-color 150ms ease, border-color 150ms ease; }
+.s-hdr-sound .s-ico { width: 18px; height: 18px; }
+.s-hdr-sound[aria-pressed="true"] { color: var(--accent); border-color: rgba(var(--accent-rgb), 0.5); }
+@media (hover: hover) and (pointer: fine) { .s-hdr-sound:hover { color: var(--text); background: rgba(255, 255, 255, 0.06); } }
+.s-hdr-sound:focus-visible { outline: 2px solid rgba(var(--accent-rgb), 0.7); outline-offset: 1px; }

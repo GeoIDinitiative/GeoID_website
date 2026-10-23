@@ -5,9 +5,9 @@
  *
  * The frames, captions and credits are the loading screen's own lists
  * (/load_screen/earth/frames.json, /load_screen/etna/frames.json), so there is
- * one set of images and one source of attribution. Each photograph is shown
- * with its plate label -- what it is, where, and whose -- in the instrument
- * strip (instruments.js), the way a specimen is labelled.
+ * one set of images and one source of attribution. Each photograph is
+ * credited -- what it is and whose -- in a quiet line at the foot of the page
+ * (app.js), out of the way of reading.
  *
  * MOTION, deliberately little. The image does not drift, zoom or loop: a
  * moving full-screen background behind text people are reading is what
@@ -15,7 +15,7 @@
  * instead. The photograph changes only when the section does, as a 400 ms
  * opacity cross-fade between two layers. Reduced transparency hides it.
  */
-import { h } from "./dom.js?v=20261023-9fdcfa0";
+import { h } from "./dom.js?v=20261023-26ffafb";
 
 const EARTH = "/load_screen/earth/";
 const ETNA = "/load_screen/etna/";

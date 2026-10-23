@@ -1,4 +1,4 @@
-import { BODIES, currentBodyId } from "./bodies.js?v=20261023-9fdcfa0";
+import { BODIES, currentBodyId } from "./bodies.js?v=20261023-26ffafb";
 
 /**
  * The worlds, along the bottom of the GIS page.
@@ -52,9 +52,10 @@ const STYLE = `
    objects, the only solid thing floating over the globe, and the same colour
    under every theme. Now the dock IS the bar: the theme's panel colour at the
    translucency the side panels read at, blurred, edged in the data colour like
-   #ui, and the collapse control is its last segment. Collapsed, the bar keeps
-   the world you are on and the chevron -- it shrinks toward where you are, so
-   it is plain what it is and how to get it back. Themes restyle it alongside
+   #ui, and the collapse control is its last segment. Collapsed, EVERY world
+   folds away (owner: "completely collapsed") and only the control is left --
+   a small tab of the same material with a worlds glyph, so it is plain what
+   it is and how to get it back. Themes restyle it alongside
    .layer-dock in viewer-themes.css (and the default theme squares it with the
    rest in side-panels.js). */
 #gis-planet-dock.gis-planet-dock {
@@ -119,14 +120,26 @@ const STYLE = `
   box-shadow: 0 0 0 1px rgba(var(--nav-accent-rgb), 0.9), 0 0 14px rgba(var(--nav-accent-rgb), 0.35);
 }
 
-/* Collapsed: every world but this one folds away, sideways, into the bar. */
-#gis-planet-dock.is-collapsed .planet-node:not(.is-current) {
+/* Collapsed: every world folds away, sideways, into the control. */
+#gis-planet-dock.is-collapsed { padding: 0.22rem; }
+#gis-planet-dock.is-collapsed .planet-node {
   max-width: 0;
   margin: 0;
   opacity: 0;
+  box-shadow: none;
   pointer-events: none;
 }
-#gis-planet-dock.is-collapsed .planet-node.is-current { cursor: pointer; }
+#gis-planet-dock.is-collapsed .gis-planet-toggle {
+  width: auto;
+  padding: 0 0.55rem;
+  margin-left: 0;
+  gap: 0.35rem;
+  border-left: 0;
+  border-radius: calc(1.1rem * var(--skin-round, 1));
+  opacity: 0.9;
+}
+.gis-planet-worlds { display: none; font-size: 0.68rem; letter-spacing: 0.08em; text-transform: uppercase; }
+#gis-planet-dock.is-collapsed .gis-planet-worlds { display: inline; }
 
 /* The collapse control: the bar's last segment, behind a hairline divider. */
 #gis-planet-dock .gis-planet-toggle {
@@ -232,7 +245,8 @@ function buildDock(strip) {
   toggle.className = "gis-planet-toggle";
   toggle.setAttribute("aria-controls", STRIP_ID);
   // A chevron pointing back along the bar: open, it folds the worlds in.
-  toggle.innerHTML = '<span class="gis-planet-caret" aria-hidden="true">&#8249;</span>';
+  toggle.innerHTML = '<span class="gis-planet-worlds" aria-hidden="true">Worlds</span>'
+    + '<span class="gis-planet-caret" aria-hidden="true">&#8249;</span>';
   toggle.addEventListener("click", () => setCollapsed(!isCollapsed()));
 
   // The strip first, the control as the bar's last segment -- one object.
@@ -334,12 +348,6 @@ export function init() {
   const strip = build();
   strip.addEventListener("click", (event) => {
     const node = event.target.closest(".planet-node");
-    // Folded, the one world left showing is the way back to the rest.
-    if (node?.classList.contains("is-current") && isCollapsed()) {
-      event.preventDefault();
-      setCollapsed(false);
-      return;
-    }
     if (node?.dataset.planet) switchWorldInPlace(event, node.dataset.planet);
   });
   document.body.appendChild(buildDock(strip));

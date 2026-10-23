@@ -2,7 +2,8 @@
  * Who is here: the /v1/me answer, shared by every view, and the unread
  * counts the header draws.
  */
-import * as api from "./api.js?v=20261023-9fdcfa0";
+import { play } from "./sounds.js?v=20261023-26ffafb";
+import * as api from "./api.js?v=20261023-26ffafb";
 
 const listeners = new Set();
 export const store = { me: null, loaded: false, error: null };
@@ -34,6 +35,9 @@ export const isAdmin = () => !!store.me?.admin;
 
 export function setUnread(unread) {
   if (!store.me) return;
+  const before = (store.me.unread?.messages || 0) + (store.me.unread?.notifications || 0);
   store.me.unread = { ...(store.me.unread || {}), ...unread };
+  // Something new came in (not merely read): the arrival chime, if sounds are on.
+  if ((store.me.unread.messages || 0) + (store.me.unread.notifications || 0) > before) play("arrive");
   announce();
 }
