@@ -35,7 +35,7 @@ function loadCoast() {
   return coastReady;
 }
 
-export function createMap(canvas, { onView, onClick, onDraw, minZoom = 1, maxZoom = 64 } = {}) {
+export function createMap(canvas, { onView, onClick, onDraw, minZoom = 1, maxZoom = 64, fill = false } = {}) {
   const ctx = canvas.getContext("2d");
   const view = { lon: 0, lat: 15, zoom: 1 };
   let w = 0; let hgt = 0; let dpr = 1;
@@ -44,7 +44,13 @@ export function createMap(canvas, { onView, onClick, onDraw, minZoom = 1, maxZoo
   const project = (lon, lat) => [w / 2 + (lon - view.lon) * scale(), hgt / 2 - (lat - view.lat) * scale()];
   const unproject = (x, y) => [view.lon + (x - w / 2) / scale(), view.lat - (y - hgt / 2) / scale()];
   const clampView = () => {
-    view.zoom = Math.max(minZoom, Math.min(maxZoom, view.zoom));
+    // fill: never zoom out past the point where the world stops covering the
+    // frame -- a full-page map should never show empty bands above or below.
+    // Only once the canvas has a real size: laid out before the page settles,
+    // it first measures ~1 px wide, and hgt*2/w would pin the zoom at
+    // thousands -- the map then showed open ocean and nothing else.
+    const fillZoom = fill && w > 50 && hgt > 50 ? (hgt * 2) / w : 0;
+    view.zoom = Math.min(maxZoom, Math.max(minZoom, fillZoom, view.zoom));
     const halfH = hgt / 2 / scale();
     const halfW = w / 2 / scale();
     view.lat = halfH >= 90 ? 0 : Math.max(-90 + halfH, Math.min(90 - halfH, view.lat));

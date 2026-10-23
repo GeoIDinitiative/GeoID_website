@@ -87,3 +87,8 @@ body :is(p, li, dd, figcaption, blockquote, td):not(nav *):not(.site-nav *),
 @media (max-width: 700px) {
   :root { --u-section-gap: 2.75rem; --u-card-gap: 1rem; }
 }
+
+/* Native dropdown lists take the page's light text; give them a dark list
+   too, or the options read white on white. */
+select { color-scheme: dark; }
+select option, select optgroup { background-color: #0b1020; color: #e6edf7; }

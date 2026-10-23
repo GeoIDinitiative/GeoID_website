@@ -345,14 +345,28 @@ async function interest(ctx) {
 
 /** Who is counted in one cell, and why. */
 async function interestCell(ctx) {
+  const q = ctx.url.searchParams;
+  const s = Number(q.get("s")); const w = Number(q.get("w"));
+  const size = Number(q.get("size"));
+  if (![s, w, size].every(Number.isFinite) || size < MIN_CELL || size > MAX_CELL) fail(400, "Give the cell as s, w and size.");
+  return peopleIn(ctx, { s, w, n: s + size, e: w + size }, { s, w, size });
+}
+
+/**
+ * Everybody working in the part of the map on screen: the list a reader
+ * scans to find whom to contact about a place. Same people, same reasons and
+ * same consent rules as a cell -- only the box is the view.
+ */
+async function interestPeople(ctx) {
+  const box = bboxOf(ctx.url.searchParams.get("bbox"));
+  return peopleIn(ctx, box, { s: box.s, w: box.w, size: Math.max(box.n - box.s, box.e - box.w) });
+}
+
+async function peopleIn(ctx, box, cellShape) {
   const env = ctx.env;
   const viewer = await currentUser(ctx);
   const q = ctx.url.searchParams;
   const world = worldOf(q.get("world"));
-  const s = Number(q.get("s")); const w = Number(q.get("w"));
-  const size = Number(q.get("size"));
-  if (![s, w, size].every(Number.isFinite) || size < MIN_CELL || size > MAX_CELL) fail(400, "Give the cell as s, w and size.");
-  const box = { s, w, n: s + size, e: w + size };
   const blocks = viewer ? [`AND ${NOT_BLOCKED("x.uid")}`, [viewer.id, viewer.id]] : ["", []];
   const inBox = [box.s, box.n, box.w, box.e];
   const per = async (sql, binds) => (await env.DB.prepare(sql).bind(...binds).all()).results;
@@ -391,7 +405,7 @@ async function interestCell(ctx) {
      ORDER BY p.created_at DESC LIMIT 8`,
   ).bind(world, ...inBox, ...(viewer ? [viewer.id, viewer.id] : [])).all()).results;
 
-  return { cell: { s, w, size }, people, posts: await shapePosts(env, viewer, recentPosts) };
+  return { cell: cellShape, people, posts: await shapePosts(env, viewer, recentPosts) };
 }
 
 export const routes = [
@@ -402,4 +416,5 @@ export const routes = [
   ["GET", "/v1/users/:handle/study-areas", userAreas],
   ["GET", "/v1/map/interest", interest],
   ["GET", "/v1/map/interest/cell", interestCell],
+  ["GET", "/v1/map/interest/people", interestPeople],
 ];

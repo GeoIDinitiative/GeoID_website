@@ -91,3 +91,17 @@ test("cell size and trend rules", () => {
   assert.equal(trendOf(2, 3), "steady");
   assert.equal(trendOf(0, 0), "steady");
 });
+
+test("people in view: everyone working inside the visible box, with reasons", async () => {
+  const env = makeEnv(); await people(env);
+  await call(env, "POST", "/v1/me/study-areas", { as: A, body: { name: "Mount Etna", location: { lat: 37.7, lon: 15.0 } } });
+  await call(env, "POST", "/v1/me/study-areas", { as: B, body: { name: "Vesuvius", location: { lat: 40.8, lon: 14.4 } } });
+  await call(env, "POST", "/v1/me/study-areas", { as: C, body: { name: "Andes", location: { lat: -15, lon: -72 } } });
+  const italy = await call(env, "GET", "/v1/map/interest/people?bbox=10,35,20,45");
+  assert.equal(italy.status, 200, JSON.stringify(italy.body));
+  assert.deepEqual(italy.body.people.map((p) => p.user.handle).sort(), ["ana", "ben"]);
+  assert.ok(italy.body.people[0].reasons.length >= 1);
+  const world = await call(env, "GET", "/v1/map/interest/people?bbox=-180,-90,180,90");
+  assert.equal(world.body.people.length, 3);
+  assert.ok(!JSON.stringify(world.body).includes("@example.com"));
+});

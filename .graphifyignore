@@ -6,3 +6,35 @@
 page_backups/
 _design-mockups/
 graphify-out/
+# The GALES solver's bundled third-party libraries (CMake's own manual,
+# Trilinos): 2,100 HTML pages that are not GeoID's and would swamp the
+# site's ~40 real pages in the graph.
+GeoID_GIS/gales/tpl/
+# Media: map tiles, textures, photos and recordings. Thousands of them, none
+# of it code or prose, and an --update would otherwise queue every one for
+# vision extraction.
+*.png
+*.jpg
+*.jpeg
+*.webp
+*.gif
+*.tif
+*.tiff
+*.svg
+*.ico
+*.mp4
+*.webm
+*.mp3
+*.wav
+*.ogg
+*.m4a
+*.mov
+*.JPG
+*.PNG
+# Numeric data tables (model inputs, tile lists, fixtures): data, not prose.
+earth_explorer/etna/input/*.txt
+earth_explorer/etna/input/Italy_faults_Petricca-et-al_data/
+earth_explorer/etna/ETNA_3_chambers/station_data.txt
+GeoID_Earth/assets/*.txt
+GeoID_GIS/tests/test-data.txt
+robots.txt
