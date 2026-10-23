@@ -834,10 +834,6 @@ select option, select optgroup { background-color: #0b1020; color: #e6edf7; }
 .s-backdrop-veil { position: absolute; inset: 0;
   background: radial-gradient(130% 90% at 50% 10%, rgba(4, 6, 16, 0.05), rgba(4, 6, 16, 0.6) 75%),
               linear-gradient(180deg, rgba(4, 6, 16, 0.1), rgba(4, 6, 16, 0.7)); }
-/* The photograph's credit: a quiet line at the end of the page, never over content. */
-.s-backdrop-credit { max-width: 76rem; margin: 0 auto; padding: 0 1rem 1.5rem; text-align: right;
-  font-size: 0.7rem; letter-spacing: 0.02em; color: rgba(220, 230, 245, 0.5); }
-body:not(.s-has-backdrop) .s-backdrop-credit { display: none; }
 /* The site's own page background would sit on top of the fixed layer. */
 html:has(body.s-has-backdrop) { background: rgb(4, 6, 16); }
 body.s-has-backdrop, body.s-has-backdrop .page-wrap { background: transparent !important; }
@@ -924,3 +920,63 @@ body.s-has-backdrop, body.s-has-backdrop .page-wrap { background: transparent !i
 .s-app .s-list > .s-card, .s-app .s-card.s-post-card, .s-app .s-link-card,
 .s-app .s-post-full, .s-app .s-thread, .s-app .s-side, .s-app .s-compose, .s-app .s-form,
 .s-app .s-provenance, .s-app .s-empty, .s-app .s-header { border-radius: var(--n-radius) !important; }
+
+/* ── Graticule, instruments and card stats ─────────────────────────────── */
+
+/* A faint 15° graticule over the photograph: the page reads as a chart
+   plate, not wallpaper. Static; drawn with gradients, no image. */
+.s-backdrop-grid { position: absolute; inset: 0; opacity: 0.5;
+  background-image:
+    linear-gradient(rgba(150, 190, 255, 0.07) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(150, 190, 255, 0.07) 1px, transparent 1px),
+    linear-gradient(rgba(150, 190, 255, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(150, 190, 255, 0.035) 1px, transparent 1px);
+  background-size: 120px 120px, 120px 120px, 24px 24px, 24px 24px;
+  -webkit-mask-image: radial-gradient(120% 80% at 50% 30%, #000 30%, transparent 85%);
+          mask-image: radial-gradient(120% 80% at 50% 30%, #000 30%, transparent 85%); }
+
+/* The instrument strip: live readings in a monospaced row under the nav. */
+.s-instruments { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.2rem 1.4rem;
+  margin-top: 0.55rem; padding-top: 0.5rem; border-top: 1px solid rgba(255, 255, 255, 0.06);
+  font: 500 0.72rem/1.4 ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+  color: rgba(215, 225, 245, 0.78); font-variant-numeric: tabular-nums; }
+.s-inst, .s-inst-plate { display: inline-flex; align-items: baseline; gap: 0.45rem; min-width: 0; }
+.s-inst-key { text-transform: uppercase; letter-spacing: 0.08em; font-size: 0.64rem; color: rgba(160, 180, 215, 0.6); }
+.s-inst-val a { color: inherit; text-decoration: none; font-weight: 700; }
+.s-inst-val a:hover, .s-inst-val a:focus-visible { text-decoration: underline; }
+.s-inst-val[data-tone="active"] a { color: #f5c26b; }
+.s-inst-val[data-tone="storm"] a { color: #ff7a6b; }
+.s-inst-val[data-tone="quiet"] a { color: #7fe0c2; }
+.s-inst-clock { letter-spacing: 0.04em; }
+.s-inst-plate { margin-left: auto; color: rgba(215, 225, 245, 0.6); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.s-inst-plate .s-inst-val { overflow: hidden; text-overflow: ellipsis; }
+.s-inst-src { color: rgba(160, 180, 215, 0.45); }
+.s-inst-plate.is-new { animation: n-fade 300ms var(--n-ease-out) both; }
+@media (max-width: 720px) {
+  .s-instruments { gap: 0.2rem 0.9rem; }
+  .s-inst-plate { margin-left: 0; flex-basis: 100%; }
+  .s-inst-src { display: none; }
+}
+
+/* Card stats: icon + count, bottom-right of every post tile. */
+.s-card-foot .s-stats { margin-left: auto; }
+.s-stats { display: inline-flex; align-items: center; gap: 0.15rem; }
+.s-stat { display: inline-flex; align-items: center; gap: 0.3rem; min-height: 1.9rem; padding: 0 0.45rem;
+  border-radius: 100px; border: 0; background: transparent; color: var(--muted); font: inherit; font-size: 0.8rem;
+  font-variant-numeric: tabular-nums; text-decoration: none; cursor: default;
+  transition: color 150ms ease, background-color 150ms ease; }
+a.s-stat, button.s-stat { cursor: pointer; }
+.s-ico { flex: none; display: block; }
+@media (hover: hover) and (pointer: fine) {
+  a.s-stat:hover, button.s-stat:hover { color: var(--text); background: rgba(255, 255, 255, 0.06); }
+}
+a.s-stat:focus-visible, button.s-stat:focus-visible { color: var(--text); outline: 2px solid rgba(var(--accent-rgb), 0.7); outline-offset: 1px; }
+.s-stat-btn[aria-pressed="true"] { color: var(--accent); }
+.s-stat.is-answered { color: #7fe0c2; }
+.s-app button.s-stat:active { transform: scale(0.94); transition: transform 120ms var(--n-ease-out); }
+@media (prefers-reduced-motion: reduce) { .s-app button.s-stat:active { transform: none; } }
+/* The site's link colour would paint the stats pink; they are quiet until hovered or on. */
+.s-app .s-stats .s-stat { color: var(--muted); }
+.s-app .s-stats a.s-stat:hover, .s-app .s-stats button.s-stat:hover, .s-app .s-stats .s-stat:focus-visible { color: var(--text); }
+.s-app .s-stats .s-stat-btn[aria-pressed="true"] { color: var(--accent); }
+.s-app .s-stats .s-stat.is-answered { color: #7fe0c2; }

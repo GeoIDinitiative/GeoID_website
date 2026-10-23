@@ -1,21 +1,21 @@
 /** #/post/:id — one post in full, its provenance, the interaction bar and the thread. */
-import * as api from "../api.js?v=20261023-c5add11";
-import { store, myHandle } from "../store.js?v=20261023-c5add11";
+import * as api from "../api.js?v=20261023-5845e91";
+import { store, myHandle } from "../store.js?v=20261023-5845e91";
 import {
   h, clear, timeEl, toast, modal, field, select, textarea, busy, extLink, errorBox, loading,
   confirmDialog, empty, dateText, put,
-} from "../dom.js?v=20261023-c5add11";
+} from "../dom.js?v=20261023-5845e91";
 import {
   userChip, kindBadge, provenanceBadge, hasProvenance, verificationBadge, geohubHref, tagList, REACTIONS, LICENCES, VISIBILITY,
   PROVENANCE, act, requireSignIn, followButton, reportDialog, share, postUrl, citeDialog, bookmarkDialog,
   reshareButton, quoteDialog, sendPostDialog,
   postCard, kindLabel,
-} from "../components.js?v=20261023-c5add11";
-import { compareSlider, resolveImageRef, timeChart, measurementsBlock, gallery } from "../rich.js?v=20261023-c5add11";
-import { parseVideoLink, videoEmbed } from "../embed.js?v=20261023-c5add11";
-import { eventPanel } from "./opportunities.js?v=20261023-c5add11";
+} from "../components.js?v=20261023-5845e91";
+import { compareSlider, resolveImageRef, timeChart, measurementsBlock, gallery } from "../rich.js?v=20261023-5845e91";
+import { parseVideoLink, videoEmbed } from "../embed.js?v=20261023-5845e91";
+import { eventPanel } from "./opportunities.js?v=20261023-5845e91";
 
-export async function render(root, { params }) {
+export async function render(root, { params, query }) {
   const id = params.id;
   put(clear(root), loading());
   let p;
@@ -50,6 +50,9 @@ export async function render(root, { params }) {
       actionBar(p, mine, () => comments.querySelector("textarea")?.focus())),
     comments);
   loadComments(comments, p, mine);
+  // A card's comment count links here with ?focus=comments: land on the thread
+  // (after the router's own scroll to the top).
+  if (query?.focus === "comments") setTimeout(() => comments.scrollIntoView({ block: "start" }), 0);
   // Collaboration track: RSVP, calendar and posters sit just above the thread.
   if (p.kind === "event") comments.before(eventPanel(p));
   if (p.counts?.forks) {

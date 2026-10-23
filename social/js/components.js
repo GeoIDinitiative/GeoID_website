@@ -3,13 +3,13 @@
  * claim came from, and the interaction bar. All of it built with h(), so all
  * user content is text.
  */
-import * as api from "./api.js?v=20261023-c5add11";
-import { store, myHandle, refreshMe } from "./store.js?v=20261023-c5add11";
+import * as api from "./api.js?v=20261023-5845e91";
+import { store, myHandle, refreshMe } from "./store.js?v=20261023-5845e91";
 import {
   h, clear, ago, timeEl, toast, modal, copyText, field, select, input, textarea,
   extLink, empty, errorBox, loading, busy, confirmDialog, put,
-} from "./dom.js?v=20261023-c5add11";
-import { cardPreview } from "./embed.js?v=20261023-c5add11";
+} from "./dom.js?v=20261023-5845e91";
+import { cardPreview } from "./embed.js?v=20261023-5845e91";
 
 // ── Vocabulary (CONTRACT.md enumerations) ──────────────────────────────────
 
@@ -224,12 +224,64 @@ export function postCard(p) {
     h("footer", { class: "s-card-foot" },
       placeText(p.location),
       tagList(p.tags),
-      h("span", { class: "s-counts" },
-        `${plural(p.counts?.reactions || 0, "reaction")} · ${plural(p.counts?.comments || 0, p.kind === "question" ? "answer" : "comment")}`,
-        p.counts?.forks ? ` · ${p.counts.forks} forks` : "",
-        p.counts?.reposts ? ` · ${plural(p.counts.reposts, "reshare")}` : "",
-        p.accepted_comment_id ? " · answered" : ""),
-      cardActions(p)));
+      cardStats(p)));
+}
+
+/**
+ * Line icons for the card's stats: 16 px, stroked in currentColor, built with
+ * createElementNS (h() makes HTML elements, and there is no innerHTML here).
+ */
+const ICONS = {
+  react: ["M12 20.5s-7.5-4.6-7.5-10.1A4.3 4.3 0 0 1 12 7.6a4.3 4.3 0 0 1 7.5 2.8c0 5.5-7.5 10.1-7.5 10.1z"],
+  comment: ["M4.5 5.5h15v10h-8l-4.5 3.5v-3.5h-2.5z"],
+  reshare: ["M7 7.5h10.5l-2.5-2.5", "M17 16.5H6.5l2.5 2.5", "M17.5 7.5v4", "M6.5 16.5v-4"],
+  send: ["M20 4 9.5 14.5", "M20 4l-6.5 16-4-5.5-5.5-4z"],
+  fork: ["M7 4.5v6a3 3 0 0 0 3 3h4a3 3 0 0 0 3-3v-6", "M12 13.5v6"],
+  check: ["M5 12.5l4.5 4.5L19 7.5"],
+};
+const SVG_NS = "http://www.w3.org/2000/svg";
+export function icon(name) {
+  const svg = document.createElementNS(SVG_NS, "svg");
+  for (const [k, v] of Object.entries({ viewBox: "0 0 24 24", width: "16", height: "16", fill: "none", stroke: "currentColor",
+    "stroke-width": "1.7", "stroke-linecap": "round", "stroke-linejoin": "round", "aria-hidden": "true", focusable: "false", class: "s-ico" })) {
+    svg.setAttribute(k, v);
+  }
+  for (const d of ICONS[name] || []) {
+    const path = document.createElementNS(SVG_NS, "path");
+    path.setAttribute("d", d);
+    svg.append(path);
+  }
+  return svg;
+}
+
+/** One stat: icon and number, with the words for screen readers and on hover. */
+function stat(name, n, words, href) {
+  const label = plural(n, words);
+  const kids = [icon(name), h("span", { class: "s-stat-n", text: String(n) })];
+  return href
+    ? h("a", { class: "s-stat", href, title: label, "aria-label": label }, ...kids)
+    : h("span", { class: "s-stat", title: label, "aria-label": label, role: "img" }, ...kids);
+}
+
+/**
+ * Bottom-right of every card: reactions, comments, reshares (the toggle, when
+ * you may reshare), forks and "answered" when there are any, then Send.
+ */
+function cardStats(p) {
+  const c = p.counts || {};
+  const href = `#/post/${encodeURIComponent(p.id)}`;
+  const answer = p.kind === "question" ? "answer" : "comment";
+  const reshares = c.reposts || 0;
+  const toggle = store.me ? reshareButton(p, { compact: true, count: reshares }) : null;
+  const send = store.me ? h("button", { type: "button", class: "s-stat s-stat-btn", title: "Send this post to someone", "aria-label": "Send this post to someone" }, icon("send")) : null;
+  send?.addEventListener("click", () => sendPostDialog(p));
+  return h("span", { class: "s-stats" },
+    stat("react", c.reactions || 0, "reaction", href),
+    stat("comment", c.comments || 0, answer, `${href}?focus=comments`),
+    toggle || stat("reshare", reshares, "reshare"),
+    c.forks ? stat("fork", c.forks, "fork") : null,
+    p.accepted_comment_id ? h("span", { class: "s-stat is-answered", title: "Answered", "aria-label": "Answered", role: "img" }, icon("check")) : null,
+    send);
 }
 
 /**
@@ -237,17 +289,27 @@ export function postCard(p) {
  * only -- the Worker refuses the rest, and the button is not offered);
  * "Quote" adds a line of your own; "Send" puts it in one person's messages.
  */
-export function reshareButton(p, { compact = false } = {}) {
+export function reshareButton(p, { compact = false, count = null } = {}) {
   if (p.visibility !== "public" || (store.me && p.author?.handle === myHandle())) return null;
   let on = !!p.viewer?.reshared;
-  const btn = h("button", { type: "button", class: compact ? "s-mini-act" : "s-act", "aria-pressed": String(on),
-    title: "Show this post to the people who follow you" }, on ? "Reshared" : "Reshare");
+  // On a card it is an icon stat: the count, lit when you have reshared it.
+  const iconic = count != null;
+  const num = iconic ? h("span", { class: "s-stat-n", text: String(count) }) : null;
+  const btn = h("button", { type: "button", class: iconic ? "s-stat s-stat-btn" : compact ? "s-mini-act" : "s-act", "aria-pressed": String(on),
+    title: "Show this post to the people who follow you" }, ...(iconic ? [icon("reshare"), num] : [on ? "Reshared" : "Reshare"]));
+  const draw = () => {
+    if (iconic) btn.setAttribute("aria-label", `${plural(count, "reshare")}${on ? ", reshared by you" : ""}. Reshare to your followers`);
+    else btn.textContent = on ? "Reshared" : "Reshare";
+    btn.setAttribute("aria-pressed", String(on));
+  };
+  draw();
   btn.addEventListener("click", () => act(async () => {
     const out = on ? await api.del(`/v1/posts/${encodeURIComponent(p.id)}/repost`, {})
       : await api.post(`/v1/posts/${encodeURIComponent(p.id)}/repost`, {});
+    const was = on;
     on = !!out.reshared;
-    btn.textContent = on ? "Reshared" : "Reshare";
-    btn.setAttribute("aria-pressed", String(on));
+    if (iconic) { count = Math.max(0, count + (on ? 1 : 0) - (was ? 1 : 0)); num.textContent = String(count); }
+    draw();
     toast(on ? "Reshared to your followers." : "Reshare removed.");
   }, "reshare posts"));
   return btn;
@@ -280,14 +342,6 @@ export function sendPostDialog(p) {
     stay: true,
     hint: "It arrives in their messages with a link to the post. Add a line of your own if you like.",
   });
-}
-
-function cardActions(p) {
-  if (!store.me) return null;
-  const reshare = reshareButton(p, { compact: true });
-  const send = h("button", { type: "button", class: "s-mini-act", title: "Send this post to someone" }, "Send");
-  send.addEventListener("click", () => sendPostDialog(p));
-  return h("span", { class: "s-card-actions" }, reshare, send);
 }
 
 /**
