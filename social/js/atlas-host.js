@@ -183,8 +183,10 @@ export function registerAtlasHost(ctx) {
   };
   window.GeoIDAtlasHost = {
     sub: "guide to the GeoID Network",
-    // In the Network header's top-right corner, beside Settings.
-    slot: () => document.querySelector(".s-hdr-atlas"),
+    // The page's top-right corner, just under the site's bar -- on a phone,
+    // where that corner is the search box, the bottom-right instead.
+    get corner() { return window.innerWidth < 720 ? "bottom-right" : "top-right"; },
+    top: () => (document.querySelector("nav.site-nav")?.getBoundingClientRect().bottom || 56) + 12,
     greeting: "I'm **Atlas**, the assistant from GeoHUB. On the Network I can take you anywhere, "
       + "say what needs your attention, and find the people working on a topic or a place.",
     suggestions: [["What should I do next?", "what should I do next?"], ["Who works near Etna?", "people near Etna"], ["What can you do?", "help"]],

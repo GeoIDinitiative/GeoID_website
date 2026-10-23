@@ -1,4 +1,4 @@
-import { BODIES, currentBodyId } from "./bodies.js?v=20261023-5ffc27c";
+import { BODIES, currentBodyId } from "./bodies.js?v=20261023-758e84c";
 
 /**
  * The worlds, along the bottom of the GIS page.
@@ -17,8 +17,12 @@ import { BODIES, currentBodyId } from "./bodies.js?v=20261023-5ffc27c";
  * seconds to build a globe and its tile pyramid, and transit turns that into
  * something to watch rather than a white page.
  *
- * Earth is the exception: /transit/?destination=earth is the ISS viewer, and
- * Earth's GIS page is this one, so its node links straight there.
+ * Earth too, from anywhere else (owner, 2026-10-23): it linked straight to
+ * the globe, so coming home was the one jump with no journey. Its transit
+ * arrives at the International Space Station, with the station's photographs
+ * behind the cruise (transit/transit-photos.js). On Earth its node is "you
+ * are here" and links nowhere, so the transit is only ever the trip back;
+ * the first arrival of a session keeps the start-up screen.
  */
 
 // Orrery order, not registry order -- Sun outward, with the Moon beside Earth,
@@ -238,9 +242,7 @@ function build() {
     if (!body) return;
     const node = document.createElement("a");
     node.className = "planet-node";
-    node.href = body.id === "earth"
-      ? body.path
-      : `/transit/?destination=${body.id}`;
+    node.href = `/transit/?destination=${body.id}`;
     node.dataset.planet = body.id;
     node.style.setProperty("--icon-size", `${ICON_SIZE}px`);
     node.title = body.name;

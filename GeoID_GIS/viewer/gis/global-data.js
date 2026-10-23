@@ -26,18 +26,18 @@
  * rebuilt or updated without guessing what was done to them.
  */
 
-import { runConnector } from "./research/connectors.js?v=20261023-5ffc27c";
-import { explainFetchFailure, dataUrl } from "./data-base.js?v=20261023-5ffc27c";
-import { mathsFor } from "./equations.js?v=20261023-5ffc27c";
+import { runConnector } from "./research/connectors.js?v=20261023-758e84c";
+import { explainFetchFailure, dataUrl } from "./data-base.js?v=20261023-758e84c";
+import { mathsFor } from "./equations.js?v=20261023-758e84c";
 import {
   riskEdges, RISK_LABELS,
-} from "./cyclone-risk.js?v=20261023-5ffc27c";
-import { colourRange as volcanicColourRange } from "./volcanic-risk.js?v=20261023-5ffc27c";
-import { featureForModel, may, refusal } from "./membership.js?v=20261023-5ffc27c";
-import { colourRange as seismicColourRange } from "./seismic-bands.js?v=20261023-5ffc27c";
+} from "./cyclone-risk.js?v=20261023-758e84c";
+import { colourRange as volcanicColourRange } from "./volcanic-risk.js?v=20261023-758e84c";
+import { featureForModel, may, refusal } from "./membership.js?v=20261023-758e84c";
+import { colourRange as seismicColourRange } from "./seismic-bands.js?v=20261023-758e84c";
 // The cyclone tracks are classed on the same scale the live storm markers
 // band by, so the archive and the feed cut intensity at the same knots.
-import { SAFFIR_SIMPSON_KTS } from "./event-sources.js?v=20261023-5ffc27c";
+import { SAFFIR_SIMPSON_KTS } from "./event-sources.js?v=20261023-758e84c";
 
 /** Order the groups read in, coarse to specific. */
 export const GROUPS = ["Physical", "Hydrology", "Boundaries", "Tectonics",
@@ -1073,7 +1073,7 @@ function drawnBbox() {
 async function viewBbox() {
   try {
     const THREE = await import("../vendor/three.module.js");
-    const { visibleBounds } = await import("./view-extent.js?v=20261023-5ffc27c");
+    const { visibleBounds } = await import("./view-extent.js?v=20261023-758e84c");
     const b = visibleBounds(window.GeoIDViewer, THREE);
     const ok = b && [b.minLon, b.minLat, b.maxLon, b.maxLat].every(Number.isFinite);
     return ok ? { minLon: b.minLon, minLat: b.minLat, maxLon: b.maxLon, maxLat: b.maxLat } : null;

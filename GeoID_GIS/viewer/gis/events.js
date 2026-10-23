@@ -16,9 +16,9 @@ import {
   gdacsPoints, resolveColour,
   MARKER_LIFT_MAX, liftForAltitude, dotSizePx, zoomGain, MARKER_MAX_PX, isQuake, publisherOf, restoreActive,
   stormCategory, stormScale, stormLabel, STORM_BASE_CAP, markerHitGeometry, nearestHit,
-} from "./event-sources.js?v=20261023-5ffc27c";
-import { escapeHtml, safeUrl } from "./escape-html.js?v=20261023-5ffc27c";
-import { holdLaunch } from "./launch-ready.js?v=20261023-5ffc27c";
+} from "./event-sources.js?v=20261023-758e84c";
+import { escapeHtml, safeUrl } from "./escape-html.js?v=20261023-758e84c";
+import { holdLaunch } from "./launch-ready.js?v=20261023-758e84c";
 
 const API = "https://eonet.gsfc.nasa.gov/api/v3/events";
 
@@ -821,8 +821,11 @@ let expandedScroll = 0;
  * Which PAGE the drop-down is showing: "categories" is the grouped view
  * above; "recent" is the live feed — every event in one list, newest
  * first, each row carrying its icon and how long ago it happened.
+ *
+ * It OPENS on the live feed (owner, 2026-10-23): what just happened is the
+ * question on arrival; the grouped view is one click away.
  */
-let panelView = "categories";
+let panelView = "recent";
 let recentScroll = 0;
 
 /**
@@ -2715,8 +2718,8 @@ async function showTrace(event) {
   }
 
   const [plot, { spectrogram }] = await Promise.all([
-    import("./seismogram-plot.js?v=20261023-5ffc27c"),
-    import("./research/dsp.js?v=20261023-5ffc27c"),
+    import("./seismogram-plot.js?v=20261023-758e84c"),
+    import("./research/dsp.js?v=20261023-758e84c"),
   ]);
   if (stale()) return;
 

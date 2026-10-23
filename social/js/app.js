@@ -5,32 +5,32 @@
  * (or resolve to) a cleanup function -- a poll to stop, a map to release --
  * which runs when the route changes.
  */
-import { play, soundsOn, setSounds } from "./sounds.js?v=20261023-5ffc27c";
-import * as api from "./api.js?v=20261023-5ffc27c";
-import { store, onMe, refreshMe, setUnread } from "./store.js?v=20261023-5ffc27c";
-import { h, clear, errorBox, pollWhileVisible, put } from "./dom.js?v=20261023-5ffc27c";
-import { avatar, icon } from "./components.js?v=20261023-5ffc27c";
-import { createBackdrop } from "./backdrop.js?v=20261023-5ffc27c";
-import { registerAtlasHost } from "./atlas-host.js?v=20261023-5ffc27c";
-import { liveSocket } from "./chat.js?v=20261023-5ffc27c";
+import { play, soundsOn, setSounds } from "./sounds.js?v=20261023-758e84c";
+import * as api from "./api.js?v=20261023-758e84c";
+import { store, onMe, refreshMe, setUnread } from "./store.js?v=20261023-758e84c";
+import { h, clear, errorBox, pollWhileVisible, put } from "./dom.js?v=20261023-758e84c";
+import { avatar, icon } from "./components.js?v=20261023-758e84c";
+import { createBackdrop } from "./backdrop.js?v=20261023-758e84c";
+import { registerAtlasHost } from "./atlas-host.js?v=20261023-758e84c";
+import { liveSocket } from "./chat.js?v=20261023-758e84c";
 
-import * as feed from "./views/feed.js?v=20261023-5ffc27c";
-import * as compose from "./views/compose.js?v=20261023-5ffc27c";
-import * as post from "./views/post.js?v=20261023-5ffc27c";
-import * as profile from "./views/profile.js?v=20261023-5ffc27c";
-import * as people from "./views/people.js?v=20261023-5ffc27c";
-import * as communities from "./views/communities.js?v=20261023-5ffc27c";
-import * as teams from "./views/teams.js?v=20261023-5ffc27c";
-import * as projects from "./views/projects.js?v=20261023-5ffc27c";
-import * as reviews from "./views/reviews.js?v=20261023-5ffc27c";
-import * as inbox from "./views/inbox.js?v=20261023-5ffc27c";
-import * as map from "./views/map.js?v=20261023-5ffc27c";
-import * as opps from "./views/opportunities.js?v=20261023-5ffc27c";
-import * as mod from "./views/mod.js?v=20261023-5ffc27c";
-import * as settings from "./views/settings.js?v=20261023-5ffc27c";
-import * as orgs from "./views/orgs.js?v=20261023-5ffc27c";
-import * as onboarding from "./views/onboarding.js?v=20261023-5ffc27c";
-import * as requests from "./views/requests.js?v=20261023-5ffc27c";
+import * as feed from "./views/feed.js?v=20261023-758e84c";
+import * as compose from "./views/compose.js?v=20261023-758e84c";
+import * as post from "./views/post.js?v=20261023-758e84c";
+import * as profile from "./views/profile.js?v=20261023-758e84c";
+import * as people from "./views/people.js?v=20261023-758e84c";
+import * as communities from "./views/communities.js?v=20261023-758e84c";
+import * as teams from "./views/teams.js?v=20261023-758e84c";
+import * as projects from "./views/projects.js?v=20261023-758e84c";
+import * as reviews from "./views/reviews.js?v=20261023-758e84c";
+import * as inbox from "./views/inbox.js?v=20261023-758e84c";
+import * as map from "./views/map.js?v=20261023-758e84c";
+import * as opps from "./views/opportunities.js?v=20261023-758e84c";
+import * as mod from "./views/mod.js?v=20261023-758e84c";
+import * as settings from "./views/settings.js?v=20261023-758e84c";
+import * as orgs from "./views/orgs.js?v=20261023-758e84c";
+import * as onboarding from "./views/onboarding.js?v=20261023-758e84c";
+import * as requests from "./views/requests.js?v=20261023-758e84c";
 
 const ROUTES = [
   ["/", feed.render, "Feed"],
@@ -115,9 +115,7 @@ function buildHeader(host) {
     h("div", { class: "s-hdr-top" },
       h("a", { class: "s-brand", href: "#/" }, h("span", { class: "geohub-word" }, h("span", { class: "geohub-prefix" }, "Geo"), "ID"), " Network"),
       searchForm,
-      h("div", { class: "s-hdr-actions" }, h("a", { class: "btn-primary s-btn-sm", href: "#/compose" }, "New post"), header.messages, header.notifs, header.sound, header.who,
-        // Atlas's mark lands here (atlas-host.js `slot`): the header's top-right corner.
-        h("span", { class: "s-hdr-atlas" }))),
+      h("div", { class: "s-hdr-actions" }, h("a", { class: "btn-primary s-btn-sm", href: "#/compose" }, "New post"), header.messages, header.notifs, header.sound, header.who)),
     h("nav", { class: "s-subnav", "aria-label": "GeoID Network" }, header.links, header.modLink));
 }
 

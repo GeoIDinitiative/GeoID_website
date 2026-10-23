@@ -51,12 +51,13 @@ const history = [];          // {role, content} for the model, when there is one
  * and state answer before the workspace's -- and its `context()` leads what a
  * connected model is told. Every field is optional:
  *
- *   { sub, greeting, suggestions: [[label, question]], corner: "bottom-right",
- *     slot(): Element | null, context(): string,
+ *   { sub, greeting, suggestions: [[label, question]],
+ *     corner: "top-right" | "bottom-right", top(): px, context(): string,
  *     answer(question, { submit }): {text, actions} | null }
  *
- * `slot` hands the mark a place IN the host's own chrome (the Network's
- * header, top right) instead of a fixed corner; the panel then drops from it.
+ * `corner` puts the mark in that corner of the page instead of measuring the
+ * GeoHUB's own furniture; `top()` is where a top-right mark starts, below the
+ * host's own bar.
  *
  * Read on each use rather than once, so it is never stale.
  */
@@ -862,19 +863,18 @@ function connectPrompt() {
  */
 function placeLauncher(launcher, panelNode) {
   const GAP = 10;
-  // Slotted into the host's header: it goes where the header puts it, and the
-  // panel hangs from its bottom edge, right-aligned to it. The slot may be
-  // drawn after the mark was built, so it is looked for on every pass.
-  const slot = host()?.slot?.();
-  if (slot) {
-    if (launcher.parentNode !== slot) slot.appendChild(launcher);
-    launcher.classList.add("is-slotted");
-    launcher.style.top = ""; launcher.style.right = ""; launcher.style.bottom = "";
-    const box = launcher.getBoundingClientRect();
-    panelNode.style.top = `${Math.round(box.bottom + GAP)}px`;
+  // A host page's own top-right corner, below its bar: the panel drops from it.
+  if (host()?.corner === "top-right") {
+    const size = launcher.offsetHeight || 38;
+    const topPx = `${Math.round(Number(host().top?.()) || 16)}px`;
+    if (launcher.style.top !== topPx) launcher.style.top = topPx;
+    if (launcher.style.right !== "16px") launcher.style.right = "16px";
+    if (launcher.style.bottom !== "auto") launcher.style.bottom = "auto";
+    const below = (parseFloat(topPx) || 16) + size + GAP;
+    panelNode.style.top = `${below}px`;
     panelNode.style.bottom = "auto";
-    panelNode.style.right = `${Math.max(10, Math.round(window.innerWidth - box.right))}px`;
-    panelNode.style.maxHeight = `${Math.max(220, window.innerHeight - box.bottom - GAP - 18)}px`;
+    panelNode.style.right = "16px";
+    panelNode.style.maxHeight = `${Math.max(220, window.innerHeight - below - 18)}px`;
     return;
   }
   // A host page with its own header in the top-right corner (the GeoID

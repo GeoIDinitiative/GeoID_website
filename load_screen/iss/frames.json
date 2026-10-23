@@ -1,0 +1,50 @@
+{
+  "_readme": "The Earth TRANSIT's photographs (arriving back at Earth from another world, /transit/?destination=earth) -- not the start-up montage, which is ../earth/. Played behind the cruise in this order; add a file and a line here. All NASA, public domain (images.nasa.gov ids in src).",
+  "hold_ms": 2600,
+  "fade_ms": 1200,
+  "opacity": 0.42,
+  "frames": [
+    {
+      "file": "01-iss-from-crew-dragon.webp",
+      "kind": "Photograph from orbit",
+      "place": "International Space Station",
+      "coord": "From Crew Dragon Endeavour, flyaround · 8 Nov 2021",
+      "src": "NASA · iss066e081189"
+    },
+    {
+      "file": "02-night-limb-under-the-arrays.webp",
+      "kind": "Photograph from the station",
+      "place": "Night limb under the solar arrays, with an aurora",
+      "coord": "Expedition 58 · 19 Jan 2019",
+      "src": "NASA · iss058e005282"
+    },
+    {
+      "file": "03-cupola.webp",
+      "kind": "Photograph aboard the station",
+      "place": "The Cupola's seven windows",
+      "coord": "Expedition 38 · 8 Dec 2013",
+      "src": "NASA · iss038e013587"
+    },
+    {
+      "file": "04-aurora-australis.webp",
+      "kind": "Photograph from the station",
+      "place": "Aurora australis over the Indian Ocean",
+      "coord": "Expedition 62 · 13 Apr 2020",
+      "src": "NASA · iss062e148363"
+    },
+    {
+      "file": "05-iss-flyaround-2021.webp",
+      "kind": "Photograph from orbit",
+      "place": "International Space Station",
+      "coord": "From Crew Dragon Endeavour, flyaround · 8 Nov 2021",
+      "src": "NASA · iss066e080762"
+    },
+    {
+      "file": "06-moon-over-the-limb.webp",
+      "kind": "Photograph from the station",
+      "place": "Full Moon over the horizon, 262 miles above eastern Iran",
+      "coord": "Expedition 64 · 27 Mar 2021",
+      "src": "NASA · iss064e048201"
+    }
+  ]
+}
