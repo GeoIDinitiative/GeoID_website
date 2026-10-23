@@ -14,7 +14,7 @@
  * (`atlas-tools.js`). This only says what was asked.
  */
 
-import { SIZE_WORDS } from "./ash-plume.js?v=20261023-3c2cf02";
+import { SIZE_WORDS } from "./ash-plume.js?v=20261023-d95af1d";
 
 /**
  * The tasks a sentence can name, most specific first. Each is a test on the
@@ -23,6 +23,8 @@ import { SIZE_WORDS } from "./ash-plume.js?v=20261023-3c2cf02";
  */
 export const TASKS = [
   { id: "ashfall", test: /\b(ash|ashfall|ash ?fall|tephra|plume|ash ?cloud)\b/ },
+  // Before "chamber": "mesh the chamber in Blender" asks for the mesher.
+  { id: "blender", test: /\bblender\b/ },
   { id: "chamber", test: /\b(magma chamber|chamber|mogi|inflation|deformation|fem|finite element|mesh)\b/ },
   { id: "atmosphere", test: /\b(atmosphere|the air|air column|pressure levels|3d air|wind field)\b/ },
   { id: "landslide", test: /\b(landslides?|slope failure|debris flow|factor of safety)\b/ },

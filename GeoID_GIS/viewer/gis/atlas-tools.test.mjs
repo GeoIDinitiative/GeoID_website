@@ -47,3 +47,19 @@ ok(checkArgs(ash, fromIntent.args).ok, "and its arguments pass the tool's own ch
 // Every tool has a runner on the page, and every runner a tool.
 const runner = readFileSync(new URL("./atlas-runner.js", import.meta.url), "utf8");
 for (const t of TOOLS) ok(new RegExp(`async ${t.name}\\(`).test(runner), `the ${t.name} tool has a runner`);
+
+// The meshers: gmsh or Blender, by name or by a list of shapes.
+const meshTool = toolByName("mesh_model");
+ok(checkArgs(meshTool, { mesher: "blender" }).ok, "mesh_model takes blender");
+ok(/must be one of gmsh, blender/.test(checkArgs(meshTool, { mesher: "netgen" }).problems.join()), "an unknown mesher is refused by name");
+const shapesTool = toolByName("blender_mesh");
+ok(/shapes is required/.test(checkArgs(shapesTool, {}).problems.join()), "blender_mesh needs shapes");
+ok(/must be a list/.test(checkArgs(shapesTool, { shapes: "a box" }).problems.join()), "shapes must be a list");
+const shaped = checkArgs(shapesTool, { shapes: [{ kind: "box" }], replace: "false", via: "mcp" });
+ok(shaped.ok && Array.isArray(shaped.args.shapes) && shaped.args.replace === false, "a list and a boolean string pass through as themselves");
+ok(/via must be one of/.test(checkArgs(shapesTool, { shapes: [], via: "ssh" }).problems.join()), "via is one of auto, headless, mcp");
+const blenderIntent = readIntent("Atlas, build a volcano with a chamber and mesh it in Blender");
+ok(blenderIntent.task === "blender", "a sentence naming Blender asks for the Blender mesher");
+const blenderCall = callFromIntent(blenderIntent);
+ok(blenderCall?.name === "mesh_model" && blenderCall.args.mesher === "blender" && /volcano/.test(blenderCall.args.description), "and becomes mesh_model with the sentence as the model");
+ok(readIntent("simulate inflation of the magma chamber under Campi Flegrei").task === "chamber", "a chamber without Blender is still the chamber tool");

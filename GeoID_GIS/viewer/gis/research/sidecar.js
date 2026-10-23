@@ -321,6 +321,16 @@ export async function runGmsh({ project, script, scriptPath, name, dim } = {}) {
 }
 
 /**
+ * Blender on a studio-generated bpy script — the studio's second mesher.
+ * `via` is auto (a live Blender over blender-mcp if one answers, else the
+ * binary), headless or mcp; gmsh fills the volume Blender's surfaces close.
+ */
+export async function runBlender({ project, script, name, dim, via, size, keepCavities } = {}) {
+  return (await call("/jobs/blender", { method: "POST",
+    body: { project, script, name, dim, via, size, keepCavities } })).job_id;
+}
+
+/**
  * Wait for a job to stop running.
  *
  * Polled rather than streamed: a tool run wants the verdict, not the log —

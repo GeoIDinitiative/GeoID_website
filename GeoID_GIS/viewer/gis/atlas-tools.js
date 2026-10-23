@@ -48,6 +48,43 @@ export const TOOLS = [
     args: { type: "object", properties: { description: { type: "string" } } },
   },
   {
+    name: "mesh_model",
+    title: "Mesh the Meshing Studio's model",
+    says: "Meshes the model in the Meshing Studio with gmsh (the default) or Blender, in the local "
+      + "sidecar; the mesh lands in the open project's meshes/ for FEM Setup. A description such as "
+      + "\"a volcano with a chamber\" or \"a layered crust with a dike\" builds that model first.",
+    args: {
+      type: "object",
+      properties: {
+        mesher: { type: "string", enum: ["gmsh", "blender"], description: "Which mesher (default: the model's own, gmsh unless chosen)" },
+        description: { type: "string", description: "A model to build first, in words" },
+      },
+    },
+  },
+  {
+    name: "blender_mesh",
+    title: "Build a model from shapes and mesh it with Blender",
+    says: "Builds solids from a list of shapes in the Meshing Studio, then has Blender make them "
+      + "(exact booleans; headless, or in the reader's open Blender through the blender-mcp addon) "
+      + "and gmsh fill the volume. Metres, z up, z = 0 the ground. Each shape is {kind, op, ...numbers}: "
+      + "box {x,y,z,dx,dy,dz} (x,y,z its corner), sphere {x,y,z,r}, ellipsoid {x,y,z,rx,ry,rz}, "
+      + "cylinder {x,y,z,h,r} and cone {x,y,z,h,r1,r2} (x,y,z the base centre), torus {x,y,z,r1,r2}, "
+      + "volcano_edifice {crust_width,crust_depth,height,base_radius,summit_radius}, "
+      + "dike {x,y,length,height,thickness,top_depth,strike,dip}. op is union, difference or intersect "
+      + "with everything before it (the first shape is the object); void: true on a cut leaves an empty hole "
+      + "rather than a chamber volume.",
+    args: {
+      type: "object",
+      required: ["shapes"],
+      properties: {
+        shapes: { type: "array", description: "The shapes, in order (at most 32)" },
+        replace: { type: "boolean", description: "Clear the studio's model first (default true)" },
+        via: { type: "string", enum: ["auto", "headless", "mcp"], description: "auto uses an open Blender if one is connected, else the installed binary" },
+        name: { type: "string", description: "The mesh's file name in meshes/ (letters, digits, _ . -)" },
+      },
+    },
+  },
+  {
     name: "total_risk",
     title: "Score the total risk at a place",
     says: "Every hazard model that can answer for the centre of the view, combined hour by hour into one factor of safety.",
@@ -101,7 +138,13 @@ export function checkArgs(tool, args = {}) {
       if (spec.maximum !== undefined && v > spec.maximum) problems.push(`${name} must be at most ${spec.maximum}`);
     } else if (spec.type === "string") {
       v = String(v);
+    } else if (spec.type === "boolean") {
+      if (typeof v === "string") v = v === "true" ? true : v === "false" ? false : v;
+      if (typeof v !== "boolean") { problems.push(`${name} must be true or false`); continue; }
+    } else if (spec.type === "array" && !Array.isArray(v)) {
+      problems.push(`${name} must be a list`); continue;
     }
+    if (spec.enum && !spec.enum.includes(v)) { problems.push(`${name} must be one of ${spec.enum.join(", ")}`); continue; }
     out[name] = v;
   }
   return { ok: !problems.length, args: out, problems };
@@ -161,6 +204,8 @@ export function callFromIntent(intent) {
       };
     case "chamber":
       return { name: "chamber", args: { description: intent.text } };
+    case "blender":
+      return { name: "mesh_model", args: { mesher: "blender", description: intent.text } };
     case "risk":
       return { name: "total_risk", args: {} };
     default:

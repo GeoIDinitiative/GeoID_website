@@ -8,7 +8,7 @@
  * words rather than failing somewhere a reader cannot see.
  */
 
-import { toolByName, checkArgs } from "./atlas-tools.js?v=20261023-3c2cf02";
+import { toolByName, checkArgs } from "./atlas-tools.js?v=20261023-d95af1d";
 
 const STAMP = new URL(import.meta.url).search || "";
 
@@ -62,6 +62,38 @@ const RUNNERS = {
     return result.ok
       ? { text: `Built ${result.built} in the Meshing Studio. Give the solids materials and the chamber wall a pressure in Study, then mesh and solve.`, actions: [] }
       : { text: "The studio could not build that template.", actions: [] };
+  },
+
+  async mesh_model(args) {
+    const studio = window.GeoIDMeshStudio;
+    if (!studio?.meshWith) return { text: "The Meshing Studio is not loaded on this page.", actions: [] };
+    if (window.GeoIDModeManager?.getMode?.() !== "model") window.GeoIDModeManager?.setMode?.("model");
+    let built = "";
+    if (args.description) {
+      const r = studio.buildFromText(args.description);
+      if (r.ok) built = `Built ${r.built}. `;
+    }
+    if (args.mesher) {
+      const missing = await studio.setMesher(args.mesher);
+      if (missing) return { text: built + missing, actions: [] };
+    }
+    const out = await studio.meshWith();
+    return { text: built + out.text, actions: [] };
+  },
+
+  async blender_mesh(args) {
+    const studio = window.GeoIDMeshStudio;
+    if (!studio?.addShapes) return { text: "The Meshing Studio is not loaded on this page.", actions: [] };
+    if (window.GeoIDModeManager?.getMode?.() !== "model") window.GeoIDModeManager?.setMode?.("model");
+    const added = studio.addShapes(args.shapes, { replace: args.replace !== false });
+    if (!added.ok) return { text: `I can't build those shapes: ${added.problems.join("; ")}.`, actions: [] };
+    const missing = await studio.setMesher("blender");
+    if (missing) return { text: `Added ${added.added} shape(s) to the Meshing Studio, but ${missing.charAt(0).toLowerCase()}${missing.slice(1)}`, actions: [] };
+    const out = await studio.meshWithBlender({ name: args.name || null, via: args.via || "auto" });
+    return {
+      text: `Added ${added.added} shape(s). ${out.text}`,
+      actions: out.ok ? [] : [["Mesh it with gmsh instead", () => studio.meshWithGmsh()]],
+    };
   },
 
   async total_risk() {
