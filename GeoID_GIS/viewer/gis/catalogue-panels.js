@@ -29,15 +29,15 @@
 
 import {
   HOMES, MIRRORS, grouped, addDataset, layerForDataset, loadLaunchDefaults,
-} from "./global-data.js?v=20261023-d95af1d";
-import { isParked } from "./parked.js?v=20261023-d95af1d";
-import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20261023-d95af1d";
-import { holdLaunch } from "./launch-ready.js?v=20261023-d95af1d";
-import { mathsFor } from "./equations.js?v=20261023-d95af1d";
+} from "./global-data.js?v=20261023-9228856";
+import { isParked } from "./parked.js?v=20261023-9228856";
+import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20261023-9228856";
+import { holdLaunch } from "./launch-ready.js?v=20261023-9228856";
+import { mathsFor } from "./equations.js?v=20261023-9228856";
 import { bandOf, bandRows, bandSymbology, describeFilter, magOf }
-  from "./seismic-magnitude.js?v=20261023-d95af1d";
+  from "./seismic-magnitude.js?v=20261023-9228856";
 import { filterVolcanoes, yearRankOf, yearWords, DEFAULT_YEAR_RANK }
-  from "./volcano-filter.js?v=20261023-d95af1d";
+  from "./volcano-filter.js?v=20261023-9228856";
 
 const byId = (id) => document.getElementById(id);
 
@@ -513,16 +513,23 @@ const TILED = {
   }, {
     id: "ifs-analysis",
     group: "Live fields",
-    label: "ECMWF IFS analysis 2011–2026",
-    title: "ECMWF's operational analysis every 6 hours since 2011 — 2 m temperature, sea-level "
-      + "pressure, 10 m and 100 m wind, water vapour, cloud, sea surface, sea ice, snow, soil moisture, "
-      + "850 hPa temperature and 500 hPa height. Pick the variable and time under the row; the world "
-      + "draws at 1°, the view or a drawn area at the grid's own ~31 km. Click the map to read it.",
+    label: "ECMWF IFS analysis",
+    title: "ECMWF's operational analysis, every 6 hours from 2011-01-01 to 2026-09-30 — 2 m "
+      + "temperature, sea-level pressure, 10 m and 100 m wind, water vapour, cloud, sea surface, sea "
+      + "ice, snow, soil moisture, 850 hPa temperature and 500 hPa height. Pick the variable and time "
+      + "under the row; click the map to read it.",
     info: {
-      summary: "Read keyless from Beyond Weather's Icechunk Zarr archive on the AWS Open Data "
-        + "registry, one global chunk per time (0.05–0.36 MB at the surface, ~7 MB on a pressure "
-        + "level), regridded from the N320 reduced Gaussian grid. An analysis, not a reanalysis: "
-        + "IFS upgrades in 2015, 2016 and 2023 show as steps; no precipitation; values bit-rounded.",
+      summary: "ECMWF's IFS operational analysis, 2011-01-01 to 2026-09-30 18 UTC, every 6 hours — "
+        + "read keyless from Beyond Weather's Icechunk Zarr archive on the AWS Open Data registry and "
+        + "regridded from the N320 reduced Gaussian grid (~31 km). The world draws on a 1° lattice; "
+        + "the view (under a hemisphere) or a drawn area on the grid's own ~0.28°. "
+        + "SIZE AND SPEED: each time is one global chunk, 0.05–0.36 MB for a surface field (two for a "
+        + "wind), ~7 MB on a pressure level because its 18 levels share a chunk — the area sets the "
+        + "lattice, not the download. Opening the archive takes ~1 s, a variable's first time ~1–2 s "
+        + "(its ~0.5 MB index), later times 0.2–0.6 s. "
+        + "LIMITS: an analysis, not a reanalysis — IFS upgrades in May 2015, March 2016 and June 2023 "
+        + "show as steps, so use ERA5 for trends; no precipitation (an analysis holds no "
+        + "accumulations); values bit-rounded to a few significant bits; not updated after 2026-09-30.",
       citation: "ECMWF IFS Analysis N320 - Beyond Weather Icechunk Zarr, Registry of Open Data on AWS, "
         + "https://registry.opendata.aws/beyond-weather-ecmwf-ifs-analysis/ — © ECMWF, CC BY 4.0",
     },

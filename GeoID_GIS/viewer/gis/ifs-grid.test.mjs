@@ -245,3 +245,21 @@ function frame(data, { typesize = 4, blocksize = 16, shuffle = true, split = fal
   for (let k = 0; k < t.length; k += 1) if (Number(t[k]) * 1000 !== T0_MS + k * STEP_MS) regular = false;
   ok(regular, "the archive's time axis is exactly T0 + 6 h steps (so timeIndex is arithmetic)");
 }
+
+/* ── the feathered seam ── */
+{
+  const { featherWidth, featherWeight, underAlpha } = await import("./ifs-grid.js");
+  const box = { west: 0, east: 40, south: 10, north: 40 };
+  ok(featherWidth(box) === 3, "feather is a tenth of the shorter span");
+  ok(featherWidth({ west: 0, east: 5, south: 0, north: 5 }) === 2.5, "and at least 2.5°");
+  ok(featherWeight(box, 25, 20) === 1, "full weight deep inside");
+  ok(featherWeight(box, 10, 20) === 0 && featherWeight(box, 25, 41) === 0, "zero at and beyond the edge");
+  ok(near(featherWeight(box, 11.5, 20), 0.5), "half way through the feather is one half");
+  ok(featherWeight({ west: 170, east: 190, south: 0, north: 20 }, 10, -180) === 1, "longitudes wrap into the box");
+  for (const A of [0.3, 0.55, 0.9]) {
+    for (const w of [0, 0.25, 0.5, 0.75, 1]) {
+      const a = underAlpha(A, w);
+      ok(near(w * A + a * (1 - w * A), A, 1e-12), `patch over world composites to A=${A} at w=${w}`);
+    }
+  }
+}

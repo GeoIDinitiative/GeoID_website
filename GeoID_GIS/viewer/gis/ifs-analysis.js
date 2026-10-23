@@ -31,15 +31,18 @@
 import * as THREE from "../vendor/three.module.js";
 import {
   WORLD, sampleScalar, rampPalette, wrapLon, compassPoint, beaufort, isGlobal,
-} from "./flow-field.js?v=20261023-d95af1d";
-import { shadingMesh, disposeMesh, layerShown, currentViewBox } from "./flow-layer.js?v=20261023-d95af1d";
-import { refreshPolygonOptions, resolvePolygonExtent } from "./extent-picker.js?v=20261023-d95af1d";
+} from "./flow-field.js?v=20261023-9228856";
+import { shadingMesh, disposeMesh, layerShown, currentViewBox } from "./flow-layer.js?v=20261023-9228856";
+import { refreshPolygonOptions, resolvePolygonExtent } from "./extent-picker.js?v=20261023-9228856";
 import {
   IFS_REPO, IFS_REGISTRY, IFS_CREDIT, IFS_VARIABLES, T0_MS, LAST_MS, STEP_MS, POINTS,
   timeIndex, reducedGrid, latticeFor, regrid, rangeOf, decodeBlosc, asFloat32, levelOffset, windFrom,
-} from "./ifs-grid.js?v=20261023-d95af1d";
+  featherWeight, underAlpha,
+} from "./ifs-grid.js?v=20261023-9228856";
 
-const LAYER_NAME = "ECMWF IFS analysis 2011–2026";
+const LAYER_NAME = "ECMWF IFS analysis";
+/** One opacity for the sheet wherever it is, patch or world (see `underAlpha`). */
+const ALPHA = 0.55;
 const STATUS_ID = "ifs-analysis-status";
 const DRAWER_ID = "ifs-analysis-controls";
 /** The whole sphere: the analysis has the poles, and so does the sheet. */
@@ -163,14 +166,22 @@ function rebuild() {
   live.fineShade = null;
   const ramp = IFS_VARIABLES[settings.variable].ramp;
   const valueAt = (lat, lon) => sampleScalar(stack(), "value", lat, lon);
+  const fine = live.area || live.view;
+  /**
+   * The patch fades in over its edge and the world sheet under it fades out
+   * by exactly as much, so the two composite to ALPHA everywhere: no pale band
+   * where they meet.
+   */
   if (live.world) {
-    live.worldShade = shadingMesh(EARTH, valueAt, ramp, 0.55);
+    const worldAlpha = fine
+      ? (lat, lon) => underAlpha(ALPHA, featherWeight(fine, lat, lon))
+      : ALPHA;
+    live.worldShade = shadingMesh(EARTH, valueAt, ramp, worldAlpha);
     live.worldShade.userData.renderLift = 0;
     live.group.add(live.worldShade);
   }
-  const fine = live.area || live.view;
   if (fine) {
-    live.fineShade = shadingMesh(fine, valueAt, ramp, 0.6);
+    live.fineShade = shadingMesh(fine, valueAt, ramp, (lat, lon) => ALPHA * featherWeight(fine, lat, lon));
     live.fineShade.userData.renderLift = 0.25;
     live.group.add(live.fineShade);
   }
@@ -189,10 +200,10 @@ function describe() {
   const def = IFS_VARIABLES[settings.variable];
   const field = live.area || live.view || live.world;
   if (!field) return "";
-  const where = live.area ? `over ${live.areaName || "the area"}` : live.view ? "over the view" : "over the world";
-  const dp = def.unit === "m³/m³" ? 2 : 1;
-  return `${def.label}, ${field.time.replace("T", " ").replace(":00Z", " UTC")} · lattice every ~${km(field.deg)} `
-    + `${where} · ${field.min.toFixed(dp)} to ${field.max.toFixed(dp)} ${def.unit}.`;
+  const dp = def.unit === "m³/m³" ? 2 : def.unit === "dam" ? 0 : 1;
+  return `${def.label} · ${field.time.replace("T", " ").replace(":00Z", " UTC")} · ~${km(field.deg)} lattice`
+    + `${live.area ? ` over ${live.areaName || "the area"}` : ""} · `
+    + `${field.min.toFixed(dp)}–${field.max.toFixed(dp)} ${def.unit}`;
 }
 
 function metadata() {
@@ -432,17 +443,25 @@ function buildDrawer() {
   const host = document.createElement("div");
   host.id = DRAWER_ID;
   host.hidden = true;
+  // The wind and hazard drawers' own classes, so every theme dresses it alike.
   host.className = "control-stack flow-controls";
 
   const what = document.createElement("select");
   what.className = "input";
   what.id = "ifs-variable";
   for (const [k, def] of Object.entries(IFS_VARIABLES)) {
-    what.appendChild(option(k, def.mb > 2 ? `${def.label} — ~${def.mb} MB a time` : def.label, k === settings.variable));
+    what.appendChild(option(k, def.mb > 2 ? `${def.label} (~${Math.round(def.mb)} MB)` : def.label, k === settings.variable));
   }
   what.addEventListener("change", () => { settings.variable = what.value; void reload(); });
   host.appendChild(row("Variable", what));
 
+  /**
+   * TIME ON ONE LINE: ◀◀ ◀ [date] [hour] ▶ ▶▶. The steppers are the
+   * catalogue's own small pill buttons (`gis-catalogue-sym`, the Symbology
+   * button beside every row), and the date takes whatever width is left, so
+   * the line holds at the panel's narrowest. A div, not a label: a label
+   * around six controls sends every click on it to the first one.
+   */
   const fmt = (ms) => new Date(ms).toISOString().slice(0, 10);
   const day = document.createElement("input");
   day.type = "date";
@@ -450,14 +469,17 @@ function buildDrawer() {
   day.id = "ifs-date";
   day.min = fmt(T0_MS);
   day.max = fmt(LAST_MS);
+  day.setAttribute("aria-label", "Analysis date (UTC)");
+  day.style.cssText = "flex:1 1 auto;min-width:0;width:auto";
   const hour = document.createElement("select");
   hour.className = "input";
   hour.id = "ifs-hour";
-  [0, 6, 12, 18].forEach((h) => hour.appendChild(option(h, `${String(h).padStart(2, "0")} UTC`, false)));
+  hour.setAttribute("aria-label", "Analysis hour (UTC)");
+  hour.style.cssText = "flex:0 0 auto;width:auto;min-width:0";
+  [0, 6, 12, 18].forEach((h) => hour.appendChild(option(h, `${String(h).padStart(2, "0")}Z`, false)));
   const show = () => {
-    const d = new Date(settings.timeMs);
     day.value = fmt(settings.timeMs);
-    hour.value = String(d.getUTCHours());
+    hour.value = String(new Date(settings.timeMs).getUTCHours());
   };
   const pick = () => {
     const ms = Date.parse(`${day.value}T${String(hour.value).padStart(2, "0")}:00:00Z`);
@@ -468,12 +490,14 @@ function buildDrawer() {
   };
   day.addEventListener("change", pick);
   hour.addEventListener("change", pick);
-  const step = (label, by) => {
+  const step = (glyph, by) => {
     const b = document.createElement("button");
     b.type = "button";
-    b.className = "btn btn-secondary btn-sm";
-    b.textContent = label;
-    b.title = by > 0 ? `${by / STEP_MS * 6} h later` : `${-by / STEP_MS * 6} h earlier`;
+    b.className = "gis-catalogue-sym";
+    b.textContent = glyph;
+    const hours = Math.abs(by) / 3_600_000;
+    b.title = `${hours} h ${by > 0 ? "later" : "earlier"}`;
+    b.setAttribute("aria-label", b.title);
     b.addEventListener("click", () => {
       settings.timeMs = timeIndex(settings.timeMs + by).ms;
       show();
@@ -481,18 +505,23 @@ function buildDrawer() {
     });
     return b;
   };
-  const when = document.createElement("span");
-  when.className = "inline-controls";
-  when.append(step("◀◀", -4 * STEP_MS), step("◀", -STEP_MS), day, hour, step("▶", STEP_MS), step("▶▶", 4 * STEP_MS));
+  const line = document.createElement("div");
+  line.style.cssText = "display:flex;align-items:center;gap:0.2rem;min-width:0";
+  line.append(step("◀◀", -4 * STEP_MS), step("◀", -STEP_MS), day, hour, step("▶", STEP_MS), step("▶▶", 4 * STEP_MS));
   show();
-  host.appendChild(row("Time", when));
+  const time = document.createElement("div");
+  time.className = "row";
+  const label = document.createElement("span");
+  label.textContent = "Time (UTC)";
+  time.append(label, line);
+  host.appendChild(time);
 
   const area = document.createElement("select");
   area.className = "input";
   area.id = "ifs-area";
   area.appendChild(option("view", "World, finer over the view", settings.area === "view"));
   area.appendChild(option("world", "World only (1°)", settings.area === "world"));
-  area.appendChild(option("drawn", "Drawn area (draw one first)", settings.area === "drawn"));
+  area.appendChild(option("drawn", "Drawn area", settings.area === "drawn"));
   area.addEventListener("focus", () => refreshPolygonOptions(area, settings.area, { allLayers: true }));
   area.addEventListener("change", () => {
     settings.area = area.value;
@@ -505,18 +534,12 @@ function buildDrawer() {
   });
   host.appendChild(row("Area", area));
 
+  // One line of what is drawn; the archive's detail and limits live in the
+  // row's ⓘ card, where every other catalogue row keeps its own.
   const status = document.createElement("p");
   status.id = STATUS_ID;
   status.className = "compact-copy";
   host.appendChild(status);
-
-  const limits = document.createElement("p");
-  limits.className = "compact-copy";
-  limits.textContent = "Read straight from the open archive on AWS (no key). Each time is one global "
-    + "chunk: 0.05–0.36 MB for a surface field, ~7 MB at a pressure level; the first time of a variable "
-    + "also reads its ~0.5 MB index (1–2 s). The area sets the lattice, not the download. 6-hourly, "
-    + "2011-01-01 to 2026-09-30, not updated; no precipitation (an analysis holds no accumulations).";
-  host.appendChild(limits);
   document.body.appendChild(host);
 }
 

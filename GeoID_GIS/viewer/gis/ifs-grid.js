@@ -368,3 +368,36 @@ export function windFrom(u, v) {
   const from = (Math.atan2(-u, -v) * 180 / Math.PI + 360) % 360;
   return { speed, from };
 }
+
+/* ── feathering the finer patch into the world sheet ───────────────────── */
+
+/** The width, degrees, over which a patch fades in: a tenth of its span, at least 2.5°. */
+export function featherWidth(box) {
+  return Math.max(2.5, 0.1 * Math.min(box.east - box.west, box.north - box.south));
+}
+
+/**
+ * How much of a patch shows at a point: 0 at and beyond its edge, 1 a feather
+ * width inside it, smoothstep between.
+ */
+export function featherWeight(box, lat, lon, width = featherWidth(box)) {
+  let x = ((((lon - box.west) % 360) + 360) % 360);
+  if (x > box.east - box.west) return 0;
+  const d = Math.min(x, box.east - box.west - x, lat - box.south, box.north - lat);
+  if (d <= 0) return 0;
+  const t = Math.min(1, d / width);
+  return t * t * (3 - 2 * t);
+}
+
+/**
+ * THE SEAM. Two translucent sheets over one place composite to more than
+ * either: a patch at alpha A over a world sheet at A reads A(2 − A), the pale
+ * band at the patch's edge. So the world sheet under a patch of weight w takes
+ * the alpha that makes the pair composite to exactly A:
+ *   wA + a(1 − wA) = A  →  a = A(1 − w) / (1 − wA).
+ */
+export function underAlpha(alpha, w) {
+  if (w <= 0) return alpha;
+  if (w >= 1) return 0;
+  return (alpha * (1 - w)) / (1 - w * alpha);
+}

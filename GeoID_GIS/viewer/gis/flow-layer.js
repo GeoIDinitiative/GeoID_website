@@ -32,14 +32,14 @@
  */
 
 import * as THREE from "../vendor/three.module.js";
-import { followRelief } from "./vector-render.js?v=20261023-d95af1d";
-import { visibleBounds } from "./view-extent.js?v=20261023-d95af1d";
+import { followRelief } from "./vector-render.js?v=20261023-9228856";
+import { visibleBounds } from "./view-extent.js?v=20261023-9228856";
 import {
   WORLD, RAMPS, OPEN_METEO, OPEN_METEO_MARINE, planGrid, gridPoints, chunkPoints,
   requestUrl, readHourly, buildField, sampleStack, sampleScalar, advect, randomPoint,
   rampAt, rampPalette, headingOf, compassPoint, beaufort, wrapLon, RAD,
   aggregateHourly, countFinite, createCallBudget,
-} from "./flow-field.js?v=20261023-d95af1d";
+} from "./flow-field.js?v=20261023-9228856";
 
 /* ── the two sources ───────────────────────────────────────────────────── */
 
@@ -586,6 +586,8 @@ class Particles {
  * degree and a quarter of arc over the world), NaN left transparent.
  */
 export function shadingMesh(box, valueAt, ramp, alpha = 0.4) {
+  // A function alpha(lat, lon) lets a caller feather one sheet into another.
+  const alphaAt = typeof alpha === "function" ? alpha : () => alpha;
   const global = box.east - box.west >= 359.999;
   const cols = Math.min(320, Math.max(24, Math.round((box.east - box.west) / (global ? 1.25 : 0.25)))) + 1;
   const rows = Math.min(180, Math.max(16, Math.round((box.north - box.south) / (global ? 1.25 : 0.25)))) + 1;
@@ -604,7 +606,7 @@ export function shadingMesh(box, valueAt, ramp, alpha = 0.4) {
       const value = valueAt(lat, lon);
       const [r, g, b] = rampAt(ramp, value);
       col[k * 4] = r; col[k * 4 + 1] = g; col[k * 4 + 2] = b;
-      col[k * 4 + 3] = Number.isFinite(value) ? alpha : 0;
+      col[k * 4 + 3] = Number.isFinite(value) ? alphaAt(lat, lon) : 0;
     }
   }
   const index = [];
