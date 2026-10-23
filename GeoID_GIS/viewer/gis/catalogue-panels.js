@@ -29,15 +29,15 @@
 
 import {
   HOMES, MIRRORS, grouped, addDataset, layerForDataset, loadLaunchDefaults,
-} from "./global-data.js?v=20261023-3c2cf02";
-import { isParked } from "./parked.js?v=20261023-3c2cf02";
-import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20261023-3c2cf02";
-import { holdLaunch } from "./launch-ready.js?v=20261023-3c2cf02";
-import { mathsFor } from "./equations.js?v=20261023-3c2cf02";
+} from "./global-data.js?v=20261023-d95af1d";
+import { isParked } from "./parked.js?v=20261023-d95af1d";
+import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20261023-d95af1d";
+import { holdLaunch } from "./launch-ready.js?v=20261023-d95af1d";
+import { mathsFor } from "./equations.js?v=20261023-d95af1d";
 import { bandOf, bandRows, bandSymbology, describeFilter, magOf }
-  from "./seismic-magnitude.js?v=20261023-3c2cf02";
+  from "./seismic-magnitude.js?v=20261023-d95af1d";
 import { filterVolcanoes, yearRankOf, yearWords, DEFAULT_YEAR_RANK }
-  from "./volcano-filter.js?v=20261023-3c2cf02";
+  from "./volcano-filter.js?v=20261023-d95af1d";
 
 const byId = (id) => document.getElementById(id);
 
@@ -510,6 +510,27 @@ const TILED = {
     layerOf: () => window.GeoIDFlow?.layerOf?.("hazards") || null,
     load: () => window.GeoIDFlow.add("hazards"),
     unload: () => window.GeoIDFlow?.remove?.("hazards"),
+  }, {
+    id: "ifs-analysis",
+    group: "Live fields",
+    label: "ECMWF IFS analysis 2011–2026",
+    title: "ECMWF's operational analysis every 6 hours since 2011 — 2 m temperature, sea-level "
+      + "pressure, 10 m and 100 m wind, water vapour, cloud, sea surface, sea ice, snow, soil moisture, "
+      + "850 hPa temperature and 500 hPa height. Pick the variable and time under the row; the world "
+      + "draws at 1°, the view or a drawn area at the grid's own ~31 km. Click the map to read it.",
+    info: {
+      summary: "Read keyless from Beyond Weather's Icechunk Zarr archive on the AWS Open Data "
+        + "registry, one global chunk per time (0.05–0.36 MB at the surface, ~7 MB on a pressure "
+        + "level), regridded from the N320 reduced Gaussian grid. An analysis, not a reanalysis: "
+        + "IFS upgrades in 2015, 2016 and 2023 show as steps; no precipitation; values bit-rounded.",
+      citation: "ECMWF IFS Analysis N320 - Beyond Weather Icechunk Zarr, Registry of Open Data on AWS, "
+        + "https://registry.opendata.aws/beyond-weather-ecmwf-ifs-analysis/ — © ECMWF, CC BY 4.0",
+    },
+    settings: "ifs-analysis-controls",
+    ready: () => Boolean(window.GeoIDIFS?.add),
+    layerOf: () => window.GeoIDIFS?.layerOf?.() || null,
+    load: () => window.GeoIDIFS.add(),
+    unload: () => window.GeoIDIFS?.remove?.(),
   }, {
     id: "climate-temperature",
     group: "Climate normals",

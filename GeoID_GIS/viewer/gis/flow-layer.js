@@ -32,14 +32,14 @@
  */
 
 import * as THREE from "../vendor/three.module.js";
-import { followRelief } from "./vector-render.js?v=20261023-3c2cf02";
-import { visibleBounds } from "./view-extent.js?v=20261023-3c2cf02";
+import { followRelief } from "./vector-render.js?v=20261023-d95af1d";
+import { visibleBounds } from "./view-extent.js?v=20261023-d95af1d";
 import {
   WORLD, RAMPS, OPEN_METEO, OPEN_METEO_MARINE, planGrid, gridPoints, chunkPoints,
   requestUrl, readHourly, buildField, sampleStack, sampleScalar, advect, randomPoint,
   rampAt, rampPalette, headingOf, compassPoint, beaufort, wrapLon, RAD,
   aggregateHourly, countFinite, createCallBudget,
-} from "./flow-field.js?v=20261023-3c2cf02";
+} from "./flow-field.js?v=20261023-d95af1d";
 
 /* ── the two sources ───────────────────────────────────────────────────── */
 
@@ -585,7 +585,7 @@ class Particles {
  * colours on a lat/lon lattice fine enough that its chords do not sag (a
  * degree and a quarter of arc over the world), NaN left transparent.
  */
-function shadingMesh(box, valueAt, ramp, alpha = 0.4) {
+export function shadingMesh(box, valueAt, ramp, alpha = 0.4) {
   const global = box.east - box.west >= 359.999;
   const cols = Math.min(320, Math.max(24, Math.round((box.east - box.west) / (global ? 1.25 : 0.25)))) + 1;
   const rows = Math.min(180, Math.max(16, Math.round((box.north - box.south) / (global ? 1.25 : 0.25)))) + 1;
@@ -630,7 +630,7 @@ function shadingMesh(box, valueAt, ramp, alpha = 0.4) {
   return mesh;
 }
 
-function disposeMesh(mesh) {
+export function disposeMesh(mesh) {
   if (!mesh) return;
   mesh.parent?.remove(mesh);
   mesh.geometry?.dispose?.();
@@ -740,7 +740,7 @@ function rebuildShading(source) {
 
 /* ── the loop ──────────────────────────────────────────────────────────── */
 
-function layerShown(layer) {
+export function layerShown(layer) {
   let node = layer?.object3D;
   if (!node) return false;
   while (node) {
@@ -794,7 +794,7 @@ function startLoop(source) {
  * not contain the camera's own centre is no view box at all — the elevation
  * sheets learnt this from a stripe pinned to the seam.
  */
-function currentViewBox() {
+export function currentViewBox() {
   const v = viewer();
   const box = v ? visibleBounds(v, THREE) : null;
   if (!box) return null;
@@ -1049,6 +1049,8 @@ async function reload(source) {
  * reaches whatever is under it.
  */
 export function probeAt(lat, lon) {
+  // The IFS analysis sheet is drawn over the GFS ones and answers first.
+  if (window.GeoIDIFS?.probeAt?.(lat, lon)) return true;
   const hz = live.hazards;
   if (hz?.layer && layerShown(hz.layer)) {
     const value = sampleScalar(hz.stack, "value", lat, lon);
@@ -1133,6 +1135,8 @@ export function probeAt(lat, lon) {
  * currents, then the wind. Null where nothing shown answers.
  */
 export function readAt(lat, lon) {
+  const ifs = window.GeoIDIFS?.readAt?.(lat, lon);
+  if (ifs) return ifs;
   const hz = live.hazards;
   if (hz?.layer && layerShown(hz.layer)) {
     const value = sampleScalar(hz.stack, "value", lat, lon);
@@ -1184,7 +1188,8 @@ function installHoverReadout() {
   canvas.addEventListener("pointerleave", hide);
   canvas.addEventListener("pointermove", (event) => {
     if (event.buttons) { hide(); return; }
-    if (!live.wind?.layer && !live.currents?.layer && !live.hazards?.layer) { hide(); return; }
+    if (!live.wind?.layer && !live.currents?.layer && !live.hazards?.layer
+      && !window.GeoIDIFS?.layerOf?.()) { hide(); return; }
     const run = () => {
       last = performance.now();
       const at = window.GeoIDViewer?.surfaceLatLonAt?.(event.clientX, event.clientY);
