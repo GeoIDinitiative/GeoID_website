@@ -16,6 +16,7 @@ import {
   KINDS, PROVENANCE, LICENCES, VISIBILITY, OPP_TYPES, EVENT_FORMATS, WORLDS, requireSignIn, kindLabel,
   hasProvenance,
 } from "../components.js";
+import { parseVideoLink } from "../embed.js";
 import { createMap } from "../mapcore.js";
 
 const SHARE_KEY = "geoid:social-share";
@@ -244,6 +245,10 @@ function buildForm(root, { existing, handed, initialKind, query }) {
 
   // ── Media ──
   const mediaList = h("ul", { class: "s-media-edit" });
+  const handedLinks = Array.isArray(p.links) ? p.links : [];
+  const otherLinks = handedLinks.filter((l) => l?.url && !parseVideoLink(l.url));
+  const videoLinksBox = textarea("video-links", { rows: 2, placeholder: "https://www.youtube.com/watch?v=…",
+    value: handedLinks.filter((l) => l?.url && parseVideoLink(l.url)).map((l) => l.url).join("\n") });
   const drawMedia = () => {
     // The before/after pickers list the images, so they follow every change here.
     kf.pair?.refresh();
@@ -253,20 +258,28 @@ function buildForm(root, { existing, handed, initialKind, query }) {
       alt.addEventListener("input", () => { item.alt = alt.value; });
       alt.addEventListener("change", () => kf.pair?.refresh());
       put(mediaList, h("li", {},
-        item.type === "application/pdf" ? h("span", {}, "PDF attached") : (item.url ? h("img", { src: item.url, alt: "", class: "s-thumb" }) : h("span", {}, "Image")),
+        item.type === "application/pdf" ? h("span", {}, "PDF attached")
+          : String(item.type || "").startsWith("video/") ? h("video", { src: item.url, class: "s-thumb", preload: "metadata", muted: true, "aria-hidden": "true" })
+          : (item.url ? h("img", { src: item.url, alt: "", class: "s-thumb" }) : h("span", {}, "Image")),
         item.type === "application/pdf" ? null : alt,
         h("button", { type: "button", class: "s-icon-btn", "aria-label": "Remove attachment", onClick: () => { media.splice(i, 1); drawMedia(); } }, "×")));
     });
   };
   drawMedia();
   // Several at once: a field visit is a set of photos, shown as a gallery.
-  const file = h("input", { type: "file", multiple: true, accept: "image/png,image/jpeg,image/webp,image/gif,application/pdf" });
+  const file = h("input", { type: "file", multiple: true, accept: "image/png,image/jpeg,image/webp,image/gif,video/mp4,video/webm,application/pdf" });
   file.addEventListener("change", async () => {
     const files = [...(file.files || [])];
     file.value = "";
     for (const f of files) {
       if (media.length >= 12) { toast("A post can carry up to 12 files.", "error"); break; }
-      if (f.size > 8 * 1024 * 1024) { toast(`${f.name} is over 8 MB.`, "error"); continue; }
+      // The Worker's limits (media.js): 40 MB for a video, 8 MB for anything else.
+      const isVid = /^video\//.test(f.type);
+      if (f.size > (isVid ? 40 : 8) * 1024 * 1024) {
+        toast(isVid ? `${f.name} is over 40 MB — trim it, or post a YouTube or Vimeo link instead.` : `${f.name} is over 8 MB.`, "error");
+        continue;
+      }
+      if (isVid) toast(`Uploading ${f.name}…`);
       try {
         const out = await api.upload(f, { scope: "public" });
         media.push({ key: out.key, alt: "", url: out.url, type: out.type });
@@ -317,9 +330,11 @@ function buildForm(root, { existing, handed, initialKind, query }) {
       field("Method", methodSummary, "How it was made — enough for someone else to repeat it."),
       field("Software and versions", methodSoftware),
       field("Limitations", limitations, "What this does not show, and where it may be wrong.")),
-    h("fieldset", {}, h("legend", {}, "Images and PDFs"),
-      field("Attach files (PNG, JPEG, WebP, GIF or PDF, up to 8 MB each, 12 in all)", file,
-        "Several images are shown as a gallery. Describe each one for people who cannot see it."), mediaList),
+    h("fieldset", {}, h("legend", {}, "Pictures, video and files"),
+      field("Attach files (images up to 8 MB, MP4/WebM video up to 40 MB, PDF up to 8 MB; 12 in all)", file,
+        "Several images are shown as a gallery. Describe each image and video for people who cannot see it."), mediaList,
+      field("Video links (optional)", videoLinksBox,
+        "YouTube or Vimeo addresses, one per line. They play in the post, and load nothing from those sites until a reader presses play.")),
     h("fieldset", {}, h("legend", {}, "Who can see it"),
       field("Visibility", vis), teamField, commField, field("Project", projSel), allowFork),
     status,
@@ -339,7 +354,10 @@ function buildForm(root, { existing, handed, initialKind, query }) {
     if (vis.value === "community" && !commSel.value) return say("Choose which community can see it.");
     if (vis.value === "project" && !projSel.value) return say("Choose which project's people can see it.");
     if (kind === "event" && !kf.starts?.value) return say("Give the event a start time.");
-    if (media.some((x) => x.type !== "application/pdf" && !String(x.alt || "").trim())) return say("Add a description (alt text) to every image.");
+    if (media.some((x) => x.type !== "application/pdf" && !String(x.alt || "").trim())) return say("Add a description (alt text) to every image and video.");
+    const videoUrls = videoLinksBox.value.split(/\s+/).map((x) => x.trim()).filter(Boolean);
+    const badVideo = videoUrls.find((u) => !parseVideoLink(u));
+    if (badVideo) return say(`“${badVideo.slice(0, 60)}” is not a YouTube or Vimeo address.`);
     const latN = Number(lat.value); const lonN = Number(lon.value);
     const hasLoc = prec !== "hidden" && lat.value !== "" && lon.value !== "" && Number.isFinite(latN) && Number.isFinite(lonN);
     if (prec !== "hidden" && (lat.value !== "" || lon.value !== "") && !hasLoc) return say("The latitude and longitude need to be numbers.");
@@ -382,6 +400,8 @@ function buildForm(root, { existing, handed, initialKind, query }) {
       world: scene?.world || kf.world?.value || p.world || "earth",
       scene: kind === "scene" ? scene : null,
       media: media.map((x) => ({ key: x.key, alt: x.alt || "" })),
+      // Video links are the post's links; any other links it had are kept.
+      links: [...videoUrls.map((url) => ({ url, label: "video" })), ...otherLinks],
       licence: licence.value, provenance: prov ? prov.value : "unverified", sources,
       method: { summary: methodSummary.value, software: methodSoftware.value },
       limitations: limitations.value, meta,

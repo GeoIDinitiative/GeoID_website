@@ -471,7 +471,7 @@ export function publicPost(env, row, authors = {}, extra = {}) {
     org: row.org_id ? { slug: row.org_slug, name: row.org_name } : null,
     accepted_comment_id: row.accepted_comment_id,
     pinned: !!row.pinned,
-    counts: { reactions: row.reaction_count, comments: row.comment_count, forks: row.fork_count },
+    counts: { reactions: row.reaction_count, comments: row.comment_count, forks: row.fork_count, reposts: row.repost_count || 0 },
     created_at: row.created_at,
     updated_at: row.updated_at,
     ...extra,

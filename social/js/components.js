@@ -9,6 +9,7 @@ import {
   h, clear, ago, timeEl, toast, modal, copyText, field, select, input, textarea,
   extLink, empty, errorBox, loading, busy, confirmDialog, put,
 } from "./dom.js";
+import { cardPreview } from "./embed.js";
 
 // ── Vocabulary (CONTRACT.md enumerations) ──────────────────────────────────
 
@@ -161,7 +162,7 @@ export function userRow(user, extra) {
  */
 export const plural = (n, word) => `${n} ${word}${n === 1 ? "" : "s"}`;
 
-export const NO_PROVENANCE_KINDS = ["opportunity", "event", "question", "discussion", "challenge", "repo"];
+export const NO_PROVENANCE_KINDS = ["text", "opportunity", "event", "question", "discussion", "challenge", "repo"];
 export const hasProvenance = (kind) => !NO_PROVENANCE_KINDS.includes(kind);
 
 export function provenanceBadge(p) {
@@ -199,7 +200,12 @@ function placeText(loc) {
 
 export function postCard(p) {
   const title = p.title || (p.body || "").slice(0, 90) || "(untitled)";
-  return h("article", { class: "s-card s-post-card", "aria-labelledby": `pt-${p.id}` },
+  const rs = p.reshared_by;
+  return h("article", { class: `s-card s-post-card${rs ? " is-reshare" : ""}`, "aria-labelledby": `pt-${p.id}` },
+    rs ? h("p", { class: "s-reshared" },
+      h("span", { "aria-hidden": "true" }, "↻ "),
+      h("a", { href: `#/u/${encodeURIComponent(rs.user.handle)}` }, rs.user.name || `@${rs.user.handle}`), " reshared",
+      rs.note ? h("q", { class: "s-reshare-note" }, rs.note) : null) : null,
     h("header", { class: "s-card-head" },
       userChip(p.author),
       h("span", { class: "s-card-meta" }, timeEl(p.created_at))),
@@ -213,6 +219,7 @@ export function postCard(p) {
       p.forked_from ? h("span", { class: "s-vis", text: "Fork" }) : null),
     h("h3", { class: "s-card-title", id: `pt-${p.id}` }, h("a", { href: `#/post/${encodeURIComponent(p.id)}` }, title)),
     p.body && p.title ? h("p", { class: "s-card-body" }, p.body.slice(0, 400)) : null,
+    cardPreview(p),
     kindSummary(p),
     h("footer", { class: "s-card-foot" },
       placeText(p.location),
@@ -220,7 +227,67 @@ export function postCard(p) {
       h("span", { class: "s-counts" },
         `${plural(p.counts?.reactions || 0, "reaction")} · ${plural(p.counts?.comments || 0, p.kind === "question" ? "answer" : "comment")}`,
         p.counts?.forks ? ` · ${p.counts.forks} forks` : "",
-        p.accepted_comment_id ? " · answered" : "")));
+        p.counts?.reposts ? ` · ${plural(p.counts.reposts, "reshare")}` : "",
+        p.accepted_comment_id ? " · answered" : ""),
+      cardActions(p)));
+}
+
+/**
+ * Pass a post on. Reshare puts it in your followers' feeds (public posts
+ * only -- the Worker refuses the rest, and the button is not offered);
+ * "Quote" adds a line of your own; "Send" puts it in one person's messages.
+ */
+export function reshareButton(p, { compact = false } = {}) {
+  if (p.visibility !== "public" || (store.me && p.author?.handle === myHandle())) return null;
+  let on = !!p.viewer?.reshared;
+  const btn = h("button", { type: "button", class: compact ? "s-mini-act" : "s-act", "aria-pressed": String(on),
+    title: "Show this post to the people who follow you" }, on ? "Reshared" : "Reshare");
+  btn.addEventListener("click", () => act(async () => {
+    const out = on ? await api.del(`/v1/posts/${encodeURIComponent(p.id)}/repost`, {})
+      : await api.post(`/v1/posts/${encodeURIComponent(p.id)}/repost`, {});
+    on = !!out.reshared;
+    btn.textContent = on ? "Reshared" : "Reshare";
+    btn.setAttribute("aria-pressed", String(on));
+    toast(on ? "Reshared to your followers." : "Reshare removed.");
+  }, "reshare posts"));
+  return btn;
+}
+
+export function quoteDialog(p) {
+  if (!requireSignIn("reshare posts")) return;
+  modal("Reshare with a comment", (close) => {
+    const note = textarea("note", { rows: 3, maxlength: 500, required: true, placeholder: "Why it's worth a look" });
+    const form = h("form", {},
+      h("p", { class: "s-hint", text: `Your followers see “${(p.title || "this post").slice(0, 80)}” with your comment above it.` }),
+      field("Your comment", note),
+      h("div", { class: "s-actions" }, h("button", { type: "submit", class: "btn-primary" }, "Reshare"),
+        h("button", { type: "button", class: "btn-ghost", onClick: () => close() }, "Cancel")));
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const done = busy(form);
+      try {
+        await api.post(`/v1/posts/${encodeURIComponent(p.id)}/repost`, { note: note.value });
+        close(true); toast("Reshared with your comment.");
+      } catch (error) { toast(error.message, "error"); done(); }
+    });
+    return form;
+  });
+}
+
+export function sendPostDialog(p) {
+  messageDialog([], "Send this post", {
+    body: `${p.title || "A post on GeoHUB Social"}\n${postUrl(p.id)}`,
+    stay: true,
+    hint: "It arrives in their messages with a link to the post. Add a line of your own if you like.",
+  });
+}
+
+function cardActions(p) {
+  if (!store.me) return null;
+  const reshare = reshareButton(p, { compact: true });
+  const send = h("button", { type: "button", class: "s-mini-act", title: "Send this post to someone" }, "Send");
+  send.addEventListener("click", () => sendPostDialog(p));
+  return h("span", { class: "s-card-actions" }, reshare, send);
 }
 
 /**
@@ -347,12 +414,13 @@ export function reportDialog(targetType, targetId, kind = "report") {
 
 // ── Messages ───────────────────────────────────────────────────────────────
 
-export function messageDialog(handles, title = "New message") {
+export function messageDialog(handles, title = "New message", { body: initial = "", stay = false, hint = "" } = {}) {
   if (!requireSignIn("send messages")) return;
   modal(title, (close) => {
-    const to = input("to", { value: handles.join(", "), required: true, autocomplete: "off" });
-    const body = textarea("body", { rows: 4, required: true, maxlength: 5000 });
+    const to = input("to", { value: handles.join(", "), required: true, autocomplete: "off", placeholder: "handle, or several separated by commas" });
+    const body = textarea("body", { rows: 4, required: true, maxlength: 5000, value: initial });
     const form = h("form", {},
+      hint ? h("p", { class: "s-hint", text: hint }) : null,
       field("To (handles, comma-separated)", to),
       field("Message", body, "If they only take messages from people they follow, this arrives as a request they can accept."),
       h("div", { class: "s-actions" }, h("button", { type: "submit", class: "btn-primary" }, "Send"),
@@ -365,7 +433,7 @@ export function messageDialog(handles, title = "New message") {
         const conv = await api.post("/v1/conversations", { handles: list, body: body.value });
         close(true);
         toast("Sent.");
-        if (conv?.id) location.hash = `#/messages/${encodeURIComponent(conv.id)}`;
+        if (conv?.id && !stay) location.hash = `#/messages/${encodeURIComponent(conv.id)}`;
       } catch (error) { toast(error.message, "error"); done(); }
     });
     return form;

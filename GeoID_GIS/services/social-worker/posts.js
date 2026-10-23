@@ -19,6 +19,7 @@ import {
 } from "./lib.js";
 import { enumOf, recountStatement } from "./profiles.js";
 import { cleanContentMeta } from "./content.js";
+import { reshareRows, mergeWithReshares, reshareLines, viewerReshared } from "./reposts.js";
 
 export const KINDS = ["text", "scene", "analysis", "monitor", "observation", "workflow", "dataset", "paper",
   "question", "discussion", "event", "opportunity", "challenge", "model", "repo"];
@@ -408,6 +409,7 @@ export async function shapePosts(env, viewer, rows) {
       `SELECT target_id FROM follows WHERE follower_id = ? AND target_type = 'user' AND target_id IN (${inList(authorIds.length)})`,
       viewer.id, ...authorIds)).map((r) => r.target_id));
   }
+  const reshared = await viewerReshared(env, viewer, ids);
   return rows.map((row) => {
     const extra = {};
     if (viewer) {
@@ -416,6 +418,7 @@ export async function shapePosts(env, viewer, rows) {
         bookmarked: bookmarked.has(row.id),
         verified: verdicts[row.id] || null,
         following_author: following.has(row.author_id),
+        reshared: reshared.has(row.id),
       };
     }
     if (row.kind === "observation") extra.verification = verification[row.id];
@@ -634,6 +637,25 @@ async function feed(ctx) {
   const rows = (await env.DB.prepare(
     `SELECT p.* FROM posts p WHERE ${where.join(" AND ")}${cursor.sql} ORDER BY p.created_at DESC, p.id DESC LIMIT ?`,
   ).bind(...binds, ...cursor.binds, PAGE + 1).all()).results;
+
+  // RESHARES join two lists only: Following (what the people you follow
+  // passed on) and a member's own list on their profile. Never when a kind,
+  // tag, community or project is asked for -- a reshare is not a filter match.
+  const filtered = q.get("kind") || q.get("tag") || q.get("community") || q.get("project");
+  let who = null;
+  if (!filtered && tab === "following") who = { followerId: viewer.id };
+  if (!filtered && tab === "all" && q.get("author")) {
+    const author = await userByHandle(env, q.get("author"));
+    if (author) who = { userId: author.id };
+  }
+  if (who) {
+    const reshares = await reshareRows(env, viewer, who, q.get("cursor"));
+    const merged = mergeWithReshares(rows, reshares);
+    const items = await shapePosts(env, viewer, merged.rows);
+    const lines = await reshareLines(env, merged.rows);
+    items.forEach((item, i) => { if (lines[i]) item.reshared_by = lines[i]; });
+    return { items, next: merged.cursor ? encodeCursor(merged.cursor) : null };
+  }
   const { page, next } = pageOf(rows);
   return { items: await shapePosts(env, viewer, page), next };
 }

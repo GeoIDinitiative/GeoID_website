@@ -619,7 +619,7 @@ test("erasure leaves nothing about the person readable through the API", async (
   assert.equal((await api(env, "GET", `/v1/media/${encodeURIComponent(up.body.key)}`)).status, 404);
   assert.equal(env.MEDIA.store.size, 0, "the bytes are gone from R2");
   const after = await api(env, "GET", `/v1/posts/${bobs.id}`);
-  assert.deepEqual(after.body.counts, { reactions: 0, comments: 0, forks: 0 });
+  assert.deepEqual(after.body.counts, { reactions: 0, comments: 0, forks: 0, reposts: 0 });
   const thread = await api(env, "GET", `/v1/posts/${bobs.id}/comments`);
   assert.equal(thread.body.items.length, 0);
   assert.equal((await api(env, "GET", "/v1/users/cat/following")).body.items.length, 0);

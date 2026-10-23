@@ -8,9 +8,11 @@ import {
 import {
   userChip, kindBadge, provenanceBadge, hasProvenance, verificationBadge, geohubHref, tagList, REACTIONS, LICENCES, VISIBILITY,
   PROVENANCE, act, requireSignIn, followButton, reportDialog, share, postUrl, citeDialog, bookmarkDialog,
+  reshareButton, quoteDialog, sendPostDialog,
   postCard, kindLabel,
 } from "../components.js";
 import { compareSlider, resolveImageRef, timeChart, measurementsBlock, gallery } from "../rich.js";
+import { parseVideoLink, videoEmbed } from "../embed.js";
 import { eventPanel } from "./opportunities.js";
 
 export async function render(root, { params }) {
@@ -71,9 +73,15 @@ function body(p) {
  * those two out here, so the same picture is not shown twice.
  */
 function mediaBlock(p) {
-  if (!p.media?.length) return null;
   const pair = analysisPair(p);
-  return gallery(p.media, { exclude: pair ? [p.meta.before, p.meta.after] : [] });
+  const files = p.media?.length ? gallery(p.media, { exclude: pair ? [p.meta.before, p.meta.after] : [] }) : null;
+  // Links: YouTube and Vimeo play here (click to load); the rest are listed.
+  const links = (p.links || []).filter((l) => l?.url);
+  const videos = links.map((l) => ({ l, v: parseVideoLink(l.url) })).filter((x) => x.v);
+  const others = links.filter((l) => !parseVideoLink(l.url));
+  if (!files && !videos.length && !others.length) return null;
+  return h("div", {}, files, videos.map(({ v }) => videoEmbed(v, { title: p.title })),
+    others.length ? h("ul", { class: "s-plain s-links" }, others.map((l) => h("li", {}, extLink(l.url, l.label || l.url)))) : null);
 }
 
 /** Both sides of an analysis's before/after, when both are images it can draw. */
@@ -231,7 +239,10 @@ function actionBar(p, mine, focusComment) {
     } else bookmarkDialog(p.id, () => { saved = true; bm.textContent = "Saved"; bm.setAttribute("aria-pressed", "true"); });
   });
   put(bar, bm,
-    h("button", { type: "button", class: "s-act", onClick: () => share(postUrl(p.id), p.title || "GeoHUB Social") }, "Share"),
+    reshareButton(p),
+    p.visibility === "public" && store.me && !mine ? h("button", { type: "button", class: "s-act", onClick: () => quoteDialog(p) }, "Quote") : null,
+    h("button", { type: "button", class: "s-act", onClick: () => (store.me ? sendPostDialog(p) : requireSignIn("send posts")) }, "Send to…"),
+    h("button", { type: "button", class: "s-act", onClick: () => share(postUrl(p.id), p.title || "GeoHUB Social") }, "Share link"),
     h("button", { type: "button", class: "s-act", onClick: () => citeDialog(p.id) }, "Cite"));
   // Collaboration track: ask specialists for help with (or about) this post.
   put(bar, h("a", { class: "s-act", href: `#/requests?new=1&post=${encodeURIComponent(p.id)}` }, "Ask for help…"));

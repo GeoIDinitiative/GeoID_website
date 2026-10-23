@@ -19,7 +19,21 @@ const SIGNATURES = [
   { type: "image/gif", ext: "gif", test: (b) => b.length >= 6 && ["GIF87a", "GIF89a"].includes(ascii(b, 0, 6)) },
   { type: "image/webp", ext: "webp", test: (b) => b.length >= 12 && ascii(b, 0, 4) === "RIFF" && ascii(b, 8, 12) === "WEBP" },
   { type: "application/pdf", ext: "pdf", test: (b) => b.length >= 5 && ascii(b, 0, 5) === "%PDF-" },
+  // MP4: an ftyp box at byte 4 with a video brand. HEIC/AVIF also start with
+  // ftyp but are still images ("heic", "mif1", "avif"), and QuickTime ("qt  ")
+  // does not play in Firefox or Chrome -- both are refused here.
+  { type: "video/mp4", ext: "mp4", test: (b) => b.length >= 12 && ascii(b, 4, 8) === "ftyp"
+      && ["isom", "iso2", "iso4", "iso5", "iso6", "mp41", "mp42", "avc1", "M4V ", "dash", "MSNV"].includes(ascii(b, 8, 12)) },
+  // WebM: the EBML magic, with "webm" as its DocType near the start
+  // (Matroska .mkv shares the magic but says "matroska" and is refused).
+  { type: "video/webm", ext: "webm", test: (b) => b.length >= 32 && b[0] === 0x1a && b[1] === 0x45 && b[2] === 0xdf
+      && b[3] === 0xa3 && ascii(b, 0, Math.min(64, b.length)).includes("webm") },
 ];
+
+/** Videos may be larger than other files; everything else keeps the 8 MB rule. */
+export const MAX_VIDEO_BYTES = 40 * 1024 * 1024;
+const limitFor = (type) => (type.startsWith("video/") ? MAX_VIDEO_BYTES : MAX_MEDIA_BYTES);
+const tooBig = (type) => (type.startsWith("video/") ? "Videos are at most 40 MB — trim it, or post a YouTube or Vimeo link instead." : "Images and PDFs are at most 8 MB.");
 
 function ascii(bytes, from, to) {
   return String.fromCharCode(...bytes.slice(from, to));
@@ -104,7 +118,7 @@ async function upload(ctx) {
   // Refuse an oversized body before reading it; the multipart envelope adds
   // a little, hence the slack.
   const declared = Number(ctx.request.headers.get("content-length") || 0);
-  if (declared > MAX_MEDIA_BYTES + 64 * 1024) fail(413, "Files are at most 8 MB.");
+  if (declared > MAX_VIDEO_BYTES + 64 * 1024) fail(413, tooBig("video/"));
   let form;
   try {
     form = await ctx.request.formData();
@@ -113,12 +127,12 @@ async function upload(ctx) {
   }
   const file = form.get("file");
   if (!file || typeof file === "string" || typeof file.arrayBuffer !== "function") fail(400, "Attach a file as `file`.");
-  if (file.size > MAX_MEDIA_BYTES) fail(413, "Files are at most 8 MB.");
+  if (file.size > MAX_VIDEO_BYTES) fail(413, tooBig("video/"));
   const bytes = new Uint8Array(await file.arrayBuffer());
-  if (bytes.length > MAX_MEDIA_BYTES) fail(413, "Files are at most 8 MB.");
   if (!bytes.length) fail(400, "That file is empty.");
   const kind = sniff(bytes);
-  if (!kind) fail(400, "Only PNG, JPEG, WebP, GIF images and PDF files can be uploaded.");
+  if (!kind) fail(400, "Only PNG, JPEG, WebP and GIF images, MP4 and WebM videos, and PDF files can be uploaded.");
+  if (bytes.length > limitFor(kind.type)) fail(413, tooBig(kind.type));
   const scope = await scopeFor(env, user, form.get("scope"));
   // The owner's id (not handle) in the key: a handle can change, a key can't.
   const key = `m/${user.id}/${randomHex(12)}.${kind.ext}`;
@@ -135,22 +149,43 @@ async function serve(ctx) {
   const row = await env.DB.prepare("SELECT * FROM media WHERE key = ?").bind(ctx.params.key).first();
   // 404 for "not yours" as for "not there": a key must not be probeable.
   if (!(await canReadMedia(env, viewer, row))) fail(404, "Not found.");
-  const object = await env.MEDIA.get(row.key);
-  if (!object) fail(404, "Not found.");
-  const image = row.type.startsWith("image/");
+  const inline = row.type.startsWith("image/") || row.type.startsWith("video/");
   const filename = `${row.key.split("/").pop()}`;
-  return new Response(object.body, {
-    status: 200,
-    headers: {
-      "content-type": row.type,
-      "content-length": String(row.bytes),
-      "content-disposition": `${image ? "inline" : "attachment"}; filename="${filename}"`,
-      "x-content-type-options": "nosniff",
-      "content-security-policy": "default-src 'none'",
-      // Public files may be cached anywhere; scoped ones only by the reader.
-      "cache-control": row.scope === "public" ? "public, max-age=86400, immutable" : "private, no-store",
-    },
-  });
+  const headers = {
+    "content-type": row.type,
+    "content-disposition": `${inline ? "inline" : "attachment"}; filename="${filename}"`,
+    "accept-ranges": "bytes",
+    "x-content-type-options": "nosniff",
+    "content-security-policy": "default-src 'none'",
+    // Public files may be cached anywhere; scoped ones only by the reader.
+    "cache-control": row.scope === "public" ? "public, max-age=86400, immutable" : "private, no-store",
+  };
+  // RANGES, because a <video> asks for them: seeking, and Safari will not
+  // play at all without a 206. One range only ("bytes=a-b", "a-", "-n").
+  const range = parseRange(ctx.request.headers.get("Range"), row.bytes);
+  if (range === "bad") {
+    return new Response(null, { status: 416, headers: { ...headers, "content-range": `bytes */${row.bytes}` } });
+  }
+  const object = await env.MEDIA.get(row.key, range ? { range: { offset: range.start, length: range.end - range.start + 1 } } : undefined);
+  if (!object) fail(404, "Not found.");
+  if (range) {
+    return new Response(object.body, {
+      status: 206,
+      headers: { ...headers, "content-length": String(range.end - range.start + 1), "content-range": `bytes ${range.start}-${range.end}/${row.bytes}` },
+    });
+  }
+  return new Response(object.body, { status: 200, headers: { ...headers, "content-length": String(row.bytes) } });
+}
+
+/** One byte range from a Range header: {start, end} inclusive, null for none, "bad" for unsatisfiable. */
+export function parseRange(header, size) {
+  const m = /^bytes=(\d*)-(\d*)$/.exec(String(header || "").trim());
+  if (!m || (!m[1] && !m[2])) return null;
+  let start; let end;
+  if (!m[1]) { const n = Number(m[2]); start = Math.max(0, size - n); end = size - 1; }
+  else { start = Number(m[1]); end = m[2] ? Math.min(Number(m[2]), size - 1) : size - 1; }
+  if (!(start <= end) || start >= size) return "bad";
+  return { start, end };
 }
 
 async function remove(ctx) {

@@ -74,11 +74,14 @@ export function makeR2() {
       store.set(key, { bytes, httpMetadata: opts.httpMetadata || {} });
       return { key };
     },
-    async get(key) {
+    async get(key, opts = {}) {
       const hit = store.get(key);
       if (!hit) return null;
+      // R2's { range: { offset, length } }, as media.js asks for a video.
+      const r = opts.range;
+      const bytes = r ? hit.bytes.slice(r.offset, r.offset + r.length) : hit.bytes;
       return {
-        body: new Blob([hit.bytes]).stream(),
+        body: new Blob([bytes]).stream(),
         httpMetadata: hit.httpMetadata,
         size: hit.bytes.length,
         writeHttpMetadata(headers) {

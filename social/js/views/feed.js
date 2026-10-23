@@ -55,19 +55,22 @@ export function render(root, { query }) {
       });
   }
 
-  const trending = h("aside", { class: "s-side", "aria-label": "Trending tags" });
+  // Trending tags sit in one quiet row above the posts rather than in a
+  // side column: a feed is read down a single centred line, and a sidebar
+  // beside it pushed the posts off-centre and crowded them on laptops.
+  const trending = h("nav", { class: "s-trending", "aria-label": "Tags this fortnight", hidden: true });
   api.get("/v1/tags/trending").then((data) => {
     const list = Array.isArray(data) ? data : data?.items || [];
     if (!list.length) return;
-    put(trending, h("h2", { class: "s-side-title", text: "Tags this fortnight" }),
-      h("ul", { class: "s-tags s-tags-col" }, list.slice(0, 20).map((t) =>
-        h("li", {}, h("a", { href: link({ tag: t.tag }) }, `#${t.tag}`), h("span", { class: "s-muted" }, ` ${t.count}`)))));
+    trending.hidden = false;
+    put(trending, h("span", { class: "s-trending-label", text: "Trending" }),
+      list.slice(0, 12).map((t) => h("a", { href: link({ tag: t.tag }), class: `s-tag-chip${t.tag === tag ? " is-on" : ""}` },
+        `#${t.tag}`, h("span", { class: "s-tag-count" }, String(t.count)))));
   }).catch(() => {});
 
   put(clear(root),
-    h("div", { class: "s-grid-main" },
-      h("section", { "aria-label": "Feed" }, h("h1", { class: "s-h1", text: "Feed" }), tabs, blurb, chips, tagBar, body),
-      trending));
+    h("section", { class: "s-feed-col", "aria-label": "Feed" },
+      h("h1", { class: "s-h1", text: "Feed" }), tabs, blurb, trending, chips, tagBar, body));
 }
 
 export function renderSearch(root, { query }) {

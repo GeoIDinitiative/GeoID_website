@@ -8,15 +8,15 @@
  * so a M 7 is the same colour in a quiet year and a busy one.
  */
 
-import { colourOf, legendInfoFrom } from "./symbology.js?v=20261023-540a61b";
-import { startPlayer, playerHidden } from "./timelapse-player.js?v=20261023-540a61b";
+import { colourOf, legendInfoFrom } from "./symbology.js?v=20261023-576c4f3";
+import { startPlayer, playerHidden } from "./timelapse-player.js?v=20261023-576c4f3";
 /**
  * The bands live in their own module because the PANEL needs them too, and
  * `catalogue-panels.js` must not drag the player in behind them. What is
  * re-exported here is what this module's own callers have always read.
  */
 import { MAG_EDGES, MAG_LABELS, MAG_FLOORS, magOf, bandSymbology }
-  from "./seismic-magnitude.js?v=20261023-540a61b";
+  from "./seismic-magnitude.js?v=20261023-576c4f3";
 
 export { MAG_EDGES, MAG_LABELS, MAG_FLOORS, magOf };
 

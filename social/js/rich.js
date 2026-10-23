@@ -9,6 +9,7 @@
  * node; this file only draws it.
  */
 import { h, put, clear, dateText, timeEl } from "./dom.js";
+import { videoPlayer } from "./embed.js";
 import {
   niceTicks, niceDomain, timeTicks, nearestIndex, seriesByUnit, lineToXY, poleOf, planeCircle,
   measurementText, measurementGlyphLabel, MEASUREMENT_LABELS,
@@ -17,7 +18,9 @@ import {
 // The map's palette, so a series reads the same colour wherever it is drawn.
 export const SERIES_COLOURS = ["rgb(0, 212, 192)", "rgb(240, 176, 48)", "#9aa8ff", "#8be28b", "#ff9f7a", "#d8c4ff"];
 
-const isImage = (m) => m && m.type !== "application/pdf" && !/\.pdf($|\?)/i.test(m.key || "");
+// A video is neither: it gets a player (embed.js), not a thumbnail or a link.
+const isVideoItem = (m) => m && String(m.type || "").startsWith("video/");
+const isImage = (m) => m && !isVideoItem(m) && m.type !== "application/pdf" && !/\.pdf($|\?)/i.test(m.key || "");
 
 /**
  * What a before/after reference points at: one of the post's own images (by
@@ -327,8 +330,9 @@ export function measurementsBlock(list) {
 export function gallery(media, { exclude = [] } = {}) {
   const list = Array.isArray(media) ? media : [];
   const images = list.filter((m) => isImage(m) && m.url && !exclude.includes(m.key));
-  const pdfs = list.filter((m) => !isImage(m) && m.url);
-  if (!images.length && !pdfs.length) return null;
+  const videos = list.filter((m) => isVideoItem(m) && m.url && !exclude.includes(m.key));
+  const pdfs = list.filter((m) => !isImage(m) && !isVideoItem(m) && m.url);
+  if (!images.length && !pdfs.length && !videos.length) return null;
   const open = (i, opener) => lightbox(images, i, opener);
   const single = images.length === 1;
   const thumbs = images.map((m, i) => {
@@ -338,6 +342,7 @@ export function gallery(media, { exclude = [] } = {}) {
     return single ? h("figure", { class: "s-gallery-one" }, btn, m.alt ? h("figcaption", { text: m.alt }) : null) : h("li", {}, btn);
   });
   return h("div", { class: "s-media" },
+    videos.map(videoPlayer),
     images.length ? (single ? thumbs[0] : h("ul", { class: "s-gallery", "aria-label": `${images.length} images` }, thumbs)) : null,
     pdfs.map((m) => h("p", {}, h("a", { href: m.url, target: "_blank", rel: "noopener noreferrer" }, `Download the PDF${m.alt ? `: ${m.alt}` : ""}`))));
 }

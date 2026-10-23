@@ -681,3 +681,51 @@ a.s-card:hover { text-decoration: none !important; background: rgba(var(--accent
   .s-evidence-list dt { margin-top: 0.3rem; }
   .s-wizard-steps { gap: 0.2rem 0.7rem; }
 }
+
+/* ── Feed column, sharing and media ─────────────────────────────────────────
+   The feed (and a post) read down ONE centred column; trending tags are a
+   chip row inside it, not a sidebar beside it. */
+.s-feed-col, .s-post-full, .s-thread { max-width: 46rem; margin-inline: auto; }
+.s-trending { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; margin: 0 0 0.85rem; }
+.s-trending-label { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin-right: 0.25rem; }
+.s-tag-chip { display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.15rem 0.6rem; border-radius: 100px;
+  border: 1px solid var(--line); color: var(--accent); text-decoration: none; font-size: 0.85rem; }
+.s-tag-chip:hover, .s-tag-chip.is-on { border-color: rgba(var(--accent-rgb), 0.7); background: rgba(var(--accent-rgb), 0.08); }
+.s-tag-count { color: var(--muted); font-size: 0.75rem; }
+
+/* Reshares: who passed it on, and their line, above the original. */
+.s-reshared { margin: 0 0 0.5rem; font-size: 0.82rem; color: var(--muted); }
+.s-reshared a { color: var(--text); text-decoration: none; font-weight: 600; }
+.s-reshared a:hover { text-decoration: underline; }
+.s-reshare-note { display: block; margin-top: 0.3rem; padding-left: 0.7rem; border-left: 2px solid rgba(var(--accent-rgb), 0.6);
+  color: var(--text); font-size: 0.95rem; quotes: none; }
+.s-card-actions { display: inline-flex; gap: 0.35rem; margin-left: auto; }
+.s-mini-act { font: inherit; font-size: 0.78rem; padding: 0.15rem 0.6rem; border-radius: 100px; cursor: pointer;
+  border: 1px solid var(--line); background: transparent; color: var(--muted); }
+.s-mini-act:hover, .s-mini-act:focus-visible { color: var(--text); border-color: rgba(var(--accent-rgb), 0.6); }
+.s-mini-act[aria-pressed="true"] { color: var(--accent); border-color: rgba(var(--accent-rgb), 0.7); }
+.s-card-foot { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 0.9rem; }
+
+/* Media: one preview on a card, everything on the post. Always inside the
+   column, never wider, never taller than a screenful. */
+.s-card-media { display: block; margin: 0.6rem 0; border-radius: 0.6rem; overflow: hidden; border: 1px solid var(--line); background: #05070d; }
+.s-card-media img { display: block; width: 100%; max-height: 26rem; object-fit: cover; }
+.s-card-media .s-video-wrap, .s-card-media .s-embed-wrap { margin: 0; }
+.s-video-wrap, .s-embed-wrap { margin: 0.75rem 0; }
+.s-video { display: block; width: 100%; max-height: 70vh; border-radius: 0.6rem; background: #000; }
+.s-video-wrap figcaption, .s-embed-wrap figcaption { font-size: 0.8rem; color: var(--muted); margin-top: 0.35rem; }
+.s-embed { position: relative; aspect-ratio: 16 / 9; width: 100%; border-radius: 0.6rem; overflow: hidden; background: #05070d; border: 1px solid var(--line); }
+.s-embed iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+.s-embed-play { position: absolute; inset: 0; width: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 0.35rem; border: 0; cursor: pointer; color: var(--text); font: inherit;
+  background: radial-gradient(circle at 50% 45%, rgba(var(--accent-rgb), 0.18), transparent 60%), #05070d; }
+.s-embed-icon { display: grid; place-items: center; width: 3.4rem; height: 3.4rem; border-radius: 50%; font-size: 1.3rem;
+  background: rgba(var(--accent-rgb), 0.9); color: #000; }
+.s-embed-play:hover .s-embed-icon, .s-embed-play:focus-visible .s-embed-icon { transform: scale(1.06); }
+.s-embed-label { font-weight: 700; }
+.s-embed-note { font-size: 0.78rem; color: var(--muted); }
+.s-links { margin: 0.5rem 0; }
+/* On a card the media frame holds the picture only; the "Watch on" link is on the post. */
+.s-card-media figcaption { display: none; }
+/* A single tall photo never takes more than three-quarters of the screen. */
+.s-gallery-one img { max-height: 75vh; width: auto; max-width: 100%; object-fit: contain; }

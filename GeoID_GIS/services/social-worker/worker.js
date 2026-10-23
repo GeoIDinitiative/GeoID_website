@@ -26,6 +26,7 @@ import { routes as verify } from "./verify.js";
 import { routes as requests } from "./requests.js";
 import { routes as events } from "./events.js";
 import { routes as mail } from "./mail.js";
+import { routes as reposts } from "./reposts.js";
 import { routes as realtime } from "./realtime.js";
 import { scheduled } from "./cron.js";
 
@@ -44,7 +45,7 @@ export const ROUTES = compile([
   ...profiles, ...posts, ...media, ...discovery, ...notifications,
   ...communities, ...teams, ...projects, ...reviews, ...messages,
   ...moderation, ...reputation, ...interest,
-  ...orgs, ...verify, ...requests, ...events, ...mail, ...realtime,
+  ...orgs, ...verify, ...requests, ...events, ...mail, ...realtime, ...reposts,
 ]);
 
 export function match(method, path) {

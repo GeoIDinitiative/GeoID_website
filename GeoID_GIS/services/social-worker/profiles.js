@@ -14,6 +14,7 @@ import {
 } from "./lib.js";
 import { identityErasureStatements, identityExport } from "./orgs.js";
 import { verificationsForItems } from "./verify.js";
+import { erasureStatements as reshareErasure, exportRows as reshareExport } from "./reposts.js";
 
 const ITEM_KINDS =["publication", "dataset", "education", "experience", "credential", "repository", "award",
   "fieldwork", "talk", "other"];
@@ -23,7 +24,7 @@ const AVAILABILITY = ["open", "limited", "closed"];
 const JOB_STATUS = ["", "seeking", "hiring", "consulting"];
 const CONTACT = ["anyone", "followers", "nobody"];
 const NOTIFY_KINDS = ["follow", "comment", "reaction", "mention", "invite", "grant", "review", "message",
-  "fork", "verify", "moderation", "badge", "project_update", "mentoring"];
+  "fork", "verify", "moderation", "badge", "project_update", "mentoring", "repost"];
 const ORCID_RE = /^\d{4}-\d{4}-\d{4}-\d{3}[\dX]$/;
 
 /** Reject a value outside an enumeration with 400, as CONTRACT.md asks. */
@@ -605,6 +606,7 @@ async function exportMe(ctx) {
     reports_filed: await rowsOf(env, "SELECT * FROM reports WHERE reporter_id = ?", u),
     // v1.3 identity (orgs.js, verify.js): affiliations, mentoring, publication checks.
     ...await identityExport(env, u),
+    reshares: await reshareExport(env, u),
     // v1.3 engagement (mail.js): the email choice and the log of what was mailed.
     mail_prefs: await rowsOf(env, "SELECT * FROM mail_prefs WHERE user_id = ?", u),
     mail_log: await rowsOf(env, "SELECT kind, notification_id, status, created_at, sent_at FROM mail_queue WHERE user_id = ?", u),
@@ -705,6 +707,7 @@ async function eraseMe(ctx) {
     p("DELETE FROM rate WHERE user_id = ?", u),
     // v1.3 identity (orgs.js): affiliations, mentoring requests, publication checks.
     ...identityErasureStatements(DB, u),
+    ...reshareErasure({ DB }, u, now()),
     p("DELETE FROM mail_queue WHERE user_id = ?", u),
     p("DELETE FROM mail_prefs WHERE user_id = ?", u),
     p("DELETE FROM post_tags WHERE post_id IN (SELECT id FROM posts WHERE author_id = ?)", u),
