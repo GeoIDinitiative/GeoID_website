@@ -268,8 +268,10 @@
    */
   function setSpin(enabled) {
     // Events mode holds the globe still whoever asks, since reading a feed
-    // against it means finding places on it.
-    const wanted = Boolean(enabled) && document.body.dataset.events !== "true";
+    // against it means finding places on it -- when a reader opened it. The
+    // feed armed by the launch itself does not (events.js `eventsHold`), or
+    // the Earth opens stopped.
+    const wanted = Boolean(enabled) && document.body.dataset.eventsHold !== "true";
     document.body.dataset.spin = wanted ? "true" : "false";
     const controls = window.GeoIDViewer?.controls;
     if (controls) controls.autoRotate = false;

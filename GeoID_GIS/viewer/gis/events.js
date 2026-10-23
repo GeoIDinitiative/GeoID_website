@@ -1952,6 +1952,16 @@ async function setActive(on, { remember = true, launch = false } = {}) {
   active = Boolean(on);
   if (remember) rememberActive(active);
   document.body.dataset.events = active ? "true" : "false";
+  /**
+   * WHETHER THE GLOBE IS HELD for it (mode-manager's `setSpin`) is a separate
+   * question from whether the feed is on. Reading a feed against the globe
+   * means finding places on it, so a reader who OPENS the feed has it held --
+   * but the feed now arms itself at every launch, and holding for that
+   * stopped the Earth turning on load whenever the mode was applied after the
+   * feed armed, which is most loads on a warm cache (reported 2026-10-23:
+   * "Earth rotation is not live by default anymore").
+   */
+  document.body.dataset.eventsHold = active && !launch ? "true" : "false";
   const row = byId("gis-group-events");
   if (row) row.classList.toggle("is-armed", active);
   // The control is a tick box, and it is set rather than read here: the mode
