@@ -1,0 +1,9 @@
+{
+ "as_of": "2026-10-21",
+ "rain": "CPC realtime: wettest 3 days of the last 7, and the 30 before",
+ "cells": 1560174,
+ "share_over_threshold": 0.1777,
+ "threshold": 0.5224,
+ "file": "data/global/flood-ml/flood-susceptibility-0p1.hotlink-ok.tif",
+ "preview": "/home/owen/GeoID_webpage_v1/data/global/.flood-global-work/current_coarse.png"
+}
