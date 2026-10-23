@@ -37,3 +37,35 @@ subprocesses whose output streams into the page's log.
 Nothing here is required to use the hub. Without the sidecar the hub behaves
 exactly as it did before: the run buttons say to start it, and the browser's own
 storage backs the project. The sidecar is opt-in and local.
+
+## Meshing: gmsh, or Blender
+
+The Model Studio meshes in the sidecar with **gmsh** by default (`POST
+/jobs/gmsh`). **Blender** is the interchangeable second mesher: pick it per
+model under **Mesh ▸ Mesher**, use **Export ▸ Mesh with Blender**, or ask Atlas
+("build a volcano with a chamber and mesh it in Blender"; a connected model
+can call the `blender_mesh` tool with a list of shapes).
+
+`POST /jobs/blender` runs the studio's bpy script (`viewer/gis/studio-blender.js`)
+through `blender_mesher.py`: Blender builds the solids with exact booleans
+(and an optional voxel remesh), then gmsh fills the closed surfaces with
+tetrahedra. The mesh lands at `meshes/<name>.msh`, flagged like gmsh's (top 3,
+base 2, sides 5, chamber wall 7, volumes 10+), so FEM Setup and GALES read it
+unchanged. A layered halfspace is one block here; use gmsh for its layers.
+
+What to install:
+
+- **Blender 4.2 LTS or newer** with `blender` on PATH (blender.org, or
+  `sudo snap install blender --classic`), or `GEOID_BLENDER=/path/to/blender`.
+  It runs headless (`--background --factory-startup`).
+- **or a live Blender** with the [blender-mcp](https://github.com/ahujasid/blender-mcp)
+  addon: install `addon.py`, press **Connect** in its sidebar tab, and the
+  sidecar sends the script to that Blender's socket (127.0.0.1:9876, or
+  `BLENDER_HOST`/`BLENDER_PORT`, the same variables its MCP server reads), so
+  you see the model built. With `via: "auto"` (the default) an open Blender
+  wins over the binary.
+- **gmsh's Python module** for the volume fill: `pip install gmsh`.
+
+`GET /capabilities` reports `blender: {binary, mcp, gmsh}`, and the studio says
+which is missing instead of failing. Tested by `python3 GeoID_GIS/tests/sidecar_blender.py`
+(fake Blender and fake MCP socket; a real gmsh fill where the module is installed).

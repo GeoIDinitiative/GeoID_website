@@ -15,6 +15,8 @@
  * parses to a tool in this list with arguments that pass its own checks.
  */
 
+import { readMeshRequest, readMesher } from "./atlas-mesh-spec.js?v=20261023-9468c0f";
+
 export const TOOLS = [
   {
     name: "ashfall",
@@ -62,6 +64,57 @@ export const TOOLS = [
         to: { type: "string", description: "Arrival airport: IATA/ICAO code, city or airport name" },
         depart: { type: "string", description: "Departure time, ISO 8601 with a zone (default: now)" },
         callsign: { type: "string", description: "A live aircraft's callsign instead of from/to (it must be on the Aircraft layer)" },
+      },
+    },
+  },
+  {
+    name: "build_mesh",
+    title: "Build a model from a description and mesh it",
+    says: "Reads a volcano with a magma chamber, or a layered crust block with a dike, from words — "
+      + "with the heights, depths, radii, layer thicknesses and dips they name, in km or m — builds it "
+      + "in the Meshing Studio and meshes it in the local sidecar with gmsh or Blender (the model's own "
+      + "mesher unless the words name one). The mesh lands in the project's meshes/ and is drawn in the studio.",
+    args: {
+      type: "object",
+      required: ["description"],
+      properties: {
+        description: { type: "string", description: "The model in words, e.g. a stratovolcano 3 km high with a magma chamber at 5 km depth" },
+        mesher: { type: "string", enum: ["gmsh", "blender"], description: "Which mesher (default: the one the words or the model name, else gmsh)" },
+      },
+    },
+  },
+  {
+    name: "mesh_model",
+    title: "Mesh the Meshing Studio's model as it stands",
+    says: "Meshes whatever is in the Meshing Studio now with gmsh (the default) or Blender, in the local "
+      + "sidecar; the mesh lands in the open project's meshes/ and is drawn in the studio.",
+    args: {
+      type: "object",
+      properties: {
+        mesher: { type: "string", enum: ["gmsh", "blender"], description: "Which mesher (default: the model's own, gmsh unless chosen)" },
+      },
+    },
+  },
+  {
+    name: "blender_mesh",
+    title: "Build a model from shapes and mesh it with Blender",
+    says: "Builds solids from a list of shapes in the Meshing Studio, then has Blender make them "
+      + "(exact booleans; headless, or in the reader's open Blender through the blender-mcp addon) "
+      + "and gmsh fill the volume. Metres, z up, z = 0 the ground. Each shape is {kind, op, ...numbers}: "
+      + "box {x,y,z,dx,dy,dz} (x,y,z its corner), sphere {x,y,z,r}, ellipsoid {x,y,z,rx,ry,rz}, "
+      + "cylinder {x,y,z,h,r} and cone {x,y,z,h,r1,r2} (x,y,z the base centre), torus {x,y,z,r1,r2}, "
+      + "volcano_edifice {crust_width,crust_depth,height,base_radius,summit_radius}, "
+      + "dike {x,y,length,height,thickness,top_depth,strike,dip}. op is union, difference or intersect "
+      + "with everything before it (the first shape is the object); void: true on a cut leaves an empty hole "
+      + "rather than a chamber volume.",
+    args: {
+      type: "object",
+      required: ["shapes"],
+      properties: {
+        shapes: { type: "array", description: "The shapes, in order (at most 32)" },
+        replace: { type: "boolean", description: "Clear the studio's model first (default true)" },
+        via: { type: "string", enum: ["auto", "headless", "mcp"], description: "auto uses an open Blender if one is connected, else the installed binary" },
+        name: { type: "string", description: "The mesh's file name in meshes/ (letters, digits, _ . -)" },
       },
     },
   },
@@ -137,9 +190,17 @@ export function checkArgs(tool, args = {}) {
     } else if (spec.type === "string") {
       v = String(v);
     } else if (spec.type === "boolean") {
-      // A model writes `true` or `"true"`; anything else is no.
-      v = v === true || v === "true";
+      // A model writes `true`, `"true"` or `"yes"` (and the opposites); anything
+      // else is refused by name rather than guessed.
+      if (typeof v === "string") {
+        const w = v.trim().toLowerCase();
+        v = ["true", "yes", "1"].includes(w) ? true : ["false", "no", "0"].includes(w) ? false : v;
+      }
+      if (typeof v !== "boolean") { problems.push(`${name} must be true or false`); continue; }
+    } else if (spec.type === "array" && !Array.isArray(v)) {
+      problems.push(`${name} must be a list`); continue;
     }
+    if (spec.enum && !spec.enum.includes(v)) { problems.push(`${name} must be one of ${spec.enum.join(", ")}`); continue; }
     out[name] = v;
   }
   return { ok: !problems.length, args: out, problems };
@@ -228,6 +289,14 @@ export function callFromIntent(intent) {
       };
     case "chamber":
       return { name: "chamber", args: { description: intent.text } };
+    case "build_mesh": {
+      // A model named in the words is built from them; "mesh it" meshes
+      // what the studio holds.
+      const mesher = readMesher(intent.text);
+      return readMeshRequest(intent.text)
+        ? { name: "build_mesh", args: { description: intent.text, ...(mesher ? { mesher } : {}) } }
+        : { name: "mesh_model", args: mesher ? { mesher } : {} };
+    }
     case "risk":
       return { name: "total_risk", args: {} };
     case "flight":
