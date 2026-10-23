@@ -8,7 +8,7 @@
  * words rather than failing somewhere a reader cannot see.
  */
 
-import { toolByName, checkArgs } from "./atlas-tools.js?v=20261023-3c2cf02";
+import { toolByName, checkArgs } from "./atlas-tools.js?v=20261023-d95af1d";
 
 const STAMP = new URL(import.meta.url).search || "";
 
@@ -62,6 +62,20 @@ const RUNNERS = {
     return result.ok
       ? { text: `Built ${result.built} in the Meshing Studio. Give the solids materials and the chamber wall a pressure in Study, then mesh and solve.`, actions: [] }
       : { text: "The studio could not build that template.", actions: [] };
+  },
+
+  async flight_risk(args, { onStatus }) {
+    if (!window.GeoIDFlightRisk) await import(`./flight-risk-panel.js${STAMP}`);
+    const F = window.GeoIDFlightRisk;
+    if (!F?.assess) return { text: "Flight route risk is computed on the Earth globe only.", actions: [] };
+    if (!args.callsign && (!args.from || !args.to)) {
+      return { text: "Which flight? Say “how risky is a flight from London to New York today”, or give a live callsign.", actions: [] };
+    }
+    const out = await F.assess({
+      from: args.from, to: args.to, callsign: args.callsign,
+      departMs: args.depart ? Date.parse(args.depart) : Date.now(), onStatus,
+    });
+    return { text: out.text, actions: [["Show the risk profile", () => F.open()]] };
   },
 
   async total_risk() {

@@ -5,6 +5,7 @@
 import {
   coneRadiusKm, distanceKm, interpolateTrack, destination, bearing, conePolygon, inRing,
   threatTo, gdacsStorms, readGdacsGeometry, parseTime, saffirSimpson, gdacsCycloneListUrl,
+  parseLabelTime, CATEGORY_KT,
 } from "./cyclone-cone.js";
 
 let pass = 0;
@@ -110,4 +111,43 @@ ok(gdacsCycloneListUrl(10, t0).includes("eventlist=TC"), "the list asks for cycl
   ok(fx.find((f) => f.properties.part === "cone") === undefined, "a cone across the antimeridian is not drawn wrapped wrong");
   ok(fx.find((f) => f.properties.part === "fix").properties.strength === "Category 1", "a fix says its strength");
   ok(fx.find((f) => f.properties.part === "forecast").geometry.coordinates[1][0] === -178, "longitudes are wrapped for the globe");
+}
+
+// GDACS's current shape (October 2026): each fix a small circle dated only in
+// its label, its strength only on the segment leaving it.
+{
+  const circle = (lon, lat, r = 0.03) => [Array.from({ length: 33 }, (_, k) => {
+    const a = (2 * Math.PI * (k % 32)) / 32;
+    return [lon + r * Math.cos(a), lat + r * Math.sin(a)];
+  })];
+  const fixAt = (lon, lat, label) => ({ type: "Feature", geometry: { type: "Polygon", coordinates: circle(lon, lat) },
+    properties: { Class: `Point_Polygon_Point_${label}`, featuretype: "PointRadii", polygondate: "2026-10-22T21:00:00", polygonlabel: label } });
+  const seg = (a, b, cat, fc) => ({ type: "Feature", geometry: { type: "LineString", coordinates: [a, b] },
+    properties: { Class: "Line_Line_x", polygonlabel: cat, forecast: fc } });
+  const fc = { type: "FeatureCollection", features: [
+    { type: "Feature", geometry: { type: "Point", coordinates: [-65.8, 40] }, properties: { Class: "Point_Centroid", todate: "2026-10-22T21:00:00",
+      severitydata: { severity: 120.37, severityunit: "km/h" } } },
+    fixAt(-67.3, 39.2, "22/10 15:00 UTC"),
+    fixAt(-65.8, 40.0, "22/10 21:00 UTC"),
+    { ...fixAt(-62.7, 41.3, "23/10 06:00 UTC"), properties: { ...fixAt(-62.7, 41.3, "23/10 06:00 UTC").properties, severitydata: { severity: 296, severityunit: "km/h" } } },
+    fixAt(-58.6, 42.9, "23/10 18:00 UTC"),
+    seg([-67.3, 39.2], [-65.8, 40.0], "TS", false),
+    seg([-65.8, 40.0], [-62.7, 41.3], "HU", true),
+    seg([-62.7, 41.3], [-58.6, 42.9], "TS", true),
+    { type: "Feature", geometry: { type: "Polygon", coordinates: circle(-60, 42, 3) }, properties: { Class: "Poly_Red", polygondate: "2026-10-25T06:00:00", polygonlabel: "25/10 06:00" } },
+    { type: "Feature", geometry: { type: "Polygon", coordinates: circle(-60, 42, 4) }, properties: { Class: "Poly_Cones", polygondate: "2026-10-22T21:00:00", polygonlabel: "Uncertainty Cones" } },
+  ] };
+  const g = readGdacsGeometry(fc, Date.UTC(2026, 9, 23, 19));
+  ok(g.issued === Date.UTC(2026, 9, 22, 21), "the advisory time is the fixes' date, not the wind polygons'");
+  ok(g.past.length === 2 && g.forecast.length === 2, "observed up to the advisory, forecast after it (the centroid not counted twice)");
+  ok(near(g.track[0].lat, 40, 1e-9) && near(g.track[0].lon, -65.8, 1e-9), "a circle's centre is the fix");
+  ok(g.track[0].time === Date.UTC(2026, 9, 22, 21) && g.track.at(-1).time === Date.UTC(2026, 9, 23, 18), "label times, the year from the advisory");
+  ok(near(g.track[0].wind, 120.37 / 1.852, 1e-9) && !g.track[0].windFrom, "now: the reported severity wins over the class");
+  ok(g.track[1].wind === CATEGORY_KT.TS && g.track[1].windFrom === "category", "ahead: strength from the segment leaving the fix");
+  ok(g.past[0].wind === CATEGORY_KT.TS, "observed fixes too");
+  ok(g.forecast[0].wind === CATEGORY_KT.TS, "the event's severity on a fix is not that fix's wind");
+  ok(g.track.at(-1).wind === CATEGORY_KT.TS, "the last fix from the segment arriving");
+  ok(Array.isArray(g.cone) && g.cone.length === 33, "the agency's cone");
+  ok(parseLabelTime("02/01 06:00 UTC", Date.UTC(2026, 11, 31, 18)) === Date.UTC(2027, 0, 2, 6), "a January fix of a December advisory is next year");
+  ok(Number.isNaN(parseLabelTime("Uncertainty Cones", Date.now())), "a label that is not a time");
 }

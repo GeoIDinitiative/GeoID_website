@@ -47,3 +47,10 @@ ok(checkArgs(ash, fromIntent.args).ok, "and its arguments pass the tool's own ch
 // Every tool has a runner on the page, and every runner a tool.
 const runner = readFileSync(new URL("./atlas-runner.js", import.meta.url), "utf8");
 for (const t of TOOLS) ok(new RegExp(`async ${t.name}\\(`).test(runner), `the ${t.name} tool has a runner`);
+
+{
+  const call = callFromIntent({ task: "flight", route: { from: "London", to: "New York" }, time: { ms: Date.UTC(2026, 9, 23, 12) } });
+  ok(call?.name === "flight_risk" && call.args.from === "London" && call.args.depart === "2026-10-23T12:00:00.000Z", "a flight question becomes a flight_risk call");
+  ok(checkArgs(toolByName("flight_risk"), call.args).ok, "and passes the tool's checks");
+  ok(callFromIntent({ task: "flight", route: null }) === null, "no route, no call");
+}

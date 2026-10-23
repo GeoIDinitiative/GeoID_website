@@ -267,17 +267,78 @@ const TIME_KEYS = ["trackdate", "polygondate", "datetime", "date", "time", "from
 const WIND_KEYS = ["windspeed", "wind_speed", "maxwind", "vmax", "wind", "maxwindspeed"];
 
 /**
+ * "22/10 21:00 UTC" — the label GDACS writes on each fix — with the year
+ * taken from a reference time (the advisory's own date): the year that puts
+ * the day nearest the reference, so a late-December advisory's January fixes
+ * land in the next year.
+ */
+export function parseLabelTime(label, refMs) {
+  const m = String(label || "").match(/^\s*(\d{1,2})\/(\d{1,2})\s+(\d{1,2}):(\d{2})/);
+  if (!m || !Number.isFinite(refMs)) return NaN;
+  const [, d, mo, hh, mm] = m.map(Number);
+  const y0 = new Date(refMs).getUTCFullYear();
+  let best = NaN;
+  for (const y of [y0 - 1, y0, y0 + 1]) {
+    const t = Date.UTC(y, mo - 1, d, hh, mm);
+    if (!Number.isFinite(best) || Math.abs(t - refMs) < Math.abs(best - refMs)) best = t;
+  }
+  return best;
+}
+
+/**
+ * A strength in knots from the category word on a GDACS track segment —
+ * the middle of each class, since the segments say the class and not the
+ * wind: depression 30, storm 50, hurricane/typhoon (unnumbered) 80, the
+ * Saffir–Simpson numbers at their mid-points, super typhoon 140, and an
+ * extratropical or post-tropical low 45.
+ */
+export const CATEGORY_KT = {
+  TD: 30, TS: 50, STS: 55, SS: 45, HU: 80, TY: 85, H1: 73, H2: 89, H3: 104, H4: 124, H5: 145,
+  STY: 140, ST: 140, EX: 45, ET: 45, PT: 45, PTC: 45, LO: 30, DB: 25, SD: 30, MH: 110,
+};
+
+const centreOf = (ring) => {
+  const pts = ring.length > 1 && ring[0][0] === ring.at(-1)[0] && ring[0][1] === ring.at(-1)[1] ? ring.slice(0, -1) : ring;
+  const ref = pts[0][0];
+  const lon = pts.reduce((a, [x]) => a + unwrap(x, ref), 0) / pts.length;
+  const lat = pts.reduce((a, [, y]) => a + y, 0) / pts.length;
+  return [((((lon + 180) % 360) + 360) % 360) - 180, lat];
+};
+
+/**
  * A GDACS episode's geometry, read into a forecast track and (where it is
  * there) the agency's own cone. Defensive on purpose: the endpoint mixes
  * the track's points, its line, the wind-radius polygons and sometimes a
- * cone, under property names that vary by product. A point is a FIX when it
- * has a time; it is a FORECAST fix when it says so or lies after `nowMs`.
- * Winds are read as km/h (GDACS's own unit) and returned in knots.
+ * cone, under property names that vary by product.
+ *
+ * Two shapes of fix are read. The older is a Point with a time property.
+ * The current one (seen October 2026) is a small circle, Class
+ * "Point_Polygon_Point_n" / featuretype "PointRadii", whose time is only in
+ * its label ("22/10 21:00 UTC", no year) and whose strength is only on the
+ * track SEGMENT leaving it ("Line_Line_n", labelled TS, HU…). Its centre is
+ * the ring's mean; its year comes from the advisory date (`polygondate`),
+ * which is also where observed ends and forecast begins.
+ *
+ * A fix is a FORECAST fix when it says so, or lies after the advisory time
+ * (else after `nowMs`). Winds are read as km/h (GDACS's own unit) and
+ * returned in knots; a strength read from a category word is marked
+ * `windFrom: "category"`.
  */
 export function readGdacsGeometry(fc, nowMs = Date.now()) {
   const past = [];
   const forecast = [];
+  const segments = [];
   let cone = null;
+  let issued = NaN;
+  // The advisory time: what the fix circles are dated (the wind polygons are
+  // dated by their own valid times, so they are no guide).
+  for (const f of fc?.features || []) {
+    const p = f?.properties || {};
+    if (!/pointradii/i.test(String(p.featuretype || "")) && !/^point_polygon/i.test(String(p.Class || ""))) continue;
+    const t = parseTime(p.polygondate);
+    if (Number.isFinite(t)) { issued = t; break; }
+  }
+  const split = Number.isFinite(issued) ? issued : nowMs;
   for (const f of fc?.features || []) {
     const p = f?.properties || {};
     const g = f?.geometry;
@@ -287,29 +348,64 @@ export function readGdacsGeometry(fc, nowMs = Date.now()) {
       cone = rings.sort((a, b) => b.length - a.length)[0] || null;
       continue;
     }
-    if (g?.type !== "Point") continue;
-    const time = TIME_KEYS.map((k) => parseTime(p[k])).find(Number.isFinite);
+    if (g?.type === "LineString" && /^line/.test(klass) && g.coordinates?.length >= 2) {
+      const kt = CATEGORY_KT[String(p.polygonlabel || "").trim().toUpperCase()];
+      if (kt) segments.push({ start: g.coordinates[0], end: g.coordinates.at(-1), kt });
+      continue;
+    }
+    const radii = g?.type === "Polygon" && (/pointradii/i.test(String(p.featuretype || "")) || /^point_polygon/.test(klass));
+    if (g?.type !== "Point" && !radii) continue;
+    const [lon, lat] = radii ? centreOf(g.coordinates[0]) : g.coordinates;
+    const time = radii
+      ? parseLabelTime(p.polygonlabel, Number.isFinite(issued) ? issued : nowMs)
+      : TIME_KEYS.map((k) => parseTime(p[k])).find(Number.isFinite);
     if (!Number.isFinite(time)) continue;
-    const windRaw = WIND_KEYS.map((k) => Number(p[k])).find((x) => Number.isFinite(x) && x > 0);
+    // The episode's centroid — dated the advisory, placed at the storm now —
+    // carries the strength only as its "severity". Every other feature
+    // carries the same block too, so it is read from the centroid alone:
+    // spread to every fix it made a weakening storm 160 kt all the way.
+    const severity = /centroid/.test(klass) && /km\/h/i.test(String(p.severitydata?.severityunit || ""))
+      ? Number(p.severitydata.severity) : NaN;
+    const windRaw = [...WIND_KEYS.map((k) => Number(p[k])), severity].find((x) => Number.isFinite(x) && x > 0);
     const fix = {
-      lat: g.coordinates[1],
-      lon: g.coordinates[0],
+      lat,
+      lon,
       time,
       wind: Number.isFinite(windRaw) ? windRaw / NM_KM : NaN, // km/h -> kt
       category: p.category || p.stormcategory || null,
     };
     const said = String(p.forecast ?? p.isforecast ?? "").toLowerCase();
     const isForecast = said === "true" || said === "1" || said === "yes"
-      || (said === "" && time > nowMs + 30 * 60_000);
+      || (said === "" && time > split + 30 * 60_000);
     (isForecast ? forecast : past).push(fix);
   }
+  // A fix with no wind of its own takes the class of the segment leaving it,
+  // or, for the last, the segment arriving.
+  if (segments.length) {
+    const near = (a, lon, lat) => Math.abs(unwrap(a[0], lon) - lon) < 0.15 && Math.abs(a[1] - lat) < 0.15;
+    for (const fix of [...past, ...forecast]) {
+      if (Number.isFinite(fix.wind)) continue;
+      const seg = segments.find((s) => near(s.start, fix.lon, fix.lat)) || segments.find((s) => near(s.end, fix.lon, fix.lat));
+      if (seg) { fix.wind = seg.kt; fix.windFrom = "category"; }
+    }
+  }
   const byTime = (a, b) => a.time - b.time;
-  past.sort(byTime);
-  forecast.sort(byTime);
+  // One fix per time: the episode's centroid is dated too, and repeats a fix.
+  const once = (list) => list.sort(byTime).reduce((out, f) => {
+    const prev = out.at(-1);
+    if (prev?.time !== f.time) out.push(f);
+    else if (Number.isFinite(f.wind) && (!Number.isFinite(prev.wind) || prev.windFrom === "category")) {
+      // A reported wind wins over a class mid-point, at the same position's time.
+      out[out.length - 1] = { ...prev, wind: f.wind, windFrom: f.windFrom };
+    }
+    return out;
+  }, []);
+  past.splice(0, past.length, ...once(past));
+  forecast.splice(0, forecast.length, ...once(forecast));
   // The forecast starts from the latest observed position.
   const start = past.at(-1);
   const track = start ? [start, ...forecast.filter((f) => f.time > start.time)] : forecast;
-  return { past, forecast, track, cone };
+  return { past, forecast, track, cone, issued: Number.isFinite(issued) ? issued : null };
 }
 
 /** Saffir–Simpson category for a wind in knots (0 = tropical storm, -1 = depression). */

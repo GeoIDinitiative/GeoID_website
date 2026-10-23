@@ -5494,3 +5494,41 @@ app has no risk reader, so the stage list says why it drifts there.
 Verified headless with the reader's readings stubbed (the sandbox reaches no
 WorldPop): built, saved, readings changed → stale banner, rebuilt with the new
 signature and the written Discussion kept; all 65 hub pages mount.
+
+## Flight route risk: the hazard field integrated along a route
+
+Air and sea traffic ▸ Flight route risk (`gis/flight-risk-panel.js`, gathering
+and drawing) over `gis/route-risk.js` (the maths, pinned by
+`route-risk.test.mjs`). Atlas reaches it as the `flight_risk` tool ("how
+risky is a flight from London to New York today").
+
+- **The integral.** Each hazard is a utilisation u = demand/capacity (1/FoS)
+  at every 25 km sample of the route, at the aircraft's height and time; the
+  risk density is h(u) = 0 below ½, smoothstep ½→1, then u; the route's risk
+  is ∫ Σ h ds by the trapezoid rule, in **equivalent km flown at the limit**.
+  Per-100 km segment increments, the cumulative curve and the lowest FoS come
+  from the same pass.
+- **Capacities** (`CAPACITY`): cyclone 64 kt EXPECTED wind (Gaussian wind
+  profile convolved with the cone's position error, σ = r⅔ / √(2 ln 3));
+  Richardson number 0.25 on GFS's 50 hPa layers; CAPE 1500 J/kg or a forecast
+  thunderstorm (WMO 95–99); ash 2 mg/m³ from the last Atlas ash run. Ri_c = 1,
+  then 0.5, put a third to a half of ordinary long-haul routes past the limit
+  (measured 2026-10-23, JFK–LHR and HKG–NRT); 0.25 leaves only strong jets.
+- **The route.** A great circle between two of ~215 airports in
+  `gis/airports.js` (no fetch), flown at FL350 with a 200 km climb and 250 km
+  descent; or a live aircraft (`GeoIDTraffic.aircraft()`) to a To airport, or
+  along its track for 3 h. The open ADS-B feeds do not say where a flight is
+  going, and adsb.lol's routeset answered empty with no CORS headers.
+- **GFS** comes in ONE Open-Meteo request for ≤ 40 points along the route
+  (multi-location `latitude=a,b,…`), nearest point and hour per sample.
+- **Drawn as a corridor, one quad per 25 km step.** A draped LineString lost on
+  depth to the displaced ocean and came out dashed; one long thin ring per
+  segment triangulated with gaps; and a step straddling a segment boundary
+  must be assigned by its midpoint (as the integral is) or it is never drawn.
+- **GDACS changed shape** (seen 2026-10-23): fixes are small circles
+  (`featuretype: "PointRadii"`, Class `Point_Polygon_Point_n`) dated only in
+  their label ("22/10 21:00 UTC", no year), and strength is only on the track
+  segments (`Line_Line_n`, labelled TS/HU…). `readGdacsGeometry` reads both
+  shapes; the advisory time is the circles' `polygondate` (the wind polygons
+  are dated by their own valid times). Every feature carries the EVENT's
+  `severitydata` — the lifetime peak — so it is read off the centroid only.

@@ -14,7 +14,7 @@
  * (`atlas-tools.js`). This only says what was asked.
  */
 
-import { SIZE_WORDS } from "./ash-plume.js?v=20261023-3c2cf02";
+import { SIZE_WORDS } from "./ash-plume.js?v=20261023-d95af1d";
 
 /**
  * The tasks a sentence can name, most specific first. Each is a test on the
@@ -33,8 +33,16 @@ export const TASKS = [
 /** A sentence is a request to RUN something when it uses one of these. */
 const RUN_VERBS = /\b(model|simulate|run|forecast|predict|generate|build|make|create|show|compute|estimate|what if|if it were to|what would)\b/;
 
+/**
+ * A flight's risk is asked as a question, not a command ("how risky is a
+ * flight from London to New York today"), so it is read before the run verbs.
+ */
+const FLIGHT = /\b(flights?|fly|flying|air ?route|airliner)\b/;
+const FLIGHT_ASK = /\b(risk\w*|safe\w*|danger\w*|hazard\w*|turbulen\w*|bumpy|storms?|weather|ash)\b/;
+
 export function readTask(text) {
   const q = String(text || "").toLowerCase();
+  if (FLIGHT.test(q) && FLIGHT_ASK.test(q) && readRoute(text)) return "flight";
   if (!RUN_VERBS.test(q)) return null;
   return TASKS.find((t) => t.test.test(q))?.id || null;
 }
@@ -191,6 +199,22 @@ export function readDuration(text) {
   return /^d/.test(m[2]) ? Number(m[1]) * 24 : Number(m[1]);
 }
 
+/**
+ * The two ends of a flight: "from X to Y", "X to Y", "between X and Y",
+ * each up to the next clause or time word. Null without both.
+ */
+export function readRoute(text) {
+  const raw = String(text || "");
+  const stop = String.raw`(?=\s+(?:today|tomorrow|tonight|now|this|at|on|in|departing|leaving|via|right|risk\w*|safe\w*|flights?)\b|[,.;!?]|$)`;
+  const end = String.raw`([A-Za-zÀ-ÿ'’\- ]{2,40}?)`;
+  const m = raw.match(new RegExp(String.raw`\bfrom\s+${end}\s+to\s+${end}${stop}`, "i"))
+    || raw.match(new RegExp(String.raw`\bbetween\s+${end}\s+and\s+${end}${stop}`, "i"))
+    || raw.match(new RegExp(String.raw`\b(?:flights?|fly(?:ing)?)\s+(?:a\s+)?${end}\s+to\s+${end}${stop}`, "i"));
+  if (!m) return null;
+  const clean = (s) => s.trim().replace(/^(the|a|an)\s+/i, "");
+  return { from: clean(m[1]), to: clean(m[2]) };
+}
+
 /** Everything at once. */
 export function readIntent(text, { nowMs = Date.now(), zoneOffsetMin = 0 } = {}) {
   const task = readTask(text);
@@ -201,6 +225,7 @@ export function readIntent(text, { nowMs = Date.now(), zoneOffsetMin = 0 } = {})
     vei: readSize(text),
     time: readTime(text, nowMs, zoneOffsetMin),
     followHours: readDuration(text),
+    route: task === "flight" ? readRoute(text) : null,
     text: String(text),
   };
 }
