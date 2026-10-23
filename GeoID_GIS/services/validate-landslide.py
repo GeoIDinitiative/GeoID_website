@@ -194,7 +194,7 @@ def main():
     F.FILLS["lithology"]["cells"] = int(lith_gap.sum())
     entry = {
         "id": "landslide-susceptibility",
-        "name": "Landslide susceptibility (Recipe A, ranked classes)",
+        "name": "Landslide susceptibility — Recipe A weighted overlay (superseded)",
         "hazard": "landslide",
         "product": "ni-prototype/data/ni_landslide_susceptibility_quantile.tif (NI), validated on Wales",
         "model": {

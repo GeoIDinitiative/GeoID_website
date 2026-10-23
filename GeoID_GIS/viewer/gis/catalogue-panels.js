@@ -29,15 +29,15 @@
 
 import {
   HOMES, MIRRORS, grouped, addDataset, layerForDataset, loadLaunchDefaults,
-} from "./global-data.js?v=20261023-9468c0f";
-import { isParked } from "./parked.js?v=20261023-9468c0f";
-import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20261023-9468c0f";
-import { holdLaunch } from "./launch-ready.js?v=20261023-9468c0f";
-import { mathsFor } from "./equations.js?v=20261023-9468c0f";
+} from "./global-data.js?v=20261024-5c27662";
+import { isParked } from "./parked.js?v=20261024-5c27662";
+import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20261024-5c27662";
+import { holdLaunch } from "./launch-ready.js?v=20261024-5c27662";
+import { mathsFor } from "./equations.js?v=20261024-5c27662";
 import { bandOf, bandRows, bandSymbology, describeFilter, magOf }
-  from "./seismic-magnitude.js?v=20261023-9468c0f";
+  from "./seismic-magnitude.js?v=20261024-5c27662";
 import { filterVolcanoes, yearRankOf, yearWords, DEFAULT_YEAR_RANK }
-  from "./volcano-filter.js?v=20261023-9468c0f";
+  from "./volcano-filter.js?v=20261024-5c27662";
 
 const byId = (id) => document.getElementById(id);
 
@@ -519,6 +519,64 @@ const TILED = {
       const layer = mod.layerNamed(mod.AREA_NAME);
       if (layer) window.GeoIDImportManager?.removeLayer?.(layer.id);
       sayIn("flood-ml-status")("");
+    },
+  }],
+  // Hazards ▸ Landslides: the random forest that replaced Recipe A's weighted
+  // overlay (AUC 0.53 held out). Two tiers, as the flood forest has.
+  "landslide": [{
+    id: "landslide-ml-global",
+    group: "Susceptibility (machine learning)",
+    label: "Landslide susceptibility — global (random forest, 0.1°)",
+    title: "Where ground is prone to fail, 60°S to 84°N: a random forest on BGS and NASA landslide inventories, "
+      + "with terrain, relief, lithology, land cover, soil and the rain climate. Validated region by region — the "
+      + "numbers are in the Analysis Hub's Models tab.",
+    info: {
+      summary: "Trained on inventoried landslides (BGS National Landslide Database for Great Britain, NASA's "
+        + "Global Landslide Catalog elsewhere) against pseudo-absences drawn near the reports. Each region is "
+        + "scored by a forest that never saw it. P(landslide) is RELATIVE, not an annual chance; NASA's export "
+        + "terms are still to be confirmed for commercial use.",
+      citation: "Landslides: BGS NLD (OGL v3, © UKRI); NASA Global Landslide Catalog. Lithology: GLiM 0.5° "
+        + "(Hartmann & Moosdorf 2012, CC BY 3.0). Heights: Mapzen Terrain Tiles. Land cover: Esri / Impact "
+        + "Observatory (CC BY 4.0). Soil: Pelletier et al. (2016). Rain: NOAA CPC",
+    },
+    ready: () => true,
+    layerOf: () => (window.GeoIDImportManager?.getLayers?.() || [])
+      .find((l) => l.name === "Landslide susceptibility — global (random forest).tif") || null,
+    load: async () => {
+      const mod = await import(`./landslide-ml-run.js${new URL(import.meta.url).search}`);
+      return mod.showGlobal({ onProgress: sayIn("landslide-status") });
+    },
+    unload: async () => {
+      const mod = await import(`./landslide-ml-run.js${new URL(import.meta.url).search}`);
+      const layer = mod.layerNamed(mod.GLOBAL_NAME);
+      if (layer) window.GeoIDImportManager?.removeLayer?.(layer.id);
+      sayIn("landslide-status")("");
+    },
+  }, {
+    id: "landslide-ml-area",
+    group: "Susceptibility (machine learning)",
+    label: "Landslide susceptibility — here (random forest, 250 m)",
+    title: "The landslide forest at 250 m over the view or your drawn study area (up to 1.5° across), computed in "
+      + "the page from the inputs it was trained on. Validated where the inventories are dense: Great Britain and "
+      + "North America.",
+    info: {
+      summary: "The fine tier, trained on 0.5° windows round slides located within 100 m. Elsewhere it is an "
+        + "extrapolation, and the Models tab says which regions could not be scored.",
+      citation: "As the global row",
+    },
+    settings: "landslide-ml-controls",
+    ready: () => true,
+    layerOf: () => (window.GeoIDImportManager?.getLayers?.() || [])
+      .find((l) => l.name === "Landslide susceptibility — here (random forest, 250 m).tif") || null,
+    load: async () => {
+      const mod = await import(`./landslide-ml-run.js${new URL(import.meta.url).search}`);
+      return mod.showArea({ onProgress: sayIn("landslide-ml-status") });
+    },
+    unload: async () => {
+      const mod = await import(`./landslide-ml-run.js${new URL(import.meta.url).search}`);
+      const layer = mod.layerNamed(mod.AREA_NAME);
+      if (layer) window.GeoIDImportManager?.removeLayer?.(layer.id);
+      sayIn("landslide-ml-status")("");
     },
   }],
   /**
