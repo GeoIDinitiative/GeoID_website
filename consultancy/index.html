@@ -1,0 +1,1301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; script-src 'self' https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https:; media-src 'self' data: blob: https://data.geoidinitiative.com; connect-src 'self' https://data.geoidinitiative.com https://auth.geoidinitiative.com https://social.geoidinitiative.com https://formspree.io https://cloudflareinsights.com; frame-src 'self' https://docs.google.com; form-action 'self' https://formspree.io https://buy.stripe.com https://docs.google.com; upgrade-insecure-requests">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="description" content="Focused geohazard assessments from the GeoID team: landslide, flood, volcanic, seismic and glacial hazard studies, scoped to one question and delivered with the method, assumptions and uncertainty stated.">
+  <title>Consultancy | Focused Geohazard Assessments</title>
+  <link rel="canonical" href="https://geoidinitiative.com/consultancy/">
+  <script type="application/ld+json" data-breadcrumb>
+  {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    "itemListElement": [
+      {
+        "@type": "ListItem",
+        "position": 1,
+        "name": "Home",
+        "item": "https://geoidinitiative.com/"
+      },
+      {
+        "@type": "ListItem",
+        "position": 2,
+        "name": "About",
+        "item": "https://geoidinitiative.com/about/"
+      },
+      {
+        "@type": "ListItem",
+        "position": 3,
+        "name": "Consultancy",
+        "item": "https://geoidinitiative.com/consultancy/"
+      }
+    ]
+  }
+  </script>
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="GeoID Initiative">
+  <meta property="og:url" content="https://geoidinitiative.com/consultancy/">
+  <meta property="og:title" content="Consultancy | Focused Geohazard Assessments">
+  <meta property="og:description" content="Focused geohazard assessments from the GeoID team, with the method, assumptions and uncertainty stated.">
+  <meta property="og:image" content="https://geoidinitiative.com/assets/social/consultancy.jpg">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="A steaming volcanic crater floor during fieldwork">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Consultancy | Focused Geohazard Assessments">
+  <meta name="twitter:description" content="Focused geohazard assessments from the GeoID team, with the method, assumptions and uncertainty stated.">
+  <meta name="twitter:image" content="https://geoidinitiative.com/assets/social/consultancy.jpg">
+  <meta name="twitter:image:alt" content="A steaming volcanic crater floor during fieldwork">
+  <link rel="icon" type="image/png" href="/assets/GeoID_mark.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="preload" as="font" type="font/woff2" crossorigin href="https://fonts.gstatic.com/s/archivo/v25/k3kPo8UDI-1M0wlSV9XAw6lQkqWY8Q82sLydOxI.woff2">
+  <link rel="preload" as="font" type="font/woff2" crossorigin href="https://fonts.gstatic.com/s/inter/v20/UcC73FwrK3iLTeHuS_nVMrMxCp50SjIa1ZL7.woff2">
+  <!-- font link consolidated by v2 skin -->
+  <link rel="stylesheet" href="/styles/shared.css?v=20261023-b1f251a">
+  <style>
+    /* ── Page-level overrides ── */
+    .page-wrap { padding-top: var(--nav-h); }
+
+    .page-utility {
+      position: sticky;
+      top: var(--nav-h);
+      z-index: 90;
+      border-radius: 0;
+      border-left: none;
+      border-right: none;
+      border-top: none;
+      padding: 0.45rem 1.5rem;
+      margin-bottom: 1.25rem;
+      justify-content: center;
+    }
+
+    .page-jump { justify-content: center; width: 100%; }
+
+    .page-jump a {
+      border: none;
+      background: none;
+      border-radius: 0.5rem;
+      font-family: "Public Sans", sans-serif;
+      font-size: 12px;
+      font-weight: 500;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+      padding: 0.34rem 0.68rem;
+    }
+
+    .page-jump a:hover {
+      color: var(--text);
+      background: rgba(var(--accent-rgb), 0.08);
+      border-color: transparent;
+    }
+
+    /* Shared frame for every top-level tile on this page. */
+    .c-tile {
+      position: relative;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 1.35rem;
+      background: var(--panel);
+      box-shadow: var(--shadow);
+      margin-bottom: var(--u-section-gap, 4rem);
+    }
+
+    .c-title {
+      font-family: "Archivo", system-ui, sans-serif;
+      font-size: clamp(1.9rem, 3.6vw, 3rem);
+      font-weight: 700;
+      letter-spacing: -0.035em;
+      line-height: 1.06;
+      color: var(--text);
+      margin: 0 0 1.1rem;
+      text-wrap: balance;
+    }
+
+    .c-lead {
+      color: var(--muted);
+      line-height: 1.75;
+      max-width: 46rem;
+      margin: 0;
+    }
+
+    /* ── Hero — fieldwork photo, availability, the four facts ── */
+    .hero-tile {
+      min-height: 34rem;
+      display: flex;
+      align-items: flex-end;
+    }
+
+    .hero-bg {
+      position: absolute;
+      inset: 0;
+      background: url('/assets/opt/fieldwork.webp') center 40% / cover no-repeat;
+      opacity: 0.8;
+    }
+
+    .hero-overlay {
+      position: absolute;
+      inset: 0;
+      background:
+        linear-gradient(180deg, rgba(8,0,20,0.05) 0%, rgba(8,0,20,0.55) 55%, rgba(8,0,20,0.94) 100%),
+        linear-gradient(90deg, rgba(8,0,20,0.80) 0%, rgba(8,0,20,0.35) 45%, rgba(8,0,20,0) 75%);
+    }
+
+    .hero-content {
+      position: relative;
+      z-index: 2;
+      width: 100%;
+      padding: clamp(2rem, 5vw, 4rem) clamp(1.5rem, 4vw, 3.5rem) clamp(1.75rem, 3vw, 2.5rem);
+    }
+
+    .avail {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.55rem;
+      padding: 0.38rem 0.85rem;
+      border: 1px solid rgba(94, 230, 160, 0.45);
+      border-radius: 999px;
+      background: rgba(94, 230, 160, 0.08);
+      color: #8ff0bf;
+      font-family: "Public Sans", sans-serif;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+    .avail-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: #5ee6a0;
+      box-shadow: 0 0 0 0 rgba(94, 230, 160, 0.6);
+      animation: avail-pulse 2.4s ease-out infinite;
+    }
+    @keyframes avail-pulse {
+      0% { box-shadow: 0 0 0 0 rgba(94, 230, 160, 0.55); }
+      70%, 100% { box-shadow: 0 0 0 9px rgba(94, 230, 160, 0); }
+    }
+    @media (prefers-reduced-motion: reduce) { .avail-dot { animation: none; } }
+
+    .hero-content h1 {
+      font-family: "Archivo", system-ui, sans-serif;
+      font-size: clamp(2.3rem, 5.6vw, 4.4rem);
+      font-weight: 700;
+      line-height: 1.02;
+      letter-spacing: -0.035em;
+      color: var(--text);
+      margin: 1.1rem 0 1rem;
+      max-width: 15ch;
+    }
+    .hero-content h1 span { color: var(--accent); }
+
+    .hero-content > p {
+      color: rgba(236, 232, 248, 0.82);
+      font-size: 1.06rem;
+      line-height: 1.7;
+      max-width: 40rem;
+      margin: 0;
+    }
+
+    .hero-actions {
+      display: flex;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+      margin-top: 1.6rem;
+    }
+
+    .c-facts {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 1px;
+      margin-top: clamp(2rem, 4vw, 3rem);
+      background: var(--line);
+      border: 1px solid var(--line);
+      border-radius: 0.9rem;
+      overflow: hidden;
+    }
+    .c-fact {
+      background: rgba(8, 0, 20, 0.72);
+      backdrop-filter: blur(10px);
+      padding: 1rem 1.15rem;
+    }
+    .c-fact strong {
+      display: block;
+      font-family: "Archivo", system-ui, sans-serif;
+      font-size: 1rem;
+      letter-spacing: -0.01em;
+      color: var(--text);
+      margin-bottom: 0.2rem;
+    }
+    .c-fact span { color: var(--muted); font-size: 0.86rem; line-height: 1.5; }
+
+    /* ── Split tile: words beside a photo ── */
+    .split {
+      display: grid;
+      grid-template-columns: 1.05fr 1fr;
+      align-items: stretch;
+    }
+    .split.flip { grid-template-columns: 1fr 1.05fr; }
+    .split.flip .split-media { order: -1; }
+    .split-body { padding: clamp(2rem, 4vw, 3.5rem) clamp(1.5rem, 4vw, 3rem); }
+    .split-body p { color: var(--muted); line-height: 1.75; margin: 0 0 1rem; }
+    .split-body p:last-child { margin-bottom: 0; }
+    .split-body strong { color: var(--text); }
+    .split-media {
+      position: relative;
+      min-height: 22rem;
+      margin: 0;
+    }
+    .split-media img {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+    .split-media figcaption {
+      position: absolute;
+      left: 0.9rem;
+      bottom: 0.9rem;
+      padding: 0.3rem 0.65rem;
+      border-radius: 0.45rem;
+      background: rgba(8, 0, 20, 0.72);
+      backdrop-filter: blur(8px);
+      color: rgba(236, 232, 248, 0.82);
+      font-size: 0.76rem;
+    }
+
+    .credentials {
+      list-style: none;
+      padding: 0;
+      margin: 1.5rem 0 0;
+      display: grid;
+      gap: 0.7rem;
+    }
+    .credentials li {
+      display: grid;
+      grid-template-columns: 1.4rem 1fr;
+      gap: 0.6rem;
+      color: var(--muted);
+      line-height: 1.6;
+      font-size: 0.94rem;
+    }
+    .credentials li::before {
+      content: "";
+      width: 0.55rem;
+      height: 0.55rem;
+      margin-top: 0.5rem;
+      border-radius: 2px;
+      background: var(--accent);
+      transform: rotate(45deg);
+      justify-self: center;
+    }
+
+    /* ── Assessment types: photo cards ── */
+    .section-pad { padding: clamp(2rem, 4vw, 3.5rem) clamp(1.5rem, 4vw, 3rem); }
+
+    .svc-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: var(--u-card-gap, 1.5rem);
+      margin-top: clamp(2rem, 4vw, 3rem);
+    }
+
+    .svc-card {
+      display: flex;
+      flex-direction: column;
+      border: 1px solid var(--line);
+      border-radius: 0.9rem;
+      overflow: hidden;
+      background: var(--bg-1, rgba(10, 4, 24, 0.9));
+      transition: border-color 0.24s, transform 0.24s, box-shadow 0.24s;
+    }
+    .svc-card:hover {
+      border-color: rgba(var(--accent-rgb), 0.45);
+      transform: translateY(-3px);
+      box-shadow: 0 18px 40px rgba(0, 0, 0, 0.4);
+    }
+
+    .svc-photo {
+      position: relative;
+      aspect-ratio: 16 / 10;
+      overflow: hidden;
+      background: rgba(255, 255, 255, 0.03);
+    }
+    .svc-photo img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+      transition: transform 0.5s ease;
+    }
+    .svc-card:hover .svc-photo img { transform: scale(1.045); }
+
+    .svc-tag {
+      position: absolute;
+      top: 0.75rem;
+      left: 0.75rem;
+      padding: 0.22rem 0.55rem;
+      border-radius: 0.4rem;
+      background: rgba(8, 0, 20, 0.75);
+      backdrop-filter: blur(8px);
+      font-family: "Public Sans", sans-serif;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.12em;
+      color: var(--accent);
+    }
+
+    .svc-body { padding: 1.25rem 1.3rem 1.4rem; display: flex; flex-direction: column; flex: 1; }
+    .svc-body h3 {
+      font-family: "Archivo", system-ui, sans-serif;
+      font-size: 1.15rem;
+      letter-spacing: -0.015em;
+      color: var(--text);
+      margin: 0 0 0.5rem;
+    }
+    .svc-body > p { color: var(--muted); font-size: 0.92rem; line-height: 1.65; margin: 0 0 0.9rem; }
+    .svc-out {
+      list-style: none;
+      margin: auto 0 0;
+      padding: 0.9rem 0 0;
+      border-top: 1px solid var(--line);
+      display: grid;
+      gap: 0.4rem;
+    }
+    .svc-out li {
+      position: relative;
+      padding-left: 1.05rem;
+      color: rgba(236, 232, 248, 0.78);
+      font-size: 0.85rem;
+      line-height: 1.5;
+    }
+    .svc-out li::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: 0.55em;
+      width: 0.4rem;
+      height: 1px;
+      background: var(--accent);
+    }
+
+    /* ── Process: four steps on a hairline rail ── */
+    .steps {
+      list-style: none;
+      margin: 1.75rem 0 0;
+      padding: 0;
+      counter-reset: step;
+      display: grid;
+      gap: 0;
+    }
+    .steps li {
+      counter-increment: step;
+      position: relative;
+      padding: 0 0 1.5rem 3.2rem;
+    }
+    .steps li:last-child { padding-bottom: 0; }
+    .steps li::before {
+      content: counter(step, decimal-leading-zero);
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 2.2rem;
+      height: 2.2rem;
+      display: grid;
+      place-items: center;
+      border: 1px solid rgba(var(--accent-rgb), 0.55);
+      border-radius: 50%;
+      font-family: "Public Sans", sans-serif;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      color: var(--accent);
+      background: var(--bg-1, #0a0418);
+    }
+    .steps li::after {
+      content: "";
+      position: absolute;
+      left: 1.1rem;
+      top: 2.2rem;
+      bottom: 0.1rem;
+      width: 1px;
+      background: var(--line);
+    }
+    .steps li:last-child::after { display: none; }
+    .steps h3 {
+      font-family: "Archivo", system-ui, sans-serif;
+      font-size: 1.05rem;
+      color: var(--text);
+      margin: 0.35rem 0 0.3rem;
+    }
+    .steps p { color: var(--muted); font-size: 0.92rem; line-height: 1.65; margin: 0; }
+
+    /* ── In scope / out of scope ── */
+    .scope-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: var(--u-card-gap, 1.5rem);
+      margin-top: clamp(1.75rem, 3vw, 2.5rem);
+    }
+    .scope-col {
+      border: 1px solid var(--line);
+      border-radius: 0.9rem;
+      padding: 1.4rem 1.5rem;
+      background: rgba(255, 255, 255, 0.015);
+    }
+    .scope-col h3 {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      font-family: "Archivo", system-ui, sans-serif;
+      font-size: 1.1rem;
+      color: var(--text);
+      margin: 0 0 1rem;
+    }
+    .scope-col h3 svg { flex: none; }
+    .scope-col.yes h3 svg { color: #5ee6a0; }
+    .scope-col.no h3 svg { color: #f7bd68; }
+    .scope-col ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.65rem; }
+    .scope-col li { color: var(--muted); font-size: 0.92rem; line-height: 1.6; padding-left: 1rem; position: relative; }
+    .scope-col li::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: 0.62em;
+      width: 0.35rem;
+      height: 0.35rem;
+      border-radius: 50%;
+      background: currentColor;
+      opacity: 0.5;
+    }
+    .scope-col.yes li::before { background: #5ee6a0; opacity: 0.8; }
+    .scope-col.no li::before { background: #f7bd68; opacity: 0.8; }
+
+    .shot {
+      margin: clamp(1.75rem, 3vw, 2.5rem) 0 0;
+      border: 1px solid var(--line);
+      border-radius: 0.9rem;
+      overflow: hidden;
+    }
+    .shot img { display: block; width: 100%; height: clamp(14rem, 32vw, 26rem); object-fit: cover; object-position: center 40%; }
+    .shot figcaption {
+      padding: 0.75rem 1rem;
+      color: var(--muted);
+      font-size: 0.84rem;
+      border-top: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    /* ── Who it is for ── */
+    .who-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 1px;
+      background: var(--line);
+      border: 1px solid var(--line);
+      margin-top: clamp(1.75rem, 3vw, 2.5rem);
+    }
+    .who-card {
+      background: var(--bg-1, #0a0418);
+      padding: 1.5rem 1.4rem;
+      transition: background 0.3s;
+    }
+    .who-card:hover { background: var(--bg-2, #120a26); }
+    .who-card h3 {
+      font-family: "Archivo", system-ui, sans-serif;
+      font-size: 1.02rem;
+      color: var(--text);
+      margin: 0 0 0.45rem;
+    }
+    .who-card p { color: var(--muted); font-size: 0.89rem; line-height: 1.65; margin: 0; }
+
+    /* ── Terms, limitations and data protection ── */
+    .legal-wrap {
+      display: grid;
+      grid-template-columns: 15rem minmax(0, 1fr);
+      gap: clamp(1.5rem, 4vw, 3.5rem);
+      margin-top: clamp(1.75rem, 3vw, 2.5rem);
+    }
+    .legal-toc {
+      position: sticky;
+      top: calc(var(--nav-h) + 4rem);
+      align-self: start;
+      border-left: 1px solid var(--line);
+      padding-left: 1rem;
+    }
+    .legal-toc p {
+      font-family: "Public Sans", sans-serif;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin: 0 0 0.75rem;
+    }
+    .legal-toc ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.4rem; counter-reset: toc; }
+    .legal-toc li { counter-increment: toc; }
+    .legal-toc a {
+      display: grid;
+      grid-template-columns: 1.6rem 1fr;
+      color: var(--muted);
+      font-size: 0.84rem;
+      line-height: 1.4;
+      text-decoration: none;
+      transition: color 0.18s;
+    }
+    .legal-toc a::before {
+      content: counter(toc, decimal-leading-zero);
+      font-family: "Public Sans", sans-serif;
+      font-size: 10.5px;
+      font-weight: 600;
+      color: rgba(var(--accent-rgb), 0.8);
+      padding-top: 0.12rem;
+    }
+    .legal-toc a:hover { color: var(--text); }
+
+    .legal-callout {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 0.9rem;
+      border: 1px solid rgba(247, 189, 104, 0.42);
+      background: rgba(247, 189, 104, 0.07);
+      border-radius: 0.85rem;
+      padding: 1.1rem 1.3rem;
+      margin-bottom: 2rem;
+      color: #f7d39c;
+      font-size: 0.94rem;
+      line-height: 1.65;
+    }
+    .legal-callout svg { color: #f7bd68; margin-top: 0.15rem; }
+    .legal-callout strong { color: #ffe2b3; }
+
+    .clause {
+      scroll-margin-top: calc(var(--nav-h) + 4rem);
+      padding: 1.6rem 0;
+      border-top: 1px solid var(--line);
+    }
+    .clause:first-of-type { border-top: none; padding-top: 0; }
+    .clause h3 {
+      display: flex;
+      gap: 0.8rem;
+      align-items: baseline;
+      font-family: "Archivo", system-ui, sans-serif;
+      font-size: 1.12rem;
+      letter-spacing: -0.01em;
+      color: var(--text);
+      margin: 0 0 0.75rem;
+    }
+    .clause h3 span {
+      font-family: "Public Sans", sans-serif;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      color: var(--accent);
+    }
+    .clause p, .clause li { color: var(--muted); font-size: 0.93rem; line-height: 1.75; }
+    .clause p { margin: 0 0 0.8rem; }
+    .clause p:last-child { margin-bottom: 0; }
+    .clause ul { list-style: none; margin: 0.3rem 0 0.9rem; padding: 0; }
+    .clause li { position: relative; margin-bottom: 0.35rem; padding-left: 1.1rem; }
+    .clause li::before {
+      content: "";
+      position: absolute;
+      left: 0.1rem;
+      top: 0.8em;
+      width: 0.4rem;
+      height: 1px;
+      background: var(--accent);
+    }
+    .clause strong { color: rgba(236, 232, 248, 0.92); }
+    .clause a { color: var(--accent); text-decoration: none; }
+    .clause a:hover { text-decoration: underline; }
+
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 0.5rem 0 1rem;
+      font-size: 0.88rem;
+    }
+    .data-table th, .data-table td {
+      text-align: left;
+      vertical-align: top;
+      padding: 0.65rem 0.75rem;
+      border-bottom: 1px solid var(--line);
+      color: var(--muted);
+      line-height: 1.55;
+    }
+    .data-table th {
+      font-family: "Public Sans", sans-serif;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--text);
+      background: rgba(255, 255, 255, 0.03);
+    }
+    .table-scroll { overflow-x: auto; }
+
+    .legal-meta { color: var(--muted); font-size: 0.82rem; margin: 0.75rem 0 0; }
+
+    /* ── Closing call to action ── */
+    .cta-tile {
+      min-height: 22rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+    }
+    .cta-bg {
+      position: absolute;
+      inset: 0;
+      background: url('/assets/opt/binevenagh.webp') center 35% / cover no-repeat;
+      opacity: 0.7;
+    }
+    .cta-overlay {
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(ellipse at center, rgba(8,0,20,0.78) 0%, rgba(8,0,20,0.55) 100%);
+    }
+    .cta-content {
+      position: relative;
+      z-index: 2;
+      padding: clamp(2.5rem, 5vw, 4rem) clamp(1.5rem, 4vw, 3rem);
+      max-width: 44rem;
+    }
+    .cta-content p { color: var(--muted); line-height: 1.75; margin: 0 auto; }
+    .cta-content .hero-actions { justify-content: center; }
+    .cta-mail {
+      margin-top: 1.25rem !important;
+      font-size: 0.88rem;
+    }
+    .cta-mail a { color: var(--text); }
+
+    /* ── Footer ── */
+    .site-footer {
+      margin-top: 2.5rem;
+      border-top: 1px solid var(--line);
+      background: rgba(5,10,16,0.7);
+      backdrop-filter: blur(12px);
+      padding: 3rem 0 1.5rem;
+    }
+
+    .footer-inner { max-width: 1840px; margin: 0 auto; padding: 0 1rem; }
+
+    .footer-content {
+      display: grid;
+      grid-template-columns: 2fr repeat(3, 1fr);
+      gap: 3rem;
+      padding-bottom: 2.5rem;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .footer-brand-logo { display: flex; align-items: center; gap: 0.6rem; margin-bottom: 1rem; }
+    .footer-brand-logo img { height: 32px; width: auto; }
+    .footer-brand p { color: var(--muted); font-size: 0.88rem; line-height: 1.68; }
+    .footer-brand p + p { margin-top: 0.75rem; }
+
+    .footer-section h4 {
+      font-family: "Public Sans", sans-serif;
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 1.1rem;
+    }
+
+    .footer-section ul { list-style: none; padding: 0; margin: 0; }
+    .footer-section li { margin-bottom: 0.6rem; }
+    .footer-section a { color: var(--muted); text-decoration: none; font-size: 0.88rem; transition: color 0.18s; }
+    .footer-section a:hover { color: var(--text); }
+
+    .footer-bottom {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 1rem;
+      padding-top: 1.75rem;
+    }
+
+    .footer-bottom p { color: var(--muted); font-size: 0.82rem; }
+
+    .footer-social-links { display: flex; gap: 0.6rem; }
+
+    .footer-social-link {
+      width: 36px; height: 36px;
+      border-radius: 8px;
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,0.03);
+      display: flex; align-items: center; justify-content: center;
+      color: var(--muted); text-decoration: none;
+      transition: color 0.18s, background 0.18s;
+    }
+
+    .footer-social-link:hover { color: var(--cyan); background: var(--cyan-soft); }
+
+    /* ── Responsive ── */
+    @media (max-width: 1080px) {
+      .svc-grid { grid-template-columns: 1fr 1fr; }
+      .who-grid { grid-template-columns: 1fr 1fr; }
+      .c-facts { grid-template-columns: 1fr 1fr; }
+      .footer-content { grid-template-columns: 1fr 1fr; }
+      .legal-wrap { grid-template-columns: 1fr; }
+      .legal-toc { position: static; border-left: none; padding-left: 0; }
+      .legal-toc ol { grid-template-columns: 1fr 1fr; column-gap: 1.5rem; }
+    }
+
+    @media (max-width: 820px) {
+      .split, .split.flip { grid-template-columns: 1fr; }
+      .split.flip .split-media { order: 0; }
+      .split-media { min-height: 16rem; }
+      .scope-grid { grid-template-columns: 1fr; }
+    }
+
+    @media (max-width: 640px) {
+      .svc-grid, .who-grid { grid-template-columns: 1fr; }
+      .c-facts { grid-template-columns: 1fr; }
+      .legal-toc ol { grid-template-columns: 1fr; }
+      .footer-content { grid-template-columns: 1fr; gap: 2rem; }
+      .footer-bottom { flex-direction: column; text-align: center; }
+      .page-utility { display: none !important; }
+      .c-fact { padding: 0.8rem 1rem; }
+    }
+
+    @media print {
+      .site-nav, .page-utility, .status-bar, .hero-bg, .cta-tile, .site-footer, .legal-toc { display: none !important; }
+      .c-tile { box-shadow: none; border-color: #ccc; }
+    }
+  </style>
+  <link rel="stylesheet" href="/styles/v2-site.css?v=20261023-b1f251a">
+  <script src="/scripts/v2-site.js?v=20261023-b1f251a" defer></script>
+  <link rel="stylesheet" href="/styles/skins/synthwave.css">
+  <link rel="stylesheet" href="/styles/site-nav.css?v=20261023-b1f251a">
+  <link rel="stylesheet" href="/styles/site-unify.css?v=20261023-b1f251a">
+</head>
+<body>
+  <nav class="site-nav" role="navigation" aria-label="Primary navigation">
+    <a class="nav-wordmark" href="/" aria-label="GeoID Initiative Home">
+      <img class="nav-brand-icon" src="/assets/GeoID_logo_icon.png" alt="">
+    </a>
+    <ul class="nav-links">
+      <li><a href="/dashboard/">Dashboard</a></li>      <li class="nav-dropdown">
+        <a class="nav-dropdown-toggle" href="/about/">About</a>
+        <div class="nav-dropdown-menu" aria-label="About pages">
+          <a href="/about/">Overview</a>
+          <a href="/about_geohub/">GeoHUB</a>
+          <a href="/team/">Our Team</a>
+          <a href="/consultancy/" class="active" aria-current="page">Consultancy</a>
+          <a href="/get-involved/">Get Involved</a>
+          <a href="/updates/">Journal</a>
+        </div>
+      </li>
+      <li><a href="/"><span class="geohub-word"><span class="geohub-prefix">Geo</span>HUB</span></a></li>
+      <li><a href="/social/">Network</a></li>
+
+      <li><a href="/contact/">Contact</a></li>
+    </ul>
+    <div class="nav-right-logo">
+      <a class="nav-act nav-act-signin" id="nav-membership" href="/sign-in/">Sign in</a>
+      <a class="nav-act nav-act-donate" href="https://buy.stripe.com/dRm3cv1Op4903zb858bV600" target="_blank" rel="noopener noreferrer">Donate</a>
+    </div>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-label="Open navigation menu">☰</button>
+  </nav>
+
+  <div class="page-wrap">
+    <section class="page-utility" aria-label="On this page">
+      <div class="page-jump">
+        <a href="#assessments">Assessments</a>
+        <a href="#process">How it works</a>
+        <a href="#scope">Scope</a>
+        <a href="#who">Who it's for</a>
+        <a href="#terms">Terms &amp; data protection</a>
+        <a href="#enquire">Enquire</a>
+      </div>
+    </section>
+    <div class="page-inner">
+
+      <!-- Hero -->
+      <header class="c-tile hero-tile" id="hero">
+        <div class="hero-bg" role="img" aria-label="A steaming crater floor on Mount Etna during fieldwork"></div>
+        <div class="hero-overlay"></div>
+        <div class="hero-content">
+          <span class="avail"><span class="avail-dot" aria-hidden="true"></span>Taking enquiries for 2026&ndash;27</span>
+          <h1>Focused <span>geohazard</span> assessments</h1>
+          <p>Freelance consultancy from the GeoID team. One site or one region, one question &mdash; landslide, flood, volcanic, seismic or glacial &mdash; answered with a model built for it, and the method, assumptions and uncertainty written down beside every map.</p>
+          <div class="hero-actions">
+            <a class="btn-primary" href="#enquire">Request an assessment</a>
+            <a class="btn-ghost" href="#assessments">What we assess</a>
+            <a class="btn-ghost" href="#terms">Terms &amp; limitations</a>
+          </div>
+          <div class="c-facts">
+            <div class="c-fact"><strong>Scoped first</strong><span>A free scoping call, then a fixed-fee written proposal</span></div>
+            <div class="c-fact"><strong>Desk or field</strong><span>Desk-based by default; site visits by agreement</span></div>
+            <div class="c-fact"><strong>Open method</strong><span>Every assumption and data source listed in the report</span></div>
+            <div class="c-fact"><strong>UK &amp; international</strong><span>Based in Northern Ireland; remote delivery worldwide</span></div>
+          </div>
+        </div>
+      </header>
+
+      <!-- Why -->
+      <section class="c-tile split" id="why">
+        <div class="split-body">
+          <h2 class="c-title">Specialist modelling, sized to the question</h2>
+          <p>Most hazard questions don't need a year-long study. They need someone who can find the right data, choose a method that fits it, run it properly, and say plainly how far the answer can be trusted. That is what a focused assessment is.</p>
+          <p>The work draws on the same tools that run <strong>GeoHUB</strong> &mdash; its catalogues, its terrain and geology, and its six hazard models &mdash; and, where the question calls for it, on <strong>finite-element modelling with the GALES solver</strong>, the code behind the Etna magma-dynamics research.</p>
+          <ul class="credentials">
+            <li>Led by Owen McCluskey, computational geoscientist (PhD, University of Pisa / INGV)</li>
+            <li>Finite-element modelling of magma dynamics, glaciology and volcanogenic floods</li>
+            <li>Regional landslide and flood screening validated against mapped inventories</li>
+            <li>Every deliverable reproducible: data, parameters and code versions recorded</li>
+          </ul>
+        </div>
+        <figure class="split-media">
+          <img src="/assets/opt/binevenagh.webp" alt="The basalt escarpment of Binevenagh above farmland in Northern Ireland" loading="lazy" decoding="async">
+          <figcaption>Binevenagh escarpment, Northern Ireland</figcaption>
+        </figure>
+      </section>
+
+      <!-- Assessment types -->
+      <section class="c-tile section-pad" id="assessments">
+        <h2 class="c-title">What we assess</h2>
+        <p class="c-lead">Six kinds of focused study. Most engagements are one of these over one area; some combine two where one hazard drives another, such as rainfall-triggered landslides feeding a debris flow.</p>
+        <div class="svc-grid">
+
+          <article class="svc-card">
+            <div class="svc-photo">
+              <img src="/assets/opt/swiss.webp" alt="A debris-flow scar running down an Alpine valley, seen from above" loading="lazy" decoding="async">
+              <span class="svc-tag">01</span>
+            </div>
+            <div class="svc-body">
+              <h3>Landslide &amp; slope stability</h3>
+              <p>Susceptibility mapping and infinite-slope Factor of Safety from terrain, mapped geology and rainfall scenarios, checked against any landslide inventory that exists for the area.</p>
+              <ul class="svc-out">
+                <li>Susceptibility and Factor-of-Safety maps</li>
+                <li>Rainfall-trigger scenarios</li>
+                <li>Validation statistics where an inventory exists</li>
+              </ul>
+            </div>
+          </article>
+
+          <article class="svc-card">
+            <div class="svc-photo">
+              <img src="/assets/opt/hero_flood.webp" alt="A river in flood through a village, seen from the air" loading="lazy" decoding="async">
+              <span class="svc-tag">02</span>
+            </div>
+            <div class="svc-body">
+              <h3>Flood &amp; inundation scenarios</h3>
+              <p>Fluvial and surface-water inundation for chosen discharge or rainfall scenarios over a catchment or a site, with depth and extent mapped and compared with any recorded flood outlines.</p>
+              <ul class="svc-out">
+                <li>Depth and extent maps per scenario</li>
+                <li>Drainage and catchment analysis</li>
+                <li>Exposure of named assets or parcels</li>
+              </ul>
+            </div>
+          </article>
+
+          <article class="svc-card">
+            <div class="svc-photo">
+              <img src="/assets/opt/etna_banner.webp" alt="A lava flow descending the snow-covered flank of Mount Etna" loading="lazy" decoding="async">
+              <span class="svc-tag">03</span>
+            </div>
+            <div class="svc-body">
+              <h3>Volcanic hazard &amp; ashfall</h3>
+              <p>Ash dispersal and deposit thickness from eruption scenarios and real wind fields, lava-flow path screening on terrain, and the eruptive record of the volcano in question.</p>
+              <ul class="svc-out">
+                <li>Ashfall thickness and footprint maps</li>
+                <li>Flow-path and inundation screening</li>
+                <li>Eruptive-history summary</li>
+              </ul>
+            </div>
+          </article>
+
+          <article class="svc-card">
+            <div class="svc-photo">
+              <img src="/assets/opt/etna_seismic.webp" alt="Earthquake hypocentres beneath a volcano shown as a 3D cloud of coloured points" loading="lazy" decoding="async">
+              <span class="svc-tag">04</span>
+            </div>
+            <div class="svc-body">
+              <h3>Seismic hazard context</h3>
+              <p>The instrumental and historical earthquake record around a site, mapped faults, and a published hazard model's ground-motion levels, drawn together for a desk study or planning context.</p>
+              <ul class="svc-out">
+                <li>Catalogue and fault compilation</li>
+                <li>Ground-motion context from published models</li>
+                <li>3D hypocentre visualisation</li>
+              </ul>
+            </div>
+          </article>
+
+          <article class="svc-card">
+            <div class="svc-photo">
+              <img src="/assets/opt/hero_iceland.webp" alt="A braided glacial river running across a gravel plain in Iceland" loading="lazy" decoding="async">
+              <span class="svc-tag">05</span>
+            </div>
+            <div class="svc-body">
+              <h3>Glacial &amp; volcanogenic floods</h3>
+              <p>Outburst-flood and meltwater scenarios from ice-covered volcanoes and glacial lakes: source volumes, routing down the valley, and arrival times at points that matter.</p>
+              <ul class="svc-out">
+                <li>Scenario routing and arrival times</li>
+                <li>Ice and terrain change from public data</li>
+                <li>Sensitivity to source volume</li>
+              </ul>
+            </div>
+          </article>
+
+          <article class="svc-card">
+            <div class="svc-photo">
+              <img src="/assets/opt/mesh.webp" alt="A terrain surface rendered as a finite-element wireframe mesh" loading="lazy" decoding="async">
+              <span class="svc-tag">06</span>
+            </div>
+            <div class="svc-body">
+              <h3>Bespoke numerical modelling</h3>
+              <p>Where a screening model is not enough: a site-specific finite-element model built from the terrain up and run with GALES &mdash; meshing, boundary conditions, parameter study and a written method.</p>
+              <ul class="svc-out">
+                <li>Mesh and model set-up from real terrain</li>
+                <li>Parameter and sensitivity runs</li>
+                <li>Method note suitable for peer review</li>
+              </ul>
+            </div>
+          </article>
+
+        </div>
+      </section>
+
+      <!-- Process -->
+      <section class="c-tile split flip" id="process">
+        <div class="split-body">
+          <h2 class="c-title">How an engagement runs</h2>
+          <p>Four stages, each ending in something you can read before the next begins. Nothing is charged until you have accepted a written proposal.</p>
+          <ol class="steps">
+            <li>
+              <h3>Scoping call</h3>
+              <p>A free conversation about the site, the decision the assessment has to support, and the data that already exists. If a focused assessment is not the right tool, we will say so.</p>
+            </li>
+            <li>
+              <h3>Written proposal</h3>
+              <p>The question, the method, the data, the deliverables, the timetable and a fixed fee &mdash; plus the known limitations of the chosen approach, stated before any work starts.</p>
+            </li>
+            <li>
+              <h3>Data, modelling &amp; checks</h3>
+              <p>Data compiled and reviewed, models built and run, results checked against observations wherever observations exist. You get an interim look at the results before the report is written.</p>
+            </li>
+            <li>
+              <h3>Report &amp; handover</h3>
+              <p>A written report with maps, an assumptions register and an uncertainty statement, the GIS layers, and a walk-through call. A short period for clarification questions is included.</p>
+            </li>
+          </ol>
+        </div>
+        <figure class="split-media">
+          <img src="/assets/opt/learn.webp" alt="A hand writing notes with a pen beside a notebook and coffee cup" loading="lazy" decoding="async">
+          <figcaption>Every stage ends in a written record</figcaption>
+        </figure>
+      </section>
+
+      <!-- Scope -->
+      <section class="c-tile section-pad" id="scope">
+        <h2 class="c-title">What you receive &mdash; and what an assessment is not</h2>
+        <p class="c-lead">A focused assessment is a desk-based, model-led study. It is precise about what it covers and equally precise about what it does not, so that nobody relies on it for something it was never built to do.</p>
+        <div class="scope-grid">
+          <div class="scope-col yes">
+            <h3><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>Included</h3>
+            <ul>
+              <li>A written report: the question, method, data, results and conclusions</li>
+              <li>Hazard maps as figures and as GIS layers (GeoTIFF, GeoPackage or shapefile)</li>
+              <li>An <strong>assumptions register</strong> listing every simplification made</li>
+              <li>An <strong>uncertainty statement</strong>: what the result is sensitive to and by how much</li>
+              <li>A data-source list with licences, versions and access dates</li>
+              <li>An optional GeoHUB project so you can explore the results on the globe</li>
+              <li>A walk-through call and a clarification period after delivery</li>
+            </ul>
+          </div>
+          <div class="scope-col no">
+            <h3><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>Not included unless agreed in writing</h3>
+            <ul>
+              <li>Intrusive site investigation, drilling, sampling or laboratory testing</li>
+              <li>Geotechnical or structural <strong>design</strong>, or sign-off of works</li>
+              <li>A flood risk assessment or other report for <strong>statutory or regulatory submission</strong></li>
+              <li>Certification by a chartered engineer or chartered geologist</li>
+              <li>Real-time monitoring, early warning or emergency advice</li>
+              <li>Insurance, valuation, conveyancing or legal advice</li>
+              <li>Any guarantee that a hazard will or will not occur</li>
+            </ul>
+          </div>
+        </div>
+        <figure class="shot">
+          <img src="/assets/opt/geohub-quakes.webp" alt="The GeoHUB globe showing the global earthquake catalogue with its layer panel" loading="lazy" decoding="async">
+          <figcaption>Results can be handed over as a GeoHUB project, opened on the same globe as the global hazard record.</figcaption>
+        </figure>
+      </section>
+
+      <!-- Who -->
+      <section class="c-tile section-pad" id="who">
+        <h2 class="c-title">Who it's for</h2>
+        <p class="c-lead">Organisations that need a defensible first answer to a hazard question, quickly, from someone who will show their working.</p>
+        <div class="who-grid">
+          <article class="who-card">
+            <h3>Public bodies &amp; NGOs</h3>
+            <p>Screening an area you are responsible for, prioritising where detailed investigation should go, or preparing for a community conversation about risk.</p>
+          </article>
+          <article class="who-card">
+            <h3>Engineering &amp; environmental consultancies</h3>
+            <p>Specialist hazard modelling as a subcontract, with your chartered staff retaining design responsibility and sign-off.</p>
+          </article>
+          <article class="who-card">
+            <h3>Researchers &amp; universities</h3>
+            <p>Modelling support for a project or proposal, numerical work with GALES, or a hazard layer built for a study region.</p>
+          </article>
+          <article class="who-card">
+            <h3>Developers &amp; landowners</h3>
+            <p>An early, desk-based view of the hazards around a site before committing to a full investigation by a chartered practice.</p>
+          </article>
+        </div>
+      </section>
+
+      <!-- Terms, limitations and data protection -->
+      <section class="c-tile section-pad" id="terms">
+        <h2 class="c-title">Terms, limitations &amp; data protection</h2>
+        <p class="c-lead">Please read this section before requesting an assessment. It explains what a modelled hazard assessment can and cannot tell you, who may rely on it, how liability is limited, and how information you share with us is protected. The written proposal or engagement letter for each project sets out the specific terms, and prevails over this page where the two differ.</p>
+
+        <div class="legal-wrap">
+          <nav class="legal-toc" aria-label="Terms contents">
+            <p>Contents</p>
+            <ol>
+              <li><a href="#t-nature">Nature of the service</a></li>
+              <li><a href="#t-models">Models, assumptions &amp; uncertainty</a></li>
+              <li><a href="#t-data">Data we rely on</a></li>
+              <li><a href="#t-advice">Not professional sign-off</a></li>
+              <li><a href="#t-reliance">Use, reliance &amp; validity</a></li>
+              <li><a href="#t-errors">Errors &amp; corrections</a></li>
+              <li><a href="#t-liability">Limitation of liability</a></li>
+              <li><a href="#t-client">Your responsibilities</a></li>
+              <li><a href="#t-ip">Intellectual property</a></li>
+              <li><a href="#t-confidential">Confidentiality</a></li>
+              <li><a href="#t-privacy">Data protection</a></li>
+              <li><a href="#t-fees">Fees &amp; cancellation</a></li>
+              <li><a href="#t-law">Governing law</a></li>
+            </ol>
+          </nav>
+
+          <div class="legal-body">
+            <div class="legal-callout" role="note">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>
+              <div><strong>Every hazard model is a simplification of the ground, and every result carries error.</strong> A GeoID assessment is a reasoned, documented estimate made from the data and methods available at the time. It is not a measurement, a prediction that an event will or will not happen, or a guarantee of safety. Do not use it as the sole basis for decisions affecting life safety, emergency response, construction, or the purchase, sale or insurance of property.</div>
+            </div>
+
+            <div class="clause" id="t-nature">
+              <h3><span>01</span>Nature of the service</h3>
+              <p>Consultancy is provided by <strong>Owen McCluskey, trading as the GeoID Initiative</strong>, a sole trader established in Northern Ireland, United Kingdom (&ldquo;GeoID&rdquo;, &ldquo;we&rdquo;, &ldquo;us&rdquo;), together with any named collaborators set out in the proposal for a given project.</p>
+              <p>Unless the proposal expressly says otherwise, each assessment is a <strong>desk-based, screening-level study</strong>: it uses existing data and numerical or statistical models to estimate hazard. It does not include site investigation, ground truthing, testing of materials, or inspection of structures. The scope of each engagement is limited to the question, area, hazards and scenarios stated in the accepted proposal; matters outside that scope have not been considered.</p>
+            </div>
+
+            <div class="clause" id="t-models">
+              <h3><span>02</span>Models, assumptions &amp; uncertainty</h3>
+              <p>All modelling involves error. Results depend on choices of method, parameters and input data, each of which carries uncertainty, and on simplifications of physical processes that are more complex in reality. In particular, and without limitation:</p>
+              <ul>
+                <li><strong>Resolution.</strong> Terrain models, geological maps, soil and land-cover data have finite resolution and accuracy; features smaller than the data resolution &mdash; a culvert, a retaining wall, a local spring, a thin weak layer &mdash; may not be represented.</li>
+                <li><strong>Parameters.</strong> Material properties (strength, permeability, roughness, density and similar) are usually taken from literature or regional values rather than measured at the site, and real values vary from place to place.</li>
+                <li><strong>Scenarios and probabilities.</strong> Rainfall, discharge, eruption and ground-motion scenarios are chosen assumptions. A return period or exceedance probability describes long-run likelihood, not when an event will occur; an event larger than any scenario modelled can happen.</li>
+                <li><strong>Change over time.</strong> Ground conditions, land use, drainage, vegetation, defences and climate change. Results describe conditions as represented by the data at the time of the assessment.</li>
+                <li><strong>Validation limits.</strong> Where models are checked against recorded events, agreement with past events does not guarantee performance for future ones, and many areas have little or no record to check against.</li>
+                <li><strong>Software.</strong> Models are run in research software, including GeoID's own tools and the GALES solver, which, like all software, may contain undetected defects.</li>
+              </ul>
+              <p>Each report includes an assumptions register and an uncertainty statement setting out the principal assumptions and sensitivities for that study. Results should be read together with them and never quoted without them.</p>
+            </div>
+
+            <div class="clause" id="t-data">
+              <h3><span>03</span>Data we rely on</h3>
+              <p>Assessments rely on third-party datasets (for example national mapping agencies, geological surveys, meteorological services, satellite missions and published catalogues) and on information supplied by you. We select data with care and record its source, version and licence, but we do not control and cannot warrant the accuracy, completeness or currency of third-party data, and we are not responsible for errors in it.</p>
+              <p>Information you provide &mdash; site boundaries, drawings, survey data, records of past events &mdash; is taken to be accurate and complete unless you tell us otherwise. We are not responsible for errors in the assessment that arise from inaccurate, incomplete or withheld information supplied by you or on your behalf.</p>
+            </div>
+
+            <div class="clause" id="t-advice">
+              <h3><span>04</span>Not professional sign-off</h3>
+              <p>Unless the proposal expressly states otherwise, an assessment is <strong>not</strong>:</p>
+              <ul>
+                <li>a geotechnical, structural or civil-engineering design, or approval of any design or works;</li>
+                <li>a report prepared or certified by a chartered engineer or chartered geologist;</li>
+                <li>a site-specific flood risk assessment, ground investigation report or other document prepared for planning, building control or any other statutory or regulatory purpose;</li>
+                <li>a warning or forecast service, or advice for an emergency in progress; or</li>
+                <li>legal, financial, insurance, valuation or conveyancing advice.</li>
+              </ul>
+              <p>Where a decision requires any of these, you should engage an appropriately qualified and insured professional, who may use our assessment as one input under their own professional responsibility. In an emergency, contact the emergency services or civil protection authority for your location.</p>
+            </div>
+
+            <div class="clause" id="t-reliance">
+              <h3><span>05</span>Use, reliance &amp; validity</h3>
+              <p>Each report is prepared for the client named in the proposal and for the purpose stated in it. It may be relied on only by that client, only for that purpose, and only in its entirety &mdash; extracts, individual maps or figures taken out of context may mislead.</p>
+              <p>No other person may rely on the report without our prior written consent. To the extent permitted by law, we accept no responsibility to any third party, and the Contracts (Rights of Third Parties) Act 1999 does not apply. If you share the report, you should make its limitations clear to the recipient.</p>
+              <p>Because conditions and data change, a report reflects the position at its date of issue. Unless the report states a different period, its conclusions should not be relied upon more than <strong>twelve months</strong> after issue, or after any significant change at the site, event, or new data, without being reviewed.</p>
+            </div>
+
+            <div class="clause" id="t-errors">
+              <h3><span>06</span>Errors &amp; corrections</h3>
+              <p>We check our work, but mistakes in data handling, calculation, interpretation or reporting can occur despite reasonable care. If you believe a report contains an error, please tell us in writing as soon as possible and in any event within <strong>ninety days</strong> of delivery.</p>
+              <p>Where we agree that the report contains an error attributable to us and within the agreed scope, we will correct it and reissue the affected parts <strong>at no further cost</strong>, and tell you whether the correction changes any conclusion. If we cannot correct the error, we will refund the fee paid for the affected part of the work. Subject to clause 07, this is our principal remedy for errors in a delivered report.</p>
+              <p>If we discover an error ourselves after delivery that we believe materially affects a conclusion, we will tell you promptly.</p>
+            </div>
+
+            <div class="clause" id="t-liability">
+              <h3><span>07</span>Limitation of liability</h3>
+              <p>We will carry out each engagement with the reasonable skill and care expected of a competent practitioner providing the same kind of service. Beyond that, and to the fullest extent permitted by law:</p>
+              <ul>
+                <li>no warranty is given, express or implied, that a result is accurate or complete, or that it is fit for a purpose not stated in the proposal;</li>
+                <li>our total aggregate liability arising from or in connection with an engagement, whether in contract, tort (including negligence), breach of statutory duty or otherwise, is limited to <strong>the total fees paid for that engagement</strong>, unless a different limit is agreed in writing in the proposal;</li>
+                <li>we are not liable for any loss of profit, revenue, business, contract, opportunity or anticipated savings, for loss of or damage to data, for any loss in property value, or for any indirect or consequential loss; and</li>
+                <li>we are not liable for any loss arising from use of a report for a purpose, by a person, or after a date, outside clause 05, or from decisions taken without the further professional input described in clause 04.</li>
+              </ul>
+              <p><strong>Nothing in these terms limits or excludes liability</strong> for death or personal injury caused by negligence, for fraud or fraudulent misrepresentation, or for any other liability that cannot be limited or excluded under the law of Northern Ireland. If you are a consumer, nothing here affects your statutory rights, including under the Consumer Rights Act 2015.</p>
+              <p>Where professional indemnity insurance is required for a project, the level of cover available is confirmed in the proposal before work begins.</p>
+            </div>
+
+            <div class="clause" id="t-client">
+              <h3><span>08</span>Your responsibilities</h3>
+              <ul>
+                <li>Describe the purpose of the assessment accurately, including any decision it is intended to inform.</li>
+                <li>Provide relevant information you hold, and tell us of anything known about the site that may affect the hazard &mdash; past events, works, drainage changes, local knowledge.</li>
+                <li>Confirm you have the right to share any data you send us, including any personal data within it (see clause 11).</li>
+                <li>Read the assumptions register and uncertainty statement, and seek further professional advice where clause 04 applies.</li>
+              </ul>
+            </div>
+
+            <div class="clause" id="t-ip">
+              <h3><span>09</span>Intellectual property</h3>
+              <p>On payment in full, you receive a non-exclusive, perpetual licence to use, copy and share the report and deliverables for the purpose stated in the proposal. Copyright in the report, and all rights in our methods, models, software, templates and know-how, remain with GeoID. Data you supply remains yours. Third-party data in the deliverables stays subject to its own licence, which the data-source list identifies.</p>
+              <p>We will not publish any report, result or identifying detail of your project without your written consent. We may describe general methods and lessons learned in a form that does not identify you or the site.</p>
+            </div>
+
+            <div class="clause" id="t-confidential">
+              <h3><span>10</span>Confidentiality</h3>
+              <p>We treat everything you share with us, and the results of your assessment, as confidential. We use it only to deliver the engagement and disclose it only to collaborators named in the proposal, who are bound by the same obligations, or where required by law. Information about critical infrastructure or sensitive locations is held with additional care and is never placed in public tools, including the public parts of GeoHUB. A separate non-disclosure agreement can be signed before the scoping call if you prefer.</p>
+            </div>
+
+            <div class="clause" id="t-privacy">
+              <h3><span>11</span>Data protection</h3>
+              <p>We process personal data in accordance with the <strong>UK General Data Protection Regulation</strong> and the <strong>Data Protection Act 2018</strong>. For personal data about you and your staff collected to manage an enquiry or engagement, Owen McCluskey, trading as the GeoID Initiative, is the <strong>data controller</strong>. Our general <a href="/privacy/">Privacy Policy</a> also applies.</p>
+              <div class="table-scroll">
+                <table class="data-table">
+                  <thead>
+                    <tr><th scope="col">What we hold</th><th scope="col">Why</th><th scope="col">Lawful basis</th><th scope="col">How long</th></tr>
+                  </thead>
+                  <tbody>
+                    <tr><td>Names, job titles, email, phone, organisation</td><td>Responding to enquiries, scoping, running the engagement</td><td>Steps before a contract, and performance of the contract</td><td>Enquiries that do not proceed: 12 months</td></tr>
+                    <tr><td>Correspondence, proposals, reports and project records</td><td>Delivering the work, answering later questions, defending claims</td><td>Contract; legitimate interests in keeping a record of professional work</td><td>6 years after completion of the engagement</td></tr>
+                    <tr><td>Invoicing and payment records</td><td>Billing and accounting</td><td>Legal obligation</td><td>As required by tax law (currently up to 7 years)</td></tr>
+                  </tbody>
+                </table>
+              </div>
+              <p><strong>Personal data inside project data.</strong> Site data you send may contain personal data &mdash; property addresses, landowner names, photographs, records of affected households. We ask you to share only what the assessment needs and to remove or pseudonymise personal data where you can. Where we process personal data on your behalf, we act as your <strong>processor</strong>: we process it only on your documented instructions, for the purpose of the engagement, and will sign a data processing agreement meeting Article 28 of the UK GDPR on request. We do not process special category data unless this is agreed in writing beforehand.</p>
+              <p><strong>Security.</strong> Project data is stored on encrypted devices and access-controlled storage, accessed only by the people working on your project, and never sold, shared for marketing, or used to train models for anyone else. We do not carry out automated decision-making about individuals.</p>
+              <p><strong>Transfers.</strong> Some of the service providers we use (for example email and cloud storage) may process data outside the UK. Where they do, we rely on UK adequacy regulations or the International Data Transfer Agreement or Addendum to protect it.</p>
+              <p><strong>Return and deletion.</strong> At the end of an engagement we will return or securely delete data you supplied, at your choice, keeping only what is needed for the project record described above. We will tell you without undue delay, and within 72 hours of becoming aware where the law requires it, of any personal data breach affecting data we hold for you.</p>
+              <p><strong>Your rights.</strong> You may ask to access, correct, erase, restrict or port your personal data, or object to its processing, by emailing <a href="mailto:geoid.initiative@gmail.com">geoid.initiative@gmail.com</a>. We will respond within one month. You also have the right to complain to the Information Commissioner's Office (<a href="https://ico.org.uk/" target="_blank" rel="noopener">ico.org.uk</a>), though we would appreciate the chance to resolve your concern first.</p>
+            </div>
+
+            <div class="clause" id="t-fees">
+              <h3><span>12</span>Fees &amp; cancellation</h3>
+              <p>Fees, payment stages and timetable are set out in each proposal. Scoping calls are free and carry no obligation. Either party may end an engagement by written notice; you will pay for work completed up to that point and receive the work in progress. Changes of scope after acceptance are agreed in writing, with any change to fee or timetable. Timetables depend on timely receipt of data and feedback, and on the availability of third-party data services.</p>
+            </div>
+
+            <div class="clause" id="t-law">
+              <h3><span>13</span>Governing law</h3>
+              <p>These terms and each engagement are governed by the law of Northern Ireland, and the courts of Northern Ireland have jurisdiction. If you are a consumer, this does not take away any right you have to bring proceedings in the courts of the part of the United Kingdom in which you live. Before any formal step, both parties agree to try to settle a disagreement by discussion in good faith.</p>
+              <p class="legal-meta">Last updated: October 2026. See also the site-wide <a href="/disclaimer/">Disclaimer</a> and <a href="/terms/">Terms of Service</a>.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Enquire -->
+      <section class="c-tile cta-tile" id="enquire">
+        <div class="cta-bg" aria-hidden="true"></div>
+        <div class="cta-overlay"></div>
+        <div class="cta-content">
+          <h2 class="c-title">Start with a scoping call</h2>
+          <p>Tell us where the site is, which hazard concerns you, and what decision the answer has to support. We'll reply within a few working days to arrange a call.</p>
+          <div class="hero-actions">
+            <a class="btn-primary" href="mailto:geoid.initiative@gmail.com?subject=Geohazard%20assessment%20enquiry">Email an enquiry</a>
+            <a class="btn-ghost" href="/contact/">Contact form</a>
+            <a class="btn-ghost" href="/team/">Meet the team</a>
+          </div>
+          <p class="cta-mail">Or write to <a href="mailto:geoid.initiative@gmail.com">geoid.initiative@gmail.com</a>. Please don't send personal data or confidential site data until we have agreed how it will be handled.</p>
+        </div>
+      </section>
+
+      <!-- Footer -->
+      <footer class="site-footer">
+        <div class="footer-inner">
+          <div class="footer-content">
+            <div class="footer-brand">
+              <div class="footer-brand-logo">
+                <img src="/assets/GeoID_logo_icon.png" alt="GeoID Logo" loading="lazy" decoding="async">
+              </div>
+              <p>A free hazard GIS on a 3D globe, six modelled hazard maps for members, and the methods behind them published in the open.</p>
+              <p>A non-exclusive, open initiative committed to transparency, open science, and public benefit.</p>
+            </div>
+            <div class="footer-section">              <h4>Navigation</h4>
+              <ul>
+                <li><a href="/about/">Overview</a></li>
+                <li><a href="/">GeoHUB</a></li>
+                <li><a href="/dashboard/">Dashboard</a></li>
+                <li><a href="/about_geohub/#worlds">Ten Worlds</a></li>
+                <li><a href="/membership/">Membership</a></li>
+                <li><a href="/consultancy/">Consultancy</a></li>
+                <li><a href="/get-involved/">Get Involved</a></li>
+                <li><a href="/team/">Our Team</a></li>
+                <li><a href="/contact/">Contact</a></li>
+              </ul>
+            </div>
+            <div class="footer-section">
+              <h4>Resources</h4>
+              <ul>
+                <li><a href="https://www.copernicus.eu/" target="_blank" rel="noopener">Copernicus Programme</a></li>
+                <li><a href="https://earthdata.nasa.gov/" target="_blank" rel="noopener">NASA Earth Data</a></li>
+                <li><a href="https://www.emc.ncep.noaa.gov/emc/pages/numerical_forecast_systems/gfs.php" target="_blank" rel="noopener">GFS NOAA API</a></li>
+              </ul>
+            </div>
+            <div class="footer-section">
+              <h4>Legal</h4>
+              <ul>
+                <li><a href="/privacy/">Privacy Policy</a></li>
+                <li><a href="/terms/">Terms of Service</a></li>
+                <li><a href="/disclaimer/">Disclaimer</a></li>
+                <li><a href="/refund/">Billing &amp; Refunds</a></li>
+              </ul>
+            </div>
+          </div>
+          <div class="footer-bottom">
+            <p>&copy; 2026 GeoID Initiative. Led by Owen McCluskey. All rights reserved.</p>
+            <div class="footer-social-links">
+              <a href="mailto:geoid.initiative@gmail.com" class="footer-social-link" aria-label="Email">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+                  <polyline points="22,6 12,13 2,6"></polyline>
+                </svg>
+              </a>
+            </div>
+          </div>
+        </div>
+      </footer>
+
+    </div>
+  </div>
+
+  <div class="status-bar" role="status">
+    <div class="status-item"><span class="status-dot"></span>Consultancy</div>
+    <span class="status-sep">·</span>
+    <div class="status-item"><span class="status-dot yellow"></span>Taking Enquiries</div>
+    <div class="status-spacer"></div>
+    <div class="status-item">GeoID Initiative</div>
+    <span class="status-sep">·</span>
+    <div class="status-item">About · Consultancy</div>
+  </div>
+
+  <script type="module" src="/scripts/nav-membership.js?v=20261023-b1f251a"></script>
+  <script src="/scripts/site.js?v=20261023-b1f251a"></script>
+<script src="/styles/nav.js?v=20261023-b1f251a" defer></script>
+</body>
+</html>

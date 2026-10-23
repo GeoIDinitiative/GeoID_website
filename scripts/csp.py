@@ -45,7 +45,7 @@ SITE_PAGES = [
     "contact/index.html", "get-involved/index.html", "data/index.html",
     "researchers/index.html", "updates/index.html", "fund.html",
     "privacy/index.html", "terms/index.html", "disclaimer/index.html",
-    "refund/index.html", "sign-in/index.html", "account/index.html", "404.html",
+    "refund/index.html", "consultancy/index.html", "sign-in/index.html", "account/index.html", "404.html",
 ]
 
 # The application: the GeoHUB shell, the GIS viewer, the nine planet viewers
