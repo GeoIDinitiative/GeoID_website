@@ -1,5 +1,5 @@
 /**
- * Air and sea traffic ▸ Flight route risk — a flight's route on the globe, the
+ * Hazards ▸ Exposure ▸ Flight route risk — a flight's route on the globe, the
  * hazards along it integrated into one number, and the profile of where that
  * number comes from.
  *
@@ -450,8 +450,8 @@ export async function assess({ from, to, callsign = null, departMs = Date.now(),
 export function open() {
   const card = byId("flight-risk-card");
   if (!card) return;
-  // The card is nested three sections deep (the toolbox group, Air and sea
-  // traffic, then itself); every one of them has to be unfolded.
+  // The card is nested inside Hazards ▸ Exposure, itself inside the Hazards
+  // group; every enclosing section has to be unfolded.
   for (let n = card; n; n = n.parentElement) if (n.tagName === "DETAILS") n.open = true;
   card.scrollIntoView?.({ block: "start" });
   // Drawn once the unfolded card has its width.

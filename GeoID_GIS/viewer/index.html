@@ -752,36 +752,6 @@
                 <p id="traffic-sea-status" class="compact-copy" style="margin:0.25rem 0 0;opacity:0.75;"></p>
               </div>
             </details>
-            <!-- A flight's route and the hazards along it, integrated.
-                 gis/flight-risk-panel.js (gathering, drawing) over
-                 gis/route-risk.js (the path integral, pinned in Node). -->
-            <details id="flight-risk-card" class="gis-tool-section">
-              <summary>Flight route risk</summary>
-              <div class="gis-tool-body">
-                <p class="compact-copy" style="margin:0 0 0.35rem;opacity:0.75;">The hazards a flight passes through, integrated along its route: active cyclones (GDACS forecast and cone), jet-level turbulence and thunderstorms (GFS), and ash from the last ash model.</p>
-                <datalist id="flight-risk-airports"></datalist>
-                <div class="flight-risk-grid">
-                  <label for="flight-risk-from">From</label>
-                  <input id="flight-risk-from" class="input" list="flight-risk-airports" value="LHR" autocomplete="off" spellcheck="false" placeholder="code, city or airport">
-                  <label for="flight-risk-to">To</label>
-                  <input id="flight-risk-to" class="input" list="flight-risk-airports" value="JFK" autocomplete="off" spellcheck="false" placeholder="code, city or airport">
-                  <label for="flight-risk-depart">Departs (UTC)</label>
-                  <input id="flight-risk-depart" class="input" type="datetime-local">
-                </div>
-                <div class="row">
-                  <label for="flight-risk-cyclones">Show cyclone forecasts</label>
-                  <span class="checkbox-wrap"><input id="flight-risk-cyclones" type="checkbox" checked></span>
-                </div>
-                <div class="gis-btn-row">
-                  <button type="button" id="flight-risk-run" class="button">Assess route</button>
-                  <button type="button" id="flight-risk-live" class="button secondary" title="The aircraft whose card is open: from where it is now to the To airport, or along its track for three hours when To is empty">Selected aircraft</button>
-                  <button type="button" id="flight-risk-clear" class="button secondary">Clear</button>
-                </div>
-                <p id="flight-risk-status" class="compact-copy" style="margin:0.25rem 0 0;opacity:0.75;"></p>
-                <canvas id="flight-risk-chart" height="1" aria-label="Risk along the route: density per km by hazard, and the cumulative integral"></canvas>
-                <div id="flight-risk-summary"></div>
-              </div>
-            </details>
           </div>
         </div>
       </details>
@@ -1013,6 +983,37 @@
                 <p id="exposure-status" class="compact-copy" style="margin-top:0.45rem;"></p>
                 <!-- People exposed: built by gis/exposure-panel.js. -->
                 <div id="exposure-analysis"></div>
+                <!-- Flight route risk: what a flight is exposed to along its route,
+                     the hazards integrated over distance.
+                     gis/flight-risk-panel.js (gathering, drawing) over
+                     gis/route-risk.js (the path integral, pinned in Node). -->
+                <details id="flight-risk-card" class="gis-tool-section">
+                  <summary>Flight route risk</summary>
+                  <div class="gis-tool-body">
+                    <p class="compact-copy" style="margin:0 0 0.35rem;opacity:0.75;">The hazards a flight passes through, integrated along its route: active cyclones (GDACS forecast and cone), jet-level turbulence and thunderstorms (GFS), and ash from the last ash model.</p>
+                    <datalist id="flight-risk-airports"></datalist>
+                    <div class="flight-risk-grid">
+                      <label for="flight-risk-from">From</label>
+                      <input id="flight-risk-from" class="input" list="flight-risk-airports" value="LHR" autocomplete="off" spellcheck="false" placeholder="code, city or airport">
+                      <label for="flight-risk-to">To</label>
+                      <input id="flight-risk-to" class="input" list="flight-risk-airports" value="JFK" autocomplete="off" spellcheck="false" placeholder="code, city or airport">
+                      <label for="flight-risk-depart">Departs (UTC)</label>
+                      <input id="flight-risk-depart" class="input" type="datetime-local">
+                    </div>
+                    <div class="row">
+                      <label for="flight-risk-cyclones">Show cyclone forecasts</label>
+                      <span class="checkbox-wrap"><input id="flight-risk-cyclones" type="checkbox" checked></span>
+                    </div>
+                    <div class="gis-btn-row">
+                      <button type="button" id="flight-risk-run" class="button">Assess route</button>
+                      <button type="button" id="flight-risk-live" class="button secondary" title="The aircraft whose card is open: from where it is now to the To airport, or along its track for three hours when To is empty">Selected aircraft</button>
+                      <button type="button" id="flight-risk-clear" class="button secondary">Clear</button>
+                    </div>
+                    <p id="flight-risk-status" class="compact-copy" style="margin:0.25rem 0 0;opacity:0.75;"></p>
+                    <canvas id="flight-risk-chart" height="1" aria-label="Risk along the route: density per km by hazard, and the cumulative integral"></canvas>
+                    <div id="flight-risk-summary"></div>
+                  </div>
+                </details>
               </div>
             </details>
             <!-- Seismic hazards: built the way the cyclone and volcanic subtabs

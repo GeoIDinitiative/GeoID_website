@@ -5497,7 +5497,7 @@ signature and the written Discussion kept; all 65 hub pages mount.
 
 ## Flight route risk: the hazard field integrated along a route
 
-Air and sea traffic ▸ Flight route risk (`gis/flight-risk-panel.js`, gathering
+Hazards ▸ Exposure ▸ Flight route risk (`gis/flight-risk-panel.js`, gathering
 and drawing) over `gis/route-risk.js` (the maths, pinned by
 `route-risk.test.mjs`). Atlas reaches it as the `flight_risk` tool ("how
 risky is a flight from London to New York today").
@@ -5508,6 +5508,9 @@ risky is a flight from London to New York today").
   is ∫ Σ h ds by the trapezoid rule, in **equivalent km flown at the limit**.
   Per-100 km segment increments, the cumulative curve and the lowest FoS come
   from the same pass.
+- **Where it lives.** Inside the Exposure subtab, under People exposed: a
+  flight's exposure along its route. The infrastructure session's
+  Hazards ▸ Infrastructure subtab sits directly after Exposure.
 - **Capacities** (`CAPACITY`): cyclone 64 kt EXPECTED wind (Gaussian wind
   profile convolved with the cone's position error, σ = r⅔ / √(2 ln 3));
   Richardson number 0.25 on GFS's 50 hPa layers; CAPE 1500 J/kg or a forecast
