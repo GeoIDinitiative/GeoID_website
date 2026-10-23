@@ -301,6 +301,15 @@ startCity(cityKey, {
   lon: params.has("lon") ? +params.get("lon") : undefined,
 });
 setHour(hour);
+// Arrived from GeoHUB's Explorer (or any link with a place): the city menu
+// says so rather than claiming the default city, and a way back is shown.
+if (params.has("lat") && params.has("lon")) {
+  const o = document.createElement("option");
+  o.value = ""; o.textContent = "This place"; o.disabled = true;
+  $("city").prepend(o);
+  $("city").value = "";
+}
+if (params.get("from") === "geohub") $("back-geohub").hidden = false;
 if (params.get("cam")) setCam(params.get("cam"));
 if (params.has("pause")) plane.paused = true;
 requestAnimationFrame(tick);

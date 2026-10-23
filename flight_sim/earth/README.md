@@ -20,6 +20,18 @@ account, no build step.
 URL parameters: `?city=london|catania|newyork|paris|rome|sanfran|chicago|tokyo|hongkong|dubai|sydney|rio`,
 `lat`, `lon`, `alt` (m above ground), `hdg`, `pitch`, `hour` (local solar time), `cam=cockpit`, `pause`.
 
+## In GeoHUB
+
+- **Explorer → Earth Flight → Enter** opens this page at the centre of the
+  globe view, facing the way the view faces, at the view's height clamped to
+  150 m–3 km (or a chosen start height). `← GeoHUB` in the bar goes back.
+- **The globe itself** streams the same buildings when the camera comes down
+  over a city: `GeoID_GIS/viewer/gis/osm-buildings.js` reuses this folder's
+  worker, MVT decoder, extruder and `game/facade.js`. Below 6 km above the
+  drawn ground they load by z14 tile round the camera (16 tiles at most); above
+  8 km they are all unloaded; sun shadows below 4 km. Notes:
+  `GeoID_GIS/docs/notes/globe-rendering.md`, "Streamed 3D buildings".
+
 ## What is reused, and what is new
 
 It is built on the Everest game's machinery rather than a new pipeline:

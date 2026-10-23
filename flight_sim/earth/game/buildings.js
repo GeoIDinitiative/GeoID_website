@@ -31,6 +31,7 @@ import * as THREE from "../../../everest/vendor/three.module.js?v=84ebb99-a7f30c
 import { templateUrl } from "../../../everest/game/tiles.js?v=84ebb99-a7f30c15";
 import { tileLocal, tileNWLocal, localToTile } from "./geo.js?v=1";
 import { curve, getDem, sharedFetch, IMAGERY } from "./terrain.js?v=1";
+import { facade } from "./facade.js?v=1";
 
 export const BUILDINGS = {
   tilejson: "https://tiles.openfreemap.org/planet",
@@ -217,37 +218,6 @@ export class Buildings {
 
   /** Requests still outstanding (tile fetches and worker jobs). */
   pending() { return this.active + this.queue.filter((t) => !t.dead).length + this.jobs.size; }
-}
-
-/* ── Facades ──────────────────────────────────────────────────────────────
-   OSM has no facades, so every wall gets the same honest abstraction: storeys
-   of 3.4 m and window bays of 3 m, dark glass in a pale frame, from the
-   facade metres extrude.js puts in `uv`. The pattern fades to its own average
-   once a bay is smaller than about a pixel and a half, so distant blocks do
-   not shimmer. Below 3 m (the street level, and the sunk foot of the wall)
-   there are no windows. */
-function facade(material) {
-  const prev = material.onBeforeCompile;
-  material.onBeforeCompile = (shader) => {
-    prev(shader);
-    shader.vertexShader = shader.vertexShader
-      .replace("#include <common>", "#include <common>\nvarying vec2 vFacade;")
-      .replace("#include <uv_vertex>", "#include <uv_vertex>\n  vFacade = uv;");
-    shader.fragmentShader = shader.fragmentShader
-      .replace("#include <common>", "#include <common>\nvarying vec2 vFacade;")
-      .replace("#include <color_fragment>", `#include <color_fragment>
-  {
-    vec2 cell = vec2(vFacade.x / 3.0, vFacade.y / 3.4);
-    vec2 f = fract(cell);
-    float win = step(0.22, f.x) * step(f.x, 0.78) * step(0.30, f.y) * step(f.y, 0.80);
-    win *= step(3.0, vFacade.y);
-    vec2 w = fwidth(cell);
-    float fade = clamp(1.0 - max(w.x, w.y) * 1.6, 0.0, 1.0);
-    float k = mix(0.17 * step(3.0, vFacade.y), win * 0.62, fade);
-    diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.13, 0.16, 0.20), k);
-  }`);
-  };
-  return material;
 }
 
 function boxDistance(eye, x, y, z, size) {

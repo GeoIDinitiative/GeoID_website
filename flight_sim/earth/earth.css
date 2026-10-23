@@ -16,6 +16,8 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #0b0f14; col
   align-items: center; padding: 7px 12px; background: var(--ef-glass); border: 1px solid var(--ef-line);
   border-radius: 10px; backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
 .ef-brand { color: var(--ef-ink); font-weight: 700; text-decoration: none; letter-spacing: 0.02em; }
+.ef-back { color: var(--ef-ink); text-decoration: none; padding: 2px 8px; border: 1px solid var(--ef-line); border-radius: 6px; }
+.ef-back:hover { border-color: var(--ef-accent); }
 .ef-title { color: var(--ef-accent); font-weight: 600; margin-right: 6px; }
 .ef-field { display: inline-flex; gap: 6px; align-items: center; color: var(--ef-dim); }
 .ef-field select, .ef-btn { background: rgba(255,255,255,0.06); color: var(--ef-ink); border: 1px solid var(--ef-line);
