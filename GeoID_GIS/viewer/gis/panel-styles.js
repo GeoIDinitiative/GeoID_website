@@ -14,18 +14,21 @@
  */
 
 const STYLE = `
-/* ── "Open Control Centre": the edge tab that brings the panel back ────────
+/* ── "Mission Control": the edge tab that brings the panel back ────────────
    It is the way back into everything, so it should be found at a glance --
    but it sits beside the globe all the time, so it must not tug at the eye.
    Frosted glass in the theme's panel colour, a hairline edge, and a thin
    accent rail along its outer side whose halo BREATHES: 3.6 s a cycle,
    opacity only, on pseudo-elements, so nothing moves and nothing repaints
-   under the globe. Hover slides it out a touch and lights the rail fully.
-   Every planet viewer has this tab and this module; the planets' own
-   pulsing box-shadow animation is switched off in favour of this one. */
+   under the globe. The label is in the theme's display face; the arrow is
+   an upright SVG chevron pointing INTO the screen, the way the panel comes
+   out. Hover slides the tab out a touch and nudges the arrow. Every planet
+   viewer has this tab and this module; each theme restyles it below. */
 :root #nav-tab {
   overflow: visible;
-  padding: 1.35rem 0.62rem 1.25rem;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1.3rem 0.62rem 1.05rem;
   border: 1px solid rgba(255, 255, 255, 0.09);
   border-left: 0;
   border-radius: 0 calc(0.85rem * var(--skin-round, 1)) calc(0.85rem * var(--skin-round, 1)) 0;
@@ -36,14 +39,26 @@ const STYLE = `
   backdrop-filter: blur(14px) saturate(140%);
   box-shadow: 6px 0 22px rgba(0, 0, 0, 0.32);
   color: var(--skin-ink, #eef6ff);
-  font-family: var(--skin-body, "Exo 2", "Segoe UI", sans-serif);
-  font-size: 0.66rem;
-  font-weight: 600;
+  font-family: var(--skin-display, "Orbitron", "Segoe UI", sans-serif);
+  font-size: 0.68rem;
+  font-weight: 700;
   letter-spacing: 0.24em;
   text-shadow: 0 0 10px rgba(var(--nav-accent-rgb), 0.35);
   animation: none;
   translate: 0 0;
   transition: translate 220ms cubic-bezier(0.23, 1, 0.32, 1), color 150ms ease, background-color 150ms ease;
+}
+:root #nav-tab .nav-tab-label { display: block; }
+/* Upright in the vertical tab (a replaced element is not turned with the
+   text), so it points right, at the screen. */
+:root #nav-tab .nav-tab-arrow {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  color: rgb(var(--nav-accent-rgb));
+  filter: drop-shadow(0 0 4px rgba(var(--nav-accent-rgb), 0.85));
+  translate: 0 0;
+  transition: translate 220ms cubic-bezier(0.23, 1, 0.32, 1);
 }
 /* The rail: a 2px line of the accent down the tab's outer edge. */
 :root #nav-tab::before {
@@ -79,15 +94,68 @@ const STYLE = `
     box-shadow: 6px 0 22px rgba(0, 0, 0, 0.32);
     border-color: rgba(255, 255, 255, 0.14);
   }
+  :root #nav-tab:hover .nav-tab-arrow { translate: 2px 0; }
   :root #nav-tab:hover::after { animation: none; opacity: 1; }
 }
 :root #nav-tab:focus-visible { outline: 2px solid rgba(var(--nav-accent-rgb), 0.9); outline-offset: 2px; }
 :root #nav-tab:active { translate: 1px 0; }
-:root:not([data-skin]) #nav-tab, :root[data-skin="pixel"] #nav-tab, :root[data-skin="hud"] #nav-tab { border-radius: 0; }
-:root[data-skin="beige"] #nav-tab { color: #ffffff; --nav-accent-rgb: 255, 255, 255; }
+
+/* Per theme. Default: the game chrome's square corners. */
+:root:not([data-skin]) #nav-tab { border-radius: 0; }
+/* Pixel: square, a hard bevel like its buttons, a blocky arrow. */
+:root[data-skin="pixel"] #nav-tab {
+  border-radius: 0;
+  -webkit-backdrop-filter: none; backdrop-filter: none;
+  background: rgb(var(--skin-panel));
+  box-shadow: inset -3px -3px 0 rgba(0, 0, 0, 0.55), inset 3px 3px 0 rgba(255, 255, 255, 0.14), 4px 0 0 rgba(0, 0, 0, 0.5);
+  letter-spacing: 0.16em;
+}
+:root[data-skin="pixel"] #nav-tab::before { border-radius: 0; }
+:root[data-skin="pixel"] #nav-tab .nav-tab-arrow { stroke-linecap: square; stroke-linejoin: miter; filter: none; }
+/* Vector: black, outlined, nothing filled -- the stroke does the work. */
+:root[data-skin="vector"] #nav-tab {
+  border-radius: 0 0.15rem 0.15rem 0;
+  -webkit-backdrop-filter: none; backdrop-filter: none;
+  background: rgba(0, 0, 0, 0.82);
+  border-color: rgba(var(--skin-chrome-rgb), 0.6);
+  letter-spacing: 0.3em;
+}
+:root[data-skin="vector"] #nav-tab .nav-tab-arrow { color: rgb(var(--skin-data-rgb)); filter: drop-shadow(0 0 5px rgba(var(--skin-data-rgb), 0.9)); }
+/* Outrun: softer corners and a sunset wash behind the glass. */
+:root[data-skin="outrun"] #nav-tab {
+  border-radius: 0 0.9rem 0.9rem 0;
+  background:
+    linear-gradient(180deg, rgba(var(--skin-chrome-rgb), 0.16), rgba(var(--skin-data-rgb), 0.08)),
+    rgba(var(--skin-panel), 0.6);
+}
+:root[data-skin="outrun"] #nav-tab::after { box-shadow: 0 0 0 1px rgba(var(--skin-chrome-rgb), 0.6), 0 0 28px 3px rgba(var(--skin-chrome-rgb), 0.45); }
+/* Beige: the grey bevelled panel, navy ink, and no glow anywhere -- a lit
+   tab on grey reads as a printing fault, as the theme says of its headings. */
+:root[data-skin="beige"] #nav-tab {
+  border: 0;
+  border-radius: 0;
+  -webkit-backdrop-filter: none; backdrop-filter: none;
+  background: rgb(var(--skin-panel));
+  box-shadow: inset -1px -1px 0 #0a0a0a, inset 1px 1px 0 #fdfdfd, inset -2px -2px 0 #808080, inset 2px 2px 0 #dfdfdf;
+  color: #000080;
+  text-shadow: none;
+}
+:root[data-skin="beige"] #nav-tab::after { display: none; }
+:root[data-skin="beige"] #nav-tab::before { display: none; }
+:root[data-skin="beige"] #nav-tab .nav-tab-arrow { color: #000080; filter: none; }
+@media (hover: hover) and (pointer: fine) {
+  :root[data-skin="beige"] #nav-tab:hover { color: #000080; background: rgb(var(--skin-panel)); }
+}
+/* HUD: square, monospaced, amber-cyan instrument ink. */
+:root[data-skin="hud"] #nav-tab {
+  border-radius: 0;
+  font-family: var(--skin-body, "IBM Plex Mono", monospace);
+  letter-spacing: 0.28em;
+}
+
 @media (prefers-reduced-motion: reduce) {
   :root #nav-tab::after { animation: none; opacity: 0.6; }
-  :root #nav-tab, :root #nav-tab:hover { translate: 0 0; }
+  :root #nav-tab, :root #nav-tab:hover, :root #nav-tab:hover .nav-tab-arrow { translate: 0 0; }
 }
 @media (prefers-reduced-transparency: reduce) {
   :root #nav-tab { background: rgb(var(--skin-panel, 22, 9, 51)); -webkit-backdrop-filter: none; backdrop-filter: none; }
