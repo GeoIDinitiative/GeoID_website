@@ -8,7 +8,7 @@
  * words rather than failing somewhere a reader cannot see.
  */
 
-import { toolByName, checkArgs } from "./atlas-tools.js?v=20261023-3c2cf02";
+import { toolByName, checkArgs } from "./atlas-tools.js?v=20261023-d95af1d";
 
 const STAMP = new URL(import.meta.url).search || "";
 
@@ -75,6 +75,23 @@ const RUNNERS = {
         ? `Total factor of safety at the centre of the view over the next 3 days: **${fos.toFixed(2)}**. The Workspace shield reads each risk map for the people there.`
         : "Computed. The Workspace shield reads each risk map for the people there.",
       actions: [],
+    };
+  },
+
+  async infrastructure_exposed(args, { onStatus }) {
+    if (!window.GeoIDInfrastructure) await import(`./infrastructure-panel.js${STAMP}`);
+    const I = window.GeoIDInfrastructure;
+    if (!I?.ask) return { text: "The infrastructure readout is on the Earth globe only.", actions: [] };
+    const out = await I.ask({
+      hazard: args.hazard || "", area: args.area || "",
+      bridges: Boolean(args.bridges), buildings: Boolean(args.buildings), onStatus,
+    });
+    const top = out.summary?.top?.find((i) => i.at);
+    return {
+      text: out.text,
+      actions: top
+        ? [[`Fly to ${top.name || top.type}`, () => I.flyToPoint(top.at[1], top.at[0])]]
+        : [],
     };
   },
 

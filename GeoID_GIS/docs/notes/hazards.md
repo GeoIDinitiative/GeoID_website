@@ -5494,3 +5494,34 @@ app has no risk reader, so the stage list says why it drifts there.
 Verified headless with the reader's readings stubbed (the sandbox reaches no
 WorldPop): built, saved, readings changed → stale banner, rebuilt with the new
 signature and the written Discussion kept; all 65 hub pages mount.
+## Infrastructure exposure (Hazards ▸ Infrastructure)
+
+What a hazard hits besides people. `global-data.js` home `infrastructure`
+holds the settlements, ports (NGA World Port Index), airports, railways
+(baked by `services/bake-infrastructure.py`, not on at launch), the roads,
+urban areas and city outlines (moved from the Vectors tab), the OSM bridges and
+buildings connectors, and the submarine cables (moved from Exposure, which is
+now people only).
+
+- **The engine is `gis/infrastructure.js`, pure**: a hazard is
+  `read(lon, lat)` + a risk-assessment scheme; each feature is classed by the
+  worst reading on it (points at themselves, lines at vertices and segment
+  midpoints with km shared per class, polygons at outline + centre).
+  `gis/infrastructure-panel.js` turns layers into readers: every `riskMaps()`
+  kind, the Atlas ash deposit (on `ASH_SCHEME`, the deposit's own impact
+  classes), any other polygon layer ("inside", one class), or the drawn area.
+- **Cities, ports and airports are read even when not ticked** (small shipped
+  files, fetched once); railways, roads, bridges, buildings and cables only
+  when on the globe, and the readout says which were not.
+- **Atlas**: tool `infrastructure_exposed` (atlas-tools.js), runner calls
+  `window.GeoIDInfrastructure.ask`; the grounded phrase reader
+  `infrastructureCall` runs BEFORE `readIntent`, because "airports under the
+  ash" would otherwise be heard as a request to model an eruption.
+- **OSM bridge sections are merged** (`mergeBridgeSections`): same kind and
+  name, ends within 60 m. Unmerged, Houston read as 4,988 bridges with one
+  BNSF trestle listed nineteen times.
+- **The viewer has no lat/lon `flyTo`** (`viewer.flyTo` is undefined; a call
+  in geoid-mode.js is a silent no-op). `flyToPoint` in infrastructure-panel.js
+  is social-bridge.js's flight through `flyCameraTo`.
+- Verified 2026-10-23 headless against a storm-surge polygon over
+  Houston–Galveston: 5 cities, 8 seaports, 1 airport, plus OSM bridges.

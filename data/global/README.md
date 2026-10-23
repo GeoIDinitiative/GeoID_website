@@ -133,6 +133,38 @@ offline and cannot be taken out by a CORS header going missing on a cache hit.
   full text runs to 1,776 and was 39% of the file; `gvp_url` links each record
   to its own page on volcano.si.edu, which is the citable version.
 
+## Infrastructure — what a hazard footprint hits
+
+| dataset | file | features | source | licence |
+| --- | --- | --- | --- | --- |
+| Seaports | `ports-wpi.geojson` | 3,807 | NGA World Port Index (Pub. 150) | US Government work, public domain |
+| Airports | `airports_10m.geojson` | 893 | Natural Earth 1:10m `ne_10m_airports` | public domain |
+| Cities and towns | `populated_places_10m.geojson` | 7,342 | Natural Earth 1:10m `ne_10m_populated_places_simple` | public domain |
+| Railways | `railroads_10m.geojson` | 25,413 | Natural Earth 1:10m `ne_10m_railroads` | public domain |
+
+```bash
+python3 GeoID_GIS/services/bake-infrastructure.py            # downloads kept in data/global/.infrastructure-work/
+python3 GeoID_GIS/services/bake-infrastructure.py --wpi PATH  # if NGA has moved the CSV
+```
+
+Offered by **Hazards ▸ Infrastructure**, beside the live OpenStreetMap
+bridges, buildings, roads and city outlines and the submarine cables; read
+against hazard footprints by `GeoID_GIS/viewer/gis/infrastructure.js`.
+
+- **Every feature carries `type`** ("Large seaport — coastal, breakwater",
+  "National capital", "Major airport, shared with the military") because the
+  feature card heads itself with that field, and **`rank`** (1 = most
+  important) so the exposure readout can list the biggest first whichever
+  file a feature came from. Both are ours; the source columns they come from
+  are kept beside them (`harbour_size`, `harbour_type`).
+- **The ports keep what a hazard reading asks of a port** -- size, harbour
+  type, shelter, channel depth, the longest vessel taken, and what it handles
+  (containers, oil, LNG, bulk). The WPI's other eighty columns are a
+  mariner's, and are on NGA's record under `wpi_number`.
+- **The railways are thinned to a vertex every 5 km** at 3 decimals: the
+  source is digitised far denser than a 1:10m line can mean, and the full
+  file is 40 MB. 7.7 MB baked -- not on at launch.
+
 ## `ice/` and `ice-sheets.geojson` — the world's glaciers
 
     python3 GeoID_GIS/services/bake-glaciers.py          # ~400 MB down, ~15 min

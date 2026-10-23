@@ -450,6 +450,18 @@ async function grounded(question) {
     const { runTool } = await import(`./atlas-runner.js${STAMP}`);
     return runTool("ash3d", {});
   }
+  // "Which bridges and ports are inside the flood?" -- infrastructure read
+  // against a footprint on the globe (infrastructure-panel.js), before the
+  // intent reader, which would hear "ash" in "airports under the ash" as a
+  // request to model an eruption.
+  {
+    const { infrastructureCall } = await import(`./atlas-tools.js${STAMP}`);
+    const call = infrastructureCall(q);
+    if (call) {
+      const { runTool } = await import(`./atlas-runner.js${STAMP}`);
+      return runTool(call.name, call.args, { onStatus: (m) => { if (statusNode) statusNode.textContent = m; } });
+    }
+  }
   {
     const [{ readIntent }, { callFromIntent }] = await Promise.all([
       import(`./atlas-intent.js${STAMP}`), import(`./atlas-tools.js${STAMP}`),
