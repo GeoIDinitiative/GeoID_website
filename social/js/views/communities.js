@@ -1,10 +1,10 @@
 /** #/communities and #/c/:slug — forums with rules, FAQ, resources, members and events. */
-import * as api from "../api.js?v=20261024-5c27662";
-import { store, refreshMe } from "../store.js?v=20261024-5c27662";
+import * as api from "../api.js?v=20261024-bf9c579";
+import { store, refreshMe } from "../store.js?v=20261024-bf9c579";
 import {
   h, clear, field, input, select, textarea, toast, busy, splitList, errorBox, loading, empty, confirmDialog, extLink, modal, put,
-} from "../dom.js?v=20261024-5c27662";
-import { act, pagedList, postCard, userChip, followButton, tagList, requireSignIn } from "../components.js?v=20261024-5c27662";
+} from "../dom.js?v=20261024-bf9c579";
+import { act, pagedList, postCard, userChip, followButton, tagList, requireSignIn } from "../components.js?v=20261024-bf9c579";
 
 export function renderList(root) {
   const list = h("div", { class: "s-list" }, loading());

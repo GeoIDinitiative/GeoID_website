@@ -29,8 +29,8 @@
  * bake gains it, the row appears with nothing changed here.
  */
 
-import { dataUrl } from "./data-base.js?v=20261024-5c27662";
-import { gridLattice, gridBounds } from "./polar-stereo.js?v=20261024-5c27662";
+import { dataUrl } from "./data-base.js?v=20261024-bf9c579";
+import { gridLattice, gridBounds } from "./polar-stereo.js?v=20261024-bf9c579";
 
 const MANIFEST = "/data/global/ice/cpom/manifest.json";
 const LAYER_PREFIX = "Land ice (CPOM)";
@@ -262,13 +262,17 @@ export function chartSvg(series, choice, { index = null, width = 300, height = 1
     ? `<path d="${path(ipts.map(([t, v, e]) => [t, v + e]))}L${path([...ipts].reverse().map(([t, v, e]) => [t, v - e])).slice(1)}Z" `
       + `fill="${IMBIE_COLOUR}" fill-opacity="0.16" stroke="none"/>`
     : "";
-  const key = [[ALT_COLOUR, "Altimetry estimate (this layer)", ""]]
+  const key = [[ALT_COLOUR, "Altimetry (this layer)", ""]]
     .concat(ipts.length ? [[IMBIE_COLOUR, "IMBIE 2021", ""]] : [])
     .concat(gpts.length ? [[GRAV_COLOUR, "GRACE (CCI)", "4 3"]] : []);
-  const keySvg = key.map(([c, label, dash], i) => {
-    const kx = pad.l + i * 92;
-    return `<line x1="${kx}" x2="${kx + 12}" y1="18" y2="18" stroke="${c}" stroke-width="2"${dash ? ` stroke-dasharray="${dash}"` : ""}/>`
-      + `<text x="${kx + 15}" y="21" font-size="8" fill="currentColor" fill-opacity="0.85">${label}</text>`;
+  // Spaced by label length (about 4.4 px a character at 8 px), not evenly:
+  // even slots put "IMBIE 2021" on top of the altimetry label.
+  let kx = pad.l - 30;
+  const keySvg = key.map(([c, label, dash]) => {
+    const at = kx;
+    kx += 15 + label.length * 4.4 + 12;
+    return `<line x1="${at}" x2="${at + 12}" y1="18" y2="18" stroke="${c}" stroke-width="2"${dash ? ` stroke-dasharray="${dash}"` : ""}/>`
+      + `<text x="${at + 15}" y="21" font-size="8" fill="currentColor" fill-opacity="0.85">${label}</text>`;
   }).join("");
   return `<svg class="cpom-chart" viewBox="0 0 ${width} ${height}" width="100%" role="img" `
     + `aria-label="Mass change in gigatonnes since January 1993, ${s.title}">`

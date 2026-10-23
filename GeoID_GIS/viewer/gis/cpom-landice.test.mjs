@@ -135,7 +135,11 @@ ok("epochLabel: the partial last year keeps its month", epochLabel("202511", { l
   ok("chart: altimetry, IMBIE (line and band) and GRACE, and a marker",
     svg.startsWith("<svg") && (svg.match(/<path/g) || []).length === 4 && /<circle/.test(svg), (svg.match(/<path/g) || []).length);
   ok("chart: labelled in Gt since Jan 1993", /Gt since Jan 1993/.test(svg));
-  ok("chart: a key names the altimetry line and IMBIE apart", /Altimetry estimate \(this layer\)/.test(svg) && /IMBIE 2021/.test(svg));
+  ok("chart: a key names the altimetry line and IMBIE apart", /Altimetry \(this layer\)/.test(svg) && /IMBIE 2021/.test(svg));
+  const xs = [...svg.matchAll(/<text x="([\d.]+)" y="21"[^>]*>([^<]+)</g)].map((m) => [Number(m[1]), m[2]]);
+  ok("chart key labels do not overlap", xs.every(([x, label], i) => i === 0 || x >= xs[i - 1][0] + xs[i - 1][1].length * 4.4),
+    JSON.stringify(xs));
+  ok("chart key fits the chart", xs.length && xs.at(-1)[0] + xs.at(-1)[1].length * 4.4 <= 300, JSON.stringify(xs.at(-1)));
   ok("a basin chart has no IMBIE line (IMBIE is per region)", seriesFor(series, "basin:9").imbie === null);
   ok("niceStep is 1-2-5", niceStep(4000) === 1000 && niceStep(700) === 200 && niceStep(30) === 10);
 }
