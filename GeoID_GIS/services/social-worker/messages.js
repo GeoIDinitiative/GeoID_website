@@ -15,6 +15,7 @@ import {
   fail, now, id, str, int, parse, requireUser, rateLimit, notify, usersById, userByHandle, blockedBetween, avatarUrl,
 } from "./lib.js";
 import { body, all, one, run, param, bool } from "./collab.js";
+import { pushMessage } from "./realtime.js";
 
 const BLOCKED = "You can't message this person.";
 
@@ -170,7 +171,12 @@ async function start(ctx) {
     await env.DB.batch(statements);
     conv = await one(env, "SELECT * FROM conversations WHERE id = ?", convId);
   }
-  if (text || (Array.isArray(b.media) && b.media.length)) await post(env, user, conv, text, b.media);
+  if (text || (Array.isArray(b.media) && b.media.length)) {
+    const sent = await post(env, user, conv, text, b.media);
+    // A reused DM may be open on the other side: push it live (realtime.js).
+    if (env.CHAT) await pushMessage(ctx, conv.id, user.id, { id: sent.id, body: text, created_at: sent.created_at,
+      media: sent.media.map((f) => ({ ...f, url: avatarUrl(env, f.key) })), sender: (await usersById(env, [user.id]))[user.id] });
+  }
   return loadShape(env, user, conv.id);
 }
 
@@ -225,8 +231,11 @@ async function send(ctx) {
   const text = str(b.body, 5000);
   if (!text && !(Array.isArray(b.media) && b.media.length)) fail(400, "Write something.");
   const sent = await post(env, user, conv, text, b.media);
-  return { id: sent.id, body: text, media: sent.media.map((f) => ({ ...f, url: avatarUrl(env, f.key) })), created_at: sent.created_at,
+  const out = { id: sent.id, body: text, media: sent.media.map((f) => ({ ...f, url: avatarUrl(env, f.key) })), created_at: sent.created_at,
     sender: (await usersById(env, [user.id]))[user.id] };
+  // To the members who have it open, over their sockets (realtime.js); a no-op without the binding.
+  await pushMessage(ctx, conv.id, user.id, out);
+  return out;
 }
 
 async function accept(ctx) {

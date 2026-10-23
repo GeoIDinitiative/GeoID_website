@@ -7,8 +7,10 @@ import {
 } from "../dom.js";
 import {
   avatar, followButton, messageDialog, reportDialog, act, pagedList, postCard, tagList, requireSignIn,
+  affiliationBadge, mentoringBadge,
 } from "../components.js";
 import { createMap } from "../mapcore.js";
+import { mentoringRequestDialog } from "./settings.js";
 
 const AVAIL = { open: "Open to collaborate", limited: "Limited availability", closed: "Not taking on collaborations" };
 // Both lists are the Worker's own values (profiles.js JOB_STATUS, ITEM_KINDS);
@@ -46,6 +48,7 @@ export async function render(root, { params, query }) {
       h("a", { class: "btn-ghost", href: "#/settings" }, "Settings"));
   } else if (!rel.blocked) {
     put(actions, followButton("user", u.handle, rel.following),
+      u.mentoring ? h("button", { type: "button", class: "btn-ghost s-btn-sm", onClick: () => mentoringRequestDialog(u) }, "Ask for mentoring") : null,
       h("button", { type: "button", class: "btn-ghost s-btn-sm", onClick: () => messageDialog([u.handle]) }, "Message"),
       h("button", { type: "button", class: "btn-ghost s-btn-sm", onClick: () => act(async () => {
         if (!(await confirmDialog(`Block @${u.handle}?`, "Neither of you will see the other's posts or be able to message. Follows both ways are removed. They are not told.", "Block"))) return;
@@ -74,6 +77,7 @@ export async function render(root, { params, query }) {
         h("h1", { class: "s-h1", text: u.name || u.handle }),
         h("p", { class: "s-muted" }, `@${u.handle}`, u.institution ? ` · ${u.institution}` : "", u.location ? ` · ${u.location}` : ""),
         u.headline ? h("p", { class: "s-headline", text: u.headline }) : null,
+        u.affiliation || u.mentoring ? h("p", { class: "s-labels" }, affiliationBadge(u.affiliation), mentoringBadge(u)) : null,
         h("p", { class: "s-muted" }, `${counts.followers || 0} followers · ${counts.following || 0} following · ${counts.posts || 0} posts`,
           rel.followed_by ? " · follows you" : ""),
         actions)),
@@ -105,6 +109,8 @@ function facts(u) {
     u.orcid_verified
       ? h("p", {}, h("span", { class: "s-verified", text: "Verified" }), " ORCID iD ", u.orcid ? extLink(`https://orcid.org/${u.orcid}`, u.orcid) : "")
       : u.orcid ? h("p", {}, h("span", { class: "s-selfdecl", text: "Self-declared" }), " ORCID iD ", extLink(`https://orcid.org/${u.orcid}`, u.orcid)) : h("p", { class: "s-muted", text: "No ORCID iD given." }),
+    u.affiliation ? h("p", {}, affiliationBadge(u.affiliation)) : null,
+    u.institution ? h("p", {}, h("span", { class: "s-selfdecl", text: "Self-declared" }), ` Institution: ${u.institution}`) : null,
     u.website ? h("p", {}, extLink(u.website, "Website")) : null,
     u.linkedin ? h("p", {}, extLink(u.linkedin, "LinkedIn")) : null,
     u.plan ? h("p", { class: "s-muted", text: `GeoID ${u.plan}` }) : null,
@@ -131,7 +137,33 @@ function portfolio(items) {
         h("span", { class: "s-kind", text: it.kind || "item" }),
         it.verified ? h("span", { class: "s-verified", text: "Verified" }) : h("span", { class: "s-selfdecl", text: "Self-declared" }),
         it.doi ? extLink(`https://doi.org/${it.doi}`, `doi:${it.doi}`) : null,
-        it.url ? extLink(it.url, "Link") : null)))));
+        it.url ? extLink(it.url, "Link") : null),
+      checkEvidence(it.verification)))));
+}
+
+/**
+ * What a publication check compared (verify.js), so a "Verified" tick can be
+ * read rather than trusted. Shown for any check that got an answer.
+ */
+export function checkEvidence(v) {
+  if (!v || v.outcome === "error") return null;
+  const outcome = {
+    verified: "The DOI resolves and the member's name matches an author on the record.",
+    "name-mismatch": "The DOI resolves, but no author on the record matches the member's name.",
+    "not-found": "Crossref has no record of this DOI.",
+  }[v.outcome] || v.outcome;
+  return h("details", { class: "s-evidence" },
+    h("summary", {}, "What was checked"),
+    h("p", {}, outcome),
+    h("dl", { class: "s-evidence-list" },
+      h("dt", {}, "Source"), h("dd", {}, `Crossref, ${dateText(v.checked_at)}`),
+      h("dt", {}, "DOI"), h("dd", {}, v.doi),
+      v.title ? [h("dt", {}, "Record title"), h("dd", {}, v.title)] : null,
+      v.journal || v.year ? [h("dt", {}, "Published"), h("dd", {}, [v.journal, v.year].filter(Boolean).join(", "))] : null,
+      h("dt", {}, "Name compared"), h("dd", {}, v.name_checked || "—"),
+      v.matched_author ? [h("dt", {}, "Matching author"), h("dd", {}, v.matched_author)] : null,
+      !v.matched && v.authors?.length ? [h("dt", {}, "Authors on record"), h("dd", {}, v.authors.slice(0, 8).join("; "), v.authors.length > 8 ? " …" : "")] : null),
+    h("p", { class: "s-hint", text: "Matched on family name and first initial, ignoring accents." }));
 }
 
 async function reputation(section, handle, badges) {
@@ -252,10 +284,21 @@ function editProfile(root, u, items) {
     items.forEach((it) => put(list, h("li", { class: "s-item" },
       h("strong", {}, it.title), it.year ? ` (${it.year})` : "", " ",
       it.verified ? h("span", { class: "s-verified", text: "Verified" }) : h("span", { class: "s-selfdecl", text: "Self-declared" }),
+      // Publication check (verify.js): Crossref, then the author list against your name.
+      it.doi ? h("button", { type: "button", class: "s-link-btn", onClick: (e) => act(async () => {
+        e.target.disabled = true;
+        try {
+          const out = await api.post(`/v1/me/items/${encodeURIComponent(it.id)}/verify`, {});
+          Object.assign(it, out.item, { verification: out.verification });
+          toast(out.message || "Checked.", out.item?.verified ? "info" : "error");
+          drawItems();
+        } finally { e.target.disabled = false; }
+      }, "edit your profile") }, it.verified ? "Check DOI again" : "Verify DOI") : null,
       h("button", { type: "button", class: "s-link-btn s-danger", onClick: () => act(async () => {
         await api.del(`/v1/me/items/${encodeURIComponent(it.id)}`);
         items.splice(items.indexOf(it), 1); drawItems();
-      }, "edit your profile") }, "Remove"))));
+      }, "edit your profile") }, "Remove"),
+      checkEvidence(it.verification))));
   };
   drawItems();
   const it = {

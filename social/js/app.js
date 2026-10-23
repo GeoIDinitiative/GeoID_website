@@ -9,6 +9,7 @@ import * as api from "./api.js";
 import { store, onMe, refreshMe, setUnread } from "./store.js";
 import { h, clear, errorBox, pollWhileVisible, put } from "./dom.js";
 import { avatar } from "./components.js";
+import { liveSocket } from "./chat.js";
 
 import * as feed from "./views/feed.js";
 import * as compose from "./views/compose.js";
@@ -24,6 +25,9 @@ import * as map from "./views/map.js";
 import * as opps from "./views/opportunities.js";
 import * as mod from "./views/mod.js";
 import * as settings from "./views/settings.js";
+import * as orgs from "./views/orgs.js";
+import * as onboarding from "./views/onboarding.js";
+import * as requests from "./views/requests.js";
 
 const ROUTES = [
   ["/", feed.render, "Feed"],
@@ -53,6 +57,13 @@ const ROUTES = [
   ["/events", opps.renderEvents, "Events"],
   ["/mod", mod.render, "Moderation"],
   ["/settings", settings.render, "Settings"],
+  // Identity & institutions track: orgs.js (#/orgs, #/o/:slug) and onboarding.js (#/welcome).
+  ["/orgs", orgs.render, "Organisations"],
+  ["/o/:slug", orgs.render, "Organisation"],
+  ["/welcome", onboarding.render, "Welcome"],
+  // Collaboration track: requests.js (#/requests, #/requests/:id).
+  ["/requests", requests.render, "Requests"],
+  ["/requests/:id", requests.render, "Request"],
 ].map(([pattern, view, title]) => {
   const names = [];
   const source = pattern.replace(/:([a-z]+)/g, (_, n) => { names.push(n); return "([^/]+)"; });
@@ -69,7 +80,7 @@ function parseHash() {
 // ── Header ─────────────────────────────────────────────────────────────────
 
 const NAV = [
-  ["#/", "Feed", "/"], ["#/map", "Map", "/map"], ["#/people", "People", "/people"],
+  ["#/", "Feed", "/"], ["#/map", "Map", "/map"], ["#/people", "People", "/people"], ["#/orgs", "Organisations", "/orgs"],
   ["#/communities", "Communities", "/communities"], ["#/teams", "Teams", "/teams"], ["#/projects", "Projects", "/projects"],
   ["#/reviews", "Reviews", "/reviews"], ["#/opportunities", "Opportunities", "/opportunities"], ["#/events", "Events", "/events"],
 ];
@@ -127,6 +138,7 @@ function markActive(path) {
     const base = a.dataset.base;
     const on = base === "/" ? path === "/" : path === base || path.startsWith(`${base}/`)
       || (base === "/communities" && path.startsWith("/c/")) || (base === "/teams" && path.startsWith("/t/"))
+      || (base === "/orgs" && path.startsWith("/o/"))
       || (base === "/projects" && path.startsWith("/p/")) || (base === "/reviews" && path.startsWith("/r/"));
     a.classList.toggle("is-active", on);
     if (on) a.setAttribute("aria-current", "page"); else a.removeAttribute("aria-current");
@@ -169,6 +181,27 @@ async function route(main) {
   window.scrollTo(0, 0);
 }
 
+/**
+ * Identity track: a member whose profile is still bare (no headline,
+ * interests or study areas) and who has not finished or skipped the welcome
+ * is sent to #/welcome -- once per tab session, and only when they arrived at
+ * the feed, so a link to a post still opens that post. Whether they skipped
+ * is kept on the server, so it does not nag on another device.
+ */
+async function maybeWelcome() {
+  const u = store.me?.user;
+  if (!u || u.onboarding_done || u.headline || (u.interests || []).length) return;
+  if (parseHash().path !== "/") return;
+  try { if (sessionStorage.getItem("geoid:social-welcomed") === "1") return; } catch (error) { /* storage off: ask the server */ }
+  try {
+    const state = await api.get("/v1/me/onboarding");
+    if (!state?.show) return;
+    try { sessionStorage.setItem("geoid:social-welcomed", "1"); } catch (error) { /* fine */ }
+    // replaceState, not location.hash: no extra hashchange, and Back does not loop.
+    history.replaceState(null, "", "#/welcome");
+  } catch (error) { /* an older Worker without the route: no welcome */ }
+}
+
 async function boot() {
   const app = document.getElementById("social-app");
   if (!app) return;
@@ -185,15 +218,33 @@ async function boot() {
   // A reload of the session from another tab (sign in/out) re-reads who we are.
   document.addEventListener("geoid:membership", () => { refreshMe().then(() => route(main)); });
   window.addEventListener("hashchange", () => route(main));
+  await maybeWelcome();
   route(main);
-  // Unread counts: every 60 s while the tab is visible.
-  pollWhileVisible(async () => {
+  // Unread counts: every 60 s while the tab is visible -- and at once when the
+  // member's own live room says something arrived. ONE socket per tab, here,
+  // whatever page is open; views that care (Messages) hear it as a
+  // "social:unread" event rather than opening a second socket to the same room.
+  const refreshCounts = async () => {
     if (!store.me) return;
     try {
       const me = await api.get("/v1/me");
       setUnread(me?.unread || {});
     } catch (error) { /* the next tick tries again */ }
-  }, 60000);
+  };
+  pollWhileVisible(refreshCounts, 60000);
+  let personal = null;
+  const openPersonal = () => {
+    personal?.stop(); personal = null;
+    if (!store.me) return;
+    let soon = null;
+    personal = liveSocket("/v1/me/live/ticket", (msg) => {
+      if (msg.type !== "unread") return;
+      document.dispatchEvent(new CustomEvent("social:unread", { detail: msg }));
+      clearTimeout(soon); soon = setTimeout(refreshCounts, 400);
+    });
+  };
+  openPersonal();
+  document.addEventListener("geoid:membership", () => refreshMe().then(openPersonal));
 }
 
 boot();

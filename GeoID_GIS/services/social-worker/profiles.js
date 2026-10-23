@@ -12,16 +12,18 @@ import {
   userByHandle, blockedBetween, NOT_BLOCKED, VISIBLE_POSTS, visibleBinds,
   canSeePost, encodeCursor, decodeCursor, notify, audit, rateLimit,
 } from "./lib.js";
+import { identityErasureStatements, identityExport } from "./orgs.js";
+import { verificationsForItems } from "./verify.js";
 
-const ITEM_KINDS = ["publication", "dataset", "education", "experience", "credential", "repository", "award",
+const ITEM_KINDS =["publication", "dataset", "education", "experience", "credential", "repository", "award",
   "fieldwork", "talk", "other"];
 const ITEM_VISIBILITY = ["public", "unlisted", "private"];
-const FOLLOW_TYPES = ["user", "project", "tag", "place", "community", "post"];
+const FOLLOW_TYPES = ["user", "project", "tag", "place", "community", "post", "org"];
 const AVAILABILITY = ["open", "limited", "closed"];
 const JOB_STATUS = ["", "seeking", "hiring", "consulting"];
 const CONTACT = ["anyone", "followers", "nobody"];
 const NOTIFY_KINDS = ["follow", "comment", "reaction", "mention", "invite", "grant", "review", "message",
-  "fork", "verify", "moderation", "badge", "project_update"];
+  "fork", "verify", "moderation", "badge", "project_update", "mentoring"];
 const ORCID_RE = /^\d{4}-\d{4}-\d{4}-\d{3}[\dX]$/;
 
 /** Reject a value outside an enumeration with 400, as CONTRACT.md asks. */
@@ -75,7 +77,8 @@ async function meShape(ctx, user) {
       WHERE tm.user_id = ? AND tm.status = 'active' ORDER BY t.name`,
   ).bind(user.id).all()).results;
   return {
-    user: { ...fullUser(env, fresh), handle_editable: true, notify: parse(fresh.notify_json, {}) },
+    user: { ...fullUser(env, fresh), handle_editable: true, notify: parse(fresh.notify_json, {}),
+      onboarding_done: !!fresh.onboarding_done },
     counts: await countsOf(env, user.id, user),
     unread: { notifications: unreadNotes || 0, messages: unreadMessages || 0 },
     communities,
@@ -217,6 +220,9 @@ async function getUser(ctx) {
     `SELECT * FROM profile_items WHERE user_id = ? ${self ? "" : "AND visibility IN ('public','unlisted')"}
       ORDER BY sort, created_at DESC`,
   ).bind(row.id).all()).results.map(itemShape);
+  // What was checked, beside each checked item (verify.js), so a tick shows its evidence.
+  const checks = await verificationsForItems(env, items.map((it) => it.id));
+  for (const it of items) it.verification = checks[it.id] || null;
   const badges = (await env.DB.prepare(
     "SELECT badge, evidence_json, awarded_at FROM badges WHERE user_id = ? AND revoked_at IS NULL ORDER BY awarded_at",
   ).bind(row.id).all()).results.map((b) => ({ id: b.badge, awarded_at: b.awarded_at, evidence: parse(b.evidence_json, {}) }));
@@ -254,6 +260,10 @@ async function searchUsers(ctx) {
   const region = str(q.get("region"), 60);
   if (region) { where.push("u.regions_json LIKE ? ESCAPE '\\'"); binds.push(likeOf(region)); }
   if (q.get("available") === "1") where.push("u.availability != 'closed'");
+  // Mentors (orgs.js): open to mentoring, optionally on a topic.
+  if (q.get("mentor") === "1") where.push("u.mentoring_open = 1");
+  const mentorTopic = tags([q.get("mentor_topic") || ""])[0];
+  if (mentorTopic) { where.push("EXISTS (SELECT 1 FROM json_each(u.mentoring_topics_json) WHERE value = ?)"); binds.push(mentorTopic); }
   const cursor = decodeCursor(q.get("cursor"));
   if (cursor) { where.push("(u.created_at < ? OR (u.created_at = ? AND u.id < ?))"); binds.push(cursor.at, cursor.at, cursor.id); }
   const rows = (await env.DB.prepare(
@@ -262,7 +272,8 @@ async function searchUsers(ctx) {
   const more = rows.length > PAGE;
   const page = rows.slice(0, PAGE);
   return {
-    items: page.map((r) => ({ ...publicUser(env, r), skills: parse(r.skills_json, []), availability: r.availability })),
+    items: page.map((r) => ({ ...publicUser(env, r), skills: parse(r.skills_json, []), availability: r.availability,
+      mentoring_topics: r.mentoring_open ? parse(r.mentoring_topics_json, []) : [] })),
     next: more ? encodeCursor(page[page.length - 1]) : null,
   };
 }
@@ -342,6 +353,8 @@ async function patchItem(ctx) {
   await rateLimit(ctx, user);
   const row = await ownItem(ctx, user);
   const fields = itemFields(await readJson(ctx.request), row);
+  // A tick belongs to the DOI that was checked (verify.js), not to the entry.
+  if (fields.doi !== undefined && fields.doi !== row.doi) fields.verified = 0;
   const cols = Object.keys(fields);
   if (cols.length) {
     await ctx.env.DB.prepare(`UPDATE profile_items SET ${cols.map((c) => `${c} = ?`).join(", ")} WHERE id = ?`)
@@ -424,6 +437,12 @@ async function resolveTarget(ctx, user, type, rawId, forWrite) {
       if (!post || (forWrite && !(await canSeePost(env, user, post)))) fail(404, "No such post.");
       return { targetId: post.id };
     }
+    case "org": {
+      // An organisation (orgs.js), by slug; removed ones can only be unfollowed.
+      const o = await env.DB.prepare("SELECT id, removed_at FROM orgs WHERE slug = ?").bind(given.toLowerCase()).first();
+      if (!o || (forWrite && o.removed_at)) fail(404, "No such organisation.");
+      return { targetId: o.id };
+    }
     default:
       return fail(400, "Unknown follow type.");
   }
@@ -476,6 +495,9 @@ async function myFollowing(ctx) {
     } else if (f.target_type === "post") {
       const p = await env.DB.prepare("SELECT * FROM posts WHERE id = ?").bind(f.target_id).first();
       if (await canSeePost(env, user, p)) items.push({ type: "post", id: p.id, label: p.title || str(p.body, 80) });
+    } else if (f.target_type === "org") {
+      const o = await env.DB.prepare("SELECT slug, name FROM orgs WHERE id = ? AND removed_at IS NULL").bind(f.target_id).first();
+      if (o) items.push({ type: "org", id: o.slug, label: o.name });
     } else {
       items.push({ type: f.target_type, id: f.target_id, label: f.target_type === "tag" ? `#${f.target_id}` : f.target_id });
     }
@@ -581,6 +603,13 @@ async function exportMe(ctx) {
     messages_sent: await rowsOf(env, "SELECT * FROM messages WHERE sender_id = ?", u),
     notifications: await rowsOf(env, "SELECT * FROM notifications WHERE user_id = ?", u),
     reports_filed: await rowsOf(env, "SELECT * FROM reports WHERE reporter_id = ?", u),
+    // v1.3 identity (orgs.js, verify.js): affiliations, mentoring, publication checks.
+    ...await identityExport(env, u),
+    // v1.3 engagement (mail.js): the email choice and the log of what was mailed.
+    mail_prefs: await rowsOf(env, "SELECT * FROM mail_prefs WHERE user_id = ?", u),
+    mail_log: await rowsOf(env, "SELECT kind, notification_id, status, created_at, sent_at FROM mail_queue WHERE user_id = ?", u),
+    // v1.3 collaboration (requests.js, events.js). Other people by handle only.
+    ...await collabExport(env, u, handles),
   };
   return new Response(JSON.stringify(data, null, 2), {
     status: 200,
@@ -590,6 +619,22 @@ async function exportMe(ctx) {
       "cache-control": "no-store",
     },
   });
+}
+
+/** The caller's collaboration requests, help given, credits, RSVPs and posters, for the export. */
+async function collabExport(env, u, handles) {
+  const contributions = await rowsOf(env,
+    "SELECT id, kind, ref_type, ref_id, post_id, note, credited_by, created_at FROM contributions WHERE user_id = ?", u);
+  const names = await handles(contributions.map((c) => c.credited_by));
+  return {
+    collab_requests: await rowsOf(env, "SELECT * FROM collab_requests WHERE requester_id = ?", u),
+    collab_participation: await rowsOf(env,
+      "SELECT request_id, status, acknowledged_at, created_at, updated_at FROM collab_participants WHERE user_id = ?", u),
+    collab_responses: await rowsOf(env, "SELECT id, request_id, kind, body, created_at FROM collab_responses WHERE author_id = ?", u),
+    contributions: contributions.map(({ credited_by: by, ...c }) => ({ ...c, credited_by: names[by] || null })),
+    event_rsvps: await rowsOf(env, "SELECT post_id, status, show_me, reminded_at, created_at, updated_at FROM event_rsvps WHERE user_id = ?", u),
+    event_posters: await rowsOf(env, "SELECT event_id, post_id, status, note, created_at, decided_at FROM event_posters WHERE submitted_by = ?", u),
+  };
 }
 
 /** Recompute a post's counters from the rows they count. Shared with posts.js. */
@@ -658,6 +703,10 @@ async function eraseMe(ctx) {
     p("DELETE FROM verifications WHERE user_id = ?", u),
     p("DELETE FROM notifications WHERE user_id = ? OR actor_id = ?", u, u),
     p("DELETE FROM rate WHERE user_id = ?", u),
+    // v1.3 identity (orgs.js): affiliations, mentoring requests, publication checks.
+    ...identityErasureStatements(DB, u),
+    p("DELETE FROM mail_queue WHERE user_id = ?", u),
+    p("DELETE FROM mail_prefs WHERE user_id = ?", u),
     p("DELETE FROM post_tags WHERE post_id IN (SELECT id FROM posts WHERE author_id = ?)", u),
     p(`UPDATE posts SET title = '', body = '', media_json = '[]', tags_json = '[]', scene_json = NULL,
          links_json = '[]', sources_json = '[]', method_json = '{}', meta_json = '{}', limitations = '',
@@ -674,6 +723,16 @@ async function eraseMe(ctx) {
     p("DELETE FROM conversation_members WHERE user_id = ?", u),
     p("DELETE FROM reviewers WHERE user_id = ?", u),
     p("UPDATE review_comments SET body = '' WHERE author_id = ?", u),
+    // v1.3 collaboration: their requests are closed and blanked (helpers keep
+    // the credit they were given), their answers, RSVPs, posters and credits go.
+    p(`UPDATE collab_requests SET title = '', detail = '', skills_json = '[]',
+         status = CASE WHEN status = 'completed' THEN status ELSE 'withdrawn' END, updated_at = ? WHERE requester_id = ?`, t, u),
+    p("DELETE FROM collab_participants WHERE user_id = ?", u),
+    p("UPDATE collab_responses SET body = '' WHERE author_id = ?", u),
+    p("DELETE FROM contributions WHERE user_id = ?", u),
+    p("UPDATE comments SET status_note = '' WHERE post_id IN (SELECT id FROM posts WHERE author_id = ?)", u),
+    p("DELETE FROM event_rsvps WHERE user_id = ?", u),
+    p("DELETE FROM event_posters WHERE submitted_by = ?", u),
     p(`UPDATE users SET email = 'erased:' || id, handle = 'erased_' || substr(id, 3, 8), name = 'Former member',
          headline = '', bio = '', institution = '', location = '', website = '', linkedin = '', orcid = '', orcid_verified = 0,
          avatar_key = '', skills_json = '[]', interests_json = '[]', regions_json = '[]', availability = 'closed',

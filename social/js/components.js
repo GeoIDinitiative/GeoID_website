@@ -116,7 +116,36 @@ export function userChip(user, { sub = true } = {}) {
     h("span", { class: "s-user-text" },
       h("span", { class: "s-user-name" }, user.name || user.handle,
         user.orcid_verified ? h("span", { class: "s-tick", title: "ORCID verified", "aria-label": "ORCID verified" }, " ✓") : null),
-      sub ? h("span", { class: "s-user-sub" }, `@${user.handle}`, user.headline ? ` · ${user.headline}` : "") : null));
+      sub ? h("span", { class: "s-user-sub" }, `@${user.handle}`, user.headline ? ` · ${user.headline}` : "") : null,
+      sub && user.affiliation ? affiliationInline(user.affiliation) : null));
+}
+
+/**
+ * A member's affiliation (identity track). Verified = their sign-in address
+ * belongs to a verified organisation's domain; otherwise it is self-declared
+ * and drawn with the dashed self-declared style. Plain spans, because a chip
+ * is already a link.
+ */
+export function affiliationInline(aff) {
+  if (!aff) return null;
+  return aff.verified
+    ? h("span", { class: "s-aff-inline is-verified", title: `Verified affiliation · ${aff.name}` }, "✓ ", aff.name)
+    : h("span", { class: "s-aff-inline", title: `Self-declared affiliation · ${aff.name}` }, aff.name);
+}
+
+/** The long form, for a profile header or a person card: links to the organisation. */
+export function affiliationBadge(aff) {
+  if (!aff) return null;
+  return h("a", { class: `s-aff${aff.verified ? " is-verified" : ""}`, href: `#/o/${encodeURIComponent(aff.slug)}`,
+    title: aff.verified ? "Their sign-in address belongs to this verified organisation" : "Self-declared: not checked" },
+  aff.verified ? `✓ Verified affiliation · ${aff.name}` : `Affiliated · ${aff.name} (self-declared)`);
+}
+
+/** "Open to mentoring", with topics when given. */
+export function mentoringBadge(user, topics) {
+  if (!user?.mentoring) return null;
+  const list = topics || user.mentoring_topics || [];
+  return h("span", { class: "s-mentor", title: "Takes mentoring requests" }, list.length ? `Open to mentoring · ${list.slice(0, 4).join(", ")}` : "Open to mentoring");
 }
 
 export function userRow(user, extra) {
@@ -179,6 +208,7 @@ export function postCard(p) {
       p.kind === "observation" ? verificationBadge(p.verification) : null,
       p.visibility && p.visibility !== "public" ? h("span", { class: "s-vis", text: VISIBILITY[p.visibility]?.split(" —")[0] || p.visibility }) : null,
       p.sponsored_by ? h("span", { class: "s-sponsor", text: `Sponsored by ${p.sponsored_by}` }) : null,
+      p.org ? h("a", { class: "s-org-label", href: `#/o/${encodeURIComponent(p.org.slug)}`, title: "Posted by an admin of this organisation" }, `Posted as ${p.org.name}`) : null,
       p.pinned ? h("span", { class: "s-vis", text: "Pinned" }) : null,
       p.forked_from ? h("span", { class: "s-vis", text: "Fork" }) : null),
     h("h3", { class: "s-card-title", id: `pt-${p.id}` }, h("a", { href: `#/post/${encodeURIComponent(p.id)}` }, title)),

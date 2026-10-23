@@ -20,6 +20,11 @@ ADMINS = "geoid.initiative@gmail.com"
 WRITES_PER_MIN = "30"
 # "1" only for `wrangler dev`: honours X-Dev-User at localhost and nowhere else.
 DEV_AUTH = "0"
+# Email (mail.js): the sender, on the domain geoid-auth already sends from on
+# Resend. Nothing is sent until the RESEND_API_KEY secret is also set
+# (`npx wrangler secret put RESEND_API_KEY`). Digests go out from this UTC hour.
+MAIL_FROM = "GeoHUB Social <social@geoidinitiative.com>"
+DIGEST_HOUR_UTC = "7"
 
 [[d1_databases]]
 binding = "DB"
@@ -34,6 +39,25 @@ bucket_name = "geoid-social-media"
 [[routes]]
 pattern = "social.geoidinitiative.com"
 custom_domain = true
+
+# ── v1.3 engagement ─────────────────────────────────────────────────────────
+# Live messages: one Durable Object per open conversation (and one per member
+# for unread pings), WebSocket hibernation. See realtime.js. The migration tag
+# is applied once by `wrangler deploy`; never rename or reuse it.
+[[durable_objects.bindings]]
+name = "CHAT"
+class_name = "ChatRoom"
+
+[[migrations]]
+tag = "v1-chatroom"
+new_sqlite_classes = ["ChatRoom"]
+
+# Scheduled jobs (cron.js): every 15 min = event reminders, immediate mail,
+# daily digests from DIGEST_HOUR_UTC; 03:17 UTC daily = pruning + badge refresh.
+# Email is sent only when the RESEND_API_KEY secret and MAIL_FROM are both set;
+# without them mail is queued and never sent.
+[triggers]
+crons = ["*/15 * * * *", "17 3 * * *"]
 
 # Local development: `npx wrangler dev --var DEV_AUTH:1` serves on :8790 with
 # a local D1 and R2; apply migrations with --local first.

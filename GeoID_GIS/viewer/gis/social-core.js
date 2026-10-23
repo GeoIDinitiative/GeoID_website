@@ -260,9 +260,168 @@ export function mapToFeatures(answer, { west = false } = {}) {
 export function featuresKey(fc) {
   return (fc?.features || []).map((f) => {
     const p = f.properties || {};
+    // A study-interest disc is a polygon: its centre and size are in its
+    // properties, and the radius is part of the picture too.
+    if (p.social_type === "interest") {
+      return `interest:${p.key}:${p.researchers}:${p.trend}:${Number(p.center_lon).toFixed(3)},${Number(p.center_lat).toFixed(3)}:${Number(p.radius_deg).toFixed(4)}`;
+    }
     const [x, y] = f.geometry?.coordinates || [];
     return `${p.social_type}:${p.social_id || p.count}:${Number(x).toFixed(3)},${Number(y).toFixed(3)}`;
   }).sort().join("|");
+}
+
+/* ── Study interest: the map of where people work, as discs ────────────── */
+
+/** What the interest layer says it is. A different row from the posts layer, so neither is mistaken for the other. */
+export const INTEREST_LAYER_NAME = "Community study interest — GeoHUB Social";
+export const INTEREST_SOURCE = "GeoHUB Social (community study areas and public posts — sized by researchers, not by posts)";
+export const COMMUNITY_MODES = ["posts", "interest"];
+export const communityLayerName = (mode) => (mode === "interest" ? INTEREST_LAYER_NAME : COMMUNITY_LAYER_NAME);
+
+/** The words and colours the discs are painted with: amber where rising or new, cyan where steady (as on /social/#/map). */
+export const TREND_LABELS = { new: "New activity", rising: "Rising", steady: "Steady" };
+export const TREND_COLOURS = { "New activity": "#f0b030", Rising: "#f0b030", Steady: "#00d4c0" };
+
+/**
+ * The box and zoom for /v1/map/interest.
+ *
+ * The interest grid is 16x finer than the post clusters at the same z
+ * (`cellDegrees(z) = 360 / 2^(z+4)` in interest.js), so the posts zoom less
+ * four asks for about the same dozen cells across the view. interest.js
+ * reads a box as plain min/max, so one that crosses the antimeridian (w > e)
+ * is sent as the whole world rather than as an empty sliver.
+ */
+export function interestRequest(bounds, { west = false } = {}) {
+  const r = viewRequest(bounds, { west });
+  const [w, s, e, n] = r.bbox.split(",").map(Number);
+  const bbox = w > e ? `-180,${s},180,${n}` : r.bbox;
+  return { bbox, z: Math.max(0, r.z - 4) };
+}
+
+export function interestUrl(base, { world = "earth", bbox, z, tag = "" } = {}) {
+  const q = new URLSearchParams({ world: String(world || "earth"), bbox: String(bbox), z: String(z) });
+  if (tag) q.set("tag", String(tag));
+  return `${String(base).replace(/\/+$/, "")}/v1/map/interest?${q.toString()}`;
+}
+
+const RAD = Math.PI / 180;
+
+/** Central angle between two points, in degrees of arc: the same on every world. */
+export function arcDegrees(lat1, lon1, lat2, lon2) {
+  const a = Math.sin(((lat2 - lat1) * RAD) / 2) ** 2
+    + Math.cos(lat1 * RAD) * Math.cos(lat2 * RAD) * Math.sin(((lon2 - lon1) * RAD) / 2) ** 2;
+  return (2 * Math.asin(Math.min(1, Math.sqrt(a)))) / RAD;
+}
+
+/**
+ * A disc's angular radius from its head count: the square root, so AREA
+ * follows the number of people, scaled so the busiest cell in view nearly
+ * fills its own cell and a single person is still a visible disc. Degrees of
+ * arc, not kilometres, because the same rule has to hold on Mars.
+ */
+export function discRadiusDeg(researchers, maxResearchers, cellDeg) {
+  const n = Math.max(1, Number(researchers) || 1);
+  const top = Math.max(n, Number(maxResearchers) || 1);
+  const full = 0.45 * Math.max(0.05, Number(cellDeg) || 1);
+  return full * (0.3 + 0.7 * Math.sqrt(n / top));
+}
+
+/**
+ * Shrink discs until none overlaps another (and `gapDeg` clears between).
+ *
+ * Cells are disjoint but a disc sits on the cell's centre of activity, which
+ * can be near its edge, so two neighbours can touch. Each overlapping pair
+ * is scaled down together, in proportion; shrinking never creates a new
+ * overlap, so one pass over the pairs, biggest overlap first, is enough.
+ * Positions are never moved: a disc is where its people are.
+ */
+export function separateDiscs(discs, { gapDeg = 0 } = {}) {
+  const out = discs.map((d) => ({ ...d }));
+  const pairs = [];
+  for (let i = 0; i < out.length; i += 1) {
+    for (let j = i + 1; j < out.length; j += 1) {
+      const d = arcDegrees(out[i].lat, out[i].lon, out[j].lat, out[j].lon);
+      pairs.push([i, j, d]);
+    }
+  }
+  pairs.sort((a, b) => (out[b[0]].r + out[b[1]].r - b[2]) - (out[a[0]].r + out[a[1]].r - a[2]));
+  for (const [i, j, d] of pairs) {
+    const sum = out[i].r + out[j].r;
+    if (sum + gapDeg <= d) continue;
+    const k = Math.max(0, (d - gapDeg) / sum) * 0.999;
+    out[i].r *= k; out[j].r *= k;
+  }
+  return out;
+}
+
+/**
+ * A geodesic circle as a closed GeoJSON ring in the VIEWER's longitude.
+ *
+ * Built round the centre with the forward-azimuth formula, so it is round on
+ * the sphere at any latitude, and its longitudes run continuously from the
+ * centre's (they may pass 180) instead of wrapping, so a disc on the
+ * antimeridian is not drawn the long way round the planet. On a
+ * west-positive world each offset is negated about the centre. The radius
+ * is kept short of the pole, which a ring cannot enclose.
+ */
+export function discRing(lat, lon, radiusDeg, { west = false, steps = 48 } = {}) {
+  const phi = Math.max(-89, Math.min(89, Number(lat))) * RAD;
+  const delta = Math.min(Number(radiusDeg), 0.95 * (90 - Math.abs(phi / RAD))) * RAD;
+  const centre = toViewerLon(lon, west);
+  const ring = [];
+  for (let i = 0; i < steps; i += 1) {
+    const theta = (2 * Math.PI * i) / steps;
+    const lat2 = Math.asin(Math.sin(phi) * Math.cos(delta) + Math.cos(phi) * Math.sin(delta) * Math.cos(theta));
+    const dLon = Math.atan2(Math.sin(theta) * Math.sin(delta) * Math.cos(phi), Math.cos(delta) - Math.sin(phi) * Math.sin(lat2)) / RAD;
+    ring.push([round(centre + (west ? -dLon : dLon), 5), round(lat2 / RAD, 5)]);
+  }
+  ring.push([...ring[0]]);
+  return ring;
+}
+
+/**
+ * /v1/map/interest as polygons the importer draws: one disc per cell, sized
+ * by DISTINCT researchers (never by posts), separated so none overlaps, in
+ * the viewer's longitude. Cells without a usable centre are dropped, as the
+ * posts layer drops points without one.
+ */
+export function interestToFeatures(answer, { west = false } = {}) {
+  const cellDeg = Number(answer?.cell_deg) || 1;
+  const cells = (Array.isArray(answer?.cells) ? answer.cells : []).filter((c) => {
+    const ok = (v) => v !== null && v !== undefined && v !== "" && Number.isFinite(Number(v));
+    return ok(c?.lat) && ok(c?.lon) && Math.abs(Number(c.lat)) <= 90 && Number(c.researchers) > 0;
+  });
+  const top = Math.max(1, ...cells.map((c) => Number(c.researchers) || 0));
+  const discs = separateDiscs(cells.map((c) => ({
+    lat: Number(c.lat), lon: Number(c.lon), r: discRadiusDeg(c.researchers, top, Number(c.cell?.size) || cellDeg), cell: c,
+  })), { gapDeg: cellDeg * 0.02 });
+  const features = discs.map(({ lat, lon, r, cell: c }) => {
+    const n = Number(c.researchers);
+    const trend = TREND_LABELS[c.trend] ? c.trend : "steady";
+    const place = String(c.place || "").slice(0, 120);
+    const more = Math.max(0, Math.floor(Number(c.places_more) || 0));
+    return {
+      type: "Feature",
+      geometry: { type: "Polygon", coordinates: [discRing(lat, lon, r, { west })] },
+      properties: {
+        name: `${place || `${lat.toFixed(1)}°, ${lon.toFixed(1)}°`}${more ? ` +${more}` : ""} · ${n} researcher${n === 1 ? "" : "s"}`,
+        social_type: "interest",
+        key: String(c.key || ""),
+        researchers: n,
+        trend,
+        trend_label: TREND_LABELS[trend],
+        posts: Number(c.posts) || 0,
+        projects: Number(c.projects) || 0,
+        study_areas: Number(c.study_areas) || 0,
+        top_tags: (Array.isArray(c.top_tags) ? c.top_tags : []).slice(0, 3).map(String).join(", "),
+        place,
+        center_lat: lat,
+        center_lon: toViewerLon(lon, west),
+        radius_deg: Number(r.toFixed(5)),
+      },
+    };
+  });
+  return { type: "FeatureCollection", features };
 }
 
 /* ── Deep links ────────────────────────────────────────────────────────── */

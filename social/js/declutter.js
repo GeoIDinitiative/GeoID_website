@@ -122,3 +122,36 @@ export function placeLabels(labels, obstacles = [], { pad = 4, bounds = null } =
   }
   return placed;
 }
+
+/**
+ * Two layers on one map without either sitting on the other.
+ *
+ * Community discs (`fixed`) stay where they are: they are the page's own
+ * content and their place is the point. A second layer's discs (`movable`,
+ * e.g. official hazard markers, already grouped among themselves) are moved
+ * off them -- and off each other -- to the nearest free spot on rings round
+ * their true position, 12 directions per ring, starting north and going
+ * clockwise so the answer is stable from frame to frame. Each keeps its true
+ * position as `ax, ay` so a leader line can point home. A disc with no free
+ * spot within `maxShift` pixels is returned with `placed: false` and is not
+ * drawn; the page lists it instead, so nothing is hidden from the reader.
+ */
+export function avoidDiscs(movable, fixed = [], { gap = 3, maxShift = 90, step = 6 } = {}) {
+  const taken = fixed.map((f) => ({ x: f.x, y: f.y, r: f.r }));
+  const clear = (x, y, r) => taken.every((t) => Math.hypot(t.x - x, t.y - y) >= t.r + r + gap);
+  const out = [];
+  for (const m of [...movable].sort((a, b) => (b.weight ?? 1) - (a.weight ?? 1))) {
+    let spot = clear(m.x, m.y, m.r) ? { x: m.x, y: m.y } : null;
+    for (let d = step; !spot && d <= maxShift; d += step) {
+      for (let k = 0; k < 12 && !spot; k += 1) {
+        const a = -Math.PI / 2 + (k * Math.PI) / 6;
+        const x = m.x + d * Math.cos(a); const y = m.y + d * Math.sin(a);
+        if (clear(x, y, m.r)) spot = { x, y };
+      }
+    }
+    if (!spot) { out.push({ ...m, ax: m.x, ay: m.y, placed: false, moved: false }); continue; }
+    taken.push({ x: spot.x, y: spot.y, r: m.r });
+    out.push({ ...m, ax: m.x, ay: m.y, x: spot.x, y: spot.y, placed: true, moved: spot.x !== m.x || spot.y !== m.y });
+  }
+  return out;
+}

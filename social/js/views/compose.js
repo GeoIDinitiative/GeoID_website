@@ -126,11 +126,12 @@ function buildForm(root, { existing, handed, initialKind, query }) {
       add(field("Repository link", kf.rurl, "An https link to GitHub, GitLab, Codeberg or elsewhere."),
         field("Language", kf.language), field("Code licence", kf.rlicence), field("Default branch", kf.branch));
     } else if (kind === "analysis") {
-      kf.before = input("before", { value: m.before || "", placeholder: "layer id or uploaded image key" });
-      kf.after = input("after", { value: m.after || "" });
+      kf.pair = pairPicker(m, media);
       kf.uncertainty = textarea("uncertainty", { rows: 2, value: m.uncertainty || "" });
-      add(field("Before", kf.before), field("After", kf.after),
-        field("Uncertainty", kf.uncertainty, "How sure is this, and what could make it wrong?"));
+      add(kf.pair.el, field("Uncertainty", kf.uncertainty, "How sure is this, and what could make it wrong?"));
+    } else if (kind === "observation") {
+      kf.measures = measurementEditor(m.measurements);
+      add(kf.measures.el);
     } else if (kind === "monitor") {
       kf.series = textarea("series", { rows: 4, value: m.series ? JSON.stringify(m.series) : "",
         placeholder: '[{"label":"Uplift","unit":"mm","points":[[1729641600, 3.2]]}]' });
@@ -155,7 +156,9 @@ function buildForm(root, { existing, handed, initialKind, query }) {
       kf.ends = input("ends", { type: "datetime-local", value: m.ends_at ? new Date(m.ends_at * 1000 - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16) : "" });
       kf.where = input("where", { value: m.where || "", placeholder: "Online, or a place" });
       kf.url = input("url", { type: "url", value: m.url || "" });
-      add(field("Format", kf.format), field("Starts", kf.starts), field("Ends", kf.ends), field("Where", kf.where), field("Link", kf.url));
+      kf.capacity = input("capacity", { type: "number", min: 1, max: 100000, step: 1, value: m.capacity || "", placeholder: "No limit" });
+      add(field("Format", kf.format), field("Starts", kf.starts), field("Ends", kf.ends), field("Where", kf.where), field("Link", kf.url),
+        field("Places (optional)", kf.capacity, "When full, further “going” answers join a waitlist and move up as places free."));
     } else if (kind === "opportunity") {
       kf.type = select("type", OPP_TYPES.map((t) => [t, t]), m.type);
       kf.org = input("org", { value: m.org || "" });
@@ -242,10 +245,13 @@ function buildForm(root, { existing, handed, initialKind, query }) {
   // ── Media ──
   const mediaList = h("ul", { class: "s-media-edit" });
   const drawMedia = () => {
+    // The before/after pickers list the images, so they follow every change here.
+    kf.pair?.refresh();
     clear(mediaList);
     media.forEach((item, i) => {
       const alt = input("alt", { value: item.alt || "", placeholder: "Describe the image for people who cannot see it", "aria-label": "Alt text" });
       alt.addEventListener("input", () => { item.alt = alt.value; });
+      alt.addEventListener("change", () => kf.pair?.refresh());
       put(mediaList, h("li", {},
         item.type === "application/pdf" ? h("span", {}, "PDF attached") : (item.url ? h("img", { src: item.url, alt: "", class: "s-thumb" }) : h("span", {}, "Image")),
         item.type === "application/pdf" ? null : alt,
@@ -253,17 +259,20 @@ function buildForm(root, { existing, handed, initialKind, query }) {
     });
   };
   drawMedia();
-  const file = h("input", { type: "file", accept: "image/png,image/jpeg,image/webp,image/gif,application/pdf" });
+  // Several at once: a field visit is a set of photos, shown as a gallery.
+  const file = h("input", { type: "file", multiple: true, accept: "image/png,image/jpeg,image/webp,image/gif,application/pdf" });
   file.addEventListener("change", async () => {
-    const f = file.files?.[0];
-    if (!f) return;
-    if (f.size > 8 * 1024 * 1024) { toast("That file is over 8 MB.", "error"); file.value = ""; return; }
-    try {
-      const out = await api.upload(f, { scope: "public" });
-      media.push({ key: out.key, alt: "", url: out.url, type: out.type });
-      drawMedia();
-    } catch (error) { toast(error.message, "error"); }
+    const files = [...(file.files || [])];
     file.value = "";
+    for (const f of files) {
+      if (media.length >= 12) { toast("A post can carry up to 12 files.", "error"); break; }
+      if (f.size > 8 * 1024 * 1024) { toast(`${f.name} is over 8 MB.`, "error"); continue; }
+      try {
+        const out = await api.upload(f, { scope: "public" });
+        media.push({ key: out.key, alt: "", url: out.url, type: out.type });
+        drawMedia();
+      } catch (error) { toast(error.message, "error"); }
+    }
   });
 
   // ── Visibility ──
@@ -309,7 +318,8 @@ function buildForm(root, { existing, handed, initialKind, query }) {
       field("Software and versions", methodSoftware),
       field("Limitations", limitations, "What this does not show, and where it may be wrong.")),
     h("fieldset", {}, h("legend", {}, "Images and PDFs"),
-      field("Attach a file (PNG, JPEG, WebP, GIF or PDF, up to 8 MB)", file), mediaList),
+      field("Attach files (PNG, JPEG, WebP, GIF or PDF, up to 8 MB each, 12 in all)", file,
+        "Several images are shown as a gallery. Describe each one for people who cannot see it."), mediaList),
     h("fieldset", {}, h("legend", {}, "Who can see it"),
       field("Visibility", vis), teamField, commField, field("Project", projSel), allowFork),
     status,
@@ -336,9 +346,15 @@ function buildForm(root, { existing, handed, initialKind, query }) {
 
     const meta = {};
     try {
-      if (kind === "analysis") Object.assign(meta, { before: kf.before.value, after: kf.after.value, uncertainty: kf.uncertainty.value });
+      if (kind === "analysis") Object.assign(meta, kf.pair.value(), { uncertainty: kf.uncertainty.value });
       if (kind === "monitor") { meta.series = kf.series.value ? JSON.parse(kf.series.value) : []; meta.updated_at = Math.floor(Date.now() / 1000); }
     } catch (error) { return say("The series is not valid JSON."); }
+    if (kind === "observation") {
+      const read = kf.measures.value();
+      if (read.error) return say(read.error);
+      meta.measurements = read.list;
+    }
+    if (kind === "analysis" && meta.before && meta.before === meta.after) return say("Choose two different images for before and after.");
     if (kind === "workflow" || kind === "dataset") Object.assign(meta, { repo: kf.repo.value, inputs: kf.inputs.value, outputs: kf.outputs.value, version: kf.version.value, doi: kf.doi.value });
     if (kind === "model") {
       let params = {};
@@ -351,7 +367,7 @@ function buildForm(root, { existing, handed, initialKind, query }) {
       Object.assign(meta, { url: kf.rurl.value.trim(), language: kf.language.value, licence: kf.rlicence.value, default_branch: kf.branch.value });
     }
     if (kind === "paper") Object.assign(meta, { doi: kf.doi.value, journal: kf.journal.value, year: Number(kf.year.value) || null, authors: splitList(kf.authors.value) });
-    if (kind === "event") Object.assign(meta, { format: kf.format.value, starts_at: Math.floor(new Date(kf.starts.value).getTime() / 1000), ends_at: kf.ends.value ? Math.floor(new Date(kf.ends.value).getTime() / 1000) : null, where: kf.where.value, url: kf.url.value });
+    if (kind === "event") Object.assign(meta, { format: kf.format.value, starts_at: Math.floor(new Date(kf.starts.value).getTime() / 1000), ends_at: kf.ends.value ? Math.floor(new Date(kf.ends.value).getTime() / 1000) : null, where: kf.where.value, url: kf.url.value, capacity: Number(kf.capacity.value) > 0 ? Math.floor(Number(kf.capacity.value)) : null });
     if (kind === "opportunity") Object.assign(meta, { type: kf.type.value, org: kf.org.value, deadline: dateToEpoch(kf.deadline.value, true), skills: splitList(kf.skills.value), paid: kf.paid.value === "" ? null : kf.paid.value === "1", apply_url: kf.apply.value });
 
     const sources = [...sourcesList.querySelectorAll("li")].map((li) => {
@@ -412,4 +428,140 @@ function buildForm(root, { existing, handed, initialKind, query }) {
   [lat, lon].forEach((el) => el.addEventListener("input", () => picker.draw()));
   if (loc && Number.isFinite(Number(loc.lat))) picker.setView(Number(loc.lon), Number(loc.lat), 4);
   return () => picker?.destroy();
+}
+
+// ── Analysis: which uploaded images are before and after ─────────────────
+
+/**
+ * Two pickers over the post's own uploaded images, plus a label and a date
+ * for each side. "A link or layer id…" keeps the older form -- an https image
+ * or a GeoHUB layer id -- for a pair that is not uploaded here.
+ */
+function pairPicker(m, media) {
+  const OTHER = "__other";
+  const sides = ["before", "after"].map((side) => {
+    const word = side === "before" ? "Before" : "After";
+    const sel = h("select", { name: `${side}-image` });
+    const other = input(`${side}-ref`, { placeholder: "https://… image, or a GeoHUB layer id", "aria-label": `${word}: link or layer id` });
+    const label = input(`${side}-label`, { value: m[`${side}_label`] || "", placeholder: side === "before" ? "e.g. Pre-eruption" : "e.g. Post-eruption", maxlength: 80 });
+    const date = input(`${side}-date`, { type: "date", value: epochToDate(m[`${side}_date`]) });
+    let chosen = m[side] || "";
+    const otherField = field(`${word}: link or layer id`, other);
+    const sync = () => { otherField.hidden = sel.value !== OTHER; };
+    sel.addEventListener("change", () => { chosen = sel.value === OTHER ? other.value : sel.value; sync(); });
+    other.addEventListener("input", () => { chosen = other.value; });
+    const refresh = () => {
+      const images = media.filter((x) => x.type !== "application/pdf");
+      clear(sel);
+      put(sel, h("option", { value: "" }, "Not set"));
+      images.forEach((x, i) => put(sel, h("option", { value: x.key }, `Image ${i + 1}${x.alt ? ` — ${x.alt.slice(0, 60)}` : ""}`)));
+      put(sel, h("option", { value: OTHER }, "A link or layer id…"));
+      if (!chosen) sel.value = "";
+      else if (images.some((x) => x.key === chosen)) sel.value = chosen;
+      else { sel.value = OTHER; other.value = chosen; }
+      sync();
+    };
+    return {
+      side, refresh,
+      el: h("fieldset", { class: "s-pair-side" }, h("legend", {}, word),
+        field("Image", sel), otherField,
+        h("div", { class: "s-row-fields" }, field("Label", label), field("Date", date))),
+      value: () => ({
+        [side]: sel.value === OTHER ? other.value.trim() : sel.value,
+        [`${side}_label`]: label.value.trim(),
+        [`${side}_date`]: dateToEpoch(date.value),
+      }),
+    };
+  });
+  const refresh = () => sides.forEach((x) => x.refresh());
+  refresh();
+  return {
+    el: h("div", { class: "s-pair" }, h("p", { class: "s-hint", text: "Upload the two images under “Images and PDFs”, then choose them here. Readers see them as a swipe comparison: drag (or use the arrow keys) to reveal one over the other. Use images of the same area and framing." }),
+      h("div", { class: "s-pair-grid" }, sides.map((x) => x.el))),
+    refresh,
+    value: () => Object.assign({}, ...sides.map((x) => x.value())),
+  };
+}
+
+// ── Observation: structured measurements ──────────────────────────────────
+
+const MEASURE_TYPES = [
+  ["bedding", "Bedding"], ["strike_dip", "Strike/dip (other plane)"], ["joint", "Joint"], ["fault", "Fault"],
+  ["lineation", "Lineation"], ["measurement", "Other measurement"],
+];
+/** The inputs each type takes: [key, label, min, max, step]. Ranges match content.js on the server. */
+const MEASURE_FIELDS = {
+  planar: [["strike", "Strike °", 0, 360], ["dip", "Dip °", 0, 90], ["dip_direction", "Dip direction °", 0, 360]],
+  fault: [["strike", "Strike °", 0, 360], ["dip", "Dip °", 0, 90], ["dip_direction", "Dip direction °", 0, 360], ["rake", "Rake °", -180, 180]],
+  lineation: [["trend", "Trend °", 0, 360], ["plunge", "Plunge °", 0, 90]],
+};
+
+/**
+ * Rows of measurements: a type, the numbers that type needs, and a note.
+ * Strike follows the right-hand rule; give a dip direction instead (or as
+ * well) if that is how the notebook has it -- the server turns either into
+ * both and refuses a pair that disagree.
+ */
+function measurementEditor(existing) {
+  const list = h("ol", { class: "s-measure-edit" });
+  const addRow = (m = { type: "bedding", values: {}, note: "" }) => {
+    const type = select("m-type", MEASURE_TYPES, m.type);
+    type.setAttribute("aria-label", "Measurement type");
+    const values = h("div", { class: "s-measure-values" });
+    const note = input("m-note", { value: m.note || "", placeholder: "Note (optional)", maxlength: 500, "aria-label": "Note" });
+    let current = { ...(m.values || {}) };
+    const drawValues = () => {
+      clear(values);
+      const t = type.value;
+      if (t === "measurement") {
+        const label = input("m-label", { value: current.label || "", placeholder: "What, e.g. Water temperature", maxlength: 80 });
+        const value = input("m-value", { type: "number", step: "any", value: current.value ?? "" });
+        const unit = input("m-unit", { value: current.unit || "", placeholder: "°C, m, pH…", maxlength: 30 });
+        put(values, field("Quantity", label), field("Value", value), field("Unit", unit));
+        return;
+      }
+      const spec = MEASURE_FIELDS[t === "lineation" ? "lineation" : t === "fault" ? "fault" : "planar"];
+      for (const [key, label, min, max] of spec) {
+        put(values, field(label, input(`m-${key}`, { type: "number", step: "any", min, max, value: current[key] ?? "", "data-key": key })));
+      }
+    };
+    type.addEventListener("change", () => { current = readValues(); drawValues(); });
+    const readValues = () => {
+      const out = {};
+      values.querySelectorAll("input").forEach((el) => {
+        const key = el.dataset.key || el.name.replace(/^m-/, "");
+        if (el.value.trim() === "") return;
+        out[key] = el.type === "number" ? Number(el.value) : el.value.trim();
+      });
+      return out;
+    };
+    drawValues();
+    const row = h("li", { class: "s-measure-row" },
+      h("div", { class: "s-measure-head" }, field("Type", type),
+        h("button", { type: "button", class: "s-icon-btn", "aria-label": "Remove this measurement", onClick: () => row.remove() }, "×")),
+      values, note);
+    row.read = () => ({ type: type.value, values: readValues(), note: note.value.trim() });
+    put(list, row);
+    return row;
+  };
+  (Array.isArray(existing) ? existing : []).forEach((m) => addRow(m));
+  const addBtn = h("button", { type: "button", class: "btn-ghost s-btn-sm", onClick: () => addRow().querySelector("select")?.focus() }, "Add a measurement");
+  return {
+    el: h("fieldset", { class: "s-measures" }, h("legend", {}, "Measurements (optional)"),
+      h("p", { class: "s-hint", text: "Strikes by the right-hand rule (the plane dips to the right of the strike direction), or give the dip direction instead. Dips and plunges are 0–90°, azimuths 0–360°. Readers see a table and a stereonet." }),
+      list, addBtn),
+    value: () => {
+      const rows = [...list.children].map((li) => li.read());
+      for (const [i, r] of rows.entries()) {
+        const v = r.values;
+        const bad = Object.entries(v).find(([k, x]) => k !== "label" && k !== "unit" && !Number.isFinite(x));
+        if (bad) return { error: `Measurement ${i + 1}: ${bad[0].replace("_", " ")} must be a number.` };
+        if ((Number.isFinite(v.dip) && (v.dip < 0 || v.dip > 90)) || (Number.isFinite(v.plunge) && (v.plunge < 0 || v.plunge > 90))) {
+          return { error: `Measurement ${i + 1}: dips and plunges are between 0 and 90°.` };
+        }
+      }
+      // An untouched new row is not a measurement.
+      return { list: rows.filter((r) => Object.keys(r.values).length || r.note) };
+    },
+  };
 }

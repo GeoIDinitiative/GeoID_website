@@ -308,6 +308,11 @@ export function publicUser(env, row) {
     institution: row.institution,
     plan: row.plan === "explorer" ? "" : row.plan,
     orcid_verified: !!row.orcid_verified,
+    // The affiliation shown on cards (orgs.js keeps these columns in step).
+    // `verified` means the sign-in address matched a verified org's domain;
+    // the address itself is never part of the answer.
+    affiliation: row.aff_slug ? { slug: row.aff_slug, name: row.aff_name, verified: !!row.aff_verified } : null,
+    mentoring: !!row.mentoring_open,
   };
 }
 
@@ -327,6 +332,7 @@ export function fullUser(env, row) {
     job_status: row.job_status,
     contact_pref: row.contact_pref,
     match_opt_in: !!row.match_opt_in,
+    mentoring_topics: parse(row.mentoring_topics_json, []),
     joined: row.created_at,
   };
 }
@@ -461,6 +467,8 @@ export function publicPost(env, row, authors = {}, extra = {}) {
     allow_fork: !!row.allow_fork,
     forked_from: row.forked_from,
     sponsored_by: row.sponsored_by,
+    // Posted as an organisation by one of its admins (orgs.js sets these).
+    org: row.org_id ? { slug: row.org_slug, name: row.org_name } : null,
     accepted_comment_id: row.accepted_comment_id,
     pinned: !!row.pinned,
     counts: { reactions: row.reaction_count, comments: row.comment_count, forks: row.fork_count },
@@ -472,6 +480,15 @@ export function publicPost(env, row, authors = {}, extra = {}) {
 
 // ── Side effects shared by several modules ─────────────────────────────────
 
+/**
+ * Notification kinds that may be emailed as they happen (mail.js
+ * IMMEDIATE_KINDS and its aliases; a test keeps the two in step). Written
+ * out here rather than imported so lib.js imports nothing back.
+ */
+export const MAIL_NOW_KINDS = ["message", "invite", "grant", "review", "mention", "request", "mentoring", "event",
+  "collab_request", "collaboration_request", "collaboration", "mentor", "mentor_request", "mentorship",
+  "event_reminder", "reminder", "team_invite", "review_invite"];
+
 /** Tell somebody something. Silently skipped for self, blocks, or a muted kind. */
 export async function notify(env, userId, kind, actorId, refType, refId, text = "") {
   if (!userId || userId === actorId) return;
@@ -479,9 +496,18 @@ export async function notify(env, userId, kind, actorId, refType, refId, text = 
   const target = await env.DB.prepare("SELECT notify_json FROM users WHERE id = ?").bind(userId).first();
   const prefs = parse(target?.notify_json, {});
   if (prefs[kind] === false) return;
+  const notificationId = id("n");
+  const t = now();
   await env.DB.prepare(
     "INSERT INTO notifications (id, user_id, kind, actor_id, ref_type, ref_id, text, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-  ).bind(id("n"), userId, kind, actorId || null, refType, refId, str(text, 200), now()).run();
+  ).bind(notificationId, userId, kind, actorId || null, refType, refId, str(text, 200), t).run();
+  // One row on the mail queue and nothing more: the cron reads the member's
+  // email choice and sends (mail.js). A missing table must never cost the
+  // notification itself, hence the catch.
+  if (MAIL_NOW_KINDS.includes(kind)) {
+    await env.DB.prepare("INSERT INTO mail_queue (id, user_id, kind, notification_id, created_at) VALUES (?, ?, ?, ?, ?)")
+      .bind(id("mq"), userId, kind, notificationId, t).run().catch(() => {});
+  }
 }
 
 export async function audit(env, actorId, action, refType, refId, detail = {}) {

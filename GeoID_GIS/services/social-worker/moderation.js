@@ -239,7 +239,9 @@ async function act(ctx) {
   if (owner && action === "remove") await notify(env, owner, "moderation", null, reportRow.target_type, reportRow.target_id, `A moderator removed your ${reportRow.target_type}.${why}`);
   if (owner && action === "restore") await notify(env, owner, "moderation", null, reportRow.target_type, reportRow.target_id, `A moderator restored your ${reportRow.target_type}.${why}`);
   if (owner && action === "warn") await notify(env, owner, "moderation", null, reportRow.target_type, reportRow.target_id, `A moderator sent you a warning.${why}`);
-  if (owner && action === "suspend") await notify(env, owner, "moderation", null, "user", owner, `Your account is suspended for ${detail.days} days.${why}`);
+  if (owner && action === "suspend") // ref "account": the notice is about the reader's own account, and a user
+    // ref would need a handle, not this id.
+    await notify(env, owner, "moderation", null, "account", "", `Your account is suspended for ${detail.days} days.${why}`);
   if (reportRow.reporter_id !== owner) {
     await notify(env, reportRow.reporter_id, "moderation", null, "report", reportRow.id,
       action === "dismiss" ? "A moderator reviewed your report and took no action." : "A moderator acted on your report.");

@@ -33,6 +33,8 @@ import {
   repoMeta, repoPrefill, buildShareHandoff, modelPagePath, postWorld, convertLons, modelConfigFromState,
   capModelConfig, buildModelMeta, modelSettingsFromConfig, boxRing, describeModel, jsonBytes, kindLabel,
   MAX_WORKSPACE_BYTES, MAX_MODEL_CONFIG_BYTES,
+  interestRequest, interestUrl, interestToFeatures, discRing, discRadiusDeg, separateDiscs, arcDegrees,
+  communityLayerName, INTEREST_LAYER_NAME, COMMUNITY_LAYER_NAME, TREND_COLOURS,
 } from "./social-core.js";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -474,4 +476,85 @@ ok(runShell(earthOpen.slice(1)) === "/GeoID_GIS/viewer/?v=gis-20261018-a533d54&p
 if (marsBounce) {
   ok(runBounce(marsBounce, "?post=p_m1") === "/?world=mars&post=p_m1" && runShell("?world=mars&post=p_m1") === "/transit/?destination=mars&post=p_m1",
     "Mars model: <page>?post= bounces into the shell and rides onto the transit");
+}
+
+// ── v1.3 STUDY INTEREST on the globe ────────────────────────────────────────
+// The discs are the map of PEOPLE: a wrong size is a crowd that is not there,
+// an overlap is two places read as one, and a wrong longitude on a
+// west-positive world puts Etna's researchers on the far side of the planet.
+
+{
+  const r = interestRequest({ minLon: 10, maxLon: 20, minLat: 35, maxLat: 45 });
+  ok(r.bbox === "10,35,20,45" && r.z === Math.max(0, zoomForSpan(10) - 4), "interest asks for the same box, four zooms coarser (16x finer grid)", JSON.stringify(r));
+  const across = interestRequest({ minLon: 170, maxLon: 190, minLat: -5, maxLat: 5 });
+  ok(across.bbox === "-180,-5,180,5", "a box across the antimeridian asks for the whole band, not an empty sliver", across.bbox);
+  ok(interestUrl("https://s.example/", { world: "mars", bbox: "1,2,3,4", z: 2, tag: "dunes" })
+    === "https://s.example/v1/map/interest?world=mars&bbox=1%2C2%2C3%2C4&z=2&tag=dunes", "interest URL");
+  ok(communityLayerName("interest") === INTEREST_LAYER_NAME && communityLayerName("posts") === COMMUNITY_LAYER_NAME
+    && INTEREST_LAYER_NAME !== COMMUNITY_LAYER_NAME, "the two modes are two named layers");
+}
+
+{
+  // Radius: area follows the head count; the busiest nearly fills its cell.
+  const big = discRadiusDeg(16, 16, 2); const small = discRadiusDeg(4, 16, 2); const one = discRadiusDeg(1, 16, 2);
+  ok(near(big, 0.9) && big > small && small > one && one > 0, "radius grows with researchers and fits the cell", `${big} ${small} ${one}`);
+  ok(near((big / 0.9 - 0.3) / 0.7, 1) && near((small / 0.9 - 0.3) / 0.7, 0.5), "square-root scaling: 4x the people, 2x the radius term");
+
+  // A ring is round on the sphere: every vertex the radius from the centre.
+  const ring = discRing(60, 10, 2);
+  ok(ring.length === 49 && ring[0][0] === ring[48][0] && ring[0][1] === ring[48][1], "closed ring");
+  ok(ring.slice(0, -1).every(([x, y]) => near(arcDegrees(60, 10, y, x), 2, 1e-3)), "geodesic: every vertex 2° of arc from the centre at 60°N");
+  // On the antimeridian the longitudes run on past 180 instead of wrapping.
+  const am = discRing(0, 179.5, 1);
+  ok(Math.max(...am.map((p) => p[0])) > 180 && Math.min(...am.map((p) => p[0])) > 178, "a disc on the antimeridian is not drawn the long way round");
+  // West-positive: the centre flips sign and the ring is its mirror.
+  const e = discRing(20, 30, 1); const w = discRing(20, 30, 1, { west: true });
+  ok(w.every((p, i) => near(p[0], -e[i][0], 1e-4) && near(p[1], e[i][1], 1e-9)), "west-positive world: the disc mirrors about the centre");
+  // Near a pole the radius is capped short of it.
+  ok(discRing(89, 0, 5).every(([, y]) => y < 90), "a polar disc never wraps over the pole");
+}
+
+{
+  // Separation: neighbours that would touch shrink in proportion, never move.
+  const discs = [{ lat: 0, lon: 0, r: 1 }, { lat: 0, lon: 1.5, r: 1 }, { lat: 10, lon: 10, r: 1 }];
+  const sep = separateDiscs(discs, { gapDeg: 0.1 });
+  ok(arcDegrees(0, 0, 0, 1.5) >= sep[0].r + sep[1].r + 0.1 - 1e-9, "touching neighbours are separated", JSON.stringify(sep));
+  ok(sep[2].r === 1 && sep[0].lat === 0 && sep[1].lon === 1.5, "a clear disc is untouched, and nothing moves");
+  let seed = 5;
+  const rand = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
+  const many = Array.from({ length: 120 }, () => ({ lat: rand() * 40 - 20, lon: rand() * 40 - 20, r: 0.5 + rand() * 3 }));
+  const out = separateDiscs(many, { gapDeg: 0.05 });
+  let worst = Infinity;
+  for (let i = 0; i < out.length; i += 1) {
+    for (let j = i + 1; j < out.length; j += 1) worst = Math.min(worst, arcDegrees(out[i].lat, out[i].lon, out[j].lat, out[j].lon) - out[i].r - out[j].r);
+  }
+  ok(worst >= 0.05 - 1e-9, "120 random discs: no two overlap after one pass", String(worst));
+}
+
+{
+  const answer = {
+    cell_deg: 1.40625,
+    cells: [
+      { key: "a", lat: 37.75, lon: 14.99, researchers: 4, posts: 9, projects: 1, study_areas: 2, trend: "rising", top_tags: ["volcanology"], place: "Mount Etna", places_more: 1, cell: { s: 37.27, w: 14.06, size: 1.40625 } },
+      { key: "b", lat: 40.8, lon: 14.4, researchers: 1, trend: "steady", place: "", cell: { size: 1.40625 } },
+      { key: "c", lat: null, lon: 1, researchers: 3 },
+      { key: "d", lat: 0, lon: 0, researchers: 0 },
+    ],
+  };
+  const fc = interestToFeatures(answer);
+  ok(fc.features.length === 2, "cells with no centre or nobody in them are not drawn", String(fc.features.length));
+  const etna = fc.features.find((f) => f.properties.key === "a");
+  ok(etna.geometry.type === "Polygon" && etna.properties.researchers === 4 && etna.properties.trend_label === "Rising"
+    && /Mount Etna \+1 · 4 researchers/.test(etna.properties.name), "a disc says where, how many people, and its trend", etna.properties.name);
+  ok(TREND_COLOURS[etna.properties.trend_label] === "#f0b030" && TREND_COLOURS.Steady === "#00d4c0", "amber rising, cyan steady, as on the Social map");
+  const other = fc.features.find((f) => f.properties.key === "b");
+  ok(etna.properties.radius_deg > other.properties.radius_deg, "four people make a bigger disc than one");
+  ok(/40\.8°, 14\.4° · 1 researcher$/.test(other.properties.name), "an unnamed cell is named by its centre", other.properties.name);
+  const west = interestToFeatures(answer, { west: true });
+  const wEtna = west.features.find((f) => f.properties.key === "a");
+  ok(near(wEtna.properties.center_lon, -14.99) && wEtna.geometry.coordinates[0].every(([x]) => x < 0), "west-positive world: the disc is placed by its west longitude");
+  ok(featuresKey(fc) === featuresKey(interestToFeatures(answer)) && featuresKey(fc) !== featuresKey(west)
+    && featuresKey(fc) !== featuresKey(interestToFeatures({ ...answer, cells: [{ ...answer.cells[0], researchers: 5 }, answer.cells[1]] })),
+    "the redraw key changes when a head count does, not otherwise");
+  ok(!JSON.stringify(fc).includes("@"), "no handles or emails ride on a disc");
 }

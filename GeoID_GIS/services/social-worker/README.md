@@ -34,6 +34,55 @@ All of these sign in to the Cloudflare account, so they are yours to run:
 
 Then redeploy `geoid-auth` (it gained `/auth/social-token`).
 
+### v1.3 engagement: email, crons, live messages
+
+    npx wrangler d1 migrations apply geoid-social --remote   # 0006_mail.sql (mail_prefs, mail_queue), BEFORE deploying
+    npx wrangler secret put RESEND_API_KEY                   # the same Resend account geoid-auth uses
+    npx wrangler deploy                                      # also creates the ChatRoom Durable Object and the crons
+
+- **Email** goes through Resend from `MAIL_FROM` in wrangler.toml (a sender on
+  the domain already verified there for geoid-auth). **Without
+  `RESEND_API_KEY` (or with `MAIL_FROM` empty) nothing is sent:** important
+  notifications are still queued in `mail_queue`, expire into the digest after
+  a day, and digests are simply not composed. Settings tells members email is
+  not switched on yet. Unsubscribe links are signed with `SOCIAL_JWT_SECRET`
+  (plus a suffix of their own), so rotating that secret voids old links.
+- **Crons** (wrangler.toml `[triggers]`): every 15 minutes for reminders, the
+  immediate queue and digests (from `DIGEST_HOUR_UTC`); 03:17 UTC daily for
+  pruning and badge refresh. Try one locally with
+  `npx wrangler dev --test-scheduled` and `curl "http://localhost:8790/__scheduled?cron=*/15+*+*+*+*"`.
+- **Live messages** need the `[[durable_objects.bindings]]` CHAT →
+  `ChatRoom` and the `[[migrations]]` tag `v1-chatroom` (SQLite-backed,
+  hibernating WebSockets, so it is available on the free plan). `wrangler
+  deploy` applies the migration once; never edit or reuse the tag. The page
+  falls back to its 10-second poll whenever the socket is unavailable, so the
+  Worker can ship before or without it. The social page's CSP names
+  `wss://social.geoidinitiative.com` (social/index.html). Locally, tickets
+  are signed with the social secret, so give `wrangler dev` one
+  (`--var SOCIAL_JWT_SECRET:dev-only-secret`) or the page simply polls.
+
+### v1.3 identity: organisations, publication checks, ORCID
+
+    npx wrangler d1 migrations apply geoid-social --remote   # 0004_orgs.sql, BEFORE deploying
+    npx wrangler secret put ORCID_CLIENT_ID                  # optional: ORCID linking
+    npx wrangler secret put ORCID_CLIENT_SECRET
+
+- **ORCID linking** is off until both `ORCID_CLIENT_ID` and
+  `ORCID_CLIENT_SECRET` are set: every `/v1/orcid/*` route but `status`
+  answers 503 "ORCID linking is not set up yet" and Settings says so instead of
+  offering the button. Register a public-API client at
+  orcid.org/developer-tools with the redirect URI
+  `https://social.geoidinitiative.com/v1/orcid/callback` (`SELF_ORIGIN` +
+  `/v1/orcid/callback`). `ORCID_BASE` (a var, default `https://orcid.org`)
+  can point at `https://sandbox.orcid.org` with a sandbox client. The OAuth
+  `state` is signed with `SOCIAL_JWT_SECRET`, so that must be set too.
+- **Publication checks** call `api.crossref.org` from the Worker (no page CSP
+  change). Optional `CROSSREF_MAILTO` (a var) puts the calls in Crossref's
+  "polite" pool.
+- **Organisations** are verified by the `ADMINS` addresses at
+  `/social/#/orgs?pending=1`. Verifying one makes every member whose sign-in
+  address is at its domains a verified affiliate; check the domains first.
+
 ## Working on it locally
 
     node --test test/*.test.mjs                    # the whole API against node:sqlite
@@ -61,10 +110,6 @@ to the `audit` table.
 
 ## What is deliberately not here yet
 
-- **Real-time chat.** Messages poll (10 s while the conversation is open).
-  Durable Objects + WebSockets are the upgrade when usage asks for it.
-- **ORCID sign-in.** `orcid_verified` exists and the Verified Researcher badge
-  reads it; the OAuth round trip needs an ORCID client id first.
 - **Payments in the marketplace.** Paid datasets, services and consultancy are
   listed as opportunities (`meta.type: service`) with a link out; nothing is
   bought through GeoID.

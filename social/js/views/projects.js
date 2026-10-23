@@ -136,6 +136,8 @@ export async function renderOne(root, { params }) {
     h("a", { class: "btn-primary", href: `/?world=${encodeURIComponent(world)}&project=${encodeURIComponent(p.id)}` }, "Open in GeoHUB"),
     h("button", { type: "button", class: "btn-ghost s-btn-sm", onClick: () => share(`${location.origin}/social/#/p/${encodeURIComponent(p.id)}`, p.title) }, "Copy link"),
     store.me && role !== "owner" ? followButton("project", p.id, false) : null,
+    // Collaboration track: invite specialists to join, review, contribute or validate.
+    h("a", { class: "btn-ghost s-btn-sm", href: `#/requests?new=1&project=${encodeURIComponent(p.id)}` }, "Ask for help…"),
     (rank >= 3 || p.allow_fork) && role !== "owner" ? h("button", { type: "button", class: "btn-ghost s-btn-sm", onClick: () => act(async () => {
       if (!(await confirmDialog("Fork this project", "You get your own copy of the latest workspace, credited to this one. Changes you make do not affect the original.", "Fork"))) return;
       const fork = await api.post(`/v1/projects/${encodeURIComponent(p.id)}/fork`, {});

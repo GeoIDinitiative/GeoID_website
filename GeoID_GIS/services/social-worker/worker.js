@@ -21,6 +21,16 @@ import { routes as messages } from "./messages.js";
 import { routes as moderation } from "./moderation.js";
 import { routes as reputation } from "./reputation.js";
 import { routes as interest } from "./interest.js";
+import { routes as orgs } from "./orgs.js";
+import { routes as verify } from "./verify.js";
+import { routes as requests } from "./requests.js";
+import { routes as events } from "./events.js";
+import { routes as mail } from "./mail.js";
+import { routes as realtime } from "./realtime.js";
+import { scheduled } from "./cron.js";
+
+// The Durable Object class behind live messages; wrangler.toml binds it as CHAT.
+export { ChatRoom } from "./realtime.js";
 
 function compile(table) {
   return table.map(([method, pattern, handler]) => {
@@ -34,6 +44,7 @@ export const ROUTES = compile([
   ...profiles, ...posts, ...media, ...discovery, ...notifications,
   ...communities, ...teams, ...projects, ...reviews, ...messages,
   ...moderation, ...reputation, ...interest,
+  ...orgs, ...verify, ...requests, ...events, ...mail, ...realtime,
 ]);
 
 export function match(method, path) {
@@ -51,7 +62,7 @@ export function match(method, path) {
 }
 
 export default {
-  async fetch(request, env) {
+  async fetch(request, env, exec) {
     const head = cors(env, request);
     if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: head });
     const url = new URL(request.url);
@@ -61,10 +72,13 @@ export default {
     const found = match(request.method, url.pathname);
     if (!found) return json({ error: "Not found." }, 404, head);
     if (found.methodNotAllowed) return json({ error: "Method not allowed." }, 405, head);
-    const ctx = { env, request, url, params: found.params, head };
+    // exec is the ExecutionContext (waitUntil), for work that may finish after the answer.
+    const ctx = { env, request, url, params: found.params, head, exec };
     try {
       const result = await found.route.handler(ctx);
       if (result instanceof Response) {
+        // A WebSocket upgrade (realtime.js) goes back exactly as the Durable Object made it.
+        if (result.status === 101 || result.webSocket) return result;
         const out = new Response(result.body, result);
         for (const [k, v] of Object.entries(head)) out.headers.set(k, v);
         return out;
@@ -76,4 +90,7 @@ export default {
       return json({ error: "Something went wrong on our side." }, 500, head);
     }
   },
+
+  // Cron triggers (wrangler.toml [triggers]): mail, reminders, housekeeping -- see cron.js.
+  scheduled,
 };

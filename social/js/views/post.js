@@ -10,6 +10,8 @@ import {
   PROVENANCE, act, requireSignIn, followButton, reportDialog, share, postUrl, citeDialog, bookmarkDialog,
   postCard, kindLabel,
 } from "../components.js";
+import { compareSlider, resolveImageRef, timeChart, measurementsBlock, gallery } from "../rich.js";
+import { eventPanel } from "./opportunities.js";
 
 export async function render(root, { params }) {
   const id = params.id;
@@ -46,6 +48,8 @@ export async function render(root, { params }) {
       actionBar(p, mine, () => comments.querySelector("textarea")?.focus())),
     comments);
   loadComments(comments, p, mine);
+  // Collaboration track: RSVP, calendar and posters sit just above the thread.
+  if (p.kind === "event") comments.before(eventPanel(p));
   if (p.counts?.forks) {
     const forks = h("section", { class: "s-section" }, h("h2", { class: "s-h2", text: "Forks" }));
     put(root, forks);
@@ -61,13 +65,39 @@ function body(p) {
   return h("div", { class: "s-prose" }, paras.map((t) => h("p", {}, t)));
 }
 
+/**
+ * The post's images as a gallery with a lightbox, and its PDFs as links. An
+ * analysis whose before/after pair is drawn as the comparison slider leaves
+ * those two out here, so the same picture is not shown twice.
+ */
 function mediaBlock(p) {
   if (!p.media?.length) return null;
-  return h("div", { class: "s-media" }, p.media.map((m) => {
-    const isPdf = /\.pdf($|\?)/i.test(m.key || "") || m.type === "application/pdf";
-    if (isPdf) return h("p", {}, extLink(m.url, `Download the PDF${m.alt ? `: ${m.alt}` : ""}`));
-    return h("figure", {}, h("img", { src: m.url, alt: m.alt || "", loading: "lazy" }), m.alt ? h("figcaption", { text: m.alt }) : null);
-  }));
+  const pair = analysisPair(p);
+  return gallery(p.media, { exclude: pair ? [p.meta.before, p.meta.after] : [] });
+}
+
+/** Both sides of an analysis's before/after, when both are images it can draw. */
+function analysisPair(p) {
+  if (p.kind !== "analysis") return null;
+  const m = p.meta || {};
+  const before = resolveImageRef(m.before, p.media || []);
+  const after = resolveImageRef(m.after, p.media || []);
+  return before && after ? { before, after } : null;
+}
+
+function analysisBlock(p) {
+  const m = p.meta || {};
+  const pair = analysisPair(p);
+  const text = (ref, label) => (ref && !resolveImageRef(ref, p.media || []) ? [label, ref] : [label, null]);
+  return h("div", {},
+    pair ? compareSlider({
+      before: pair.before, after: pair.after,
+      beforeLabel: m.before_label || "Before", afterLabel: m.after_label || "After",
+      beforeDate: m.before_date, afterDate: m.after_date,
+    }) : null,
+    // A layer id (or a pair with only one image) is still worth naming.
+    dl([text(m.before, m.before_label || "Before"), text(m.after, m.after_label || "After"),
+      ["Uncertainty", m.uncertainty]]));
 }
 
 function dl(rows) {
@@ -80,8 +110,9 @@ function kindBlock(p) {
   const m = p.meta || {};
   const doi = (d) => (d ? extLink(`https://doi.org/${String(d).replace(/^https?:\/\/(dx\.)?doi\.org\//, "")}`, d) : null);
   switch (p.kind) {
-    case "analysis": return dl([["Before", m.before], ["After", m.after], ["Uncertainty", m.uncertainty]]);
-    case "monitor": return monitorBlock(m);
+    case "analysis": return analysisBlock(p);
+    case "monitor": return timeChart(m.series, { updatedAt: m.updated_at });
+    case "observation": return measurementsBlock(m.measurements);
     case "workflow": case "dataset":
       return dl([["Repository", m.repo ? extLink(m.repo) : null], ["Inputs", m.inputs], ["Outputs", m.outputs], ["Version", m.version], ["DOI", doi(m.doi)]]);
     case "paper":
@@ -94,31 +125,6 @@ function kindBlock(p) {
         ["Apply", m.apply_url ? extLink(m.apply_url, "Apply") : null]]);
     default: return null;
   }
-}
-
-function monitorBlock(m) {
-  const series = Array.isArray(m.series) ? m.series : [];
-  if (!series.length) return null;
-  return h("div", { class: "s-monitor" },
-    m.updated_at ? h("p", { class: "s-muted" }, "Updated ", timeEl(m.updated_at)) : null,
-    series.map((s) => {
-      const pts = (s.points || []).filter((pt) => Array.isArray(pt) && Number.isFinite(pt[0]) && Number.isFinite(pt[1]));
-      const canvas = h("canvas", { class: "s-spark", width: 600, height: 120, role: "img",
-        "aria-label": `${s.label || "Series"}: ${pts.length} points${pts.length ? `, latest ${pts[pts.length - 1][1]} ${s.unit || ""}` : ""}` });
-      requestAnimationFrame(() => {
-        const ctx = canvas.getContext("2d");
-        if (!pts.length) return;
-        const xs = pts.map((q) => q[0]); const ys = pts.map((q) => q[1]);
-        const x0 = Math.min(...xs); const x1 = Math.max(...xs) || x0 + 1;
-        const y0 = Math.min(...ys); const y1 = Math.max(...ys);
-        const sx = (x) => 10 + ((x - x0) / ((x1 - x0) || 1)) * 580;
-        const sy = (y) => 110 - ((y - y0) / ((y1 - y0) || 1)) * 100;
-        ctx.strokeStyle = getComputedStyle(canvas).color; ctx.lineWidth = 2; ctx.beginPath();
-        pts.forEach(([x, y], i) => (i ? ctx.lineTo(sx(x), sy(y)) : ctx.moveTo(sx(x), sy(y))));
-        ctx.stroke();
-      });
-      return h("figure", {}, h("figcaption", {}, `${s.label || "Series"}${s.unit ? ` (${s.unit})` : ""}`), canvas);
-    }));
 }
 
 function sceneBlock(p) {
@@ -227,6 +233,8 @@ function actionBar(p, mine, focusComment) {
   put(bar, bm,
     h("button", { type: "button", class: "s-act", onClick: () => share(postUrl(p.id), p.title || "GeoHUB Social") }, "Share"),
     h("button", { type: "button", class: "s-act", onClick: () => citeDialog(p.id) }, "Cite"));
+  // Collaboration track: ask specialists for help with (or about) this post.
+  put(bar, h("a", { class: "s-act", href: `#/requests?new=1&post=${encodeURIComponent(p.id)}` }, "Ask for help…"));
   const openHref = geohubHref(p);
   if (openHref) put(bar, h("a", { class: "s-act", href: openHref }, "Open in GeoHUB"));
   if (p.project_id) put(bar, h("a", { class: "s-act", href: `#/p/${encodeURIComponent(p.project_id)}` }, "Project"), store.me ? followButton("project", p.project_id, false, "project") : null);
@@ -277,9 +285,12 @@ async function loadComments(section, p, mine) {
     const li = h("li", { class: `s-comment${accepted ? " is-accepted" : ""}` },
       h("div", { class: "s-comment-head" }, userChip(c.author, { sub: false }), h("span", { class: "s-muted" }, timeEl(c.created_at)),
         c.kind && c.kind !== "comment" ? h("span", { class: "s-kind", text: c.kind === "correction" ? "Correction" : "Suggestion" }) : null,
-        accepted ? h("span", { class: "s-accepted", text: "Accepted answer" }) : null),
-      h("div", { class: "s-prose" }, String(c.body || "").split(/\n{2,}/).map((t) => h("p", {}, t))));
+        accepted ? h("span", { class: "s-accepted", text: "Accepted answer" }) : null,
+        isChange(c) && c.status ? h("span", { class: c.status === "accepted" ? "s-accepted" : "s-vis", text: c.status === "accepted" ? "Change accepted" : "Declined" }) : null),
+      h("div", { class: "s-prose" }, String(c.body || "").split(/\n{2,}/).map((t) => h("p", {}, t))),
+      isChange(c) && c.status && c.status_note ? h("p", { class: "s-hint s-change-note" }, `${p.author?.name || "The author"}: ${c.status_note}`) : null);
     const tools = h("div", { class: "s-comment-tools" });
+    if (mine && isChange(c) && c.author?.handle !== myHandle()) put(tools, changeTools(c, () => loadComments(section, p, mine)));
     if (depth === 0) put(tools, h("button", { type: "button", class: "s-link-btn", onClick: () => {
       if (!requireSignIn("reply")) return;
       if (li.querySelector("form")) return;
@@ -308,9 +319,52 @@ async function loadComments(section, p, mine) {
     return li;
   };
   top.forEach((c) => put(list, drawComment(c)));
+  put(section, changesAccepted(items));
   put(section, top.length ? list : empty(isQ ? "No answers yet." : "No comments yet.", isQ ? "If you know, say so — and how you know." : ""),
     store.me ? commentForm(p, null, () => loadComments(section, p, mine))
       : h("p", {}, h("button", { type: "button", class: "btn-ghost", onClick: () => requireSignIn("comment") }, "Sign in to comment")));
+}
+
+// ── Peer contributions (collaboration track) ───────────────────────────────
+// A correction or suggestion the post's author accepts is credited to its
+// writer (Accepted contributions on their profile) and listed above the thread.
+
+const isChange = (c) => c.kind === "correction" || c.kind === "suggestion";
+
+function changeTools(c, reload) {
+  const decide = (status) => act(async () => {
+    let note = "";
+    if (status) {
+      note = await modal(status === "accepted" ? "Accept this change" : "Decline this change", (close) => {
+        const t = textarea("note", { rows: 3, maxlength: 500 });
+        const f = h("form", {}, field(status === "accepted" ? "What did you change? (optional)" : "Why not? (optional)", t,
+          status === "accepted" ? "They are credited on this post and on their profile, and told." : "They are told, with your note."),
+        h("div", { class: "s-actions" }, h("button", { type: "submit", class: "btn-primary" }, status === "accepted" ? "Accept" : "Decline"),
+          h("button", { type: "button", class: "btn-ghost", onClick: () => close() }, "Cancel")));
+        f.addEventListener("submit", (e) => { e.preventDefault(); close(t.value); });
+        return f;
+      });
+      if (note === undefined) return;
+    }
+    await api.post(`/v1/comments/${encodeURIComponent(c.id)}/status`, { status, note });
+    toast(status === "accepted" ? "Accepted and credited." : status === "declined" ? "Declined." : "Undone.");
+    reload();
+  }, "decide on changes");
+  return h("span", { class: "s-change-tools" },
+    c.status !== "accepted" ? h("button", { type: "button", class: "s-link-btn", onClick: () => decide("accepted") }, "Accept change") : null,
+    c.status !== "declined" ? h("button", { type: "button", class: "s-link-btn", onClick: () => decide("declined") }, "Decline") : null,
+    c.status ? h("button", { type: "button", class: "s-link-btn", onClick: () => decide("") }, "Undo") : null);
+}
+
+function changesAccepted(items) {
+  const accepted = items.filter((c) => isChange(c) && c.status === "accepted" && c.author);
+  if (!accepted.length) return null;
+  return h("section", { class: "s-changes", "aria-labelledby": "changes-h" },
+    h("h3", { class: "s-h3", id: "changes-h", text: "Changes accepted from the community" }),
+    h("ul", { class: "s-rows" }, accepted.map((c) => h("li", { class: "s-row" }, userChip(c.author, { sub: false }),
+      h("span", { class: "s-kind", text: c.kind === "correction" ? "Correction" : "Suggestion" }),
+      h("span", { class: "s-muted", text: String(c.body || "").slice(0, 160) }),
+      c.status_note ? h("span", { class: "s-hint", text: `— ${c.status_note}` }) : null))));
 }
 
 function commentForm(p, parentId, onDone) {

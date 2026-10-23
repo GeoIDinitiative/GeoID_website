@@ -1,6 +1,6 @@
 // node social/js/declutter.test.mjs
 import assert from "node:assert/strict";
-import { groupMarkers, fanOut, fanSpread, groupRadius, placeLabels, boxesOverlap, FAN_MAX } from "./declutter.js";
+import { groupMarkers, fanOut, fanSpread, groupRadius, placeLabels, boxesOverlap, avoidDiscs, FAN_MAX } from "./declutter.js";
 
 let passed = 0;
 const ok = (name, fn) => { fn(); passed += 1; console.log(`ok  ${name}`); };
@@ -76,6 +76,30 @@ ok("a label that fits nowhere inside the bounds is dropped", () => {
 ok("group radius grows with membership", () => {
   assert.ok(groupRadius(1) < groupRadius(3));
   assert.ok(groupRadius(FAN_MAX + 1) > 9);
+});
+
+ok("a second layer is moved off the first, and off itself, never onto anything", () => {
+  let seed = 11;
+  const rand = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
+  for (let trial = 0; trial < 20; trial += 1) {
+    const fixed = groupMarkers(Array.from({ length: 60 }, () => ({ x: rand() * 800, y: rand() * 400 })), { gap: 3 });
+    const quakes = groupMarkers(Array.from({ length: 80 }, () => ({ x: rand() * 800, y: rand() * 400, weight: 1 })), { gap: 3 });
+    const moved = avoidDiscs(quakes, fixed, { gap: 3 });
+    assert.equal(moved.length, quakes.length, "every disc is accounted for");
+    const drawn = [...fixed, ...moved.filter((m) => m.placed)];
+    noOverlap(drawn, 3);
+    for (const m of moved.filter((q) => q.placed)) assert.ok(Math.hypot(m.x - m.ax, m.y - m.ay) <= 90 + 1e-9);
+  }
+});
+
+ok("a disc already clear of everything stays exactly where it is", () => {
+  const [m] = avoidDiscs([{ x: 10, y: 10, r: 5 }], [{ x: 200, y: 200, r: 20 }]);
+  assert.equal(m.moved, false);
+  assert.equal(m.x, 10);
+  const [n] = avoidDiscs([{ x: 200, y: 200, r: 5 }], [{ x: 200, y: 200, r: 20 }]);
+  assert.equal(n.moved, true);
+  assert.equal(n.ax, 200);
+  assert.ok(Math.hypot(n.x - 200, n.y - 200) >= 28 - 1e-9);
 });
 
 console.log(`\n${passed} passed`);

@@ -17,7 +17,7 @@ export function renderMessages(root, { query }) {
   const tabs = h("nav", { class: "s-tabs", "aria-label": "Messages" },
     h("a", { href: "#/messages", class: tab === "inbox" ? "is-active" : "", "aria-current": tab === "inbox" ? "page" : null }, "Inbox"),
     h("a", { href: "#/messages?tab=requests", class: tab === "requests" ? "is-active" : "", "aria-current": tab === "requests" ? "page" : null }, "Requests"));
-  api.get("/v1/conversations").then((data) => {
+  const load = () => api.get("/v1/conversations").then((data) => {
     clear(list);
     const items = (data?.items || []).filter((c) => (tab === "requests" ? c.status === "request" : c.status !== "request"));
     const reqCount = (data?.items || []).filter((c) => c.status === "request").length;
@@ -34,8 +34,18 @@ export function renderMessages(root, { query }) {
         h("span", { class: "s-conv-meta" }, c.last ? timeEl(c.last.at) : null, c.unread ? h("span", { class: "s-badge-n", "aria-label": `${c.unread} unread` }, String(c.unread)) : null)));
     });
   }).catch((error) => put(clear(list), errorBox(error)));
+  load();
   put(clear(root), h("div", { class: "s-title-row" }, h("h1", { class: "s-h1", text: "Messages" }),
     h("button", { type: "button", class: "btn-primary", onClick: () => messageDialog([]) }, "New message")), tabs, list);
+  // The member's own live room says "something new in conversation X": the
+  // list and the header badge follow without waiting for a poll. With no
+  // socket, the header's minute poll is what it always was.
+  // The app shell holds the one socket to this room (app.js) and re-reads
+  // the header counts; here only the list follows.
+  let reloadTimer = null;
+  const onUnread = () => { clearTimeout(reloadTimer); reloadTimer = setTimeout(load, 400); };
+  document.addEventListener("social:unread", onUnread);
+  return () => { clearTimeout(reloadTimer); document.removeEventListener("social:unread", onUnread); };
 }
 
 export async function renderConversation(root, { params }) {
@@ -77,12 +87,16 @@ const REF_ROUTES = {
   review: (id) => `#/r/${encodeURIComponent(id)}`, team: (id) => `#/t/${encodeURIComponent(id)}`,
   community: (id) => `#/c/${encodeURIComponent(id)}`, conversation: (id) => `#/messages/${encodeURIComponent(id)}`,
   report: () => "#/mod", badge: () => `#/u/${encodeURIComponent(myHandle())}`,
+  event: () => "#/events", request: (id) => `#/requests/${encodeURIComponent(id)}`,
+  org: (slug) => `#/o/${encodeURIComponent(slug)}`, account: () => "#/settings",
 };
 const KIND_TEXT = {
   follow: "followed you", comment: "commented", reply: "replied", reaction: "reacted to your post", mention: "mentioned you",
   fork: "forked your work", accept: "accepted your answer", verify: "verified your observation", project_update: "updated a project you follow",
   team_invite: "invited you to a team", review_invite: "asked you to review a draft", review_submitted: "submitted a review",
   grant: "shared a project with you", message: "sent you a message", join_request: "asked to join", moderation: "moderation notice",
+  invite: "sent you an invitation", review: "has news about a peer review", badge: "awarded you a badge",
+  contribution: "credited your contribution", request: "sent you a collaboration request", mentoring: "sent you a mentoring request", event: "event reminder",
 };
 
 export function renderNotifications(root, { query }) {

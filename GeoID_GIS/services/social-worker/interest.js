@@ -155,23 +155,48 @@ export function trendOf(recent, prior) {
 }
 
 /**
+ * The period a map is asked about: `since` inclusive, `until` exclusive, in
+ * epoch seconds; either may be absent. A study area counts from the day it
+ * was declared, a post or project from the day it was shared -- which is
+ * what lets the page play the map's history month by month. A window that
+ * ends before it starts is refused rather than answered with an empty map,
+ * which would read as "nobody was here".
+ */
+export function timeWindow(sinceText, untilText) {
+  const since = int(sinceText, null);
+  let until = int(untilText, null);
+  if (until != null && until > now()) until = null;
+  if (since != null && until != null && until <= since) fail(400, "The period ends before it starts.");
+  return { since, until };
+}
+
+/** SQL and binds for a window on one column: "" and [] when unbounded. */
+function windowSql(column, win) {
+  const sql = []; const binds = [];
+  if (win?.since != null) { sql.push(`AND ${column} >= ?`); binds.push(win.since); }
+  if (win?.until != null) { sql.push(`AND ${column} < ?`); binds.push(win.until); }
+  return [sql.join(" "), binds];
+}
+
+/**
  * The three sources as (cell, person) rows, so a person counts once per cell
  * however much they posted. Every source applies the same filters: world,
  * box, public, not blocked, and the tag if one is asked for.
  */
-async function sourceRows(env, viewer, { world, box, deg, tag, t }) {
+async function sourceRows(env, viewer, { world, box, deg, tag, t, win }) {
   const cell = `CAST((x.lat + 90) / ? AS INTEGER) AS cy, CAST((x.lon + 180) / ? AS INTEGER) AS cx`;
   const blocks = viewer ? [`AND ${NOT_BLOCKED("x.uid")}`, [viewer.id, viewer.id]] : ["", []];
   const inBox = "x.lat BETWEEN ? AND ? AND x.lon BETWEEN ? AND ?";
   const boxBinds = [box.s, box.n, box.w, box.e];
+  const [winSql, winBinds] = windowSql("x.created_at", win);
   const run = async (from, tagSql) => (await env.DB.prepare(
     `SELECT ${cell}, x.uid AS uid, COUNT(*) AS n,
             SUM(CASE WHEN x.created_at >= ? THEN 1 ELSE 0 END) AS recent,
             SUM(CASE WHEN x.created_at >= ? AND x.created_at < ? THEN 1 ELSE 0 END) AS prior,
             SUM(x.lat) AS slat, SUM(x.lon) AS slon
-       FROM (${from}) x WHERE ${inBox} ${blocks[0]} ${tag ? tagSql : ""}
+       FROM (${from}) x WHERE ${inBox} ${winSql} ${blocks[0]} ${tag ? tagSql : ""}
       GROUP BY cy, cx, x.uid`,
-  ).bind(deg, deg, t - WINDOW, t - 2 * WINDOW, t - WINDOW, ...boxBinds, ...blocks[1], ...(tag ? [tag] : [])).all()).results;
+  ).bind(deg, deg, t - WINDOW, t - 2 * WINDOW, t - WINDOW, ...boxBinds, ...winBinds, ...blocks[1], ...(tag ? [tag] : [])).all()).results;
 
   const posts = await run(
     `SELECT p.id, p.author_id AS uid, p.lat, p.lon, p.created_at FROM posts p
@@ -193,22 +218,24 @@ async function sourceRows(env, viewer, { world, box, deg, tag, t }) {
 }
 
 /** Top tags per cell, from public posts and on-map study areas. */
-async function cellTags(env, { world, box, deg }) {
+async function cellTags(env, { world, box, deg, win }) {
   const w = world.replace(/'/g, "");
+  const [pw, pb] = windowSql("p.created_at", win);
+  const [aw, ab] = windowSql("sa.created_at", win);
   const rows = (await env.DB.prepare(
     `SELECT cy, cx, tag, SUM(n) AS n FROM (
        SELECT CAST((p.lat + 90) / ? AS INTEGER) AS cy, CAST((p.lon + 180) / ? AS INTEGER) AS cx, pt.tag AS tag, COUNT(*) AS n
          FROM posts p JOIN post_tags pt ON pt.post_id = p.id
         WHERE p.removed_at IS NULL AND p.visibility = 'public' AND p.lat IS NOT NULL AND p.loc_precision != 'hidden'
-          AND p.world = '${w}' AND p.lat BETWEEN ? AND ? AND p.lon BETWEEN ? AND ?
+          AND p.world = '${w}' AND p.lat BETWEEN ? AND ? AND p.lon BETWEEN ? AND ? ${pw}
         GROUP BY cy, cx, pt.tag
        UNION ALL
        SELECT CAST((sa.lat + 90) / ? AS INTEGER), CAST((sa.lon + 180) / ? AS INTEGER), j.value, COUNT(*)
          FROM study_areas sa, json_each(sa.tags_json) j
-        WHERE sa.on_map = 1 AND sa.world = '${w}' AND sa.lat BETWEEN ? AND ? AND sa.lon BETWEEN ? AND ?
+        WHERE sa.on_map = 1 AND sa.world = '${w}' AND sa.lat BETWEEN ? AND ? AND sa.lon BETWEEN ? AND ? ${aw}
         GROUP BY 1, 2, 3)
      GROUP BY cy, cx, tag`,
-  ).bind(deg, deg, box.s, box.n, box.w, box.e, deg, deg, box.s, box.n, box.w, box.e).all()).results;
+  ).bind(deg, deg, box.s, box.n, box.w, box.e, ...pb, deg, deg, box.s, box.n, box.w, box.e, ...ab).all()).results;
   const out = new Map();
   for (const r of rows) {
     const k = `${r.cy}:${r.cx}`;
@@ -220,20 +247,22 @@ async function cellTags(env, { world, box, deg }) {
 }
 
 /** A name for each cell: the commonest place name or study-area name in it. */
-async function cellPlaces(env, { world, box, deg }) {
+async function cellPlaces(env, { world, box, deg, win }) {
   const w = world.replace(/'/g, "");
+  const [pw, pb] = windowSql("p.created_at", win);
+  const [aw, ab] = windowSql("sa.created_at", win);
   const rows = (await env.DB.prepare(
     `SELECT cy, cx, name, SUM(n) AS n FROM (
        SELECT CAST((p.lat + 90) / ? AS INTEGER) AS cy, CAST((p.lon + 180) / ? AS INTEGER) AS cx, p.place_name AS name, COUNT(*) AS n
          FROM posts p WHERE p.removed_at IS NULL AND p.visibility = 'public' AND p.place_name != '' AND p.lat IS NOT NULL
-          AND p.loc_precision != 'hidden' AND p.world = '${w}' AND p.lat BETWEEN ? AND ? AND p.lon BETWEEN ? AND ?
+          AND p.loc_precision != 'hidden' AND p.world = '${w}' AND p.lat BETWEEN ? AND ? AND p.lon BETWEEN ? AND ? ${pw}
         GROUP BY 1, 2, 3
        UNION ALL
        SELECT CAST((sa.lat + 90) / ? AS INTEGER), CAST((sa.lon + 180) / ? AS INTEGER), sa.name, COUNT(*)
-         FROM study_areas sa WHERE sa.on_map = 1 AND sa.world = '${w}' AND sa.lat BETWEEN ? AND ? AND sa.lon BETWEEN ? AND ?
+         FROM study_areas sa WHERE sa.on_map = 1 AND sa.world = '${w}' AND sa.lat BETWEEN ? AND ? AND sa.lon BETWEEN ? AND ? ${aw}
         GROUP BY 1, 2, 3)
      GROUP BY cy, cx, name ORDER BY n DESC`,
-  ).bind(deg, deg, box.s, box.n, box.w, box.e, deg, deg, box.s, box.n, box.w, box.e).all()).results;
+  ).bind(deg, deg, box.s, box.n, box.w, box.e, ...pb, deg, deg, box.s, box.n, box.w, box.e, ...ab).all()).results;
   // The commonest name, and how many other named areas share the cell, so
   // a coarse cell spanning the Alps and the Pennines is never labelled as if
   // it were only one of them.
@@ -259,8 +288,11 @@ async function interest(ctx) {
   const box = bboxOf(q.get("bbox"));
   const deg = cellDegrees(int(q.get("z"), 1));
   const tag = tags([q.get("tag") || ""])[0] || "";
-  const t = now();
-  const src = await sourceRows(env, viewer, { world, box, deg, tag, t });
+  const win = timeWindow(q.get("since"), q.get("until"));
+  // Trending is measured back from the END of the window, so a month on the
+  // time slider says what was rising then, not what is rising today.
+  const t = win.until ?? now();
+  const src = await sourceRows(env, viewer, { world, box, deg, tag, t, win });
 
   const cells = new Map();
   const everyone = new Set();
@@ -279,8 +311,8 @@ async function interest(ctx) {
   take(src.projects, "projects");
   take(src.areas, "study_areas");
 
-  const tagMap = cells.size ? await cellTags(env, { world, box, deg }) : new Map();
-  const placeMap = cells.size ? await cellPlaces(env, { world, box, deg }) : new Map();
+  const tagMap = cells.size ? await cellTags(env, { world, box, deg, win }) : new Map();
+  const placeMap = cells.size ? await cellPlaces(env, { world, box, deg, win }) : new Map();
   const out = [...cells.entries()].map(([k, c]) => ({
     key: k,
     lat: Number((c.slat / c.n).toFixed(3)),
@@ -301,10 +333,13 @@ async function interest(ctx) {
   return {
     cell_deg: deg,
     window_days: WINDOW / 86400,
+    since: win.since, until: win.until,
     researchers: everyone.size,
     cells: out,
     trending,
-    note: "Sized by how many people work here, not by how much they post. Trending compares the last 30 days with the 30 before.",
+    note: win.since != null || win.until != null
+      ? "Sized by how many people had a reason to be here in this period (a study area declared, a post or project shared then). Trending compares the 30 days before the period's end with the 30 before that."
+      : "Sized by how many people work here, not by how much they post. Trending compares the last 30 days with the 30 before.",
   };
 }
 

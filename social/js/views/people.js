@@ -2,7 +2,8 @@
 import * as api from "../api.js";
 import { store } from "../store.js";
 import { h, clear, field, input, checkbox, splitList, busy, errorBox, loading, empty, put } from "../dom.js";
-import { userChip, pagedList, requireSignIn } from "../components.js";
+import { userChip, pagedList, requireSignIn, affiliationBadge, mentoringBadge } from "../components.js";
+import { mentoringRequestDialog } from "./settings.js";
 
 export function render(root, { query }) {
   const f = {
@@ -11,21 +12,26 @@ export function render(root, { query }) {
     interest: input("interest", { value: query.interest || "" }),
     region: input("region", { value: query.region || "" }),
     available: checkbox("available", "Open to collaborate", query.available === "1"),
+    mentor: checkbox("mentor", "Open to mentoring", query.mentor === "1"),
   };
   const form = h("form", { class: "s-filters", role: "search", "aria-label": "Find people" },
-    field("Search", f.q), field("Skill", f.skill), field("Interest", f.interest), field("Region", f.region), f.available,
+    field("Search", f.q), field("Skill", f.skill), field("Interest", f.interest), field("Region", f.region), f.available, f.mentor,
     h("button", { type: "submit", class: "btn-primary" }, "Find"));
   form.addEventListener("submit", (e) => {
     e.preventDefault();
     const q = new URLSearchParams();
     for (const k of ["q", "skill", "interest", "region"]) if (f[k].value.trim()) q.set(k, f[k].value.trim());
     if (f.available.querySelector("input").checked) q.set("available", "1");
+    if (f.mentor.querySelector("input").checked) q.set("mentor", "1");
     location.hash = `#/people?${q.toString()}`;
   });
 
   const results = pagedList(
-    (cursor) => api.get("/v1/users", { q: query.q, skill: query.skill, interest: query.interest, region: query.region, available: query.available === "1", cursor }),
+    (cursor) => api.get("/v1/users", { q: query.q, skill: query.skill, interest: query.interest, region: query.region, available: query.available === "1", mentor: query.mentor === "1", cursor }),
     (u) => h("div", { class: "s-card s-person" }, userChip(u),
+      u.affiliation || u.mentoring ? h("p", { class: "s-labels" }, affiliationBadge(u.affiliation), mentoringBadge(u, u.mentoring_topics),
+        u.mentoring && store.me && u.handle !== store.me.user?.handle
+          ? h("button", { type: "button", class: "s-link-btn", onClick: () => mentoringRequestDialog(u) }, "Ask for mentoring") : null) : null,
       u.skills?.length ? h("p", { class: "s-muted" }, "Skills (self-declared): ", u.skills.slice(0, 8).join(", ")) : null,
       u.availability ? h("p", { class: "s-hint", text: u.availability === "open" ? "Open to collaborate" : u.availability === "limited" ? "Limited availability" : "Not taking on collaborations" }) : null),
     { emptyTitle: "Nobody matches those filters.", emptyDetail: "Try fewer filters or a broader skill." });

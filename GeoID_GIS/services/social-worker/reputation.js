@@ -15,6 +15,7 @@ import {
 } from "./lib.js";
 import { body, all, one, run } from "./collab.js";
 import { loadProject, projectRole } from "./projects.js";
+import { mentoringEvidence } from "./orgs.js";
 
 export const BADGES = [
   { id: "open-data-contributor", name: "Open Data Contributor", description: "Shares data others can reuse.",
@@ -63,6 +64,19 @@ async function categories(env, userId) {
     JOIN communities cm ON cm.id = p.community_id
     WHERE c.author_id = ? AND p.author_id != ? AND c.removed_at IS NULL AND cm.slug = 'careers' AND ${PUBLIC}
     ORDER BY p.created_at DESC`, userId, userId);
+  // Changes other people accepted into their work (a correction or suggestion
+  // the post's author accepted) and finished requests the requester
+  // acknowledged. Only while the evidence is still there; private work is
+  // counted, not named.
+  const contributions = await q(`SELECT ct.ref_type, ct.ref_id, ct.post_id, p.title, p.visibility, r.title AS request_title, r.audience
+    FROM contributions ct
+    LEFT JOIN comments c ON ct.ref_type = 'comment' AND c.id = ct.ref_id
+    LEFT JOIN collab_requests r ON ct.ref_type = 'request' AND r.id = ct.ref_id
+    LEFT JOIN posts p ON p.id = ct.post_id
+    WHERE ct.user_id = ? AND ((ct.ref_type = 'comment' AND c.id IS NOT NULL AND c.removed_at IS NULL AND c.status = 'accepted'
+        AND p.id IS NOT NULL AND p.removed_at IS NULL)
+      OR (ct.ref_type = 'request' AND r.id IS NOT NULL))
+    ORDER BY ct.created_at DESC`, userId);
   return [
     { id: "research", label: "Research", rows: research },
     { id: "datasets_workflows", label: "Datasets and workflows", rows: data },
@@ -76,7 +90,21 @@ async function categories(env, userId) {
     },
     { id: "observations", label: "Verified observations", rows: observations },
     { id: "teaching", label: "Teaching", rows: teaching },
-    { id: "mentoring", label: "Mentoring (careers community)", rows: mentoring },
+    // Careers-community answers, plus mentoring requests the member accepted
+    // (orgs.js; counted, not named -- that is between the two people).
+    ...await (async () => {
+      const mentored = await mentoringEvidence(env, userId);
+      return [{ id: "mentoring", label: "Mentoring", rows: [...mentoring, ...mentored],
+        evidence: [...postEvidence(mentoring), ...mentored].slice(0, EVIDENCE_MAX) }];
+    })(),
+    {
+      id: "accepted_contributions", label: "Accepted contributions", rows: contributions,
+      evidence: contributions.slice(0, EVIDENCE_MAX).map((r) => (r.ref_type === "comment"
+        ? (r.visibility === "public" ? { type: "post", id: r.post_id, title: r.title || "Untitled post" }
+          : { type: "post", id: null, title: "A contribution to work shared privately" })
+        : (r.audience === "everyone" ? { type: "request", id: r.ref_id, title: r.request_title }
+          : { type: "request", id: null, title: "A contribution to work shared privately" }))),
+    },
   ].map((c) => ({ id: c.id, label: c.label, count: c.rows.length, evidence: c.evidence || postEvidence(c.rows) }));
 }
 

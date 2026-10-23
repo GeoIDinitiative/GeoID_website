@@ -18,6 +18,7 @@ import {
   notify, rateLimit, teamRole, communityRole, blockedBetween, NOT_BLOCKED,
 } from "./lib.js";
 import { enumOf, recountStatement } from "./profiles.js";
+import { cleanContentMeta } from "./content.js";
 
 export const KINDS = ["text", "scene", "analysis", "monitor", "observation", "workflow", "dataset", "paper",
   "question", "discussion", "event", "opportunity", "challenge", "model", "repo"];
@@ -131,21 +132,9 @@ function cleanMeta(kind, raw) {
     if ("journal" in meta) meta.journal = str(meta.journal, 200);
     if ("year" in meta) meta.year = optInt(meta.year);
   }
-  if (kind === "monitor") {
-    if ("updated_at" in meta) meta.updated_at = optInt(meta.updated_at);
-    if ("series" in meta) {
-      meta.series = (Array.isArray(meta.series) ? meta.series : []).slice(0, 20).map((s) => ({
-        label: str(s?.label, 120),
-        unit: str(s?.unit, 40),
-        points: (Array.isArray(s?.points) ? s.points : []).slice(0, 5000)
-          .filter((pt) => Array.isArray(pt) && num(pt[0]) != null && num(pt[1]) != null)
-          .map((pt) => [num(pt[0]), num(pt[1])]),
-      }));
-    }
-  }
-  if (kind === "analysis") {
-    if ("uncertainty" in meta) meta.uncertainty = str(meta.uncertainty, 4000);
-  }
+  // analysis, monitor and observation: content.js (before/after pairs,
+  // time series, field measurements with their ranges checked).
+  cleanContentMeta(kind, meta);
   if (kind === "model") {
     // A model page's setup BY REFERENCE: which mesher, which page opens it,
     // the domain and the parameters. Never a mesh -- those are rebuilt from
@@ -661,6 +650,9 @@ function commentShape(row, authors, post) {
     location: row.lat == null ? null : { lat: row.lat, lon: row.lon },
     created_at: row.created_at,
     accepted: post.accepted_comment_id === row.id,
+    // A correction/suggestion the post's author decided on (requests.js decide).
+    status: row.status || "",
+    status_note: row.status_note || "",
   };
 }
 

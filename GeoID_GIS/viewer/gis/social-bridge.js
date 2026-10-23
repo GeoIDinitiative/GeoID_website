@@ -1,12 +1,12 @@
 import * as THREE from "../vendor/three.module.js";
-import { authService } from "./membership.js?v=20261023-d47f653";
-import { currentBodyId, currentBody, getBody, metresPerUnit } from "./bodies.js?v=20261023-d47f653";
-import { latLonToVector3 } from "./geo-utils.js?v=20261023-d47f653";
+import { authService } from "./membership.js?v=20261023-1fe41e3";
+import { currentBodyId, currentBody, getBody, metresPerUnit } from "./bodies.js?v=20261023-1fe41e3";
+import { latLonToVector3 } from "./geo-utils.js?v=20261023-1fe41e3";
 import { visibleBounds, viewFocus, altitudeUnits, onViewSettled, viewChangedEnough }
-  from "./view-extent.js?v=20261023-d47f653";
-import { DATASETS, layerNameOf, addDataset } from "./global-data.js?v=20261023-d47f653";
-import { paintByField } from "./symbology-dialog.js?v=20261023-d47f653";
-import * as projectStore from "./research/project-store.js?v=20261023-d47f653";
+  from "./view-extent.js?v=20261023-1fe41e3";
+import { DATASETS, layerNameOf, addDataset } from "./global-data.js?v=20261023-1fe41e3";
+import { paintByField } from "./symbology-dialog.js?v=20261023-1fe41e3";
+import * as projectStore from "./research/project-store.js?v=20261023-1fe41e3";
 import {
   socialBase, viewRequest, mapUrl, mapToFeatures, featuresKey, readDeepLink, worldUrl,
   cameraFromScene, layersToEnable, annotationsToFeatures, bannerText, buildSharePayload,
@@ -17,7 +17,9 @@ import {
   publishProjectBody, pushVersionBody, sharedRows, PUBLISH_VISIBILITY, SHARE_KINDS, SHARE_KIND_LABELS,
   shareDestinations, destinationKey, parseDestination, repoPrefill, buildShareHandoff,
   buildModelMeta, modelSettingsFromConfig, boxRing, describeModel, postWorld,
-} from "./social-core.js?v=20261023-d47f653";
+  interestRequest, interestUrl, interestToFeatures, communityLayerName, COMMUNITY_MODES,
+  INTEREST_LAYER_NAME, INTEREST_SOURCE, TREND_COLOURS,
+} from "./social-core.js?v=20261023-1fe41e3";
 
 /**
  * GeoHUB Social, inside the viewer.
@@ -266,8 +268,16 @@ function flyTo(lat, lon, altMetres) {
 
 /* ── The Community layer ───────────────────────────────────────────────── */
 
+/**
+ * Two modes, one tick. POSTS is the content (points and clusters from
+ * /v1/map); STUDY INTEREST is the people (discs from /v1/map/interest, sized
+ * by how many distinct researchers work in each cell, amber where rising).
+ * Each is its own named layer in the Workspace, so a reader never mistakes a
+ * head count for a post, and both go through the same importer.
+ */
 const community = {
   on: false,
+  mode: "posts",
   stop: null,
   key: "",
   lastBox: null,
@@ -297,22 +307,28 @@ async function refreshCommunity({ force = false } = {}) {
   const box = visibleBounds(viewer, THREE);
   if (!force && community.lastBox && box && !viewChangedEnough(community.lastBox, box)) return;
   community.lastBox = box;
-  const { bbox, z } = viewRequest(box, { west: isWest() });
+  const interest = community.mode === "interest";
+  const { bbox, z } = interest ? interestRequest(box, { west: isWest() }) : viewRequest(box, { west: isWest() });
   const seq = ++community.seq;
   let answer;
   try {
-    answer = await fetchJson(mapUrl(base(), { world: currentBodyId(), bbox, z }));
+    answer = await fetchJson(interest
+      ? interestUrl(base(), { world: currentBodyId(), bbox, z })
+      : mapUrl(base(), { world: currentBodyId(), bbox, z }));
   } catch (error) {
     if (seq === community.seq) community.say(`GeoHUB Social did not answer (${error.message}).`);
     return;
   }
-  // A slower answer for a view already left behind must not overwrite a newer one.
-  if (seq !== community.seq || !community.on) return;
-  const fc = mapToFeatures(answer, { west: isWest() });
-  const key = featuresKey(fc);
-  const existing = namedLayer(COMMUNITY_LAYER_NAME);
+  // A slower answer for a view already left behind (or the other mode's)
+  // must not overwrite a newer one.
+  if (seq !== community.seq || !community.on || interest !== (community.mode === "interest")) return;
+  const fc = interest ? interestToFeatures(answer, { west: isWest() }) : mapToFeatures(answer, { west: isWest() });
+  const name = communityLayerName(community.mode);
+  const source = interest ? INTEREST_SOURCE : COMMUNITY_SOURCE;
+  const key = `${community.mode}|${featuresKey(fc)}`;
+  const existing = namedLayer(name);
   if (key === community.key && existing) return;
-  community.key = key;
+  community.key = fc.features.length ? key : "";
   community.busy = true;
   try {
     // Carried across the rebuild, so a reader who dimmed or hid the layer
@@ -320,36 +336,75 @@ async function refreshCommunity({ force = false } = {}) {
     const keep = existing ? { visible: existing.visible, opacity: existing.opacity } : null;
     if (existing) manager().removeLayer(existing.id);
     if (!fc.features.length) {
-      community.say("No public community posts in this view yet.");
+      community.say(interest
+        ? "Nobody has shared a study area or a located public post in this view yet."
+        : "No public community posts in this view yet.");
       return;
     }
-    const layer = await importCollection(fc, COMMUNITY_LAYER_NAME);
+    const layer = await importCollection(fc, name);
     layer.metadata = {
       ...(layer.metadata || {}),
-      source: COMMUNITY_SOURCE,
-      citation: COMMUNITY_SOURCE,
+      source,
+      citation: source,
       crs: "Planetocentric latitude/longitude, as posted",
-      format: "live GeoHUB Social feed",
+      format: interest ? "live GeoHUB Social map of interest" : "live GeoHUB Social feed",
       featureCount: fc.features.length,
     };
-    layer.info = { ...(layer.info || {}), source: COMMUNITY_SOURCE, citation: COMMUNITY_SOURCE };
+    layer.info = { ...(layer.info || {}), source, citation: source };
     // A click opens this module's card, not the attribute table (feature-popup.js).
     layer.cardFor = communityCard;
-    try { paintByField(layer, "kind"); } catch (_e) { /* the default colour is fine */ }
-    if (keep) {
-      if (keep.visible === false && layer.object3D) { layer.visible = false; layer.object3D.visible = false; }
-      if (Number.isFinite(keep.opacity)) { layer.opacity = keep.opacity; layer.applyOpacity?.(keep.opacity); }
+    try {
+      if (interest) paintByField(layer, "trend_label", { overrides: new Map(Object.entries(TREND_COLOURS)) });
+      else paintByField(layer, "kind");
+    } catch (_e) { /* the default colour is fine */ }
+    // Discs are areas over the ground: see-through by default, so the
+    // terrain under a busy cell is still readable.
+    const opacity = Number.isFinite(keep?.opacity) ? keep.opacity : (interest ? 0.55 : null);
+    if (keep?.visible === false && layer.object3D) { layer.visible = false; layer.object3D.visible = false; }
+    if (Number.isFinite(opacity)) { layer.opacity = opacity; layer.applyOpacity?.(opacity); }
+    if (interest) {
+      const n = Number(answer?.researchers) || 0;
+      community.say(`${n} researcher${n === 1 ? "" : "s"} in ${fc.features.length} place${fc.features.length === 1 ? "" : "s"} in view — sized by people, not posts; amber is rising. ${source}.`);
+    } else {
+      const points = fc.features.filter((f) => f.properties.social_type === "point").length;
+      community.say(points === fc.features.length
+        ? `${points} community item${points === 1 ? "" : "s"} in view. ${source}.`
+        : `Clustered: zoom in to see single posts. ${source}.`);
     }
-    const points = fc.features.filter((f) => f.properties.social_type === "point").length;
-    community.say(points === fc.features.length
-      ? `${points} community item${points === 1 ? "" : "s"} in view. ${COMMUNITY_SOURCE}.`
-      : `Clustered: zoom in to see single posts. ${COMMUNITY_SOURCE}.`);
     window.GeoIDLayerHierarchy?.render?.();
   } catch (error) {
     community.say(`The community layer did not draw (${error.message || error}).`);
   } finally {
     community.busy = false;
   }
+}
+
+/** Both modes' layers, removed without the Workspace watcher reading it as the reader's untick. */
+function removeCommunityLayers() {
+  community.busy = true;
+  for (const mode of COMMUNITY_MODES) {
+    const layer = namedLayer(communityLayerName(mode));
+    if (layer) manager().removeLayer(layer.id);
+  }
+  community.busy = false;
+}
+
+/** Switch between posts and study interest; redraws at once when the layer is on. */
+function setCommunityMode(mode) {
+  const next = COMMUNITY_MODES.includes(mode) ? mode : "posts";
+  const pick = byId("social-community-mode");
+  if (pick) pick.value = next;
+  if (next === community.mode) return next;
+  community.mode = next;
+  community.seq += 1;
+  community.key = "";
+  if (manager()) removeCommunityLayers();
+  if (community.on) {
+    community.say(next === "interest" ? "Asking GeoHUB Social where people work in view…" : "Asking GeoHUB Social what is in view…");
+    community.lastBox = null;
+    void refreshCommunity({ force: true });
+  }
+  return next;
 }
 
 function setCommunity(on) {
@@ -372,8 +427,7 @@ function setCommunity(on) {
   community.stop?.();
   community.stop = null;
   community.seq += 1;
-  const layer = namedLayer(COMMUNITY_LAYER_NAME);
-  if (layer) { community.busy = true; manager().removeLayer(layer.id); community.busy = false; }
+  removeCommunityLayers();
   community.key = "";
   community.say("");
   return false;
@@ -393,6 +447,23 @@ function communityCard(feature) {
   meta.className = "gis-fp-layer feature-meta";
   const note = document.createElement("p");
   note.className = "gis-fp-copy feature-copy";
+  if (p.social_type === "interest") {
+    // A head count, not content: say what it counts and what it does not.
+    kicker.textContent = `Community · study interest · ${p.trend_label || "Steady"}`;
+    title.textContent = p.place || "Where community members work";
+    const n = Number(p.researchers) || 0;
+    meta.textContent = [`${n} researcher${n === 1 ? "" : "s"}`, `${p.posts || 0} posts`, `${p.projects || 0} projects`,
+      `${p.study_areas || 0} study areas`].join(" · ") + (p.top_tags ? ` · ${p.top_tags}` : "");
+    note.textContent = "Sized by how many people have a reason to be here — a study area, a public post or project — not by how much they post. Community content.";
+    const open = document.createElement("a");
+    open.className = "button small";
+    open.textContent = "Who works here (Social map)";
+    open.href = `${SOCIAL_APP}#/map`;
+    open.target = "_top";
+    open.rel = "noopener";
+    card.append(kicker, title, meta, note, open);
+    return card;
+  }
   if (p.social_type === "cluster") {
     kicker.textContent = "Community · cluster";
     meta.textContent = p.kinds || "";
@@ -626,7 +697,7 @@ function manifestLayers() {
   const rows = window.GeoIDProject?.layerManifest?.() || [];
   const byName = new Map(DATASETS.map((d) => [layerNameOf(d), d.id]));
   return rows
-    .filter((r) => r.name !== COMMUNITY_LAYER_NAME && r.name !== ANNOTATION_LAYER_NAME)
+    .filter((r) => r.name !== COMMUNITY_LAYER_NAME && r.name !== INTEREST_LAYER_NAME && r.name !== ANNOTATION_LAYER_NAME)
     .map((r) => ({ ...r, catalogueId: byName.get(r.name) || null }));
 }
 
@@ -1377,6 +1448,12 @@ function install(tries = 0) {
       <p class="compact-copy">Public posts, observations and projects the GeoHUB Social community has
         placed on this world, refreshed as the view settles. Community content — unverified unless a
         post says how it was observed or modelled.</p>
+      <label class="row"><span>Show</span>
+        <select id="social-community-mode" class="input" title="Posts and projects, or where community members work">
+          <option value="posts" selected>Posts &amp; projects</option>
+          <option value="interest">Study interest (people)</option>
+        </select>
+      </label>
       <div class="gis-btn-row"><button type="button" class="button secondary small" id="social-share-view-panel">Share to Social…</button></div>
       <p class="compact-copy" id="social-community-status" aria-live="polite"></p>
     </div>`;
@@ -1388,12 +1465,13 @@ function install(tries = 0) {
   const status = byId("social-community-status");
   community.say = (m) => { if (status) status.textContent = m || ""; };
   tick.addEventListener("change", () => { setCommunity(tick.checked); });
+  byId("social-community-mode")?.addEventListener("change", (event) => { setCommunityMode(event.target.value); });
   byId("social-share-view-panel")?.addEventListener("click", () => { void openSharePicker({ kind: "scene" }); });
   // Removed from the Workspace rather than here: the tick follows, and the
   // polling stops, rather than the next settle putting it straight back.
   const follow = () => {
     if (community.busy || !community.on) return;
-    if (!namedLayer(COMMUNITY_LAYER_NAME) && community.key) setCommunity(false);
+    if (!namedLayer(communityLayerName(community.mode)) && community.key) setCommunity(false);
   };
   const hook = (n = 0) => {
     if (manager()?.onChange) manager().onChange(follow);
@@ -1420,7 +1498,7 @@ async function near({ radiusKm = 50 } = {}) {
 }
 
 window.GeoIDSocial = {
-  base, socialToken, fetchJson, setCommunity, refreshCommunity, near,
+  base, socialToken, fetchJson, setCommunity, setCommunityMode, refreshCommunity, near,
   shareView, publishWorkspace, projectBlock, openPost, openProject,
   openSharePicker, projectSocialPanel, decorateProjectRow,
   publishActive, pushActive, pullActive, saveShared, modelShareMeta,
