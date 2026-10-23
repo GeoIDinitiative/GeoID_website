@@ -2,13 +2,13 @@ import * as THREE from "./vendor/three.module.js";
 // The polygon-area rule lives in one place, with a test. Stamped by hand
 // once: stamp.py only rewrites a ?v= that already exists.
 import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
-  from "./gis/geo-utils.js?v=20261023-cc9eda6";
+  from "./gis/geo-utils.js?v=20261023-5f60cff";
 import { attachReliefAttributes, followRelief }
-  from "./gis/vector-render.js?v=20261023-cc9eda6";
+  from "./gis/vector-render.js?v=20261023-5f60cff";
 import { rockClass, crustalSetting, rockClassLabel, classificationBasis }
-  from "./gis/rock-class.js?v=20261023-cc9eda6";
+  from "./gis/rock-class.js?v=20261023-5f60cff";
 import { lithologyLabel }
-  from "./gis/lithology-label.js?v=20261023-cc9eda6";
+  from "./gis/lithology-label.js?v=20261023-5f60cff";
 
 /**
  * This module's own cache stamp, read off its own URL.
@@ -14600,8 +14600,49 @@ function fmtProp(value) {
         atmoUniforms.uTop.value = top;
         atmoShell.scale.setScalar(top);
         const d = cam.position.distanceTo(atmoUniforms.uCentre.value) / ground;
-        atmoUniforms.uFade.value = THREE.MathUtils.smoothstep(d, 1.03, 1.25);
+        // Out of the way of a global map (see airYieldsToMaps), eased so it
+        // dissolves rather than blinks.
+        const now = performance.now();
+        if (now - airCheckedAt > 500) { airCheckedAt = now; airTarget = airYieldsToMaps() ? 0 : 1; }
+        airKeep += (airTarget - airKeep) * 0.12;
+        if (Math.abs(airTarget - airKeep) < 0.003) airKeep = airTarget;
+        // uFade 0 is additive black: nothing drawn. The shell stays "visible"
+        // so this hook keeps running and can bring the air back.
+        atmoUniforms.uFade.value = THREE.MathUtils.smoothstep(d, 1.03, 1.25) * airKeep;
       };
+      /**
+       * THE AIR STEPS ASIDE FOR A GLOBAL MAP (reported: "the atmospheric glow
+       * interferes with the global maps"). The shell is additive over the
+       * whole disc, so every colour ramp under it -- a temperature sheet, a
+       * forecast hazard, a climate normal -- reads paler and bluer toward the
+       * limb, which is a wrong value, not a mood. So while any SHOWN layer is a
+       * colour-ramped sheet over most of the globe, the air fades out, and it
+       * comes back when the last one goes.
+       *
+       * "A sheet" is decided by what it draws, not by a list of datasets:
+       * spans at least 300° of longitude and 100° of latitude, carries a ramp
+       * legend (`legendInfo.palette`), and draws filled triangles (a Mesh).
+       * Points and lines on the globe -- the live events, plate boundaries,
+       * coastlines -- leave the air alone; they are read against it, not
+       * through it.
+       */
+      let airKeep = 1;
+      let airTarget = 1;
+      let airCheckedAt = 0;
+      function airYieldsToMaps() {
+        const layers = window.GeoIDImportManager?.getLayers?.() || [];
+        return layers.some((layer) => {
+          const b = layer?.bounds;
+          if (!b || !layer.legendInfo?.palette?.length || !layer.object3D) return false;
+          const lonSpan = Number(b.maxX ?? b.east) - Number(b.minX ?? b.west);
+          const latSpan = Number(b.maxY ?? b.north) - Number(b.minY ?? b.south);
+          if (!(lonSpan >= 300 && latSpan >= 100)) return false;
+          for (let node = layer.object3D; node; node = node.parent) if (!node.visible) return false;
+          let sheet = false;
+          layer.object3D.traverseVisible((o) => { if (o.isMesh && !o.isInstancedMesh && !o.isSprite) sheet = true; });
+          return sheet;
+        });
+      }
       marsGroup.add(atmoShell);
       globe.userData.atmosphere = [atmoShell];
       locatorViewState.camera = camera;

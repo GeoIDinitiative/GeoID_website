@@ -10,18 +10,18 @@
 // everything below. That is the opposite of three.js renderOrder, so the two are
 // inverted when applied.
 
-import { escapeHtml } from "./escape-html.js?v=20261023-cc9eda6";
-import { bandOf } from "./draw-order.js?v=20261023-cc9eda6";
-import { paintOpacity } from "./layer-opacity.js?v=20261023-cc9eda6";
-import { currentBody } from "./bodies.js?v=20261023-cc9eda6";
-import { samplerToRaster } from "./raster-analysis.js?v=20261023-cc9eda6";
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20261023-cc9eda6";
-import { datasetInfoButton } from "./catalogue-list.js?v=20261023-cc9eda6";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20261023-cc9eda6";
+import { escapeHtml } from "./escape-html.js?v=20261023-5f60cff";
+import { bandOf } from "./draw-order.js?v=20261023-5f60cff";
+import { paintOpacity } from "./layer-opacity.js?v=20261023-5f60cff";
+import { currentBody } from "./bodies.js?v=20261023-5f60cff";
+import { samplerToRaster } from "./raster-analysis.js?v=20261023-5f60cff";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20261023-5f60cff";
+import { datasetInfoButton } from "./catalogue-list.js?v=20261023-5f60cff";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20261023-5f60cff";
 import {
   openSymbologyDialog, geometrySummary, geometryKind,
-} from "./symbology-dialog.js?v=20261023-cc9eda6";
-import { tagOf, DATA_TYPES, typeSelect, applyTag, descriptionOf, isUserInput } from "./data-tags.js?v=20261023-cc9eda6";
+} from "./symbology-dialog.js?v=20261023-5f60cff";
+import { tagOf, DATA_TYPES, typeSelect, applyTag, descriptionOf, isUserInput } from "./data-tags.js?v=20261023-5f60cff";
 
 /**
  * The row grew a column and gained a tile, and .layer-row is declared twice --
@@ -1256,12 +1256,19 @@ function basemapRow() {
   node.className = "layer-row layer-row-basemap";
   node.dataset.type = "basemap";
   node.style.setProperty("--tag", DATA_TYPES.basemap.colour);
-  const visible = viewer?.globe?.visible !== false;
   const base = activeBasemap();
+  /**
+   * THE BASEMAP IS ALWAYS ON (the owner's rule): every other layer is read
+   * against it, and a globe with its basemap off is a black ball under
+   * floating data. So its eye is shown ticked and locked -- the row keeps the
+   * shape of its neighbours -- and choosing a different basemap is how it
+   * changes. It once silenced the globe's surfaces (`colorWrite = false`);
+   * anything left in that state by an older session is put back here.
+   */
   node.innerHTML = `
     <span class="layer-grip" aria-hidden="true"></span>
-    <label class="layer-eye" title="Visible">
-      <input type="checkbox" ${visible ? "checked" : ""} data-role="visible">
+    <label class="layer-eye" title="The basemap is always on — choose another under Basemaps">
+      <input type="checkbox" checked disabled aria-disabled="true" data-role="visible">
     </label>
     <span class="layer-name" title="${base.credit || base.label}">Basemap: ${base.label}</span>`;
   /**
@@ -1287,26 +1294,10 @@ function basemapRow() {
     node.appendChild(info);
     node.classList.add("has-info");
   }
-  node.querySelector('[data-role="visible"]').addEventListener("change", (e) => {
-    // The imported imagery hangs off the globe so it turns with it, which means
-    // hiding the globe object would hide the imagery too -- the opposite of
-    // what switching a basemap off is for. Only the globe's own surfaces are
-    // silenced, and anything tagged as an imported layer keeps drawing.
-    //
-    // Silenced by dropping their colour, not by skipping them: a mesh that is
-    // not drawn writes no depth, and the planet stops being solid. With the
-    // basemap off that is exactly what happened -- the moon's orbit line and
-    // the event markers on the far side passed the depth test and showed
-    // through the globe. Painting nothing while still occupying its depth
-    // keeps the planet opaque to everything behind it, which is what "switch
-    // the basemap off" should mean.
-    const globe = viewer?.globe;
-    if (!globe) return;
-    globe.traverse((o) => {
-      if (!o.isMesh || o.userData.geoidLayer) return;
-      const mats = Array.isArray(o.material) ? o.material : [o.material];
-      mats.forEach((m) => { if (m) m.colorWrite = e.target.checked; });
-    });
+  viewer?.globe?.traverse?.((o) => {
+    if (!o.isMesh || o.userData.geoidLayer) return;
+    const mats = Array.isArray(o.material) ? o.material : [o.material];
+    mats.forEach((m) => { if (m && m.colorWrite === false) m.colorWrite = true; });
   });
   return node;
 }
