@@ -100,5 +100,20 @@ function paint() {
   }
 }
 
+/**
+ * Sent here by the sign-in service ("#auth-error=Not a member." on a page
+ * that needed one): say so at the top, then clean the address bar so a
+ * reload or a shared link does not repeat it.
+ */
+function referral() {
+  const hash = new URLSearchParams(String(location.hash || "").replace(/^#/, ""));
+  const why = hash.get("auth-error");
+  if (!why) return;
+  history.replaceState(null, "", location.pathname);
+  const box = byId("member-referral");
+  if (box) box.hidden = false;
+}
+
+referral();
 paint();
 document.addEventListener("geoid:membership", paint);

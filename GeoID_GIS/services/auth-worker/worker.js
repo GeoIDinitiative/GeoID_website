@@ -515,8 +515,48 @@ export async function sendSignInLink(env, email, returnTo) {
   return true;
 }
 
+/**
+ * A PERSON WHO OPENS ONE OF THESE ADDRESSES GETS A PAGE, NOT A STATUS CODE.
+ *
+ * Every route answers JSON, because the site's own scripts are the callers.
+ * But a few of these URLs end up in a browser tab -- a sign-in link from an
+ * email, a bookmark, a link shared out of devtools -- and there a 403 with a
+ * JSON body is Chrome's bare "Access to auth.geoidinitiative.com was denied",
+ * which tells somebody nothing and leaves them nowhere. So a refused TOP-LEVEL
+ * NAVIGATION (a GET whose Accept asks for HTML, or Sec-Fetch-Mode: navigate)
+ * is turned into a redirect to the site: "not a member" to the membership
+ * page, anything else to the sign-in page with the reason shown there. A
+ * fetch from the site is untouched, so no caller's contract changes.
+ */
+export function wantsPage(request) {
+  if (request.method !== "GET") return false;
+  if (request.headers.get("Sec-Fetch-Mode") === "navigate") return true;
+  return /\btext\/html\b/.test(request.headers.get("Accept") || "");
+}
+
+export async function forPeople(request, env, response) {
+  if (response.status < 400 || !wantsPage(request)) return response;
+  const type = response.headers.get("content-type") || "";
+  if (!type.includes("application/json")) return response;
+  let message = "";
+  try { message = String((await response.clone().json()).error || ""); } catch (error) { message = ""; }
+  const site = String(env.SITE_ORIGIN || "https://geoidinitiative.com").replace(/\/$/, "");
+  const target = response.status === 403
+    ? new URL(`${site}/membership/`)
+    : new URL(`${site}/sign-in/`);
+  if (response.status === 403) target.searchParams.set("from", "sign-in");
+  target.hash = `auth-error=${encodeURIComponent(message || "That page needs a sign-in.")}`;
+  return Response.redirect(target.toString(), 302);
+}
+
 export default {
   async fetch(request, env) {
+    return forPeople(request, env, await route(request, env));
+  },
+};
+
+async function route(request, env) {
+  {
     const url = new URL(request.url);
     const head = cors(env, request);
     if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: head });
@@ -755,5 +795,5 @@ export default {
     }
 
     return json({ error: "No such endpoint." }, 404, head);
-  },
-};
+  }
+}

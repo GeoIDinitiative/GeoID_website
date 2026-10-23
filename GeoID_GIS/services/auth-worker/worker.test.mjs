@@ -541,6 +541,29 @@ await sessionChecks();
     String(sent.status));
 }
 
+// A person who opens one of these addresses in a tab is sent to a page.
+{
+  const nav = (path) => new Request(`https://auth.example.org${path}`, {
+    headers: { Accept: "text/html,application/xhtml+xml", "Sec-Fetch-Mode": "navigate" },
+  });
+  const r403 = await worker.fetch(nav("/auth/data-token"), baseEnv());
+  const to403 = new URL(r403.headers.get("location") || "https://x/");
+  check("a non-member opening a member-only address lands on the membership page",
+    r403.status === 302 && to403.origin === "https://example.org" && to403.pathname === "/membership/"
+      && decodeURIComponent(to403.hash).includes("Not a member"), to403.toString());
+  const r400 = await worker.fetch(nav("/auth/callback/email?token=nonsense"), baseEnv());
+  const to400 = new URL(r400.headers.get("location") || "https://x/");
+  check("an expired email link opened in a tab lands on the sign-in page with the reason",
+    r400.status === 302 && to400.pathname === "/sign-in/" && decodeURIComponent(to400.hash).includes("expired"),
+    to400.toString());
+  const fetched = await worker.fetch(new Request("https://auth.example.org/auth/data-token",
+    { headers: { Accept: "application/json" } }), baseEnv());
+  check("the site's own fetch still gets JSON, not a redirect",
+    fetched.status === 403 && (fetched.headers.get("content-type") || "").includes("json"));
+  const ok = await worker.fetch(nav("/auth/doors"), baseEnv());
+  check("a successful answer is never redirected", ok.status === 200);
+}
+
 process.on("exit", () => {
   console.log(`\n${failures ? `${failures} failed` : "all passed"}`);
   if (failures) process.exitCode = 1;
