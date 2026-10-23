@@ -73,6 +73,7 @@ section by subject: `grep -n "^## " GeoID_GIS/docs/notes/*.md`.
 | `ice-and-time.md` | ice cover, glacier inventory and volumes, the time-lapse, imagery over time, `time-window.js` / `time-series.js`, bake diffs |
 | `events-and-live-feeds.md` | satellites, Earth Engine by subject, live connectors, active fires, submarine cables, volcanoes, the events feed, weather in motion, climate change over time, air and sea traffic, roads and city outlines |
 | `hazards.md` | soil and sediment thickness, cyclone risk, volcanic and seismic hazards, WorldPop, forecast landslide risk, the seismic record, hydrography and water bodies, TEMP/PRESSURE readouts, river corridors and flood, watershed and exposure, the risk reader, total risk, study-area reports |
+| `neural-flood-surrogates.md` | research note: can neural emulators replace flood/surge/runout simulations, and a sized plan (reference solver, skill scores, residual U-Net) for GeoHUB |
 | `model-builder-and-gales.md` | the Model Builder pipeline, layered models, GALES contract and results, mesh quality, tomography, Analysis and Results tools (contours, streams, VTK, calculator…), first solves, any layer onto the mesh |
 | `research-hub.md` | the Research Hub and project spine, the sidecar, the hub's look |
 | `planets-and-transit.md` | gas giants, planet audits, Explorer Models, a world's recording, planets built like Earth, per-body CRS, flying a moon, Earth's gazetteer, IAU outlines, transit |
