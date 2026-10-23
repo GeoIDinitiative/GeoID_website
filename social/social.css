@@ -34,7 +34,10 @@
 .s-hdr-top { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; padding-bottom: 0.75rem; }
 .s-brand { font-family: var(--u-display, "Archivo", sans-serif); font-size: 1.35rem; letter-spacing: -0.02em; color: var(--text) !important; white-space: nowrap; }
 .s-brand:hover { text-decoration: none !important; }
-.s-brand .geohub-prefix { color: var(--accent); }
+.s-brand { display: inline-flex; align-items: center; gap: 0.55rem; }
+/* Sized to the wordmark's cap height so "Network" sits on the same line as "GeoID". */
+.s-brand-logo { display: block; height: 1.9rem; width: auto; }
+.s-brand-word { font-weight: 500; line-height: 1; padding-top: 0.12rem; }
 .s-search { flex: 1 1 14rem; min-width: 0; }
 .s-search input { width: 100%; }
 .s-hdr-actions { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; }

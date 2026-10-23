@@ -5,31 +5,31 @@
  * (or resolve to) a cleanup function -- a poll to stop, a map to release --
  * which runs when the route changes.
  */
-import * as api from "./api.js?v=20261023-9db8885";
-import { store, onMe, refreshMe, setUnread } from "./store.js?v=20261023-9db8885";
-import { h, clear, errorBox, pollWhileVisible, put } from "./dom.js?v=20261023-9db8885";
-import { avatar } from "./components.js?v=20261023-9db8885";
-import { createBackdrop } from "./backdrop.js?v=20261023-9db8885";
-import { registerAtlasHost } from "./atlas-host.js?v=20261023-9db8885";
-import { liveSocket } from "./chat.js?v=20261023-9db8885";
+import * as api from "./api.js?v=20261023-23841c7";
+import { store, onMe, refreshMe, setUnread } from "./store.js?v=20261023-23841c7";
+import { h, clear, errorBox, pollWhileVisible, put } from "./dom.js?v=20261023-23841c7";
+import { avatar } from "./components.js?v=20261023-23841c7";
+import { createBackdrop } from "./backdrop.js?v=20261023-23841c7";
+import { registerAtlasHost } from "./atlas-host.js?v=20261023-23841c7";
+import { liveSocket } from "./chat.js?v=20261023-23841c7";
 
-import * as feed from "./views/feed.js?v=20261023-9db8885";
-import * as compose from "./views/compose.js?v=20261023-9db8885";
-import * as post from "./views/post.js?v=20261023-9db8885";
-import * as profile from "./views/profile.js?v=20261023-9db8885";
-import * as people from "./views/people.js?v=20261023-9db8885";
-import * as communities from "./views/communities.js?v=20261023-9db8885";
-import * as teams from "./views/teams.js?v=20261023-9db8885";
-import * as projects from "./views/projects.js?v=20261023-9db8885";
-import * as reviews from "./views/reviews.js?v=20261023-9db8885";
-import * as inbox from "./views/inbox.js?v=20261023-9db8885";
-import * as map from "./views/map.js?v=20261023-9db8885";
-import * as opps from "./views/opportunities.js?v=20261023-9db8885";
-import * as mod from "./views/mod.js?v=20261023-9db8885";
-import * as settings from "./views/settings.js?v=20261023-9db8885";
-import * as orgs from "./views/orgs.js?v=20261023-9db8885";
-import * as onboarding from "./views/onboarding.js?v=20261023-9db8885";
-import * as requests from "./views/requests.js?v=20261023-9db8885";
+import * as feed from "./views/feed.js?v=20261023-23841c7";
+import * as compose from "./views/compose.js?v=20261023-23841c7";
+import * as post from "./views/post.js?v=20261023-23841c7";
+import * as profile from "./views/profile.js?v=20261023-23841c7";
+import * as people from "./views/people.js?v=20261023-23841c7";
+import * as communities from "./views/communities.js?v=20261023-23841c7";
+import * as teams from "./views/teams.js?v=20261023-23841c7";
+import * as projects from "./views/projects.js?v=20261023-23841c7";
+import * as reviews from "./views/reviews.js?v=20261023-23841c7";
+import * as inbox from "./views/inbox.js?v=20261023-23841c7";
+import * as map from "./views/map.js?v=20261023-23841c7";
+import * as opps from "./views/opportunities.js?v=20261023-23841c7";
+import * as mod from "./views/mod.js?v=20261023-23841c7";
+import * as settings from "./views/settings.js?v=20261023-23841c7";
+import * as orgs from "./views/orgs.js?v=20261023-23841c7";
+import * as onboarding from "./views/onboarding.js?v=20261023-23841c7";
+import * as requests from "./views/requests.js?v=20261023-23841c7";
 
 const ROUTES = [
   ["/", feed.render, "Feed"],
@@ -105,7 +105,10 @@ function buildHeader(host) {
   searchForm.addEventListener("submit", (e) => { e.preventDefault(); if (search.value.trim().length >= 2) location.hash = `#/search?q=${encodeURIComponent(search.value.trim())}`; });
   put(host, 
     h("div", { class: "s-hdr-top" },
-      h("a", { class: "s-brand", href: "#/" }, h("span", { class: "geohub-word" }, h("span", { class: "geohub-prefix" }, "Geo"), "ID"), " Network"),
+      // The site's own logo (mark + wordmark, as in the top bar), then the word.
+      h("a", { class: "s-brand", href: "#/", "aria-label": "GeoID Network home" },
+        h("img", { class: "s-brand-logo", src: "/assets/GeoID_logo_icon.png", alt: "GeoID", width: 715, height: 230, decoding: "async" }),
+        h("span", { class: "s-brand-word" }, "Network")),
       searchForm,
       h("div", { class: "s-hdr-actions" }, h("a", { class: "btn-primary s-btn-sm", href: "#/compose" }, "New post"), header.messages, header.notifs, header.who)),
     h("nav", { class: "s-subnav", "aria-label": "GeoID Network" }, header.links, header.modLink));
