@@ -3,13 +3,13 @@
  * claim came from, and the interaction bar. All of it built with h(), so all
  * user content is text.
  */
-import * as api from "./api.js?v=20261023-3c8b2f2";
-import { store, myHandle, refreshMe } from "./store.js?v=20261023-3c8b2f2";
+import * as api from "./api.js?v=20261023-9fdcfa0";
+import { store, myHandle, refreshMe } from "./store.js?v=20261023-9fdcfa0";
 import {
   h, clear, ago, timeEl, toast, modal, copyText, field, select, input, textarea,
   extLink, empty, errorBox, loading, busy, confirmDialog, put,
-} from "./dom.js?v=20261023-3c8b2f2";
-import { cardPreview } from "./embed.js?v=20261023-3c8b2f2";
+} from "./dom.js?v=20261023-9fdcfa0";
+import { cardPreview } from "./embed.js?v=20261023-9fdcfa0";
 
 // ── Vocabulary (CONTRACT.md enumerations) ──────────────────────────────────
 

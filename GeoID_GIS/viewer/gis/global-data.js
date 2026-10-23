@@ -26,18 +26,18 @@
  * rebuilt or updated without guessing what was done to them.
  */
 
-import { runConnector } from "./research/connectors.js?v=20261023-3c8b2f2";
-import { explainFetchFailure, dataUrl } from "./data-base.js?v=20261023-3c8b2f2";
-import { mathsFor } from "./equations.js?v=20261023-3c8b2f2";
+import { runConnector } from "./research/connectors.js?v=20261023-9fdcfa0";
+import { explainFetchFailure, dataUrl } from "./data-base.js?v=20261023-9fdcfa0";
+import { mathsFor } from "./equations.js?v=20261023-9fdcfa0";
 import {
   riskEdges, RISK_LABELS,
-} from "./cyclone-risk.js?v=20261023-3c8b2f2";
-import { colourRange as volcanicColourRange } from "./volcanic-risk.js?v=20261023-3c8b2f2";
-import { featureForModel, may, refusal } from "./membership.js?v=20261023-3c8b2f2";
-import { colourRange as seismicColourRange } from "./seismic-bands.js?v=20261023-3c8b2f2";
+} from "./cyclone-risk.js?v=20261023-9fdcfa0";
+import { colourRange as volcanicColourRange } from "./volcanic-risk.js?v=20261023-9fdcfa0";
+import { featureForModel, may, refusal } from "./membership.js?v=20261023-9fdcfa0";
+import { colourRange as seismicColourRange } from "./seismic-bands.js?v=20261023-9fdcfa0";
 // The cyclone tracks are classed on the same scale the live storm markers
 // band by, so the archive and the feed cut intensity at the same knots.
-import { SAFFIR_SIMPSON_KTS } from "./event-sources.js?v=20261023-3c8b2f2";
+import { SAFFIR_SIMPSON_KTS } from "./event-sources.js?v=20261023-9fdcfa0";
 
 /** Order the groups read in, coarse to specific. */
 export const GROUPS = ["Physical", "Hydrology", "Boundaries", "Tectonics",
@@ -237,8 +237,13 @@ export const DATASETS = [
      * groups it into the four kinds below. THE MAP SYMBOLS ARE NOT IN THIS
      * FILE: baked in alongside the lines they were read as boundary segments
      * (reported: "symbols are being read as real faults"), so they ship as
-     * their own row, "Plate boundary symbols", directly below.
+     * their own file -- but NOT their own layer. `symbols` loads that file
+     * with this one and draws it inside this layer (attachSymbols), so the
+     * key shows, hides, fades and goes away with the lines it explains, and
+     * is switched off from this layer's Symbology ("Type symbols"), not from
+     * a second Workspace row (owner, 2026-10-23).
      */
+    symbols: "plate-boundary-symbols",
     path: "/data/global/plate-boundaries.geojson",
     name: "Plate boundaries by type (Bird 2003).geojson",
     summary: "1,679 boundary lines in four kinds -- subduction, collision, "
@@ -272,9 +277,14 @@ export const DATASETS = [
      * bars across a ridge or rift, paired half-arrows giving a transform's
      * sense of slip. Symbols, not data -- each feature is named "Map symbol"
      * and says so -- kept out of the boundary file so nothing reads them as a
-     * boundary or a fault. Untick to see the boundaries alone.
+     * boundary or a fault.
+     *
+     * HIDDEN: never a row or a layer of its own. It is loaded by the
+     * boundaries' `symbols` and drawn inside that layer; turn it off from
+     * the boundaries' Symbology.
      */
     id: "plate-boundary-symbols",
+    hidden: true,
     home: "geology-tectonics",
     // NOT CLICKABLE: a "Map symbol" card under the pointer read as a fault
     // (reported). Only the boundary lines themselves answer a click or hover.
@@ -293,7 +303,6 @@ export const DATASETS = [
       "Divergent (ridge or rift)": "#ffd166",
       "Transform (conservative)": "#6fd08c",
     },
-    defaultOn: true,
     opacity: 0.55,
   },
   {
@@ -1064,7 +1073,7 @@ function drawnBbox() {
 async function viewBbox() {
   try {
     const THREE = await import("../vendor/three.module.js");
-    const { visibleBounds } = await import("./view-extent.js?v=20261023-3c8b2f2");
+    const { visibleBounds } = await import("./view-extent.js?v=20261023-9fdcfa0");
     const b = visibleBounds(window.GeoIDViewer, THREE);
     const ok = b && [b.minLon, b.minLat, b.maxLon, b.maxLat].every(Number.isFinite);
     return ok ? { minLon: b.minLon, minLat: b.minLat, maxLon: b.maxLon, maxLat: b.maxLat } : null;
@@ -1409,9 +1418,57 @@ export async function addDataset(id, onStatus = () => {},
       console.warn("[GeoID GIS] default symbology failed:", error.message);
     }
   }
+  if (layer && entry.symbols) await attachSymbols(layer, entry.symbols);
   const message = `${entry.label} added. ${entry.licence}.`;
   onStatus(message);
   return { ok: true, layer, message };
+}
+
+/**
+ * A MAP KEY DRAWN INSIDE THE LAYER IT EXPLAINS.
+ *
+ * The plate-boundary symbols were their own Workspace row, so they could be
+ * left on with the boundaries gone, faded separately, reordered between
+ * them -- a key with nothing to be a key to. Now the symbol file is imported
+ * as usual (so it is parsed, painted and weighted exactly as before), then its
+ * geometry is moved INTO the boundaries' object and its record dropped:
+ * visibility, opacity, stacking and removal are the parent's from then on.
+ *
+ * Its record goes as an ADOPTED layer would -- removeLayer leaves adopted
+ * geometry alone -- because that geometry is now the parent's to dispose.
+ * Picking needs nothing: feature-popup reads the parent's own features, and
+ * the symbols are not among them. Relief-following is per material, so the
+ * strokes stay on the ground wherever they hang.
+ */
+async function attachSymbols(parent, id) {
+  const manager = window.GeoIDImportManager;
+  try {
+    const result = await addDataset(id, () => {}, { launch: true });
+    const sym = result?.layer || layerForDataset(id);
+    if (!sym?.object3D || !parent.object3D || !manager) return;
+    const node = sym.object3D;
+    node.name = `${id} (in ${parent.name})`;
+    // attach(), not add(): keeps the strokes where they are in the world.
+    parent.object3D.attach(node);
+    sym.adopted = true;
+    sym.onRemove = null;
+    manager.removeLayer(sym.id);
+    parent.symbolOverlay = {
+      label: "Type symbols",
+      hint: "The barbs, teeth, bars and arrows that say which kind each boundary is.",
+      get: () => node.visible !== false,
+      set: (on) => {
+        node.visible = Boolean(on);
+        noteDatasetChoice(id, Boolean(on));
+        window.GeoIDLayerHierarchy?.render?.();
+      },
+    };
+    // A choice remembered from an earlier visit: the key stays off.
+    if (switchedOff().has(id)) node.visible = false;
+  } catch (error) {
+    // The boundaries are the data; a key that cannot load leaves them alone.
+    console.warn("[GeoID GIS] plate-boundary symbols did not attach:", error.message);
+  }
 }
 
 /**
@@ -1449,7 +1506,9 @@ function rememberOff(ids) {
 
 /** Called from the catalogue row: the tick is the gesture, either way. */
 export function noteDatasetChoice(id, on) {
-  if (!datasetById(id)?.defaultOn) return;   // nothing else has a default to override
+  // Only a default can be overridden: a launch layer, or a key loaded with one.
+  const entry = datasetById(id);
+  if (!entry?.defaultOn && !DATASETS.some((d) => d.symbols === id)) return;
   const off = switchedOff();
   if (on) off.delete(id); else off.add(id);
   rememberOff(off);

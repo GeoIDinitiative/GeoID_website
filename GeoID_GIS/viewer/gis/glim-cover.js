@@ -23,7 +23,7 @@
  */
 
 import { loadDerivedGeologyMap, removeDerivedGeologyMap }
-  from "./geology-panel.js?v=20261023-3c8b2f2";
+  from "./geology-panel.js?v=20261023-9fdcfa0";
 
 const STAMP = new URL(import.meta.url).search || "";
 const LAYER_ID = "glim-lithology";

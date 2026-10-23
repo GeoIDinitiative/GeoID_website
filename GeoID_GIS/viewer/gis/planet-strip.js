@@ -1,4 +1,4 @@
-import { BODIES, currentBodyId } from "./bodies.js?v=20261023-3c8b2f2";
+import { BODIES, currentBodyId } from "./bodies.js?v=20261023-9fdcfa0";
 
 /**
  * The worlds, along the bottom of the GIS page.
@@ -47,82 +47,130 @@ const STORE_KEY = "geoid:planet-strip-collapsed";
  * is injected here instead, which is the one place both halves share.
  */
 const STYLE = `
-.gis-planet-dock {
+/* ONE BAR, IN THE PANELS' OWN MATERIAL (owner, 2026-10-23).
+   It was an opaque strip with a separate pill above it for collapsing -- two
+   objects, the only solid thing floating over the globe, and the same colour
+   under every theme. Now the dock IS the bar: the theme's panel colour at the
+   translucency the side panels read at, blurred, edged in the data colour like
+   #ui, and the collapse control is its last segment. Collapsed, the bar keeps
+   the world you are on and the chevron -- it shrinks toward where you are, so
+   it is plain what it is and how to get it back. Themes restyle it alongside
+   .layer-dock in viewer-themes.css (and the default theme squares it with the
+   rest in side-panels.js). */
+#gis-planet-dock.gis-planet-dock {
   position: fixed;
   left: 50%;
   bottom: 0.6rem;
   transform: translateX(-50%);
   z-index: 12;
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: center;
-  gap: 0.28rem;
-  /* The column is wider than the arrow and taller than the strip, so it would
-     otherwise sit over the globe swallowing drags in the gap beside them. */
-  pointer-events: none;
+  gap: 0;
+  padding: 0.22rem 0.22rem 0.22rem 0.4rem;
+  border: 1px solid rgba(var(--skin-data-rgb, 0, 229, 255), 0.34);
+  border-radius: calc(1.3rem * var(--skin-round, 1));
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.05), transparent 60%),
+    rgba(var(--skin-panel, 22, 9, 51), 0.62);
+  -webkit-backdrop-filter: blur(14px) saturate(140%);
+  backdrop-filter: blur(14px) saturate(140%);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.34),
+    0 0 22px rgba(var(--nav-accent-rgb), 0.12);
+  color: var(--skin-ink, var(--text, #e9fbff));
+  pointer-events: auto;
 }
-.gis-planet-dock > * { pointer-events: auto; }
-.gis-planet-dock[hidden] { display: none; }
+.gis-planet-dock[hidden] { display: none !important; }
 
-/* The strip stops positioning itself -- the dock does it now, so the arrow can
-   sit above the strip and stay put when the strip goes. */
+/* The strip stops being a box of its own: no ground, no edge, no position. */
 #gis-planet-dock > .gis-planet-strip {
   position: static;
-  left: auto;
-  bottom: auto;
+  left: auto; bottom: auto;
   transform: none;
   z-index: auto;
-  max-height: 7rem;
-  overflow: hidden;
-  transition: max-height 0.24s ease, opacity 0.16s ease,
-              padding-top 0.24s ease, padding-bottom 0.24s ease, border-width 0.24s ease;
+  display: flex;
+  align-items: center;
+  gap: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  box-shadow: none;
 }
-/* Collapsed downward into the footer rather than switched off, so it is clear
-   where it went and where it will come back from. */
-#gis-planet-dock.is-collapsed > .gis-planet-strip {
-  max-height: 0;
-  opacity: 0;
-  padding-top: 0;
-  padding-bottom: 0;
-  border-width: 0;
-  pointer-events: none;
+#gis-planet-dock .planet-node {
+  width: 2.1rem;
+  height: 2.1rem;
+  max-width: 2.1rem;
+  margin: 0 0.12rem;
+  opacity: 0.66;
+  overflow: hidden;
+  transition: max-width 220ms cubic-bezier(0.23, 1, 0.32, 1), margin 220ms cubic-bezier(0.23, 1, 0.32, 1),
+    opacity 160ms ease, transform 150ms ease;
+}
+@media (hover: hover) and (pointer: fine) {
+  #gis-planet-dock .planet-node:hover { opacity: 1; transform: scale(1.12); }
+  #gis-planet-dock .planet-node.is-current:hover { transform: none; }
+}
+#gis-planet-dock .planet-node:focus-visible { opacity: 1; outline: 2px solid rgba(var(--nav-accent-rgb), 0.85); outline-offset: 1px; }
+#gis-planet-dock .planet-node.is-current {
+  opacity: 1;
+  box-shadow: 0 0 0 1px rgba(var(--nav-accent-rgb), 0.9), 0 0 14px rgba(var(--nav-accent-rgb), 0.35);
 }
 
-.gis-planet-toggle {
+/* Collapsed: every world but this one folds away, sideways, into the bar. */
+#gis-planet-dock.is-collapsed .planet-node:not(.is-current) {
+  max-width: 0;
+  margin: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+#gis-planet-dock.is-collapsed .planet-node.is-current { cursor: pointer; }
+
+/* The collapse control: the bar's last segment, behind a hairline divider. */
+#gis-planet-dock .gis-planet-toggle {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 2.4rem;
-  height: 1.2rem;
+  flex: none;
+  width: 1.7rem;
+  height: 2.1rem;
+  margin-left: 0.3rem;
   padding: 0;
-  border: 1px solid rgba(var(--nav-accent-rgb), 0.38);
-  border-radius: 999px;
-  /* The app's own ground rather than a literal, so a theme reaches it -- and
-     the studio's toolbar pill, which is this control, matches by construction. */
-  background: var(--skin-tab-ground, rgb(16, 7, 36));
-  backdrop-filter: blur(10px);
-  color: var(--text);
-  font-size: 0.6rem;
+  border: 0;
+  border-left: 1px solid rgba(var(--skin-data-rgb, 0, 229, 255), 0.22);
+  border-radius: 0 calc(1.1rem * var(--skin-round, 1)) calc(1.1rem * var(--skin-round, 1)) 0;
+  background: transparent;
+  color: inherit;
+  opacity: 0.72;
+  font-size: 0.9rem;
   line-height: 1;
   cursor: pointer;
-  transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
+  transition: opacity 150ms ease, color 150ms ease, background-color 150ms ease;
 }
-.gis-planet-toggle:hover {
-  border-color: rgb(var(--nav-accent-rgb));
-  color: rgb(var(--nav-accent-rgb));
+@media (hover: hover) and (pointer: fine) {
+  #gis-planet-dock .gis-planet-toggle:hover { opacity: 1; color: rgb(var(--nav-accent-rgb)); background: rgba(var(--nav-accent-rgb), 0.1); }
 }
-/* Collapsed, the arrow is the only thing left, so it takes the accent to say
-   there is something down there rather than reading as a stray pill. */
-#gis-planet-dock.is-collapsed .gis-planet-toggle {
-  background: rgb(var(--nav-accent-rgb));
-  border-color: rgb(var(--nav-accent-rgb));
-  color: var(--skin-chrome-ink, #2b0030);
-}
-.gis-planet-caret {
-  display: block;
-  transition: transform 0.22s ease;
-}
+#gis-planet-dock .gis-planet-toggle:focus-visible { opacity: 1; outline: 2px solid rgba(var(--nav-accent-rgb), 0.85); outline-offset: -2px; }
+#gis-planet-dock .gis-planet-toggle:active { transform: scale(0.94); }
+.gis-planet-caret { display: block; transition: transform 220ms cubic-bezier(0.23, 1, 0.32, 1); }
+/* Open, it points in (fold); folded, it points out (unfold). */
 #gis-planet-dock.is-collapsed .gis-planet-caret { transform: rotate(180deg); }
+
+@media (max-height: 560px) and (orientation: landscape) {
+  #gis-planet-dock.gis-planet-dock { bottom: 0.3rem; padding: 0.14rem 0.14rem 0.14rem 0.28rem; }
+  #gis-planet-dock .planet-node { width: 1.6rem; height: 1.6rem; max-width: 1.6rem; }
+  #gis-planet-dock .gis-planet-toggle { height: 1.6rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+  #gis-planet-dock .planet-node, .gis-planet-caret { transition: opacity 150ms ease; }
+  #gis-planet-dock .planet-node:hover, #gis-planet-dock .gis-planet-toggle:active { transform: none; }
+}
+/* No blur wanted: the panel colour, solid. */
+@media (prefers-reduced-transparency: reduce) {
+  #gis-planet-dock.gis-planet-dock { background: rgb(var(--skin-panel, 22, 9, 51)); -webkit-backdrop-filter: none; backdrop-filter: none; }
+}
 `;
 
 function injectStyle() {
@@ -183,11 +231,13 @@ function buildDock(strip) {
   toggle.id = TOGGLE_ID;
   toggle.className = "gis-planet-toggle";
   toggle.setAttribute("aria-controls", STRIP_ID);
-  toggle.innerHTML = '<span class="gis-planet-caret" aria-hidden="true">&#9662;</span>';
+  // A chevron pointing back along the bar: open, it folds the worlds in.
+  toggle.innerHTML = '<span class="gis-planet-caret" aria-hidden="true">&#8249;</span>';
   toggle.addEventListener("click", () => setCollapsed(!isCollapsed()));
 
-  dock.appendChild(toggle);
+  // The strip first, the control as the bar's last segment -- one object.
   dock.appendChild(strip);
+  dock.appendChild(toggle);
   return dock;
 }
 
@@ -284,6 +334,12 @@ export function init() {
   const strip = build();
   strip.addEventListener("click", (event) => {
     const node = event.target.closest(".planet-node");
+    // Folded, the one world left showing is the way back to the rest.
+    if (node?.classList.contains("is-current") && isCollapsed()) {
+      event.preventDefault();
+      setCollapsed(false);
+      return;
+    }
     if (node?.dataset.planet) switchWorldInPlace(event, node.dataset.planet);
   });
   document.body.appendChild(buildDock(strip));

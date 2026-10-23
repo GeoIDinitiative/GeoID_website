@@ -1,7 +1,7 @@
 /**
  * The Network's backdrop: the GeoHUB loading screen's own photographs of the
  * Earth and of Etna, dimmed behind translucent panels -- a different plate
- * for each section, and an image of the day on the feed.
+ * for each section; the feed's is the Fimmvörðuháls eruption.
  *
  * The frames, captions and credits are the loading screen's own lists
  * (/load_screen/earth/frames.json, /load_screen/etna/frames.json), so there is
@@ -15,7 +15,7 @@
  * instead. The photograph changes only when the section does, as a 400 ms
  * opacity cross-fade between two layers. Reduced transparency hides it.
  */
-import { h } from "./dom.js?v=20261023-3c8b2f2";
+import { h } from "./dom.js?v=20261023-9fdcfa0";
 
 const EARTH = "/load_screen/earth/";
 const ETNA = "/load_screen/etna/";
@@ -41,15 +41,12 @@ const PLATES = {
   massif: ETNA + "05-etna-massif.webp",
 };
 
-/** The feed's image of the day turns through the brightest, widest views. */
-const OF_THE_DAY = ["marbleEast", "marble", "clouds", "himalaya", "dust", "hurricane", "etnaOrbit", "medNight"];
-
 /** One plate per section (first path segment); sub-pages share their section's. */
 const FOR_SECTION = {
   search: "aurora",
   post: "marbleEast",
   compose: "fumaroles",
-  u: "fimm", me: "fimm",
+  u: "etnaErupt", me: "etnaErupt",
   people: "marble",
   orgs: "medNight", o: "medNight",
   communities: "etnaOrbit", c: "etnaOrbit",
@@ -62,17 +59,15 @@ const FOR_SECTION = {
   messages: "dust",
   notifications: "craters",
   settings: "massif",
-  welcome: "etnaErupt",
+  welcome: "marbleEast",
   mod: "clouds",
   map: "aurora",
 };
 
-export function plateFor(path, date = new Date()) {
+export function plateFor(path) {
   const section = String(path || "/").replace(/^\//, "").split(/[/?]/)[0];
-  if (!section) {
-    const day = Math.floor(date.getTime() / 86400000);
-    return { key: OF_THE_DAY[day % OF_THE_DAY.length], ofTheDay: true };
-  }
+  // The feed is the Network's front page: Fimmvörðuháls, chosen by the owner.
+  if (!section) return { key: "fimm", ofTheDay: false };
   return { key: FOR_SECTION[section] || "marbleEast", ofTheDay: false };
 }
 

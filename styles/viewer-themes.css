@@ -196,7 +196,8 @@
 :root[data-skin="pixel"] .input, :root[data-skin="pixel"] .mini-select,
 :root[data-skin="pixel"] .gis-catalogue-box, :root[data-skin="pixel"] .map-legend,
 :root[data-skin="pixel"] .layer-dock, :root[data-skin="pixel"] .gis-catalogue-row,
-:root[data-skin="pixel"] .legend-entry, :root[data-skin="pixel"] .scene-popup {
+:root[data-skin="pixel"] .legend-entry, :root[data-skin="pixel"] .scene-popup,
+:root[data-skin="pixel"] #gis-planet-dock, :root[data-skin="pixel"] #gis-planet-dock .gis-planet-toggle {
   border-radius: 0 !important;
 }
 :root[data-skin="pixel"] .button, :root[data-skin="pixel"] .tool-button,
@@ -237,7 +238,8 @@
 :root[data-skin="vector"] .control-section,
 :root[data-skin="vector"] .gis-tool-section,
 :root[data-skin="vector"] .gis-catalogue-box,
-:root[data-skin="vector"] .map-legend, :root[data-skin="vector"] .layer-dock {
+:root[data-skin="vector"] .map-legend, :root[data-skin="vector"] .layer-dock,
+:root[data-skin="vector"] #gis-planet-dock {
   background: rgba(0, 0, 0, 0.82) !important;
   border-radius: 0.15rem !important;
   box-shadow: 0 0 12px -2px rgba(var(--skin-chrome-rgb), 0.5),
@@ -322,7 +324,7 @@
 :root[data-skin="beige"] .scene-popup, :root[data-skin="beige"] .controls,
 :root[data-skin="beige"] .legend-panel, :root[data-skin="beige"] .map-legend,
 :root[data-skin="beige"] .layer-dock, :root[data-skin="beige"] .gis-catalogue-box,
-:root[data-skin="beige"] #ui {
+:root[data-skin="beige"] #ui, :root[data-skin="beige"] #gis-planet-dock {
   border: 0 !important;
   border-radius: 0 !important;
   background: rgb(var(--skin-panel)) !important;
@@ -528,6 +530,8 @@
   position: relative;
   border-radius: 0 !important;
 }
+/* The worlds bar squares with them (it is fixed, so it keeps its own position). */
+:root[data-skin="hud"] #gis-planet-dock, :root[data-skin="hud"] #gis-planet-dock .gis-planet-toggle { border-radius: 0 !important; }
 :root[data-skin="hud"] #ui::before, :root[data-skin="hud"] #ui::after {
   content: "";
   position: absolute;

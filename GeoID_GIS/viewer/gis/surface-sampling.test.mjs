@@ -253,7 +253,12 @@ check("the TIN builds", tin.ok, tin.message);
     {
       const stripCss = readFileSync(new URL("./planet-strip.js", import.meta.url), "utf8");
       const pill = /width: 2\.4rem;\n  height: 1\.2rem;\n  padding: 0;\n  border: 1px solid rgba\(var\(--nav-accent-rgb\), 0\.38\);\n  border-radius: 999px;/;
-      check("the toolbar's collapse is the worlds strip's own toggle", pill.test(stripCss) && pill.test(css) && /class="studio-ribbon-caret"/.test(earth) && /#model-studio \.studio-ribbon\.is-folded \.studio-ribbon-fold \{\n  background: rgb\(var\(--nav-accent-rgb\)\);/.test(css) && /\.studio-ribbon-caret \{ display: block; transition: transform 0\.22s ease; \}/.test(css));
+      // 2026-10-23 (owner): the worlds bar's collapse is no longer a separate
+      // pill above it but the bar's own last segment, so the studio's fold
+      // keeps the pill on its own and the bar is checked for being ONE object.
+      check("the worlds bar is one object: the strip, then its collapse, inside the dock", /dock\.appendChild\(strip\);\n  dock\.appendChild\(toggle\);/.test(stripCss) && !pill.test(stripCss)
+        && /rgba\(var\(--skin-panel, 22, 9, 51\), 0\.62\)/.test(stripCss));
+      check("the toolbar's collapse keeps its pill", pill.test(css) && /class="studio-ribbon-caret"/.test(earth) && /#model-studio \.studio-ribbon\.is-folded \.studio-ribbon-fold \{\n  background: rgb\(var\(--nav-accent-rgb\)\);/.test(css) && /\.studio-ribbon-caret \{ display: block; transition: transform 0\.22s ease; \}/.test(css));
     }
     check("the Add tab segregates a prebuilt scenario from a shape, and each carries its own numbers", /<p class="studio-group-title">Prebuilt scenarios<\/p>/.test(earth) && /id="studio-template-params"/.test(earth) && /id="studio-template-add"/.test(earth) && /<p class="studio-group-title">Build your own<\/p>/.test(earth) && !/Templates \(whole scenarios\)|>Primitives</.test(earth));
     check("a scenario declares its own params and builds from them", /params: \{\n      crust_width: \["Crust width", 20\],/.test(studio) && /build: \(p\) => \[/.test(studio) && /function renderParamRows\(host, spec, values, mark\)/.test(studio) && /const values = \{ \.\.\.defaultsOf\(tpl\), \.\.\.readParamRows\("#studio-template-params \[data-tparam\]", "tparam"\) \};/.test(studio));

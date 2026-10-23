@@ -38,7 +38,7 @@
  */
 const SHELF_NAMES = { geoprocess: "Geoprocessing", analysis: "Analysis" };
 
-import { isParked } from "./parked.js?v=20261023-3c8b2f2";
+import { isParked } from "./parked.js?v=20261023-9fdcfa0";
 const PANELS = [
   {
     id: "preprocess",
@@ -588,7 +588,7 @@ input:not([type=range]):not([type=checkbox]):not([type=radio]),
 :root:not([data-skin]) .search-suggestion, :root:not([data-skin]) .lsp-pill, :root:not([data-skin]) .lsp-n, :root:not([data-skin]) .lsp-pbtn, :root:not([data-skin]) .data-tag-chip,
 :root:not([data-skin]) .event-view-tab, :root:not([data-skin]) #nav-collapse-btn, :root:not([data-skin]) .section-toggle,
 :root:not([data-skin]) #time-scrub-toggle, :root:not([data-skin]) #time-rate-toggle, :root:not([data-skin]) .map-legend-toggle, :root:not([data-skin]) .map-legend-panel,
-:root:not([data-skin]) #geoid-zoom-step, :root:not([data-skin]) .gis-planet-toggle,
+:root:not([data-skin]) #geoid-zoom-step, :root:not([data-skin]) .gis-planet-toggle, :root:not([data-skin]) #gis-planet-dock,
 :root:not([data-skin]) body.viewer-page button:not(.gis-catalogue-info-btn):not(#info-btn):not(.planet-node),
 :root:not([data-skin]) [class*="chip"], :root:not([data-skin]) [class*="pill"], :root:not([data-skin]) [class*="card"], :root:not([data-skin]) [class*="tab-btn"] {
   border-radius: 0 !important;

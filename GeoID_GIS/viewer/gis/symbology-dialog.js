@@ -24,11 +24,11 @@
  * polygon comes out white with a perfectly correct legend beside it.
  */
 
-import { attributeHead, rankColourFields } from "./delimited.js?v=20261023-3c8b2f2";
+import { attributeHead, rankColourFields } from "./delimited.js?v=20261023-9fdcfa0";
 import {
   RAMPS, RAMP_NAMES, QUALITATIVE, QUALITATIVE_RAMP, METHODS,
   categoricalSymbology, buildSymbology, colourOf, legendInfoFrom, fmtBound,
-} from "./symbology.js?v=20261023-3c8b2f2";
+} from "./symbology.js?v=20261023-9fdcfa0";
 
 const STYLE = `
 /* NEVER a backtick in this block -- it is a template literal and one ends it. */
@@ -967,6 +967,27 @@ function buildVectorForm(layer, body, note, hooks) {
       views.apply(select.value);
     });
     row.append(label, select);
+    body.appendChild(row);
+  }
+
+  /**
+   * A KEY DRAWN INSIDE THE LAYER -- the plate boundaries' type symbols
+   * (global-data.js `attachSymbols`). Its switch lives here, with the colours
+   * it repeats, because it is part of how this layer is drawn rather than a
+   * layer of its own. Applied on change, like the view selector above.
+   */
+  const overlay = layer.symbolOverlay;
+  if (overlay && typeof overlay.set === "function") {
+    const row = document.createElement("div");
+    row.className = "sym-row";
+    const label = document.createElement("label");
+    const box = document.createElement("input");
+    box.type = "checkbox";
+    box.checked = overlay.get?.() !== false;
+    box.addEventListener("change", () => overlay.set(box.checked));
+    label.append(box, ` ${overlay.label || "Symbols"}`);
+    if (overlay.hint) label.title = overlay.hint;
+    row.appendChild(label);
     body.appendChild(row);
   }
 
