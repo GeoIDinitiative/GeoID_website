@@ -28,14 +28,14 @@
 
 import * as THREE from "../vendor/three.module.js";
 import { latLonToVector3 } from "./geo-utils.js?v=20261023-d95af1d";
-import { DATASETS, layerForDataset, addDataset } from "./global-data.js?v=20261023-d95af1d";
+import { DATASETS, layerForDataset, addDataset, datasetById } from "./global-data.js?v=20261023-d95af1d";
 import { dataUrl } from "./data-base.js?v=20261023-d95af1d";
 import { riskMaps, areaFor, ringsBox, RIVER_ZONE_SCHEME, VOLCANIC_ZONE_SCHEME } from "./risk-reader.js?v=20261023-d95af1d";
 import { polygonsOf, polygonIndex, insideAny, gridValueAt, boxOf } from "./exposure.js?v=20261023-d95af1d";
 import { SCHEMES, schemeForLayerName, bandScheme, chanceScheme, windLookup, riskLayerKind }
   from "./risk-assessment.js?v=20261023-d95af1d";
 import {
-  INSIDE_SCHEME, ASH_SCHEME, exposeSource, summarise, describe, exposureCsv, classColour,
+  INSIDE_SCHEME, ASH_SCHEME, exposeSource, summarise, describe, exposureCsv, classColour, featureBox,
 } from "./infrastructure.js?v=20261023-d95af1d";
 import { refreshPolygonOptions, promptDrawTool } from "./extent-picker.js?v=20261023-d95af1d";
 import { boxSpanDeg, BRIDGE_TIERS, BUILDING_MAX_SPAN } from "./research/connectors.js?v=20261023-d95af1d";
@@ -69,6 +69,8 @@ async function shippedFeatures(entry) {
   }
   return fetched.get(entry.id);
 }
+
+const datasetLabel = (id) => datasetById(id)?.label || id;
 
 export function infrastructureEntries() {
   return DATASETS.filter((d) => d.home === HOME && !d.hidden);
@@ -284,7 +286,24 @@ export async function fetchStructures(extent, { bridges = true, buildings = fals
     else notes.push(`buildings: fetched over a district only (under ${BUILDING_MAX_SPAN}°); this footprint is ${span.toFixed(2)}°`);
   }
   for (const id of want) {
-    if (layerForDataset(id)) continue;
+    /**
+     * A LIVE LAYER FETCHED FOR ANOTHER PLACE is not this footprint's: bridges
+     * over Pittsburgh on the globe would otherwise stop Houston's being asked
+     * for, and the reading would say "no bridges" over a city of thousands.
+     * The live rows follow the area by design, so it is replaced, and said.
+     */
+    const have = layerForDataset(id);
+    if (have) {
+      const feats = featuresOf(have);
+      const boxes = feats.map(featureBox).filter(Boolean);
+      const covers = boxes.length && Math.min(...boxes.map((b) => b.west)) <= extent.west + 0.05
+        && Math.max(...boxes.map((b) => b.east)) >= extent.east - 0.05
+        && Math.min(...boxes.map((b) => b.south)) <= extent.south + 0.05
+        && Math.max(...boxes.map((b) => b.north)) >= extent.north - 0.05;
+      if (covers) continue;
+      window.GeoIDImportManager?.removeLayer?.(have.id);
+      notes.push(`${datasetLabel(id)} on the globe was for another area, so it was fetched again over this footprint`);
+    }
     const out = await addDataset(id, onStatus, { bbox });
     if (!out.ok) notes.push(out.message);
   }
@@ -427,17 +446,17 @@ async function run() {
   try {
     const within = byId("infra-within").value || null;
     say("Reading infrastructure inside the footprint…");
+    // What the fetch could not do is said AFTER the reading, not wiped by
+    // it: a busy Overpass used to leave a count with no bridges and no word.
+    let notes = [];
     if (byId("infra-bridges").checked) {
       const choice = footprintChoices().find((c) => c.value === byId("infra-footprint").value);
-      if (choice) {
-        const notes = await fetchStructures(readerFor(choice, within).extent, { bridges: true });
-        if (notes.length) say(notes.join("; "));
-      }
+      if (choice) notes = await fetchStructures(readerFor(choice, within).extent, { bridges: true });
     }
     const summary = await assess({ footprint: byId("infra-footprint").value, within });
     state.summary = summary;
     render(summary);
-    say("");
+    say(notes.join("; "));
   } catch (error) {
     say(`Could not read the infrastructure: ${error.message}`);
   } finally {

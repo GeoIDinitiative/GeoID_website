@@ -560,6 +560,47 @@ export function firePerimetersToGeoJSON(payload) {
 // Cities, towns and villages in an area. CORS-open, no key. Needs a bbox, so it
 // requires a study area (a global Overpass query would time out).
 
+/**
+ * OVERPASS, WITH A SECOND SERVER.
+ *
+ * Every OSM row asks overpass-api.de, and that one public server sheds load:
+ * on 2026-10-23 it answered 406 to a bare request and 502 "busy, back off" to
+ * a browser's, while the bridges over Houston had loaded from it an hour
+ * before. A row that fails whenever one volunteer server is busy is a row that
+ * fails. The same query is asked of the next server in this list -- each
+ * CORS-open and keyless, verified the same day -- and the error names the
+ * last refusal when every one is busy.
+ */
+export const OVERPASS_SERVERS = [
+  "https://overpass-api.de/api/interpreter",
+  "https://overpass.private.coffee/api/interpreter",
+];
+
+/** The same request on each server in turn; `{ payload, endpoint }` from the first to answer. */
+export async function overpassFetch(url, { fetchImpl = fetch } = {}) {
+  const query = new URL(url).search;
+  let last = "";
+  for (const server of OVERPASS_SERVERS) {
+    const endpoint = `${server}${query}`;
+    try {
+      const response = await fetchImpl(endpoint, { headers: { Accept: "application/json" } });
+      if (response.ok) return { payload: await response.json(), endpoint };
+      last = `${new URL(server).host} answered HTTP ${response.status}`;
+    } catch {
+      last = `${new URL(server).host} could not be reached`;
+    }
+  }
+  throw new Error(`OpenStreetMap's Overpass servers are busy (${last}). Try again in a minute.`);
+}
+
+/** A connector `load` over a url builder and converter: Overpass with its second server. */
+function overpassLoad(urlOf, toGeoJSON) {
+  return async (opts) => {
+    const { payload, endpoint } = await overpassFetch(urlOf(opts));
+    return { geojson: toGeoJSON(payload), endpoint };
+  };
+}
+
 function overpassUrl({ bbox } = {}) {
   if (!bbox) throw new Error("OSM places needs a study area — draw one first, then fetch.");
   const query = "[out:json][timeout:25];("
@@ -1054,10 +1095,8 @@ export function clipToBox(fc, bbox) {
 async function loadCityOutlines(opts = {}) {
   const bbox = opts.bbox || null;
   if (bbox && boxSpanDeg(bbox) <= OUTLINE_MAX_SPAN) {
-    const url = overpassOutlinesUrl(opts);
-    const response = await fetch(url, { headers: { Accept: "application/json" } });
-    if (!response.ok) throw new Error(`OSM city outlines returned HTTP ${response.status}.`);
-    return { geojson: overpassOutlinesToGeoJSON(await response.json()), endpoint: url };
+    const { payload, endpoint } = await overpassFetch(overpassOutlinesUrl(opts));
+    return { geojson: overpassOutlinesToGeoJSON(payload), endpoint };
   }
   const response = await fetch(NE_URBAN_URL, { headers: { Accept: "application/json" } });
   if (!response.ok) throw new Error(`Natural Earth urban areas returned HTTP ${response.status}.`);
@@ -1753,6 +1792,7 @@ export const CONNECTORS = {
   "osm-roads": {
     label: "OSM roads",
     attribution: "© OpenStreetMap contributors (ODbL)",
+    load: overpassLoad(overpassRoadsUrl, overpassRoadsToGeoJSON),
     url: overpassRoadsUrl,
     toGeoJSON: overpassRoadsToGeoJSON,
     filename: () => "osm_roads.geojson",
@@ -1770,6 +1810,7 @@ export const CONNECTORS = {
   "osm-bridges": {
     label: "OSM bridges",
     attribution: "© OpenStreetMap contributors (ODbL)",
+    load: overpassLoad(overpassBridgesUrl, overpassBridgesToGeoJSON),
     url: overpassBridgesUrl,
     toGeoJSON: overpassBridgesToGeoJSON,
     filename: () => "osm_bridges.geojson",
@@ -1778,6 +1819,7 @@ export const CONNECTORS = {
   "osm-buildings": {
     label: "OSM buildings",
     attribution: "© OpenStreetMap contributors (ODbL)",
+    load: overpassLoad(overpassBuildingsUrl, overpassBuildingsToGeoJSON),
     url: overpassBuildingsUrl,
     toGeoJSON: overpassBuildingsToGeoJSON,
     filename: () => "osm_buildings.geojson",
@@ -1786,6 +1828,7 @@ export const CONNECTORS = {
   "osm-places": {
     label: "OSM places",
     attribution: "© OpenStreetMap contributors (ODbL)",
+    load: overpassLoad(overpassUrl, overpassToGeoJSON),
     url: overpassUrl,
     toGeoJSON: overpassToGeoJSON,
     filename: () => "osm_places.geojson",

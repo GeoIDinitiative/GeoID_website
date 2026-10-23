@@ -18,6 +18,7 @@ import { DEPOSIT_CLASSES } from "./ash-plume.js";
 import {
   overpassBridgesQuery, overpassBridgesToGeoJSON, bridgeKind, BRIDGE_TIERS,
   overpassBuildingsQuery, overpassBuildingsToGeoJSON, buildingKind, BUILDING_MAX_SPAN,
+  overpassFetch, OVERPASS_SERVERS, CONNECTORS,
 } from "./research/connectors.js";
 import { infrastructureCall, toolByName, checkArgs } from "./atlas-tools.js";
 import { DATASETS, HOMES, GROUPS } from "./global-data.js";
@@ -192,6 +193,23 @@ const F = SCHEMES.flood;
   check("a building carries its type and levels", g.properties.type === "Apartment block" && g.properties.levels === 5 && g.properties.critical === false);
 }
 
+/* ── Overpass with a second server ── */
+{
+  const asked = [];
+  const busyThenOk = async (url) => {
+    asked.push(new URL(url).host);
+    return asked.length === 1 ? { ok: false, status: 502 } : { ok: true, json: async () => ({ elements: [] }) };
+  };
+  const got = await overpassFetch("https://overpass-api.de/api/interpreter?data=x", { fetchImpl: busyThenOk });
+  check("a busy Overpass server hands the same query to the next", asked.length === 2
+    && asked[1] === new URL(OVERPASS_SERVERS[1]).host && got.endpoint.endsWith("?data=x"), asked.join(" → "));
+  let said = "";
+  try { await overpassFetch("https://overpass-api.de/api/interpreter?data=x", { fetchImpl: async () => ({ ok: false, status: 406 }) }); } catch (e) { said = e.message; }
+  check("every server busy is said, naming the last refusal", /busy .*HTTP 406/.test(said), said);
+  check("every OSM row in the home loads through it", ["osm-roads", "osm-places", "osm-city-outlines", "osm-bridges", "osm-buildings"]
+    .every((k) => typeof CONNECTORS[k]?.load === "function"));
+}
+
 /* ── Atlas ── */
 {
   const flood = infrastructureCall("Which bridges and ports are inside the flood?");
@@ -212,6 +230,18 @@ const F = SCHEMES.flood;
   const assistant = readFileSync(join(HERE, "atlas-assistant.js"), "utf8");
   check("the assistant asks the phrase reader before the intent reader",
     assistant.indexOf("infrastructureCall(q)") > 0 && assistant.indexOf("infrastructureCall(q)") < assistant.indexOf("callFromIntent(intent)"));
+}
+
+/* ── the click card answers for the feature clicked ── */
+{
+  const viewer = readFileSync(join(HERE, "..", "earth-viewer.js"), "utf8");
+  const pick = viewer.slice(viewer.indexOf("function getInteractiveFeatureHit"), viewer.indexOf("function shouldRunEmbeddedGeoSelector"));
+  check("a label behind the globe cannot claim a click (Heathrow opened Lampang)",
+    /intersectObject\(globe, false\)/.test(pick) && /entry\.distance <= reach/.test(pick) && /inside\.has\(entry\.object\)/.test(pick));
+  const popup = readFileSync(join(HERE, "feature-popup.js"), "utf8");
+  check("only geology is headed by its crust (Tokyo was headed CONTINENTAL)",
+    /const unitSetting = geological \? crustalSetting\(/.test(popup)
+    && /feature\.geological === false && !feature\.lithology/.test(viewer));
 }
 
 /* ── the catalogue ── */

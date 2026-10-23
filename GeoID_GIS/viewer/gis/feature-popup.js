@@ -949,8 +949,20 @@ function showViewerCard(hits, at) {
    */
   const lithology = firstOf(props, ["lith", "liths", "LITH", "rcs_d", "rock_d", "lithology"]);
   const unitClass = rockClass(lithology, props.descrip, name);
-  const unitSetting = crustalSetting(lithology,
-    at ? window.GeoIDViewer?.sampleElevationMeters?.(at.lat, at.lon) : null);
+  /**
+   * THE CRUST IS ASKED ABOUT GEOLOGY ONLY.
+   *
+   * `crustalSetting` reads "Continental" or "Oceanic" off the elevation for
+   * any point at all, so every feature that is not rock was headed by it: a
+   * port of Rotterdam, Tokyo and a railway near Frankfurt all opened as
+   * "CONTINENTAL" (2026-10-23), the fifth time after the ice, soil, risk and
+   * volcanic-zone cards below were each given their own way out. A feature
+   * with no lithology on a layer that is not a geological map has no crust to
+   * classify; its heading is the layer's own noun (`featureKind`).
+   */
+  const geological = Boolean(lithology) || isGeological(top.layer, top.feature);
+  const unitSetting = geological ? crustalSetting(lithology,
+    at ? window.GeoIDViewer?.sampleElevationMeters?.(at.lat, at.lon) : null) : null;
   const classLabel = rockClassLabel(unitClass, unitSetting);
   /**
    * ICE IS NOT A ROCK, and every line this card knows how to write was written
