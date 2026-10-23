@@ -44,6 +44,20 @@ let inputNode = null;
 let open = false;
 const history = [];          // {role, content} for the model, when there is one
 
+/**
+ * A page that is not the GeoHUB shell can still carry Atlas: it registers
+ * `window.GeoIDAtlasHost` before this module runs (the GeoID Network does,
+ * from social/js/atlas-host.js). The host is asked FIRST, so its own pages
+ * and state answer before the workspace's -- and its `context()` leads what a
+ * connected model is told. Every field is optional:
+ *
+ *   { sub, greeting, suggestions: [[label, question]], corner: "bottom-right",
+ *     context(): string, answer(question, { submit }): {text, actions} | null }
+ *
+ * Read on each use rather than once, so it is never stale.
+ */
+const host = () => window.GeoIDAtlasHost || null;
+
 function el(tag, className, text) {
   const node = document.createElement(tag);
   if (className) node.className = className;
@@ -66,7 +80,12 @@ function setEndpoint(url) {
 
 /** What the app is doing right now, for the model's `context`. */
 async function appContext() {
-  const bits = [`mode: ${document.body?.dataset?.viewMode || "gis"}`];
+  const bits = [];
+  try {
+    const own = host()?.context?.();
+    if (own) bits.push(String(own), "");
+  } catch (error) { /* the host's context is best-effort too */ }
+  bits.push(`mode: ${document.body?.dataset?.viewMode || "gis"}`);
   const world = document.body?.dataset?.body;
   if (world) bits.push(`world: ${world}`);
   try {
@@ -381,6 +400,15 @@ async function hazardsNearby(state) {
 
 async function grounded(question) {
   const q = question.toLowerCase().trim();
+
+  // The page's own answers first: it knows its pages and state, and the
+  // workspace branches below would talk about projects it does not have.
+  if (host()?.answer) {
+    try {
+      const own = await host().answer(question, { submit });
+      if (own) return own;
+    } catch (error) { /* fall through to the workspace's answers */ }
+  }
 
   if (/^(help|what can you do|who are you|hi|hello)\b/.test(q)) {
     return {
@@ -830,6 +858,19 @@ function connectPrompt() {
  */
 function placeLauncher(launcher, panelNode) {
   const GAP = 10;
+  // A host page with its own header in the top-right corner (the GeoID
+  // Network: Sign in, Donate) takes the mark bottom-right, the panel rising
+  // from it. No rail to clear there, nothing else to measure.
+  if (host()?.corner === "bottom-right") {
+    const size = launcher.offsetHeight || 52;
+    if (launcher.style.top !== "auto") launcher.style.top = "auto";
+    if (launcher.style.bottom !== "16px") launcher.style.bottom = "16px";
+    if (launcher.style.right !== "16px") launcher.style.right = "16px";
+    panelNode.style.top = "auto";
+    panelNode.style.bottom = `${16 + size + GAP}px`;
+    panelNode.style.maxHeight = `${Math.max(220, window.innerHeight - size - 16 - GAP - 18)}px`;
+    return;
+  }
   const occupied = [
     document.getElementById("hazard-readout"),
     document.getElementById("top-right-logo"),
@@ -936,7 +977,7 @@ function build() {
 
   const head = el("header", "atlas-head");
   head.append(el("span", "atlas-title", "Atlas"),
-    el("span", "atlas-sub", "guide to this workspace"));
+    el("span", "atlas-sub", host()?.sub || "guide to this workspace"));
   const close = el("button", "atlas-close", "✕");
   close.type = "button";
   close.title = "Close";
@@ -964,14 +1005,17 @@ function build() {
   // hooked to any one of those events.
   setInterval(replace, 500);
 
-  bubble("atlas",
-    "I'm **Atlas**. I know this workspace and your open project — ask where a tool "
-    + "is, what the project holds, or what to do next.");
-  actionRow([
-    ["What should I do next?", () => submit("what should I do next?")],
-    ["Status", () => submit("status")],
-    ["Anything happening nearby?", () => submit("hazards nearby")],
-  ]);
+  const own = host();
+  bubble("atlas", own?.greeting
+    || ("I'm **Atlas**. I know this workspace and your open project — ask where a tool "
+    + "is, what the project holds, or what to do next."));
+  actionRow(own?.suggestions?.length
+    ? own.suggestions.map(([label, question]) => [label, () => submit(question)])
+    : [
+      ["What should I do next?", () => submit("what should I do next?")],
+      ["Status", () => submit("status")],
+      ["Anything happening nearby?", () => submit("hazards nearby")],
+    ]);
 }
 
 function toggle(force) {

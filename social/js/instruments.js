@@ -15,7 +15,7 @@
  * while the tab is visible, so a background tab costs nothing. If a feed is
  * unreachable its slot says so quietly rather than disappearing.
  */
-import { h, put, clear, pollWhileVisible } from "./dom.js?v=20261023-5845e91";
+import { h, put, clear, pollWhileVisible } from "./dom.js?v=20261023-3c8b2f2";
 
 const QUAKES = "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/4.5_day.geojson";
 const KP = "https://services.swpc.noaa.gov/products/noaa-planetary-k-index.json";
