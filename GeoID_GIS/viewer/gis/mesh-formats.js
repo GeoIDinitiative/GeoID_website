@@ -1,5 +1,5 @@
 import * as THREE from "../vendor/three.module.js";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20261023-c653608";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20261023-8493bfa";
 
 // OBJ and PLY readers, matching the STL/Gmsh adapters' contract so imported
 // meshes share the same normalisation, georeferencing and styling path.

@@ -316,7 +316,7 @@
           <select id="studio-alg3" class="studio-select wide"><option>auto</option><option>Delaunay</option><option>HXT</option><option>Lattice</option></select></div>
         <div class="studio-row"><label for="studio-mesher">Mesher</label>
           <select id="studio-mesher" class="studio-select wide" title="gmsh is the default; Blender builds the surfaces (exact booleans, remesh) and gmsh fills the volume. Both run in the local sidecar."><option value="gmsh">gmsh</option><option value="blender">Blender</option></select></div>
-        <p id="studio-mesher-note" class="studio-row" role="status" hidden></p>
+        <p id="studio-mesher-note" class="studio-readout is-warning" role="status" hidden></p>
         <div class="studio-row"><label for="studio-blender-remesh">Blender remesh</label>
           <input id="studio-blender-remesh" class="studio-input" type="number" step="any" min="0" value="0" title="Voxel size in metres for Blender's remesh before the volume fill; 0 keeps Blender's surfaces as built"></div>
         <div class="studio-row"><button class="studio-btn" data-act="mesh-run" title="Mesh the model with the mesher chosen above, in the local sidecar; the mesh lands in the project's meshes/">Mesh in sidecar</button></div>
