@@ -129,6 +129,16 @@ ok("epochLabel: the partial last year keeps its month", epochLabel("202511", { l
     opts[0].value === "region:Antarctica" && opts.length === 1 + 3 + 18);
   const s = seriesFor(series, "region:West");
   ok("regions carry the gravimetric line", Boolean(s.grav?.gt?.length));
+  {
+    // GRACE is offset onto IMBIE (both mass), not onto the altimetry.
+    const ant = seriesFor(series, "region:Antarctica");
+    const at = (yrs, vals, t) => { let i = 0; while (i < yrs.length - 2 && yrs[i + 1] < t) i += 1; return vals[i]; };
+    const g2015 = at(ant.grav.years, ant.grav.gt, 2015.5);
+    const i2015 = at(ant.imbie.years, ant.imbie.gt, 2015.5);
+    const a2015 = at(series.years, ant.mass, 2015.5);
+    ok("GRACE sits on IMBIE, not on the altimetry", Math.abs(g2015 - i2015) < Math.abs(g2015 - a2015),
+      `grace ${g2015} imbie ${i2015} alt ${a2015}`);
+  }
   ok("basins do not (GRACE's basins are not IMBIE's)", seriesFor(series, "basin:9").grav === null);
   const svg = chartSvg(series, "region:Antarctica", { index: ant.bands.length - 1 });
   // altimetry + IMBIE + IMBIE's band + GRACE

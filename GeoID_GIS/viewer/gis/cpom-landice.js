@@ -29,8 +29,8 @@
  * bake gains it, the row appears with nothing changed here.
  */
 
-import { dataUrl } from "./data-base.js?v=20261024-bf9c579";
-import { gridLattice, gridBounds } from "./polar-stereo.js?v=20261024-bf9c579";
+import { dataUrl } from "./data-base.js?v=20261024-83f39f5";
+import { gridLattice, gridBounds } from "./polar-stereo.js?v=20261024-83f39f5";
 
 const MANIFEST = "/data/global/ice/cpom/manifest.json";
 const LAYER_PREFIX = "Land ice (CPOM)";
@@ -188,8 +188,18 @@ export function seriesFor(series, choice) {
   const r = series.regions[key];
   if (!r) return null;
   const gravSeries = series.gravimetric?.series?.[key];
+  const imbieSeries = series.imbie?.series?.[key];
+  /**
+   * GRACE's own zero is 2011, so it needs one constant to sit on a chart
+   * that counts from 1993. It is fitted to IMBIE where IMBIE is drawn — both
+   * measure MASS — and to the altimetry only where there is nothing else.
+   * Fitted to the altimetry beside IMBIE, it borrowed the very offset the
+   * chart exists to show and read as agreement.
+   */
   const grav = gravSeries
-    ? rebase({ years: series.gravimetric.years, gt: gravSeries.gt }, series.years, r.mass_gt)
+    ? (imbieSeries
+      ? rebase({ years: series.gravimetric.years, gt: gravSeries.gt }, series.imbie.years, imbieSeries.gt)
+      : rebase({ years: series.gravimetric.years, gt: gravSeries.gt }, series.years, r.mass_gt))
     : null;
   return {
     title: key === "Antarctica" || !["East", "West", "Peninsula"].includes(key) ? `All of ${key}` : `${key} Antarctica`,
@@ -458,7 +468,7 @@ async function renderChart(index = null) {
       + (imbieAt != null ? `, IMBIE ${gtText(imbieAt)}` : "")
       + ` over ${s.area.toLocaleString("en-GB")} km². `
       + (kind === "region" ? reconcileText(series, key) : "IMBIE and GRACE are published per region, not per basin.")
-      + (s.grav ? " Dashed: GRACE/GRACE-FO (ESA CCI), shifted to the same zero." : "")
+      + (s.grav ? ` Dashed: GRACE/GRACE-FO (ESA CCI), whose own zero is 2011, offset onto ${s.imbie ? "IMBIE" : "the altimetry"}.` : "")
       + (/Peninsula/.test(s.title) ? " Radar altimetry is least reliable over the Peninsula's mountains; the gravimetric line is the better guide there." : "");
   }
 }
