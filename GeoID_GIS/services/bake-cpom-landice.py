@@ -57,7 +57,10 @@ stay with the site.
 from __future__ import annotations
 
 import argparse
+import base64
+import csv
 import datetime
+import io
 import json
 import pathlib
 import re
@@ -233,6 +236,50 @@ def gravimetric(region):
     }
 
 
+# IMBIE 2021 (Otosaka et al. 2023, ESSD 15, 1597): the reconciled assessment
+# the portal's numbers feed. UK Polar Data Centre, Open Government Licence v3.
+IMBIE_ENTRY = "77b64c55-7166-4a06-9def-2e400398e452"
+IMBIE_FILES = {"Antarctica": "imbie_antarctica_2021_Gt.csv",
+               "West": "imbie_west_antarctica_2021_Gt.csv",
+               "East": "imbie_east_antarctica_2021_Gt.csv",
+               "Peninsula": "imbie_antarctic_peninsula_2021_Gt.csv"}
+IMBIE_URL = "https://ramadda.data.bas.ac.uk/repository/entry/get/{name}?entryid=synth:{entry}:{key}"
+
+
+def imbie(start_year):
+    """IMBIE's cumulative series per region, re-zeroed at our own epoch.
+
+    IMBIE counts from January 1992 and this product from January 1993, so the
+    IMBIE curve has its own value at 1993.0 SUBTRACTED — an exact change of
+    reference, not a fitted shift: both lines then mean "mass gained or lost
+    since January 1993", and any gap between them is a disagreement.
+    """
+    out = {"years": None, "series": {}, "reference": f"re-zeroed at {start_year:.1f}",
+           "citation": ("IMBIE Team / Otosaka, I. N. et al. (2023). Mass balance of the Greenland and "
+                        "Antarctic ice sheets from 1992 to 2020. Earth Syst. Sci. Data 15, 1597-1616, "
+                        "doi:10.5194/essd-15-1597-2023. Data: UK Polar Data Centre, "
+                        "doi:10.5285/77B64C55-7166-4A06-9DEF-2E400398E452."),
+           "licence": "Open Government Licence v3.0",
+           "url": "https://doi.org/10.5285/77B64C55-7166-4A06-9DEF-2E400398E452"}
+    for label, name in IMBIE_FILES.items():
+        key = base64.b64encode(f"/{name}".encode()).decode()
+        local = WORK / "imbie" / name
+        if not local.exists():
+            local.parent.mkdir(parents=True, exist_ok=True)
+            with urllib.request.urlopen(IMBIE_URL.format(name=name, entry=IMBIE_ENTRY, key=key), timeout=120) as r:
+                local.write_bytes(r.read())
+        rows = list(csv.DictReader(io.StringIO(local.read_text())))
+        t = np.array([float(r["Year"]) for r in rows])
+        c = np.array([float(r["Cumulative mass balance (Gt)"]) for r in rows])
+        sig = np.array([float(r["Cumulative mass balance uncertainty (Gt)"]) for r in rows])
+        zero = float(np.interp(start_year, t, c))
+        keep = t >= start_year
+        out["years"] = [round(float(v), 4) for v in t[keep]]
+        out["series"][label] = {"gt": [round(float(v - zero), 1) for v in c[keep]],
+                                "sigma_gt": [round(float(v), 1) for v in sig[keep]]}
+    return out
+
+
 def write_cog(bands, descriptions, nx, ny, x0, y1, out):
     """Int16 bands in the source grid, rows NORTH-UP in projected y."""
     WORK.mkdir(parents=True, exist_ok=True)
@@ -340,6 +387,34 @@ def bake(region):
     regions["Antarctica"] = total
 
     years = [round(years_since(e["end"]) + first.year + first.month / 12 - 1 / 12, 3) for e in epochs]
+    reference = imbie(first.year + (first.month - 1) / 12)
+
+    # RECONCILIATION, written into the series so the page can state it. Over
+    # the window both cover, the altimetry estimate per region beside IMBIE's,
+    # and how far the sheet total moves under other reasonable density rules
+    # — the number is only as good as that assumption, and this shows how good.
+    last_imbie = reference["years"][-1]
+    k = max(i for i, t in enumerate(years) if t <= last_imbie + 0.1)
+    window = {"from": first.isoformat()[:7], "to": epochs[k]["end"],
+              "altimetry_gt": {}, "imbie_gt": {}}
+    for reg, agg in regions.items():
+        window["altimetry_gt"][reg] = agg["mass_gt"][k]
+        ims = reference["series"].get(reg)
+        if ims:
+            window["imbie_gt"][reg] = ims["gt"][-1]
+    grounded = (basin > 0) & np.isfinite(frames[k])
+    fr = frames[k]
+    rules = {
+        "all firn (350)": np.full(fr.shape, FIRN_DENSITY),
+        "this product's rule": density,
+        "all ice (917)": np.full(fr.shape, ICE_DENSITY),
+        "loss as ice, gain as firn": np.where(fr < 0, ICE_DENSITY, FIRN_DENSITY),
+    }
+    window["density_sensitivity_gt"] = {
+        name: round(float((fr[grounded] * rho[grounded]).sum() * cell_area / 1e12))
+        for name, rho in rules.items()}
+    print(f"  reconcile {window['from']}..{window['to']}: altimetry {window['altimetry_gt']}  "
+          f"IMBIE {window['imbie_gt']}  sensitivity {window['density_sensitivity_gt']}")
     series = {
         "region": region,
         "reference": f"change since {first.isoformat()[:7]}",
@@ -350,6 +425,8 @@ def bake(region):
         "basins": basins,
         "regions": regions,
         "gravimetric": gravimetric(region),
+        "imbie": reference,
+        "reconcile": window,
     }
     (OUT / f"{region}-basins.json").write_text(json.dumps(series, separators=(",", ":")))
 

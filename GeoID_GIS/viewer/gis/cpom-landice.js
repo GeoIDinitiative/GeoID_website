@@ -29,8 +29,8 @@
  * bake gains it, the row appears with nothing changed here.
  */
 
-import { dataUrl } from "./data-base.js?v=20261023-9468c0f";
-import { gridLattice, gridBounds } from "./polar-stereo.js?v=20261023-9468c0f";
+import { dataUrl } from "./data-base.js?v=20261024-5c27662";
+import { gridLattice, gridBounds } from "./polar-stereo.js?v=20261024-5c27662";
 
 const MANIFEST = "/data/global/ice/cpom/manifest.json";
 const LAYER_PREFIX = "Land ice (CPOM)";
@@ -183,7 +183,7 @@ export function seriesFor(series, choice) {
   if (kind === "basin") {
     const b = series.basins.find((x) => String(x.id) === key);
     if (!b) return null;
-    return { title: `${b.name} — ${b.place}`, mass: b.mass_gt, area: b.area_km2, grav: null };
+    return { title: `${b.name} — ${b.place}`, mass: b.mass_gt, area: b.area_km2, grav: null, imbie: null };
   }
   const r = series.regions[key];
   if (!r) return null;
@@ -195,11 +195,20 @@ export function seriesFor(series, choice) {
     title: key === "Antarctica" || !["East", "West", "Peninsula"].includes(key) ? `All of ${key}` : `${key} Antarctica`,
     mass: r.mass_gt, area: r.area_km2,
     grav: grav ? { years: series.gravimetric.years, gt: grav } : null,
+    /**
+     * IMBIE, re-zeroed by the bake at this product's own epoch (Jan 1993) —
+     * a change of reference, not a fit, so a gap between the two lines is a
+     * real disagreement and is drawn as one.
+     */
+    imbie: series.imbie?.series?.[key]
+      ? { years: series.imbie.years, gt: series.imbie.series[key].gt, sigma: series.imbie.series[key].sigma_gt }
+      : null,
   };
 }
 
-/** The two lines: CPOM's altimetry, and the gravimetric check beside it. */
+/** The lines: this layer's altimetry estimate, IMBIE's reconciled series, GRACE. */
 export const ALT_COLOUR = "#4ea3ff";
+export const IMBIE_COLOUR = "#5fd38d";
 export const GRAV_COLOUR = "#f2a65a";
 
 /** Round axis steps: 1, 2, 5 × 10^n, about five of them. */
@@ -210,18 +219,23 @@ export function niceStep(span) {
 }
 
 /**
- * The basin chart as an SVG string — gigatonnes against year, the altimetry
- * solid and the gravimetric dashed, a marker on the year the globe is showing.
+ * The basin chart as an SVG string — gigatonnes against year: this layer's
+ * altimetry estimate (blue), IMBIE's reconciled series with its uncertainty
+ * band (green) and GRACE (orange, dashed) where a region has them, and a
+ * marker on the year the globe is showing. A key names each line, because
+ * the blue one is NOT the IMBIE number and must not be readable as it.
  * Pure, so a test can read it.
  */
-export function chartSvg(series, choice, { index = null, width = 300, height = 170 } = {}) {
+export function chartSvg(series, choice, { index = null, width = 300, height = 196 } = {}) {
   const s = seriesFor(series, choice);
   if (!s) return "";
   const years = series.years;
-  const pad = { l: 44, r: 8, t: 10, b: 22 };
+  const pad = { l: 44, r: 8, t: 34, b: 22 };
   const pts = s.mass.map((v, i) => [years[i], v]).filter(([, v]) => v != null);
   const gpts = s.grav ? s.grav.years.map((t, i) => [t, s.grav.gt[i]]).filter(([, v]) => v != null) : [];
-  const all = [...pts, ...gpts].map(([, v]) => v).concat(0);
+  const ipts = s.imbie ? s.imbie.years.map((t, i) => [t, s.imbie.gt[i], s.imbie.sigma?.[i] ?? 0]) : [];
+  const all = [...pts, ...gpts].map(([, v]) => v)
+    .concat(ipts.flatMap(([, v, e]) => [v - e, v + e])).concat(0);
   let lo = Math.min(...all); let hi = Math.max(...all);
   if (hi - lo < 10) { hi += 5; lo -= 5; }
   const step = niceStep(hi - lo);
@@ -244,10 +258,24 @@ export function chartSvg(series, choice, { index = null, width = 300, height = 1
     marker = `<line x1="${X(years[index]).toFixed(1)}" x2="${X(years[index]).toFixed(1)}" y1="${pad.t}" y2="${height - pad.b}" stroke="currentColor" stroke-opacity="0.45" stroke-dasharray="2 2"/>`
       + `<circle cx="${X(years[index]).toFixed(1)}" cy="${Y(s.mass[index]).toFixed(1)}" r="3" fill="${ALT_COLOUR}"/>`;
   }
+  const band = ipts.length
+    ? `<path d="${path(ipts.map(([t, v, e]) => [t, v + e]))}L${path([...ipts].reverse().map(([t, v, e]) => [t, v - e])).slice(1)}Z" `
+      + `fill="${IMBIE_COLOUR}" fill-opacity="0.16" stroke="none"/>`
+    : "";
+  const key = [[ALT_COLOUR, "Altimetry estimate (this layer)", ""]]
+    .concat(ipts.length ? [[IMBIE_COLOUR, "IMBIE 2021", ""]] : [])
+    .concat(gpts.length ? [[GRAV_COLOUR, "GRACE (CCI)", "4 3"]] : []);
+  const keySvg = key.map(([c, label, dash], i) => {
+    const kx = pad.l + i * 92;
+    return `<line x1="${kx}" x2="${kx + 12}" y1="18" y2="18" stroke="${c}" stroke-width="2"${dash ? ` stroke-dasharray="${dash}"` : ""}/>`
+      + `<text x="${kx + 15}" y="21" font-size="8" fill="currentColor" fill-opacity="0.85">${label}</text>`;
+  }).join("");
   return `<svg class="cpom-chart" viewBox="0 0 ${width} ${height}" width="100%" role="img" `
-    + `aria-label="Mass change in gigatonnes, ${s.title}">`
-    + `<text x="${pad.l}" y="8" font-size="9" fill="currentColor" fill-opacity="0.75">Gt since 1993</text>`
-    + grid.join("") + ticks.join("")
+    + `aria-label="Mass change in gigatonnes since January 1993, ${s.title}">`
+    + `<text x="${pad.l}" y="8" font-size="9" fill="currentColor" fill-opacity="0.75">Gt since Jan 1993</text>`
+    + keySvg
+    + grid.join("") + ticks.join("") + band
+    + (ipts.length ? `<path d="${path(ipts)}" fill="none" stroke="${IMBIE_COLOUR}" stroke-width="1.6"/>` : "")
     + (gpts.length ? `<path d="${path(gpts)}" fill="none" stroke="${GRAV_COLOUR}" stroke-width="1.4" stroke-dasharray="4 3"/>` : "")
     + `<path d="${path(pts)}" fill="none" stroke="${ALT_COLOUR}" stroke-width="2"/>`
     + marker + "</svg>";
@@ -328,12 +356,35 @@ async function probeNewer(spec) {
   }
 }
 
+const gtText = (v) => `${v > 0 ? "+" : v < 0 ? "−" : ""}${Math.abs(Math.round(v)).toLocaleString("en-GB")} Gt`;
+
+/**
+ * WHY THE BLUE LINE IS NOT THE IMBIE NUMBER, in one paragraph built from the
+ * bake's own reconciliation. Over the window both cover, the altimetry
+ * estimate and IMBIE per region, and how far the sheet total moves under other
+ * reasonable density rules — which is the cause: radar altimetry measures
+ * VOLUME, and IMBIE's altimetry inputs turn it into mass with firn models
+ * this layer does not have.
+ */
+export function reconcileText(series, region = "Antarctica") {
+  const r = series?.reconcile;
+  if (!r || r.imbie_gt?.[region] == null) return "";
+  const to = epochLabel(r.to);
+  const sens = Object.values(r.density_sensitivity_gt || {});
+  return `Not the IMBIE number. ${region === "Antarctica" ? "For the whole sheet" : `For ${region} Antarctica`}, `
+    + `Jan 1993 to ${to}: this altimetry estimate ${gtText(r.altimetry_gt[region])}, `
+    + `IMBIE 2021 ${gtText(r.imbie_gt[region])}. Altimetry measures volume; turning it into mass needs `
+    + `a density for every cell, and IMBIE uses firn-densification models where this layer uses a two-density rule`
+    + (sens.length ? ` — other reasonable rules move the sheet total anywhere from ${gtText(Math.max(...sens))} to ${gtText(Math.min(...sens))}` : "")
+    + `. Use the green line for mass; use this layer for where and when the surface changed.`;
+}
+
 function regionSummary(spec, series) {
   const last = spec.bands[spec.bands.length - 1];
   const total = series?.regions?.Antarctica?.mass_gt;
   const gt = total ? total[total.length - 1] : null;
   return `${spec.bands.length} years, ${epochLabel(spec.bands[0].end)}–${epochLabel(last.end, { last: true })}`
-    + (gt != null ? ` · ${gt > 0 ? "+" : ""}${Math.round(gt).toLocaleString("en-GB")} Gt since 1993` : "");
+    + (gt != null ? ` · altimetry estimate ${gtText(gt)} since 1993 (not IMBIE — see the chart)` : "");
 }
 
 /** The sheets the portal covers, one row each; a pending one says so. */
@@ -397,8 +448,12 @@ async function renderChart(index = null) {
   const note = byId("cpom-chart-note");
   if (note && s) {
     const when = epochLabel(series.epochs[at], { last: at === series.epochs.length - 1 });
-    note.textContent = (v == null ? `${when}: no value.` : `${when}: ${v > 0 ? "+" : ""}${Math.round(v).toLocaleString("en-GB")} Gt since Jan 1993`)
-      + ` over ${s.area.toLocaleString("en-GB")} km². Solid: altimetry (CPOM).`
+    const [kind, key] = String(pick.value).split(":");
+    const imbieAt = s.imbie ? s.imbie.gt[s.imbie.years.findIndex((t) => t >= series.years[at] - 0.05)] : null;
+    note.textContent = (v == null ? `${when}: no value.` : `${when}: altimetry estimate ${gtText(v)} since Jan 1993`)
+      + (imbieAt != null ? `, IMBIE ${gtText(imbieAt)}` : "")
+      + ` over ${s.area.toLocaleString("en-GB")} km². `
+      + (kind === "region" ? reconcileText(series, key) : "IMBIE and GRACE are published per region, not per basin.")
       + (s.grav ? " Dashed: GRACE/GRACE-FO (ESA CCI), shifted to the same zero." : "")
       + (/Peninsula/.test(s.title) ? " Radar altimetry is least reliable over the Peninsula's mountains; the gravimetric line is the better guide there." : "");
   }
@@ -410,16 +465,22 @@ function metadataFor(spec, kind, series) {
     ? `Mass is elevation change × density: ${d.ice_kg_m3} kg/m³ (ice) where the cell has changed faster than `
       + `${d.dynamic_m_per_yr} m a year over the record, ${d.firn_kg_m3} kg/m³ (firn) elsewhere — after Shepherd et al. (2019); the threshold is GeoHUB's.`
     : "";
+  const im = series?.imbie;
   return {
+    reconciliation: reconcileText(series),
+    comparison: im ? `IMBIE 2021 drawn for comparison: ${im.citation} ${im.licence}.` : "",
     source: `CPOM Land Ice Portal — ${spec.title || "surface elevation change"} (${spec.source || "multi-mission radar altimetry"}), `
       + `via the ESA Antarctic Ice Sheet CCI at CEDA`,
-    citation: `${spec.citation} Licence: ${spec.licence}${spec.references ? ` Reference: ${spec.references}.` : ""}`,
+    // The Metadata tab shows Source, CRS, Format and Citation; the comparison
+    // series is cited there too, because it is drawn beside this layer.
+    citation: `${spec.citation} Licence: ${spec.licence}${spec.references ? ` Reference: ${spec.references}.` : ""}`
+      + (im ? ` Compared with: ${im.citation} (${im.licence}).` : ""),
     crs: `${spec.crs} (drawn in its own grid; each vertex reprojected to the globe)`,
     format: `Cloud-Optimised GeoTIFF, Int16 centimetres, ${spec.grid.dx / 1000} km, one band per year`,
     cellCount: spec.grid.nx * spec.grid.ny,
     units: KINDS[kind].unit,
     summary: `${KINDS[kind].title} since January 1993, in ${KINDS[kind].unit}, on a ${spec.grid.dx / 1000} km grid. `
-      + `GIA correction ${spec.gia || "as published"}. ${kind === "mass" ? density : ""}`,
+      + `GIA correction ${spec.gia || "as published"}. ${density} ${reconcileText(series)}`,
   };
 }
 
@@ -499,7 +560,7 @@ async function open_(region, kind) {
   const layer = window.GeoIDImportManager?.addDerivedLayer?.(name, {
     object3D: mesh, bounds: box, georeferenced: true,
     legendInfo: legendFor(kind),
-    info: { summary: metadataFor(spec, kind, series).summary, citation: spec.citation },
+    info: { summary: metadataFor(spec, kind, series).summary, citation: metadataFor(spec, kind, series).citation },
     home: "geology",
   }, "cpom");
   if (layer) {

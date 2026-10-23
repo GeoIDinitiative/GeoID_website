@@ -12,7 +12,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   KINDS, PALETTE, classOf, valueAt, paint, legendFor, epochLabel, rebase,
-  seriesOptions, seriesFor, chartSvg, niceStep,
+  seriesOptions, seriesFor, chartSvg, niceStep, reconcileText,
 } from "./cpom-landice.js";
 import { inverse } from "./polar-stereo.js";
 
@@ -74,6 +74,25 @@ ok("Pine Island and Thwaites is G-H, in West Antarctica",
   const basinSum = series.basins.reduce((a, b) => a + (b.mass_gt.at(-1) || 0), 0);
   ok("the basins sum to the sheet total", Math.abs(basinSum - total) < 2, `${basinSum} vs ${total}`);
 }
+// ── reconciliation with IMBIE ───────────────────────────────────────────
+{
+  const im = series.imbie;
+  ok("IMBIE 2021 is carried for all four regions", ["Antarctica", "West", "East", "Peninsula"].every((r) => im?.series?.[r]?.gt?.length));
+  ok("IMBIE is re-zeroed at Jan 1993 (starts at ~0)", Math.abs(im.series.Antarctica.gt[0]) < 15, im.series.Antarctica.gt[0]);
+  ok("IMBIE AIS 1993-2020 is about −2,600 Gt (Otosaka et al. 2023)",
+    im.series.Antarctica.gt.at(-1) < -2400 && im.series.Antarctica.gt.at(-1) > -2800, im.series.Antarctica.gt.at(-1));
+  ok("IMBIE is cited with its licence", /10\.5194\/essd-15-1597-2023/.test(im.citation) && /Open Government Licence/.test(im.licence));
+  const r = series.reconcile;
+  ok("the reconciliation window ends where IMBIE does (2020)", r?.to?.startsWith("2020"));
+  ok("IMBIE regions sum to its sheet total", Math.abs(["West", "East", "Peninsula"].reduce((a, k) => a + r.imbie_gt[k], 0) - r.imbie_gt.Antarctica) < 15);
+  const sens = Object.values(r.density_sensitivity_gt);
+  ok("the density sensitivity brackets IMBIE's total", Math.min(...sens) < r.imbie_gt.Antarctica && Math.max(...sens) > r.imbie_gt.Antarctica, JSON.stringify(r.density_sensitivity_gt));
+  ok("the sensitivity includes this product's own rule, equal to its sheet total",
+    Math.abs(r.density_sensitivity_gt["this product's rule"] - r.altimetry_gt.Antarctica) < 2);
+  const text = reconcileText(series);
+  ok("the reconciliation says outright it is not the IMBIE number", /^Not the IMBIE number/.test(text) && /IMBIE 2021 −2,6\d\d Gt/.test(text), text);
+  ok("and names the cause (density / firn models)", /firn-densification/.test(text));
+}
 ok("a gravimetric series rides beside it", Boolean(series.gravimetric?.series?.Antarctica?.gt?.length));
 
 // ── classes and values ──────────────────────────────────────────────────
@@ -112,9 +131,12 @@ ok("epochLabel: the partial last year keeps its month", epochLabel("202511", { l
   ok("regions carry the gravimetric line", Boolean(s.grav?.gt?.length));
   ok("basins do not (GRACE's basins are not IMBIE's)", seriesFor(series, "basin:9").grav === null);
   const svg = chartSvg(series, "region:Antarctica", { index: ant.bands.length - 1 });
-  ok("chart: an SVG with two lines and a marker", svg.startsWith("<svg") && (svg.match(/<path/g) || []).length === 2
-    && /<circle/.test(svg));
-  ok("chart: labelled in Gt", /Gt since 1993/.test(svg));
+  // altimetry + IMBIE + IMBIE's band + GRACE
+  ok("chart: altimetry, IMBIE (line and band) and GRACE, and a marker",
+    svg.startsWith("<svg") && (svg.match(/<path/g) || []).length === 4 && /<circle/.test(svg), (svg.match(/<path/g) || []).length);
+  ok("chart: labelled in Gt since Jan 1993", /Gt since Jan 1993/.test(svg));
+  ok("chart: a key names the altimetry line and IMBIE apart", /Altimetry estimate \(this layer\)/.test(svg) && /IMBIE 2021/.test(svg));
+  ok("a basin chart has no IMBIE line (IMBIE is per region)", seriesFor(series, "basin:9").imbie === null);
   ok("niceStep is 1-2-5", niceStep(4000) === 1000 && niceStep(700) === 200 && niceStep(30) === 10);
 }
 
