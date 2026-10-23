@@ -28,7 +28,7 @@
  * fraction of the cost. Do not reintroduce a mesh per tile.
  */
 
-import { TILE_SOURCES, tileUrl } from "./tile-sources.js?v=20261023-3c2cf02";
+import { TILE_SOURCES, tileUrl } from "./tile-sources.js?v=20261023-d95af1d";
 
 /**
  * How many tile requests may be on the wire at once, across EVERY pass.

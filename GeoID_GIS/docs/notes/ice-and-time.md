@@ -1090,3 +1090,36 @@ the animation and the map it animates cannot disagree about where a class
 begins — and a value of zero is drawn TRANSPARENT rather than in the bottom
 class, because ground no storm has ever reached is outside the map rather than
 at the low end of it.
+## Land ice (CPOM): ice-sheet change in its own projection
+
+`services/bake-cpom-landice.py` → `data/global/ice/cpom/` (manifest + basin
+series tracked; the COG published with `publish-data.py`), drawn by
+`gis/cpom-landice.js` in Ice cover → "Land ice (CPOM)".
+
+**Where the data is.** The portal's own host (www.cpom.ucl.ac.uk) did not answer
+from here (connection refused / timeouts, Oct 2026). The same CPOM-produced
+files are the ESA Antarctic Ice Sheet CCI's surface elevation change v2.0 at
+CEDA: `ESACCI-AIS-L3C-SEC-MULTIMISSION_ANNUAL_CUMULATIVE_DH_GRID-5KM`, one
+NetCDF4 per year, cumulative dH since Jan 1993, 5 km EPSG:3031, 1128 × 968,
+`basin_id` (IMBIE) and `surface_type` on every cell. Public, ESA CCI data policy.
+`dap.ceda.ac.uk` serves files with CORS and byte ranges; there is NO OPeNDAP
+there, and `data.ceda.ac.uk/...?json` listings send no CORS header — so the bake
+holds the year list and the browser only probes the next file with one byte.
+The CCI gravimetric (GRACE) basin product v5.2 is behind a CEDA login; v3.0
+(2002–2020) is public and is what the chart overlays.
+
+**`basin_id` is NOT alphabetical.** 1 = H-Hp, 9 = G-H (Pine Island/Thwaites),
+etc. — cross-tabulated against IMBIE's own 5 km delineation grid
+(imbie.org/imbie-3/drainage-basins), 90–99.5% agreement per id. The table is in
+the bake.
+
+**Drawn in EPSG:3031, never resampled.** `polar-stereo.js` (tested against
+CPOM's own lat/lon arrays and PROJ) builds a 160 × 160 lattice over the grid's
+outer edges; `gee.drape(..., { lattice })` puts it on the relief like any
+overlay. PlaneGeometry's default UVs are already linear over that lattice.
+
+**Mass needs a density.** 917 kg/m³ where |dH/dt| over the record > 0.1 m/yr,
+else 350 (firn) — Shepherd et al. 2019's split, our threshold. Result: AIS
+−1,397 Gt, West −2,656 Gt, G-H −2,725 Gt since 1993. The Peninsula comes out
+POSITIVE where GRACE shows loss: radar altimetry over its mountains is poor, and
+the chart says so.
