@@ -183,7 +183,8 @@ export function registerAtlasHost(ctx) {
   };
   window.GeoIDAtlasHost = {
     sub: "guide to the GeoID Network",
-    corner: "bottom-right",
+    // In the Network header's top-right corner, beside Settings.
+    slot: () => document.querySelector(".s-hdr-atlas"),
     greeting: "I'm **Atlas**, the assistant from GeoHUB. On the Network I can take you anywhere, "
       + "say what needs your attention, and find the people working on a topic or a place.",
     suggestions: [["What should I do next?", "what should I do next?"], ["Who works near Etna?", "people near Etna"], ["What can you do?", "help"]],

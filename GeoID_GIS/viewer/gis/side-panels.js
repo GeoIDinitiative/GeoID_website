@@ -38,7 +38,7 @@
  */
 const SHELF_NAMES = { geoprocess: "Geoprocessing", analysis: "Analysis" };
 
-import { isParked } from "./parked.js?v=20261023-99d62f8";
+import { isParked } from "./parked.js?v=20261023-5ffc27c";
 const PANELS = [
   {
     id: "preprocess",
@@ -595,7 +595,7 @@ input:not([type=range]):not([type=checkbox]):not([type=radio]),
 }
 /* The HUD over the globe (clock, LIVE, the events list) was edged in cyan;
    the game's chrome speaks one colour. */
-:root:not([data-skin]) #time-scrub-toggle, :root:not([data-skin]) #time-rate-toggle, :root:not([data-skin]) .map-legend-panel {
+:root:not([data-skin]) .map-legend-panel {
   border-color: rgba(var(--nav-accent-rgb), 0.42) !important;
 }
 :root:not([data-skin]) #ui, :root:not([data-skin]) #layer-dock {

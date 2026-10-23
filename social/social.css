@@ -999,3 +999,7 @@ a.s-stat:focus-visible, button.s-stat:focus-visible { color: var(--text); outlin
 .s-hdr-sound[aria-pressed="true"] { color: var(--accent); border-color: rgba(var(--accent-rgb), 0.5); }
 @media (hover: hover) and (pointer: fine) { .s-hdr-sound:hover { color: var(--text); background: rgba(255, 255, 255, 0.06); } }
 .s-hdr-sound:focus-visible { outline: 2px solid rgba(var(--accent-rgb), 0.7); outline-offset: 1px; }
+
+/* Atlas's mark, in the header's top-right corner. */
+.s-hdr-atlas { display: inline-flex; align-items: center; }
+.s-hdr-atlas:empty { display: none; }

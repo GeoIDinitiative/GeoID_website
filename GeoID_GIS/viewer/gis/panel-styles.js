@@ -14,6 +14,29 @@
  */
 
 const STYLE = `
+/* ── The clock and the LIVE pill: readouts ON the globe, not tiles ──────────
+   They were two opaque boxes with accent outlines in the corner of the view
+   (owner, 2026-10-23: "unbounded by the box, or a subtle outline"). Now there
+   is no ground, only a hairline that is barely there until you point at it,
+   and the digits glow the way an instrument's do. Every theme: this is the
+   shape of the control, not a colour, so no theme restates it. */
+:root #time-scrub-toggle, :root #time-rate-toggle {
+  background: transparent !important;
+  box-shadow: none !important;
+  border: 1px solid rgba(255, 255, 255, 0.07) !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+  transition: border-color 150ms ease, background-color 150ms ease, color 150ms ease;
+}
+:root #time-scrub-toggle:hover, :root #time-rate-toggle:hover,
+:root #time-scrub-toggle.is-active {
+  transform: none;
+  background: rgba(255, 255, 255, 0.04) !important;
+  border-color: rgba(255, 255, 255, 0.18) !important;
+}
+:root #time-rate-toggle.is-live, :root #time-rate-toggle.is-paused { border-color: rgba(255, 255, 255, 0.07) !important; }
+#scrub-clock-canvas { filter: drop-shadow(0 0 5px rgba(var(--skin-data-rgb, 0, 229, 255), 0.5)); }
+#time-scrub-toggle .scrub-date, #time-scrub-toggle .scrub-utc { text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8); }
 /* Settings rows: a label, a field, its actions, and what it is for. */
 .gis-setting-row { margin-bottom: 0.6rem; }
 .gis-setting-row > label { display: block; font-size: 0.7rem; margin-bottom: 0.15rem; }

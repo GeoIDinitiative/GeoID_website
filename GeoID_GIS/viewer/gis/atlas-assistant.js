@@ -52,7 +52,11 @@ const history = [];          // {role, content} for the model, when there is one
  * connected model is told. Every field is optional:
  *
  *   { sub, greeting, suggestions: [[label, question]], corner: "bottom-right",
- *     context(): string, answer(question, { submit }): {text, actions} | null }
+ *     slot(): Element | null, context(): string,
+ *     answer(question, { submit }): {text, actions} | null }
+ *
+ * `slot` hands the mark a place IN the host's own chrome (the Network's
+ * header, top right) instead of a fixed corner; the panel then drops from it.
  *
  * Read on each use rather than once, so it is never stale.
  */
@@ -858,6 +862,21 @@ function connectPrompt() {
  */
 function placeLauncher(launcher, panelNode) {
   const GAP = 10;
+  // Slotted into the host's header: it goes where the header puts it, and the
+  // panel hangs from its bottom edge, right-aligned to it. The slot may be
+  // drawn after the mark was built, so it is looked for on every pass.
+  const slot = host()?.slot?.();
+  if (slot) {
+    if (launcher.parentNode !== slot) slot.appendChild(launcher);
+    launcher.classList.add("is-slotted");
+    launcher.style.top = ""; launcher.style.right = ""; launcher.style.bottom = "";
+    const box = launcher.getBoundingClientRect();
+    panelNode.style.top = `${Math.round(box.bottom + GAP)}px`;
+    panelNode.style.bottom = "auto";
+    panelNode.style.right = `${Math.max(10, Math.round(window.innerWidth - box.right))}px`;
+    panelNode.style.maxHeight = `${Math.max(220, window.innerHeight - box.bottom - GAP - 18)}px`;
+    return;
+  }
   // A host page with its own header in the top-right corner (the GeoID
   // Network: Sign in, Donate) takes the mark bottom-right, the panel rising
   // from it. No rail to clear there, nothing else to measure.

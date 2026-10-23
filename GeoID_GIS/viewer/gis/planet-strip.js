@@ -1,4 +1,4 @@
-import { BODIES, currentBodyId } from "./bodies.js?v=20261023-99d62f8";
+import { BODIES, currentBodyId } from "./bodies.js?v=20261023-5ffc27c";
 
 /**
  * The worlds, along the bottom of the GIS page.
@@ -51,8 +51,8 @@ const STYLE = `
    It was an opaque strip with a separate pill above it for collapsing -- two
    objects, the only solid thing floating over the globe, and the same colour
    under every theme. Now the dock IS the bar: the theme's panel colour at the
-   translucency the side panels read at, blurred, edged in the data colour like
-   #ui, and the collapse control is its last segment. Collapsed, EVERY world
+   translucency the side panels read at, blurred, edged with a hairline of
+   light, and the collapse control is its last segment. Collapsed, EVERY world
    folds away (owner: "completely collapsed") and only the control is left --
    one glowing up-chevron on the globe, with no box around it (owner): the
    worlds are down here, press to raise them. Open, it points down. Themes restyle it alongside
@@ -69,7 +69,8 @@ const STYLE = `
   align-items: center;
   gap: 0;
   padding: 0.22rem 0.22rem 0.22rem 0.4rem;
-  border: 1px solid rgba(var(--skin-data-rgb, 0, 229, 255), 0.34);
+  /* A hairline of light, not a coloured stroke: the blue edge cheapened it. */
+  border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: calc(1.3rem * var(--skin-round, 1));
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.05), transparent 60%),
@@ -182,7 +183,7 @@ const STYLE = `
   margin-left: 0.3rem;
   padding: 0;
   border: 0;
-  border-left: 1px solid rgba(var(--skin-data-rgb, 0, 229, 255), 0.22);
+  border-left: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 0 calc(1.1rem * var(--skin-round, 1)) calc(1.1rem * var(--skin-round, 1)) 0;
   background: transparent;
   color: inherit;
