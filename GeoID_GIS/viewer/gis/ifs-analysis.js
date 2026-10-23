@@ -31,14 +31,14 @@
 import * as THREE from "../vendor/three.module.js";
 import {
   WORLD, sampleScalar, rampPalette, wrapLon, compassPoint, beaufort, isGlobal,
-} from "./flow-field.js?v=20261023-d312760";
-import { shadingMesh, disposeMesh, layerShown, currentViewBox } from "./flow-layer.js?v=20261023-d312760";
-import { refreshPolygonOptions, resolvePolygonExtent } from "./extent-picker.js?v=20261023-d312760";
+} from "./flow-field.js?v=20261023-a92d76b";
+import { shadingMesh, disposeMesh, layerShown, currentViewBox } from "./flow-layer.js?v=20261023-a92d76b";
+import { refreshPolygonOptions, resolvePolygonExtent } from "./extent-picker.js?v=20261023-a92d76b";
 import {
   IFS_REPO, IFS_REGISTRY, IFS_CREDIT, IFS_VARIABLES, T0_MS, LAST_MS, STEP_MS, POINTS,
   timeIndex, reducedGrid, latticeFor, regrid, rangeOf, decodeBlosc, asFloat32, levelOffset, windFrom,
   featherWeight, underAlpha,
-} from "./ifs-grid.js?v=20261023-d312760";
+} from "./ifs-grid.js?v=20261023-a92d76b";
 
 const LAYER_NAME = "ECMWF IFS analysis";
 /** One opacity for the sheet wherever it is, patch or world (see `underAlpha`). */
@@ -456,14 +456,16 @@ function buildDrawer() {
   host.appendChild(row("Variable", what));
 
   /**
-   * TIME ON ONE LINE: ◀◀ ◀ [date] [hour] ▶ ▶▶. The steppers are the
-   * catalogue's own small pill buttons (`gis-catalogue-sym`, the Symbology
-   * button beside every row), and the date takes whatever width is left, so
-   * the line holds at the panel's narrowest. A `label.row` like its
-   * neighbours (so it takes their type size — `.input` inherits its font),
-   * tied to the date with `for`, so a click on the words opens the date and
-   * never presses a stepper. The date's basis is 0: an input's intrinsic
-   * ~145 px would otherwise be the drawer's minimum and push it past the panel.
+   * TIME ON ONE LINE: ◀◀ ◀ [date] [18Z] ▶ ▶▶. The steppers and the hour are
+   * the catalogue's own small pills (`gis-catalogue-sym`, the Symbology button
+   * beside every row); the hour pill cycles 00→06→12→18 within the day, the
+   * arrows step 6 h and a day across days. Measured at the panel's narrowest
+   * (20rem, 191 px of drawer) six controls at the panel's type size do not
+   * fit with a whole date, so when the line would overflow the day-steps
+   * (◀◀ ▶▶) step aside and ◀ [date] [18Z] ▶ stays whole — never a wrap.
+   *
+   * A `label.row` like its neighbours, tied to the date with `for`, so a click
+   * on the words opens the date and never presses a stepper.
    */
   const fmt = (ms) => new Date(ms).toISOString().slice(0, 10);
   const day = document.createElement("input");
@@ -473,47 +475,60 @@ function buildDrawer() {
   day.min = fmt(T0_MS);
   day.max = fmt(LAST_MS);
   day.setAttribute("aria-label", "Analysis date (UTC)");
-  day.style.cssText = "flex:1 1 0;min-width:0;width:0";
-  const hour = document.createElement("select");
-  hour.className = "input";
-  hour.id = "ifs-hour";
-  hour.setAttribute("aria-label", "Analysis hour (UTC)");
-  hour.style.cssText = "flex:0 0 auto;width:auto;min-width:0";
-  [0, 6, 12, 18].forEach((h) => hour.appendChild(option(h, `${String(h).padStart(2, "0")}Z`, false)));
-  const show = () => {
-    day.value = fmt(settings.timeMs);
-    hour.value = String(new Date(settings.timeMs).getUTCHours());
-  };
-  const pick = () => {
-    const ms = Date.parse(`${day.value}T${String(hour.value).padStart(2, "0")}:00:00Z`);
-    if (!Number.isFinite(ms)) return;
-    settings.timeMs = timeIndex(ms).ms;
-    show();
-    void reload();
-  };
-  day.addEventListener("change", pick);
-  hour.addEventListener("change", pick);
-  const step = (glyph, by) => {
+  // A whole date at the panel's type size, and never more than the line has.
+  day.style.cssText = "flex:1 1 0;min-width:6.6rem;width:0";
+  const pill = (glyph, title) => {
     const b = document.createElement("button");
     b.type = "button";
     b.className = "gis-catalogue-sym";
     b.textContent = glyph;
-    const hours = Math.abs(by) / 3_600_000;
-    b.title = `${hours} h ${by > 0 ? "later" : "earlier"}`;
-    b.setAttribute("aria-label", b.title);
-    b.addEventListener("click", () => {
-      settings.timeMs = timeIndex(settings.timeMs + by).ms;
-      show();
-      void reload();
-    });
+    b.title = title;
+    b.setAttribute("aria-label", title);
     return b;
   };
-  // Itself a `.row`, so the panel's `.row > .input` rule dresses the date and
-  // the hour exactly as it dresses every other select; laid out as a line.
+  const hour = pill("18Z", "Analysis hour (UTC) — click for the next of 00, 06, 12, 18");
+  hour.id = "ifs-hour";
+  hour.style.flex = "0 0 auto";
+  const show = () => {
+    day.value = fmt(settings.timeMs);
+    hour.textContent = `${String(new Date(settings.timeMs).getUTCHours()).padStart(2, "0")}Z`;
+  };
+  const go = (ms) => {
+    settings.timeMs = timeIndex(ms).ms;
+    show();
+    void reload();
+  };
+  day.addEventListener("change", () => {
+    const ms = Date.parse(`${day.value}T${String(new Date(settings.timeMs).getUTCHours()).padStart(2, "0")}:00:00Z`);
+    if (Number.isFinite(ms)) go(ms);
+  });
+  hour.addEventListener("click", () => {
+    const h = new Date(settings.timeMs).getUTCHours();
+    go(settings.timeMs + (h === 18 ? -3 : 1) * STEP_MS);
+  });
+  const step = (glyph, by) => {
+    const b = pill(glyph, `${Math.abs(by) / 3_600_000} h ${by > 0 ? "later" : "earlier"}`);
+    b.style.flex = "0 0 auto";
+    b.addEventListener("click", () => go(settings.timeMs + by));
+    return b;
+  };
+  const dayBack = step("◀◀", -4 * STEP_MS);
+  const dayOn = step("▶▶", 4 * STEP_MS);
+  // Itself a `.row`, so the panel's `.row > .input` rule dresses the date
+  // exactly as it dresses every other control; laid out as a line.
   const line = document.createElement("div");
   line.className = "row";
   line.style.cssText = "flex-direction:row;align-items:center;gap:0.2rem;margin:0;min-width:0";
-  line.append(step("◀◀", -4 * STEP_MS), step("◀", -STEP_MS), day, hour, step("▶", STEP_MS), step("▶▶", 4 * STEP_MS));
+  line.append(dayBack, step("◀", -STEP_MS), day, hour, step("▶", STEP_MS), dayOn);
+  const fit = () => {
+    dayBack.hidden = false;
+    dayOn.hidden = false;
+    if (line.clientWidth && line.scrollWidth > line.clientWidth + 1) {
+      dayBack.hidden = true;
+      dayOn.hidden = true;
+    }
+  };
+  if (typeof ResizeObserver === "function") new ResizeObserver(fit).observe(line);
   show();
   const time = document.createElement("label");
   time.className = "row";

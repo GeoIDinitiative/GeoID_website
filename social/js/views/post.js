@@ -1,20 +1,20 @@
 /** #/post/:id — one post in full, its provenance, the interaction bar and the thread. */
-import { play } from "../sounds.js?v=20261023-d312760";
-import * as api from "../api.js?v=20261023-d312760";
-import { store, myHandle } from "../store.js?v=20261023-d312760";
+import { play } from "../sounds.js?v=20261023-a92d76b";
+import * as api from "../api.js?v=20261023-a92d76b";
+import { store, myHandle } from "../store.js?v=20261023-a92d76b";
 import {
   h, clear, timeEl, toast, modal, field, select, textarea, busy, extLink, errorBox, loading,
   confirmDialog, empty, dateText, put,
-} from "../dom.js?v=20261023-d312760";
+} from "../dom.js?v=20261023-a92d76b";
 import {
   userChip, kindBadge, provenanceBadge, hasProvenance, verificationBadge, geohubHref, tagList, REACTIONS, LICENCES, VISIBILITY,
   PROVENANCE, act, requireSignIn, followButton, reportDialog, share, postUrl, citeDialog, bookmarkDialog,
   reshareButton, quoteDialog, sendPostDialog,
   postCard, kindLabel,
-} from "../components.js?v=20261023-d312760";
-import { compareSlider, resolveImageRef, timeChart, measurementsBlock, gallery } from "../rich.js?v=20261023-d312760";
-import { parseVideoLink, videoEmbed } from "../embed.js?v=20261023-d312760";
-import { eventPanel } from "./opportunities.js?v=20261023-d312760";
+} from "../components.js?v=20261023-a92d76b";
+import { compareSlider, resolveImageRef, timeChart, measurementsBlock, gallery } from "../rich.js?v=20261023-a92d76b";
+import { parseVideoLink, videoEmbed } from "../embed.js?v=20261023-a92d76b";
+import { eventPanel } from "./opportunities.js?v=20261023-a92d76b";
 
 export async function render(root, { params, query }) {
   const id = params.id;
