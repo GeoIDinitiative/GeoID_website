@@ -5,29 +5,29 @@
  * (or resolve to) a cleanup function -- a poll to stop, a map to release --
  * which runs when the route changes.
  */
-import * as api from "./api.js";
-import { store, onMe, refreshMe, setUnread } from "./store.js";
-import { h, clear, errorBox, pollWhileVisible, put } from "./dom.js";
-import { avatar } from "./components.js";
-import { liveSocket } from "./chat.js";
+import * as api from "./api.js?v=20261023-e08bb6a";
+import { store, onMe, refreshMe, setUnread } from "./store.js?v=20261023-e08bb6a";
+import { h, clear, errorBox, pollWhileVisible, put } from "./dom.js?v=20261023-e08bb6a";
+import { avatar } from "./components.js?v=20261023-e08bb6a";
+import { liveSocket } from "./chat.js?v=20261023-e08bb6a";
 
-import * as feed from "./views/feed.js";
-import * as compose from "./views/compose.js";
-import * as post from "./views/post.js";
-import * as profile from "./views/profile.js";
-import * as people from "./views/people.js";
-import * as communities from "./views/communities.js";
-import * as teams from "./views/teams.js";
-import * as projects from "./views/projects.js";
-import * as reviews from "./views/reviews.js";
-import * as inbox from "./views/inbox.js";
-import * as map from "./views/map.js";
-import * as opps from "./views/opportunities.js";
-import * as mod from "./views/mod.js";
-import * as settings from "./views/settings.js";
-import * as orgs from "./views/orgs.js";
-import * as onboarding from "./views/onboarding.js";
-import * as requests from "./views/requests.js";
+import * as feed from "./views/feed.js?v=20261023-e08bb6a";
+import * as compose from "./views/compose.js?v=20261023-e08bb6a";
+import * as post from "./views/post.js?v=20261023-e08bb6a";
+import * as profile from "./views/profile.js?v=20261023-e08bb6a";
+import * as people from "./views/people.js?v=20261023-e08bb6a";
+import * as communities from "./views/communities.js?v=20261023-e08bb6a";
+import * as teams from "./views/teams.js?v=20261023-e08bb6a";
+import * as projects from "./views/projects.js?v=20261023-e08bb6a";
+import * as reviews from "./views/reviews.js?v=20261023-e08bb6a";
+import * as inbox from "./views/inbox.js?v=20261023-e08bb6a";
+import * as map from "./views/map.js?v=20261023-e08bb6a";
+import * as opps from "./views/opportunities.js?v=20261023-e08bb6a";
+import * as mod from "./views/mod.js?v=20261023-e08bb6a";
+import * as settings from "./views/settings.js?v=20261023-e08bb6a";
+import * as orgs from "./views/orgs.js?v=20261023-e08bb6a";
+import * as onboarding from "./views/onboarding.js?v=20261023-e08bb6a";
+import * as requests from "./views/requests.js?v=20261023-e08bb6a";
 
 const ROUTES = [
   ["/", feed.render, "Feed"],

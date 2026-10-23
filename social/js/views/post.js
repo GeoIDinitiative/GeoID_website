@@ -1,19 +1,19 @@
 /** #/post/:id — one post in full, its provenance, the interaction bar and the thread. */
-import * as api from "../api.js";
-import { store, myHandle } from "../store.js";
+import * as api from "../api.js?v=20261023-e08bb6a";
+import { store, myHandle } from "../store.js?v=20261023-e08bb6a";
 import {
   h, clear, timeEl, toast, modal, field, select, textarea, busy, extLink, errorBox, loading,
   confirmDialog, empty, dateText, put,
-} from "../dom.js";
+} from "../dom.js?v=20261023-e08bb6a";
 import {
   userChip, kindBadge, provenanceBadge, hasProvenance, verificationBadge, geohubHref, tagList, REACTIONS, LICENCES, VISIBILITY,
   PROVENANCE, act, requireSignIn, followButton, reportDialog, share, postUrl, citeDialog, bookmarkDialog,
   reshareButton, quoteDialog, sendPostDialog,
   postCard, kindLabel,
-} from "../components.js";
-import { compareSlider, resolveImageRef, timeChart, measurementsBlock, gallery } from "../rich.js";
-import { parseVideoLink, videoEmbed } from "../embed.js";
-import { eventPanel } from "./opportunities.js";
+} from "../components.js?v=20261023-e08bb6a";
+import { compareSlider, resolveImageRef, timeChart, measurementsBlock, gallery } from "../rich.js?v=20261023-e08bb6a";
+import { parseVideoLink, videoEmbed } from "../embed.js?v=20261023-e08bb6a";
+import { eventPanel } from "./opportunities.js?v=20261023-e08bb6a";
 
 export async function render(root, { params }) {
   const id = params.id;

@@ -51,6 +51,13 @@ GLOBS = (
     "*.html",
     "*/index.html",
     "*/*/index.html",
+    # GEOHUB SOCIAL'S MODULES, for the same reason. They import each other
+    # by relative path, and an unstamped `./views/map.js` sat in the edge
+    # cache for four hours after a deploy -- the new map page was on the
+    # origin and the old one was what people saw. Every relative import in
+    # social/js now carries a stamp, so a deploy moves every URL.
+    "social/js/**/*.js",
+    "social/**/*.css",
 )
 
 # Backups keep old stamps on purpose, and sweeping them would make `--check`
