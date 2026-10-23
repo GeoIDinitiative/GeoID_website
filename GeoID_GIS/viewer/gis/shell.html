@@ -162,6 +162,7 @@
           <button class="studio-btn" data-act="export-package" title="The Model Builder's own package: an STL of every face, the gmsh script with every flag, field and point, and a run spec — into the open project">Model package</button>
           <button class="studio-btn" data-act="export-script" title="Write the model as a standalone gmsh Python script">gmsh script</button>
           <button class="studio-btn" data-act="mesh-gmsh" title="Run the model through gmsh in the local sidecar; the mesh lands in the project's meshes/">Mesh with gmsh</button>
+          <button class="studio-btn" data-act="mesh-blender" title="Build the model in Blender (headless, or your open Blender over blender-mcp) and fill it with gmsh in the local sidecar; the mesh lands in the project's meshes/">Mesh with Blender</button>
           <span class="studio-sep"></span>
           <button class="studio-btn" data-act="to-gales" title="Export MSH 2.2 for the GALES tree">To GALES</button>
           <button class="studio-btn" data-act="to-explorer" title="Export the meshed surface into the Earth viewer with a lat/lon manifest">To Explorer</button>
@@ -313,6 +314,12 @@
           <select id="studio-alg2" class="studio-select wide"><option>auto</option><option>MeshAdapt</option><option>Delaunay</option><option>Frontal-Delaunay</option></select></div>
         <div class="studio-row"><label for="studio-alg3">3D algorithm</label>
           <select id="studio-alg3" class="studio-select wide"><option>auto</option><option>Delaunay</option><option>HXT</option><option>Lattice</option></select></div>
+        <div class="studio-row"><label for="studio-mesher">Mesher</label>
+          <select id="studio-mesher" class="studio-select wide" title="gmsh is the default; Blender builds the surfaces (exact booleans, remesh) and gmsh fills the volume. Both run in the local sidecar."><option value="gmsh">gmsh</option><option value="blender">Blender</option></select></div>
+        <p id="studio-mesher-note" class="studio-readout is-warning" role="status" hidden></p>
+        <div class="studio-row"><label for="studio-blender-remesh">Blender remesh</label>
+          <input id="studio-blender-remesh" class="studio-input" type="number" step="any" min="0" value="0" title="Voxel size in metres for Blender's remesh before the volume fill; 0 keeps Blender's surfaces as built"></div>
+        <div class="studio-row"><button class="studio-btn" data-act="mesh-run" title="Mesh the model with the mesher chosen above, in the local sidecar; the mesh lands in the project's meshes/">Mesh in sidecar</button></div>
         <div class="studio-row"><label for="studio-order">Element order</label>
           <select id="studio-order" class="studio-select wide"><option>1</option><option>2</option></select></div>
         <div class="studio-row"><label for="studio-size-lo">Size min</label>

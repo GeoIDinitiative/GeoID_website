@@ -8,7 +8,7 @@
  * words rather than failing somewhere a reader cannot see.
  */
 
-import { toolByName, checkArgs } from "./atlas-tools.js?v=20261023-7743849";
+import { toolByName, checkArgs } from "./atlas-tools.js?v=20261023-f0a10a7";
 
 const STAMP = new URL(import.meta.url).search || "";
 
@@ -76,6 +76,60 @@ const RUNNERS = {
       departMs: args.depart ? Date.parse(args.depart) : Date.now(), onStatus,
     });
     return { text: out.text, actions: [["Show the risk profile", () => F.open()]] };
+  },
+
+  async build_mesh(args) {
+    const studio = window.GeoIDMeshStudio;
+    if (!studio?.addShapes) return { text: "The Meshing Studio is not loaded on this page.", actions: [] };
+    const { readMeshRequest } = await import(`./atlas-mesh-spec.js${STAMP}`);
+    const spec = readMeshRequest(args.description);
+    if (!spec) {
+      return {
+        text: "I can build a volcano with a magma chamber, or a layered crust with a dike, and mesh it — "
+          + "say the sizes, e.g. “build a stratovolcano 3 km high with a magma chamber at 5 km depth”.",
+        actions: [],
+      };
+    }
+    if (window.GeoIDModeManager?.getMode?.() !== "model") window.GeoIDModeManager?.setMode?.("model");
+    const added = studio.addShapes(spec.shapes, { replace: true });
+    if (!added.ok) return { text: `I couldn't build that: ${added.problems.join("; ")}.`, actions: [] };
+    studio.setMeshSizes({ maxM: spec.sizeM, minM: 0, curvature: spec.curvature });
+    studio.fitView?.();
+    const heard = spec.said.length ? `from your words: ${spec.said.join(", ")}` : "every size assumed";
+    const built = `Built ${spec.label} (${heard}${spec.said.length && spec.assumed.length ? "; the rest in proportion" : ""}). `;
+    const mesher = args.mesher || spec.mesher || studio.getMesher();
+    const missing = await studio.setMesher(mesher);
+    if (missing) {
+      return { text: built + missing, actions: [["Mesh it with gmsh instead", () => window.GeoIDAtlas?.ask?.("mesh it with gmsh")]] };
+    }
+    const out = await studio.meshWith(mesher, { name: `atlas_${spec.template}` });
+    return { text: `${built}${mesher === "blender" ? "Blender" : "gmsh"}, ${(spec.sizeM / 1000).toFixed(spec.sizeM < 1000 ? 2 : 1)} km elements: ${out.text}`, actions: [] };
+  },
+
+  async mesh_model(args) {
+    const studio = window.GeoIDMeshStudio;
+    if (!studio?.meshWith) return { text: "The Meshing Studio is not loaded on this page.", actions: [] };
+    if (window.GeoIDModeManager?.getMode?.() !== "model") window.GeoIDModeManager?.setMode?.("model");
+    const mesher = args.mesher || studio.getMesher();
+    const missing = await studio.setMesher(mesher);
+    if (missing) return { text: missing, actions: [] };
+    const out = await studio.meshWith(mesher);
+    return { text: out.text, actions: [] };
+  },
+
+  async blender_mesh(args) {
+    const studio = window.GeoIDMeshStudio;
+    if (!studio?.addShapes) return { text: "The Meshing Studio is not loaded on this page.", actions: [] };
+    if (window.GeoIDModeManager?.getMode?.() !== "model") window.GeoIDModeManager?.setMode?.("model");
+    const added = studio.addShapes(args.shapes, { replace: args.replace !== false });
+    if (!added.ok) return { text: `I can't build those shapes: ${added.problems.join("; ")}.`, actions: [] };
+    const missing = await studio.setMesher("blender");
+    if (missing) return { text: `Added ${added.added} shape(s) to the Meshing Studio, but ${missing.charAt(0).toLowerCase()}${missing.slice(1)}`, actions: [] };
+    const out = await studio.meshWithBlender({ name: args.name || null, via: args.via || "auto" });
+    return {
+      text: `Added ${added.added} shape(s). ${out.text}`,
+      actions: out.ok ? [] : [["Mesh it with gmsh instead", () => studio.meshWithGmsh()]],
+    };
   },
 
   async total_risk() {

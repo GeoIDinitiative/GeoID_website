@@ -59,6 +59,7 @@ from pathlib import Path
 from urllib.parse import parse_qs, unquote, urlparse
 
 import atlas_watch
+import blender_mesher
 
 VERSION = "1.0.0"
 
@@ -336,7 +337,7 @@ class Handler(BaseHTTPRequestHandler):
                 "needs_token": self.token is not None,
                 "capabilities": ["fs", "jobs", "script", "function", "training", "gales",
                                  "compute", "atlas", "events", "capabilities",
-                                 "gdal", "tools", "gmsh"]
+                                 "gdal", "tools", "gmsh", "blender"]
                     + (["gales-prepare"] if self.gales_dir else []),
                 "gales_dir": str(self.gales_dir) if self.gales_dir else None,
             }, origin)
@@ -420,6 +421,8 @@ class Handler(BaseHTTPRequestHandler):
                 self._start_tool(body, origin)
             elif route == "/jobs/gmsh":
                 self._start_gmsh(body, origin)
+            elif route == "/jobs/blender":
+                self._start_blender(body, origin)
             elif route == "/compute/save":
                 self._compute_save(body, origin)
             elif route == "/compute/delete":
@@ -615,6 +618,14 @@ class Handler(BaseHTTPRequestHandler):
             "python": {n: self._module_present(n) for n in self.CAPABILITY_PYTHON},
             "geo": {n: self._module_present(n) for n in self.CAPABILITY_GEO},
             "bins": {n: bool(shutil.which(n)) for n in self.CAPABILITY_BINS},
+            # The studio's second mesher: a Blender binary, or a live Blender
+            # with the blender-mcp addon listening, and gmsh's Python module
+            # to fill the volume Blender's surfaces close.
+            "blender": {
+                "binary": bool(blender_mesher.blender_binary()),
+                "mcp": blender_mesher.mcp_listening(),
+                "gmsh": self._module_present("gmsh"),
+            },
         }, origin)
 
     def _start_gdal(self, body: dict, origin: str):
@@ -891,6 +902,124 @@ class Handler(BaseHTTPRequestHandler):
                                 on_finish=on_finish)
         self._send(200, {"job_id": job.id, "mesh": rel_mesh,
                          "script": rel_script, "argv": argv}, origin)
+
+    # ── Blender: the studio's second mesher, beside gmsh ─────────────────────
+    #
+    # gmsh stays the default. A model can ask for Blender instead: the studio
+    # emits a bpy script (studio-blender.js), Blender builds the geometry —
+    # headless, or inside a Blender the user has open through the blender-mcp
+    # addon's socket — and blender_mesher.py flags the surfaces and has gmsh
+    # fill the volume. The mesh lands where /jobs/gmsh puts one.
+
+    BLENDER_VIA = ("auto", "headless", "mcp")
+
+    def _start_blender(self, body: dict, origin: str):
+        """{project, script, name?, dim?, via?, size?, keepCavities?} → one
+        streamed Blender job; the mesh at `<project>/meshes/<name>.msh`, the
+        script beside it as `_blender_job_<ts>.py`, provenance as for gmsh."""
+        project = str(body.get("project", "")).strip()
+        if not project:
+            raise ValueError("a project is required — the mesh is written "
+                             "into its meshes/ folder")
+        project_dir = self._safe(project)
+        if not project_dir.is_dir():
+            raise FileNotFoundError(f"no such project: {project}")
+        script = body.get("script")
+        if not isinstance(script, str) or not script.strip():
+            raise ValueError("script (the studio's bpy script) is required")
+        try:
+            dim = int(body.get("dim") or 3)
+        except (TypeError, ValueError):
+            raise ValueError("dim must be 2 or 3")
+        if dim not in (2, 3):
+            raise ValueError("dim must be 2 or 3 — Blender makes surfaces, gmsh fills volumes")
+        via = str(body.get("via") or "auto").strip().lower()
+        if via not in self.BLENDER_VIA:
+            raise ValueError(f"via must be one of: {', '.join(self.BLENDER_VIA)}")
+        size = body.get("size")
+        try:
+            size = float(size) if size not in (None, "") else None
+        except (TypeError, ValueError):
+            raise ValueError("size must be a number (metres)")
+        name = str(body.get("name") or "").strip()
+        if name.lower().endswith(".msh"):
+            name = name[:-4]
+        stamp = time.strftime("%Y%m%d-%H%M%S")
+        name = name or f"blender_{stamp}"
+        if not self._GMSH_NAME.fullmatch(name):
+            raise ValueError("name must be a bare file name (letters, digits, "
+                             "_ . and -) — the mesh always goes to meshes/")
+
+        # Shape first, presence second, as /jobs/gmsh: a 409 says exactly what
+        # to install, and nothing is written into the project before it.
+        live = via != "headless" and blender_mesher.mcp_listening()
+        if not live and (via == "mcp" or not blender_mesher.blender_binary()):
+            self._send(409, {"error": (
+                "no Blender MCP addon is listening — open Blender, enable the "
+                "blender-mcp addon (github.com/ahujasid/blender-mcp) and press "
+                "Connect in its sidebar tab" if via == "mcp" else
+                "Blender is not installed on this machine — install Blender "
+                "4.2 LTS or newer (blender.org, or `sudo snap install blender "
+                "--classic`) so `blender` is on PATH, or set GEOID_BLENDER, "
+                "then restart the sidecar")}, origin)
+            return
+        if dim == 3 and not self._module_present("gmsh"):
+            self._send(409, {"error": "gmsh is not installed for this Python — "
+                                      "Blender builds the surfaces and gmsh fills "
+                                      "the volume: `pip install gmsh`"}, origin)
+            return
+
+        meshes = project_dir / "meshes"
+        meshes.mkdir(parents=True, exist_ok=True)
+        attempt = 2
+        while (meshes / f"_blender_job_{stamp}.py").exists():
+            stamp = f"{time.strftime('%Y%m%d-%H%M%S')}-{attempt}"
+            attempt += 1
+        script_path = meshes / f"_blender_job_{stamp}.py"
+        out_json = meshes / f"_blender_job_{stamp}.json"
+        mesh_path = meshes / f"{name}.msh"
+        script_path.write_text(script, encoding="utf-8")
+
+        root = self.runner.root.resolve()
+
+        def under_root(path: Path) -> str:
+            try:
+                return str(path.relative_to(root))
+            except ValueError:
+                return str(path)
+
+        rel_script, rel_mesh = under_root(script_path), under_root(mesh_path)
+        payload = json.dumps({
+            "script": str(script_path), "out_json": str(out_json),
+            "mesh": str(mesh_path), "dim": dim, "via": via, "size": size,
+            "keep_cavities": body.get("keepCavities", True) is not False,
+        })
+        argv = [sys.executable, str(Path(blender_mesher.__file__).resolve())]
+        started = time.time()
+        provenance = Path(f"{mesh_path}.provenance.json")
+
+        def on_finish(job: Job):
+            try:
+                provenance.write_text(json.dumps({
+                    "source": "blender",
+                    "via": via,
+                    "script": rel_script,
+                    "started": started,
+                    "seconds": round((job.ended_at or time.time()) - started, 3),
+                    "exit": job.exit_code,
+                    "status": job.status,
+                    "mesh": rel_mesh,
+                    "dim": dim,
+                    "job_id": job.id,
+                }, indent=2))
+            except OSError:
+                pass
+
+        job = self.runner.start("blender", body.get("label") or f"blender {name}",
+                                argv, meshes, body.get("env"),
+                                on_finish=on_finish, stdin_data=payload)
+        self._send(200, {"job_id": job.id, "mesh": rel_mesh, "script": rel_script,
+                         "via": "mcp" if live else "headless"}, origin)
 
     # ── Compute targets: this machine, or a server over SSH ───────────────────
     #

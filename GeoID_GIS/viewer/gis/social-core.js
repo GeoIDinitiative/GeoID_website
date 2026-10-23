@@ -975,7 +975,7 @@ export function buildShareHandoff({ kind = "scene", target = null, scene = null,
     if (r.error) return r;
     return { handoff: { ...head, title: named, meta: r.meta } };
   }
-  if (!meta || meta.mesher !== "gmsh" || typeof meta.page !== "string" || !meta.page.startsWith("/")) {
+  if (!meta || !["gmsh", "blender"].includes(meta.mesher) || typeof meta.page !== "string" || !meta.page.startsWith("/")) {
     return { error: "There is no model to share yet — set up the Model Builder's study area first." };
   }
   if (jsonBytes(meta.config || {}) > MAX_MODEL_CONFIG_BYTES) {
@@ -1141,7 +1141,7 @@ export function modelParams(config = {}) {
  * The domain is required: a model is a place before it is anything else, and
  * the Model Builder has no model until its study area is chosen.
  */
-export function buildModelMeta({ state = null, world = "earth", west = false, layerNames = {}, solver = "gales" } = {}) {
+export function buildModelMeta({ state = null, world = "earth", west = false, layerNames = {}, solver = "gales", mesher = "gmsh" } = {}) {
   if (!state?.bounds?.bbox) return { error: "Choose the Model Builder's study area first — a model needs a domain." };
   const raw = modelConfigFromState(state, { west, layerNames });
   const capped = capModelConfig(raw);
@@ -1151,7 +1151,8 @@ export function buildModelMeta({ state = null, world = "earth", west = false, la
   if (bbox.some((v) => v === null)) return { error: "The study area has no usable bounds." };
   return {
     meta: {
-      mesher: "gmsh",
+      // The Meshing Studio's choice; the Network accepts the same two names.
+      mesher: mesher === "blender" ? "blender" : "gmsh",
       page: modelPagePath(world),
       domain: { world: normWorld(world), bbox },
       solver: String(solver || "gales"),

@@ -54,3 +54,24 @@ for (const t of TOOLS) ok(new RegExp(`async ${t.name}\\(`).test(runner), `the ${
   ok(checkArgs(toolByName("flight_risk"), call.args).ok, "and passes the tool's checks");
   ok(callFromIntent({ task: "flight", route: null }) === null, "no route, no call");
 }
+// The meshers: gmsh or Blender, by name or by a list of shapes.
+const meshTool = toolByName("mesh_model");
+ok(checkArgs(meshTool, { mesher: "blender" }).ok, "mesh_model takes blender");
+ok(/must be one of gmsh, blender/.test(checkArgs(meshTool, { mesher: "netgen" }).problems.join()), "an unknown mesher is refused by name");
+const shapesTool = toolByName("blender_mesh");
+ok(/shapes is required/.test(checkArgs(shapesTool, {}).problems.join()), "blender_mesh needs shapes");
+ok(/must be a list/.test(checkArgs(shapesTool, { shapes: "a box" }).problems.join()), "shapes must be a list");
+const shaped = checkArgs(shapesTool, { shapes: [{ kind: "box" }], replace: "false", via: "mcp" });
+ok(shaped.ok && Array.isArray(shaped.args.shapes) && shaped.args.replace === false, "a list and a boolean string pass through as themselves");
+ok(/via must be one of/.test(checkArgs(shapesTool, { shapes: [], via: "ssh" }).problems.join()), "via is one of auto, headless, mcp");
+const blenderIntent = readIntent("Atlas, build a volcano with a chamber and mesh it in Blender");
+ok(blenderIntent.task === "build_mesh", "a build sentence is a build_mesh request");
+const blenderCall = callFromIntent(blenderIntent);
+ok(blenderCall?.name === "build_mesh" && blenderCall.args.mesher === "blender" && /volcano/.test(blenderCall.args.description), "naming Blender picks the Blender mesher");
+const sized = callFromIntent(readIntent("build a stratovolcano 3 km high with a magma chamber at 5 km depth"));
+ok(sized?.name === "build_mesh" && !("mesher" in sized.args), "a sized build goes to build_mesh, the model's own mesher");
+ok(callFromIntent(readIntent("build a layered crust block with a dipping dike"))?.name === "build_mesh", "a layered crust with a dike too");
+const meshIt = callFromIntent(readIntent("mesh it with gmsh"));
+ok(meshIt?.name === "mesh_model" && meshIt.args.mesher === "gmsh", "“mesh it with gmsh” meshes what the studio holds");
+ok(readIntent("model a small ashfall from Etna at 4pm today").task === "ashfall", "an ash model is still an ash model");
+ok(readIntent("simulate inflation of the magma chamber under Campi Flegrei").task === "chamber", "a chamber without Blender is still the chamber tool");

@@ -323,7 +323,8 @@
 
 #model-studio .studio-setup-host .studio-readout,
 #model-studio #studio-realmesh-host .studio-readout,
-#model-studio .studio-results-host .studio-readout {
+#model-studio .studio-results-host .studio-readout,
+#model-studio #studio-mesher-note {
   margin: 0;
   padding: 0;
   border: 0;
@@ -337,7 +338,8 @@
 #model-studio .studio-setup-host .studio-readout:empty,
 #model-studio #studio-realmesh-host .studio-readout:empty { display: none; }
 /* A status a reader acts on keeps a spine in its state's colour. */
-#model-studio :is(.studio-setup-host, #studio-realmesh-host, .studio-results-host) .studio-readout:is(.is-ok, .is-warning, .is-error) {
+#model-studio :is(.studio-setup-host, #studio-realmesh-host, .studio-results-host) .studio-readout:is(.is-ok, .is-warning, .is-error),
+#model-studio #studio-mesher-note {
   padding: 0.3rem 0.5rem;
   border-left: 2px solid;
   border-radius: 0 var(--st-radius) var(--st-radius) 0;
@@ -345,7 +347,9 @@
   color: var(--st-ink);
 }
 #model-studio :is(.studio-setup-host, #studio-realmesh-host, .studio-results-host) .studio-readout.is-ok { border-left-color: var(--st-ok); }
-#model-studio :is(.studio-setup-host, #studio-realmesh-host, .studio-results-host) .studio-readout.is-warning { border-left-color: var(--st-warn); }
+#model-studio :is(.studio-setup-host, #studio-realmesh-host, .studio-results-host) .studio-readout.is-warning,
+#model-studio #studio-mesher-note { border-left-color: var(--st-warn); }
+#model-studio #studio-mesher-note[hidden] { display: none; }
 #model-studio :is(.studio-setup-host, #studio-realmesh-host, .studio-results-host) .studio-readout.is-error { border-left-color: var(--st-err); }
 
 /* A heading inside a section: a small caption with a hairline, not a banner. */

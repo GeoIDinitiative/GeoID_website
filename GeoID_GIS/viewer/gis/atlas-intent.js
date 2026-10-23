@@ -14,7 +14,8 @@
  * (`atlas-tools.js`). This only says what was asked.
  */
 
-import { SIZE_WORDS } from "./ash-plume.js?v=20261023-7743849";
+import { SIZE_WORDS } from "./ash-plume.js?v=20261023-f0a10a7";
+import { isMeshRequest } from "./atlas-mesh-spec.js?v=20261023-f0a10a7";
 
 /**
  * The tasks a sentence can name, most specific first. Each is a test on the
@@ -23,6 +24,10 @@ import { SIZE_WORDS } from "./ash-plume.js?v=20261023-7743849";
  */
 export const TASKS = [
   { id: "ashfall", test: /\b(ash|ashfall|ash ?fall|tephra|plume|ash ?cloud)\b/ },
+  // A model to BUILD (and so mesh) — "build a stratovolcano 3 km high with a
+  // chamber at 5 km depth", "mesh it in Blender" — before "chamber", which is
+  // for a deformation study of one ("simulate inflation of the chamber").
+  { id: "build_mesh", test: { test: isMeshRequest } },
   { id: "chamber", test: /\b(magma chamber|chamber|mogi|inflation|deformation|fem|finite element|mesh)\b/ },
   { id: "atmosphere", test: /\b(atmosphere|the air|air column|pressure levels|3d air|wind field)\b/ },
   { id: "landslide", test: /\b(landslides?|slope failure|debris flow|factor of safety)\b/ },
@@ -31,7 +36,7 @@ export const TASKS = [
 ];
 
 /** A sentence is a request to RUN something when it uses one of these. */
-const RUN_VERBS = /\b(model|simulate|run|forecast|predict|generate|build|make|create|show|compute|estimate|what if|if it were to|what would)\b/;
+const RUN_VERBS = /\b(model|simulate|run|forecast|predict|generate|build|make|create|construct|mesh|show|compute|estimate|what if|if it were to|what would)\b/;
 
 /**
  * A flight's risk is asked as a question, not a command ("how risky is a
