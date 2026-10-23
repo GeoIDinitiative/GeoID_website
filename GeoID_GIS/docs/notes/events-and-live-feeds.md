@@ -1605,3 +1605,35 @@ in `research/connectors.js` (pure, tested in `connectors.test.mjs`).
 
 Verified headless with Overpass mocked: 30 roads classed by `class`, and
 Edinburgh drawn from "City of Edinburgh" (level 8) over a drawn area.
+
+## ECMWF IFS analysis 2011–2026 (the open Icechunk archive)
+
+`gis/ifs-analysis.js` (layer, drawer, card) over `gis/ifs-grid.js` (pure maths,
+`ifs-grid.test.mjs`), reading `vendor/icechunk.js` (icechunk-js 0.6.1 + fzstd,
+esbuild bundle, loaded lazily on first tick). Row: Weather ▸ Live fields, beside
+the GFS forecast hazards. Measured 2026-10-23:
+
+- **Source:** Beyond Weather's "ECMWF IFS Analysis N320" on the AWS Open Data
+  registry, `s3://beyond-weather-ecmwf-ifs-analysis/data.zarr`, us-east-2,
+  anonymous, `Access-Control-Allow-Origin: *`. Icechunk 2.0 repo (Zarr v3).
+  CC BY 4.0, © ECMWF; ECMWF asks services to say "based on data and products of
+  ECMWF" (in `IFS_CREDIT`). The Earthmover Marketplace copy needs an account; the
+  S3 one does not, so the browser reads it directly — no sidecar, no Worker.
+- **Time:** 6-hourly 2011-01-01T00 to 2026-09-30T18, 23,008 steps, exactly
+  regular, so `timeIndex` is arithmetic. Not updated.
+- **Grid:** N320 reduced Gaussian, 542,080 points, rows north→south starting at
+  0°E; row lengths in each array's `GRIB_pl`; latitudes computed (match the
+  archive's `/latitude` to 4e-14).
+- **Chunks:** one per timestep per variable, global. Surface 0.05–0.36 MB
+  compressed (Blosc zstd, shuffle, no split); upper-air (1, 18, 542080) ≈ 7.1 MB
+  because the 18 levels share a chunk. First read of a variable also pulls its
+  ~0.5 MB manifest. Repo open ≈ 1 s; first t2m ≈ 1.2 s; next times ≈ 0.2–0.6 s.
+  `decodeBlosc` is bit-exact against zarrita on a real t2m chunk.
+- **Multi-resolution** is in the regrid, not the download: world 1° lattice,
+  view (< hemisphere) or drawn area at the grid's own 0.28125°, capped at 160k
+  cells. The area never reduces bytes.
+- **No precipitation**: an analysis has no accumulations. Not a reanalysis —
+  cycles 41r1 (2015-05-12), 41r2 (2016-03-08), 48r1 (2023-06-27) show as steps.
+  Values are bit-rounded (`bwdl_keepbits` 3–14 bits).
+- Click card and hover tag go through `GeoIDFlow.probeAt/readAt`, which ask
+  `window.GeoIDIFS` first.
