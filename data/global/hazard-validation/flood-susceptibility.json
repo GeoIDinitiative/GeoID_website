@@ -207,7 +207,7 @@
   "precision": 0.6514,
   "recall": 0.6285,
   "f1": 0.6397,
-  "auc": 0.6737,
+  "auc": 0.6828,
   "kappa": 0.2559,
   "positives": 1588,
   "negatives": 1435,
@@ -336,7 +336,10 @@
     "events": 29,
     "skill": "weak"
    }
-  }
+  },
+  "auc_pooled": 0.6737,
+  "auc_rule": "mean of the held-out regions' AUCs (each region's scores come from its own forest, so pooling them mixes calibrations; the pooled figure is auc_pooled)",
+  "region_unit": "products"
  },
  "current": {
   "as_of": "2026-10-21",
@@ -359,5 +362,5 @@
   "Terrain at a window's edge sees no upstream area beyond it, so a big river entering a 1\u00b0 window reads smaller than it is -- the same on the page, which uses the same window logic."
  ],
  "script": "GeoID_GIS/services/bake-flood-global.py",
- "generated": "2026-10-23T22:02:25Z"
+ "generated": "2026-10-23T23:30:46Z"
 }

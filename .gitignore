@@ -119,6 +119,8 @@ data/global/climate-normals.json
 # re-derivable, served from the bucket like the loose files above.
 data/global/flood-ml/*.json
 data/global/flood-ml/*.tif
+data/global/landslide-ml/*.json
+data/global/landslide-ml/*.tif
 # the place-name gazetteer (bake-earth-places.py) streams from the bucket
 data/global/earth-places.json
 data/global/ice/names.json

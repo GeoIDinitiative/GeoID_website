@@ -459,8 +459,8 @@ export function wettest3(days) {
  * left out and reported, never filled with a guess here -- the gap rules are
  * the caller's to state (see the bake's FILLS).
  */
-export function featureRows(stack, cells) {
-  const F = FEATURES.length;
+export function featureRows(stack, cells, features = FEATURES) {
+  const F = features.length;
   const rows = new Float32Array(cells.length * F);
   const kept = [];
   let dropped = 0;
@@ -468,7 +468,7 @@ export function featureRows(stack, cells) {
     const base = kept.length * F;
     let ok = true;
     for (let f = 0; f < F; f += 1) {
-      const v = stack[FEATURES[f]][i];
+      const v = stack[features[f]][i];
       if (!Number.isFinite(v)) { ok = false; break; }
       rows[base + f] = v;
     }

@@ -1,0 +1,405 @@
+{
+ "id": "landslide-susceptibility-global",
+ "name": "Landslide susceptibility \u2014 global (random forest, 0.1\u00b0)",
+ "hazard": "landslide",
+ "product": "data/global/landslide-ml/landslide-susceptibility-0p1.hotlink-ok.tif",
+ "model": {
+  "method": "Random forest on terrain (slope, relief, curvature, HAND, TWI, upstream area), GLiM lithology, Sentinel-2 land cover, soil thickness and the rain climate, trained on inventoried landslides; replaces Recipe A's weighted overlay.",
+  "parameters": {
+   "n_estimators": 100,
+   "max_depth": 10,
+   "min_samples_leaf": 20,
+   "max_features": "sqrt",
+   "n_jobs": 2,
+   "random_state": 1,
+   "negatives_per_positive": 2,
+   "absence_rule": "\u22653 cells (~30 km) from any slide, within ~1\u00b0 of a report",
+   "positive_rule": "NASA catalogue slides located within 5 km (BGS kept out: see limits)",
+   "decision_threshold_published": 0.3693,
+   "features": [
+    "elevation_m",
+    "slope_deg",
+    "hand_m",
+    "log10_upstream_km2",
+    "channel_distance_m",
+    "twi",
+    "curvature",
+    "relief_m",
+    "water_frac",
+    "trees_frac",
+    "flooded_veg_frac",
+    "crops_frac",
+    "built_frac",
+    "bare_frac",
+    "range_frac",
+    "soil_thickness_m",
+    "rain_normal_mm",
+    "lith_unconsolidated",
+    "lith_siliciclastic",
+    "lith_mixed_sedimentary",
+    "lith_carbonate",
+    "lith_metamorphic",
+    "lith_plutonic",
+    "lith_volcanic"
+   ],
+   "feature_importance_gini": [
+    [
+     "built_frac",
+     0.2673
+    ],
+    [
+     "rain_normal_mm",
+     0.082
+    ],
+    [
+     "relief_m",
+     0.0795
+    ],
+    [
+     "curvature",
+     0.0686
+    ],
+    [
+     "soil_thickness_m",
+     0.0676
+    ],
+    [
+     "trees_frac",
+     0.0649
+    ],
+    [
+     "crops_frac",
+     0.0586
+    ],
+    [
+     "slope_deg",
+     0.049
+    ],
+    [
+     "elevation_m",
+     0.0433
+    ],
+    [
+     "channel_distance_m",
+     0.034
+    ],
+    [
+     "range_frac",
+     0.0324
+    ],
+    [
+     "twi",
+     0.0306
+    ],
+    [
+     "water_frac",
+     0.0275
+    ],
+    [
+     "hand_m",
+     0.0262
+    ],
+    [
+     "log10_upstream_km2",
+     0.0217
+    ],
+    [
+     "lith_siliciclastic",
+     0.0142
+    ],
+    [
+     "lith_volcanic",
+     0.0084
+    ],
+    [
+     "lith_carbonate",
+     0.0054
+    ],
+    [
+     "lith_plutonic",
+     0.0048
+    ],
+    [
+     "lith_unconsolidated",
+     0.0036
+    ],
+    [
+     "lith_metamorphic",
+     0.0036
+    ],
+    [
+     "bare_frac",
+     0.0033
+    ],
+    [
+     "lith_mixed_sedimentary",
+     0.0033
+    ],
+    [
+     "flooded_veg_frac",
+     0.0001
+    ]
+   ],
+   "training_rows": 11820,
+   "training_cells": 11820
+  },
+  "inputs": [
+   {
+    "name": "Landslides, Great Britain",
+    "source": "BGS National Landslide Database (index)",
+    "licence": "Open Government Licence v3 \u2014 Contains British Geological Survey materials \u00a9 UKRI"
+   },
+   {
+    "name": "Landslides, global",
+    "source": "NASA Global Landslide Catalog 1997\u20132016 (data.gov export)",
+    "licence": "US Government work; export subject to NASA's Terms and Conditions (text not published with the catalogue \u2014 TO CONFIRM before commercial use)"
+   },
+   {
+    "name": "Lithology",
+    "source": "GLiM v1.0 gridded 0.5\u00b0 (Hartmann & Moosdorf 2012, doi:10.1594/PANGAEA.788537)",
+    "licence": "CC BY 3.0"
+   },
+   {
+    "name": "Elevation",
+    "source": "Terrarium DEM (AWS Open Data)",
+    "licence": "public domain / attribution by source"
+   },
+   {
+    "name": "Satellite land cover",
+    "source": "Esri / Impact Observatory Sentinel-2 10 m land cover 2020",
+    "licence": "CC BY 4.0"
+   },
+   {
+    "name": "Soil",
+    "source": "Pelletier et al. 2016 soil and sediment thickness (ORNL DAAC)",
+    "licence": "NASA ORNL DAAC: free to use with citation"
+   },
+   {
+    "name": "Rainfall, climate",
+    "source": "NOAA CPC Global Unified daily precipitation, 1991\u20132020 mean",
+    "licence": "public domain (US Government)"
+   }
+  ],
+  "grid": "0.1\u00b0 global lattice, 60\u00b0S\u201384\u00b0N (the flood bake's stack + relief + GLiM)",
+  "gap_fills": {
+   "soil_thickness_m": {
+    "method": "nearest valid cell (flood-ml.js fillNearest)",
+    "cells": 61070
+   },
+   "water_frac": {
+    "method": "nearest valid cell (flood-ml.js fillNearest)",
+    "cells": 0
+   },
+   "trees_frac": {
+    "method": "nearest valid cell (flood-ml.js fillNearest)",
+    "cells": 0
+   },
+   "flooded_veg_frac": {
+    "method": "nearest valid cell (flood-ml.js fillNearest)",
+    "cells": 0
+   },
+   "crops_frac": {
+    "method": "nearest valid cell (flood-ml.js fillNearest)",
+    "cells": 0
+   },
+   "built_frac": {
+    "method": "nearest valid cell (flood-ml.js fillNearest)",
+    "cells": 0
+   },
+   "bare_frac": {
+    "method": "nearest valid cell (flood-ml.js fillNearest)",
+    "cells": 0
+   },
+   "range_frac": {
+    "method": "nearest valid cell (flood-ml.js fillNearest)",
+    "cells": 0
+   },
+   "rain_normal_mm": {
+    "method": "nearest valid cell (flood-ml.js fillNearest)",
+    "cells": 1171
+   },
+   "rain_3day_max_mm": {
+    "method": "nearest valid cell (flood-ml.js fillNearest)",
+    "cells": 0
+   },
+   "rain_30day_mm": {
+    "method": "nearest valid cell (flood-ml.js fillNearest)",
+    "cells": 0
+   }
+  }
+ },
+ "validation": {
+  "n": 11617,
+  "tp": 2301,
+  "fp": 2492,
+  "tn": 5365,
+  "fn": 1459,
+  "accuracy": 0.6599,
+  "precision": 0.4801,
+  "recall": 0.612,
+  "f1": 0.5381,
+  "auc": 0.81,
+  "positives": 3760,
+  "negatives": 7857,
+  "kappa": 0.2751,
+  "threshold": null,
+  "threshold_rule": "per region: Youden's J on the OOB votes of the forest trained on the OTHER regions",
+  "holdout": "leave one region out: 7 of 8 regions each scored by a forest that never saw it",
+  "events": "inventoried landslides = 1; pseudo-absences (land near the reports, away from any) = 0",
+  "regions": {
+   "great-britain": {
+    "assessable": false,
+    "events": 203,
+    "n": 203,
+    "message": "203 cells held out, too few slides or absences \u2014 a score needs 30 of each"
+   },
+   "americas-north": {
+    "n": 3978,
+    "tp": 845,
+    "fp": 359,
+    "tn": 1832,
+    "fn": 942,
+    "accuracy": 0.673,
+    "precision": 0.7018,
+    "recall": 0.4729,
+    "f1": 0.565,
+    "kappa": 0.3186,
+    "specificity": 0.8361,
+    "auc": 0.7653,
+    "threshold": 0.28156240703755336,
+    "threshold_rule": "Youden on the other regions' OOB votes",
+    "positives": 1787,
+    "negatives": 2191,
+    "events": 3978
+   },
+   "americas-south": {
+    "n": 1024,
+    "tp": 189,
+    "fp": 249,
+    "tn": 534,
+    "fn": 52,
+    "accuracy": 0.7061,
+    "precision": 0.4315,
+    "recall": 0.7842,
+    "f1": 0.5567,
+    "kappa": 0.3634,
+    "specificity": 0.682,
+    "auc": 0.8474,
+    "threshold": 0.36028550229174816,
+    "threshold_rule": "Youden on the other regions' OOB votes",
+    "positives": 241,
+    "negatives": 783,
+    "events": 1024
+   },
+   "asia-south": {
+    "n": 1536,
+    "tp": 401,
+    "fp": 61,
+    "tn": 784,
+    "fn": 290,
+    "accuracy": 0.7715,
+    "precision": 0.868,
+    "recall": 0.5803,
+    "f1": 0.6956,
+    "kappa": 0.524,
+    "specificity": 0.9278,
+    "auc": 0.8918,
+    "threshold": 0.3499698348210041,
+    "threshold_rule": "Youden on the other regions' OOB votes",
+    "positives": 691,
+    "negatives": 845,
+    "events": 1536
+   },
+   "oceania": {
+    "n": 417,
+    "tp": 95,
+    "fp": 60,
+    "tn": 215,
+    "fn": 47,
+    "accuracy": 0.7434,
+    "precision": 0.6129,
+    "recall": 0.669,
+    "f1": 0.6397,
+    "kappa": 0.4411,
+    "specificity": 0.7818,
+    "auc": 0.8172,
+    "threshold": 0.34680342577568535,
+    "threshold_rule": "Youden on the other regions' OOB votes",
+    "positives": 142,
+    "negatives": 275,
+    "events": 417
+   },
+   "asia-east": {
+    "n": 2675,
+    "tp": 551,
+    "fp": 1259,
+    "tn": 810,
+    "fn": 55,
+    "accuracy": 0.5088,
+    "precision": 0.3044,
+    "recall": 0.9092,
+    "f1": 0.4561,
+    "kappa": 0.1766,
+    "specificity": 0.3915,
+    "auc": 0.7563,
+    "threshold": 0.3704153336529987,
+    "threshold_rule": "Youden on the other regions' OOB votes",
+    "positives": 606,
+    "negatives": 2069,
+    "events": 2675
+   },
+   "europe": {
+    "n": 1182,
+    "tp": 149,
+    "fp": 377,
+    "tn": 606,
+    "fn": 50,
+    "accuracy": 0.6387,
+    "precision": 0.2833,
+    "recall": 0.7487,
+    "f1": 0.411,
+    "kappa": 0.2206,
+    "specificity": 0.6165,
+    "auc": 0.7527,
+    "threshold": 0.3396417647560276,
+    "threshold_rule": "Youden on the other regions' OOB votes",
+    "positives": 199,
+    "negatives": 983,
+    "events": 1182
+   },
+   "africa-middle-east": {
+    "n": 805,
+    "tp": 71,
+    "fp": 127,
+    "tn": 584,
+    "fn": 23,
+    "accuracy": 0.8137,
+    "precision": 0.3586,
+    "recall": 0.7553,
+    "f1": 0.4863,
+    "kappa": 0.3896,
+    "specificity": 0.8214,
+    "auc": 0.8392,
+    "threshold": 0.3647645345702789,
+    "threshold_rule": "Youden on the other regions' OOB votes",
+    "positives": 94,
+    "negatives": 711,
+    "events": 805
+   }
+  },
+  "auc_pooled": 0.6862,
+  "auc_rule": "mean of the held-out regions' AUCs (each region's scores come from its own forest, so pooling them mixes calibrations; the pooled figure is auc_pooled)",
+  "region_unit": "cells"
+ },
+ "limits": [
+  "The 0.1\u00b0 tier is trained on NASA's catalogue alone: with BGS's 18,000 points it learnt Great Britain (the island solid red on the map) rather than ground. Great Britain cannot be scored at 0.1\u00b0 (too few absences lie 30 km from any report there); the 250 m tier, trained on both inventories, is the product for Great Britain.",
+  "Negatives are pseudo-absences: land drawn near the reports but at least ~1 km (fine) / ~30 km (coarse) from any. An unreported slide among them counts against the model.",
+  "NASA's catalogue is compiled from news and follows roads and towns; slides in empty mountains are under-represented, and the forest learns some of where people are.",
+  "Lithology is GLiM's dominant class per 0.5\u00b0 cell: a valley of weak shale in a granite cell reads as granite.",
+  "Slope at 250 m reads valley sides gentler than at 30 m; relief over ~1 km carries what the cell slope loses.",
+  "Rain is the climate only: this is where ground fails, not when.",
+  "NASA's export terms are not published with the catalogue; until confirmed, regions other than Great Britain rest on data whose commercial terms are unknown."
+ ],
+ "script": "GeoID_GIS/services/bake-landslide-global.py",
+ "generated": "2026-10-23T23:30:46Z"
+}

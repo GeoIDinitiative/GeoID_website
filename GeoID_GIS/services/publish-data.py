@@ -23,6 +23,7 @@ read before any fetch, so it cannot live in the bucket it describes.
 
     python3 GeoID_GIS/services/publish-data.py --base https://data.example.com
     python3 GeoID_GIS/services/publish-data.py --check
+    python3 GeoID_GIS/services/publish-data.py --base ... --only 'flood-ml/*'   # one dataset
     python3 GeoID_GIS/services/publish-data.py --unpublish   # back to local
 
 Credentials are rclone's, exactly as in `publish-tiles.py`: this names a
@@ -45,8 +46,12 @@ import urllib.error
 import urllib.request
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
-GLOBAL = ROOT / "data" / "global"
-SOURCES = GLOBAL / "sources.json"
+# A git WORKTREE holds the tracked files and none of the gitignored data, so a
+# publish from one reads the data from the main checkout and writes the
+# fingerprints into its own tracked sources.json:
+#   GEOID_DATA_GLOBAL=/path/to/main/data/global GEOID_SOURCES=data/global/sources.json
+GLOBAL = pathlib.Path(os.environ.get("GEOID_DATA_GLOBAL") or ROOT / "data" / "global")
+SOURCES = pathlib.Path(os.environ.get("GEOID_SOURCES") or GLOBAL / "sources.json")
 
 CACHE_CONTROL = "public, max-age=31536000, immutable"
 
@@ -77,6 +82,16 @@ NESTED_FILES += tuple(sorted(f"ice/cpom/{p.name}"
 NESTED_FILES += tuple(sorted(f"nomenclature/{p.name}"
                              for p in (GLOBAL / "nomenclature").glob("*.geojson")))
 
+# The flood random forest's products (bake-flood-global.py): the 0.1-degree
+# global map (a COG-style tiled GeoTIFF the page reads whole), the forests the
+# page evaluates, the CPC rain normal and the map's date.
+NESTED_FILES += tuple(sorted(f"flood-ml/{p.name}" for p in (GLOBAL / "flood-ml").glob("*")
+                             if p.suffix in (".json", ".tif")))
+# And the landslide forest's (bake-landslide-global.py): its global map, its
+# forests and the GLiM 0.5-degree lithology lattice the page reads.
+NESTED_FILES += tuple(sorted(f"landslide-ml/{p.name}" for p in (GLOBAL / "landslide-ml").glob("*")
+                             if p.suffix in (".json", ".tif")))
+
 # STORED GZIPPED, and this is what made the hazard risk maps load at all.
 #
 # Cloudflare does not edge-cache `.geojson` or `.json` -- neither is on its
@@ -105,7 +120,10 @@ GZIP_AT_REST = (".geojson", ".json")
 # Never published: the manifests and this file are the metadata that has to be
 # readable BEFORE — and without — the bucket, and README is for a reader of the
 # repository rather than the app.
-KEEP_LOCAL = ("README.md", "sources.json")
+KEEP_LOCAL = ("README.md", "sources.json",
+              # tracked and committed with the code that writes it; the Analysis
+              # Hub fetches it from the site, never through sources.json
+              "hazard-validation.json")
 
 
 def die(message: str) -> None:
@@ -128,7 +146,15 @@ def loose_files() -> list[pathlib.Path]:
                   if p.is_file() and p.name not in KEEP_LOCAL)
 
 
-def upload(paths: list[pathlib.Path], remote: str, dry: bool, force: bool = False) -> int:
+def selected(rel: str, only: list[str] | None) -> bool:
+    """`--only` patterns (fnmatch, on the path under data/global): publish one
+    dataset without sweeping up files other work has left in the folder."""
+    import fnmatch
+    return not only or any(fnmatch.fnmatch(rel, pat) for pat in only)
+
+
+def upload(paths: list[pathlib.Path], remote: str, dry: bool, force: bool = False,
+           only: list[str] | None = None) -> int:
     if not shutil.which("rclone"):
         die("rclone is not installed; it is what talks to the bucket")
     # Every file to publish, by its path relative to data/global. The nested
@@ -137,6 +163,7 @@ def upload(paths: list[pathlib.Path], remote: str, dry: bool, force: bool = Fals
     # COG has no pyramid to ride with, so it is named here.
     rels = [p.name for p in paths]
     rels += [rel for rel in NESTED_FILES if (GLOBAL / rel).is_file()]
+    rels = [rel for rel in rels if selected(rel, only)]
     packed = [rel for rel in rels if rel.endswith(GZIP_AT_REST)]
     plain = [rel for rel in rels if not rel.endswith(GZIP_AT_REST)]
 
@@ -188,15 +215,20 @@ def upload(paths: list[pathlib.Path], remote: str, dry: bool, force: bool = Fals
     return code or copy(GLOBAL, plain, [])
 
 
-def write_sources(base: str | None) -> dict:
+def write_sources(base: str | None, only: list[str] | None = None) -> dict:
     body: dict = {"base": base.rstrip("/")} if base else {}
     if base:
+        # With --only, every other file keeps the fingerprint it was published
+        # under: what is in the bucket for it has not changed.
         files = {}
+        if only and SOURCES.is_file():
+            files = dict(json.loads(SOURCES.read_text()).get("files") or {})
         for p in loose_files():
-            files[p.name] = fingerprint(p)
+            if selected(p.name, only):
+                files[p.name] = fingerprint(p)
         for rel in NESTED_FILES:
             p = GLOBAL / rel
-            if p.is_file():
+            if p.is_file() and selected(rel, only):
                 files[rel] = fingerprint(p)
         body["files"] = files
     SOURCES.write_text(json.dumps(body, indent=2, sort_keys=True) + "\n")
@@ -277,6 +309,8 @@ def main() -> int:
     parser.add_argument("--unpublish", action="store_true")
     parser.add_argument("--check", action="store_true")
     parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument("--only", action="append",
+                        help="publish only paths under data/global matching this pattern (repeatable)")
     parser.add_argument("--force", action="store_true",
                         help="re-upload every file with its headers, even if unchanged")
     args = parser.parse_args()
@@ -297,13 +331,13 @@ def main() -> int:
     paths = loose_files()
     if not paths:
         die("no loose files found under data/global")
-    code = upload(paths, args.remote.rstrip("/"), args.dry_run, args.force)
+    code = upload(paths, args.remote.rstrip("/"), args.dry_run, args.force, args.only)
     if code != 0:
         die(f"rclone exited {code}; sources.json was NOT changed")
     if args.dry_run:
         print("dry run — sources.json was not changed")
         return 0
-    body = write_sources(args.base)
+    body = write_sources(args.base, args.only)
     total = sum((GLOBAL / f).stat().st_size for f in body["files"]
                 if (GLOBAL / f).is_file())
     print(f"data: {len(body['files'])} files ({total / 1048576:.1f} MB) "

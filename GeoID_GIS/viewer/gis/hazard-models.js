@@ -68,12 +68,12 @@ function confusionTable(v) {
  * skill where the forest never saw the ground, which is the number that says
  * whether "global" is earned. A region too thin to score says so in its row.
  */
-export function regionTable(regions) {
+export function regionTable(regions, unit = "products") {
   const rows = Object.entries(regions || {});
   if (!rows.length) return "";
   const cell = (v) => `<td>${formatMetric(v)}</td>`;
   return `<table class="hm-regions" aria-label="Validation by held-out region">
-      <thead><tr><th>held-out region</th><th>AUC</th><th>acc</th><th>prec</th><th>rec</th><th>F1</th><th>products</th></tr></thead>
+      <thead><tr><th>held-out region</th><th>AUC</th><th>acc</th><th>prec</th><th>rec</th><th>F1</th><th>${esc(unit)}</th></tr></thead>
       <tbody>${rows.map(([name, r]) => (r.assessable === false
     ? `<tr class="hm-na"><th>${esc(name.replace(/-/g, " "))}</th><td colspan="5">not assessable — ${esc(r.message || "")}</td><td>${esc(r.events ?? "")}</td></tr>`
     : `<tr data-skill="${esc(skillWord(r.auc).replace(/ /g, "-"))}"><th>${esc(name.replace(/-/g, " "))}</th>${cell(r.auc)}${cell(r.accuracy)}${cell(r.precision)}${cell(r.recall)}${cell(r.f1)}<td>${esc(r.events ?? "")}</td></tr>`)).join("")}</tbody>
@@ -106,7 +106,11 @@ export function renderCard(entry) {
         <p class="hm-holdout">${esc(v.holdout || v.message || "")}</p>
         ${assessable ? `<div class="hm-metrics">${metrics}</div>
         ${confusionTable(v)}
-        ${regionTable(v.regions)}
+        ${regionTable(v.regions, v.region_unit)}
+        ${v.extra?.mid_north_wales_holdout ? `<p class="hm-compare">On the ground Recipe A failed on (Mid/North Wales, held out):
+          AUC <b>${formatMetric(v.extra.mid_north_wales_holdout.auc)}</b>, F1 ${formatMetric(v.extra.mid_north_wales_holdout.f1)}
+          — Recipe A scored 0.534 there. <span class="hm-dim">${esc(v.extra.mid_north_wales_holdout.compare || "")}</span></p>` : ""}
+        ${v.auc_rule ? `<p class="hm-dim">Headline AUC: ${esc(v.auc_rule)} = ${formatMetric(v.auc_pooled)}.</p>` : ""}
         <p class="hm-dim">n = ${esc((v.n ?? 0).toLocaleString("en-GB"))} (${esc((v.positives ?? v.tp + v.fn).toLocaleString("en-GB"))} positive). Threshold: ${esc(v.threshold_rule || formatParam(v.threshold))}.</p>` : ""}
         <p class="hm-dim">${esc(v.events || "")}</p>
       </section>
@@ -204,6 +208,7 @@ const CSS = `
 .hm-card details { margin-top: 0.4rem; font-size: 0.76rem; }
 .hm-card summary { cursor: pointer; color: rgba(255,255,255,0.6); }
 .hm-card ul { margin: 0.3rem 0 0; padding-left: 1.1rem; }
+.hm-compare { font-size: 0.76rem; margin: 0.2rem 0 0.4rem; }
 .hm-licence { font-size: 0.68rem; color: rgba(255,255,255,0.5); }
 .hm-licences { margin-top: 0.8rem; }
 .hm-licences h3 { margin: 0 0 0.35rem; font-size: 0.8rem; }

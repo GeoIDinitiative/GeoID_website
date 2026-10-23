@@ -913,7 +913,10 @@ def loro(tier):
               "precision": round(prec, 4) if prec is not None else None,
               "recall": round(rec, 4) if rec is not None else None,
               "f1": round(2 * prec * rec / (prec + rec), 4) if prec and rec else None,
-              "auc": hazard_metrics.roc_auc(list(zip(pooled_scores, pooled_y)))}
+              "auc": round(float(np.mean([r["auc"] for r in per.values() if r.get("auc") is not None])), 4),
+              "auc_pooled": hazard_metrics.roc_auc(list(zip(pooled_scores, pooled_y))),
+              "auc_rule": "mean of the held-out regions' AUCs (each region's scores come from its own forest, so "
+                          "pooling them mixes calibrations; the pooled figure is auc_pooled)"}
     pooled["kappa"] = hazard_metrics.confusion([(1, 1)] * tp + [(1, 0)] * fp + [(0, 0)] * tn + [(0, 1)] * fn, 0.5)["kappa"] if n else None
     pooled["positives"], pooled["negatives"] = tp + fn, tn + fp
     return X, y, region, event, fills, per, pooled
@@ -1160,7 +1163,7 @@ def entries(trained, now):
                        f"{len(REGIONS)} regions each scored by a forest that never saw it ({len(set(event))} EMS delineation "
                        f"products from {len({str(e).split('_')[0] for e in event})} activations)",
             "events": "Copernicus EMS: cells inside the observed flood extent = 1; cells analysed (area of interest ∩ image footprint, minus not-analysed and mapped water) and not flooded = 0",
-            "regions": per,
+            "regions": per, "region_unit": "products",
         })
         out.append({
             "id": "flood-susceptibility" if tier == "coarse" else "flood-susceptibility-fine",

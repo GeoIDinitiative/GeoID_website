@@ -5863,3 +5863,120 @@ page downloads it), `forest-coarse.json`, `rain-normal-cpc.json`,
   mid-points ("HU" = 80 kt for a super typhoon). Forecast fixes that only
   have a class are now eased linearly from the measured wind toward the next
   class's strength, inside their own class range (`easeCategoryWinds`).
+
+
+## Landslide susceptibility rebuilt as a random forest; the flood products published
+
+Asked for: Recipe A (AUC 0.534 on held-out Mid/North Wales, and sold by
+membership) rebuilt the way flood was — a random forest on inventoried
+landslides, validated on held-out REGIONS — with commercially usable
+inventories only; and the global flood products published to R2.
+
+### The inventories, and their terms
+
+| inventory | coverage | licence | used for |
+| --- | --- | --- | --- |
+| BGS National Landslide Database (OGC API `landslideindex`) | Great Britain, ~19,000 points with ± metres | **OGL v3** (the collection's own description) | 250 m tier (±≤100 m), absences |
+| NASA Global Landslide Catalog 1997–2016 (data.gov export, 11,033 events) | global, news-compiled | US Government work; the export asks the user to accept NASA's "Terms and Conditions", **whose text the catalogue page does not publish — TO CONFIRM** before the map is sold | both tiers (exact → 250 m; ≤5 km → 0.1°) |
+| GLiM v1.0 gridded 0.5° (PANGAEA.788537) | global lithology | **CC BY 3.0** | lithology feature |
+
+The polygon GLiM the Geology panel draws "carries no separate licence
+statement" (its own manifest), so the forest uses the 0.5° grid: the dominant
+class per cell, coarse and said so. NASA's COOLR ArcGIS services and the old
+gpm.nasa.gov landslide pages now 404; the data.gov export redirects to a
+signed S3 URL and still works.
+
+### The model
+
+`viewer/gis/landslide-ml.js` = `flood-ml.js buildStack` (terrain, land cover,
+soil, rain climate) **plus relief** (height range within ~1 km, separable
+running max/min) **and GLiM one-hot groups**; no storm rain (the inventories'
+dates are unreliable, and susceptibility is where, not when). Run by the bake
+through `services/landslide-ml-stack.mjs` and by the page through
+`landslide-ml-run.js`, which reuses `flood-ml-run.js`'s fetchers.
+
+**Absences are pseudo-absences**: land in the same windows as the slides,
+≥ 1 km (fine) / ≥ 30 km (coarse) from any inventoried point of any accuracy.
+Drawing them near reports controls for where people report; an unreported
+slide among them still counts against the model.
+
+**The coarse tier is trained on NASA's catalogue alone.** With BGS's points
+too, the first 0.1° map painted Great Britain solid red — the forest had
+learnt the island where the survey was dense — and GB's held-out set was nearly
+all slides. BGS still keeps absences off its slides and trains the 250 m tier.
+
+**The headline AUC is the mean of the held-out regions' AUCs.** Pooling the
+held-out scores mixes forests trained on different regions, whose
+probabilities are not on one scale: pooled, the 250 m tier read 0.493 ("no
+skill") while every region it could score was 0.64–0.80. The pooled figure
+stays on the card as `auc_pooled`; the flood entries were changed the same way
+(0.683 / 0.747 mean against 0.674 / 0.751 pooled).
+
+### What it measures
+
+**0.1° tier** (11,820 cells; mean AUC 0.810):
+
+| held-out region | AUC | acc | prec | rec | F1 | cells |
+| --- | --- | --- | --- | --- | --- | --- |
+| great-britain | not assessable | | | | | 203 |
+| americas-north | 0.765 | 0.673 | 0.702 | 0.473 | 0.565 | 3978 |
+| americas-south | 0.847 | 0.706 | 0.431 | 0.784 | 0.557 | 1024 |
+| asia-south | 0.892 | 0.771 | 0.868 | 0.580 | 0.696 | 1536 |
+| oceania | 0.817 | 0.743 | 0.613 | 0.669 | 0.640 | 417 |
+| asia-east | 0.756 | 0.509 | 0.304 | 0.909 | 0.456 | 2675 |
+| europe | 0.753 | 0.639 | 0.283 | 0.749 | 0.411 | 1182 |
+| africa-middle-east | 0.839 | 0.814 | 0.359 | 0.755 | 0.486 | 805 |
+
+**250 m tier** (59,103 rows, 10,863 slides, 175 windows; mean AUC 0.718):
+
+| held-out region | AUC | acc | prec | rec | F1 | windows |
+| --- | --- | --- | --- | --- | --- | --- |
+| great-britain | 0.647 | 0.664 | 0.489 | 0.176 | 0.259 | 35 |
+| americas-north | 0.715 | 0.906 | 0.209 | 0.080 | 0.116 | 35 |
+| americas-south | 0.802 | 0.975 | 0.000 | 0.000 | — | 13 |
+| asia-south | 0.640 | 0.989 | 0.081 | 0.073 | 0.077 | 33 |
+| oceania | not assessable | | | | | 20 |
+| asia-east | 0.783 | 0.977 | 0.018 | 0.029 | 0.022 | 19 |
+| europe | not assessable | | | | | 16 |
+| africa-middle-east | not assessable | | | | | 4 |
+
+- **On Recipe A's own held-out ground** (Mid/North Wales windows held out,
+  everything else trained): **AUC 0.674, F1 0.511** against Recipe A's 0.534.
+  The absence protocols differ (Recipe A drew them 1:1 at random from the
+  region; here from the same windows ≥ 1 km from any slide), and the card says so.
+- **Where the 250 m tier is valid**: only Great Britain and the Americas/Asia
+  windows have 30+ well-located slides; Oceania, Europe outside GB and Africa
+  cannot be scored at 250 m and say "not assessable". The 0.1° tier scores in
+  seven of eight regions (GB: too few absences 30 km from any report).
+- **Precision and recall at 250 m are low outside GB** at the OOB Youden
+  threshold (a GB-dominated training set puts the threshold where GB's
+  prevalence is); AUC, which does not depend on the threshold, is the number
+  to read there.
+- **The maps**: the 0.1° world lights the Himalayan front, Andes, Central
+  America, Japan, Taiwan, the Philippines, Indonesia, south-west China, the
+  Pacific Northwest, the Western Ghats, the East African highlands; the
+  eastern US reads warmer than its relief earns (reporting density). The 250 m
+  run over Oso, Washington highlights river bluffs and valley margins and rates
+  the steep Cascade interior lower — the inventories' road-and-valley bias.
+
+### Publishing (both forests)
+
+`publish-data.py` gained two things, both for this:
+
+- `GEOID_DATA_GLOBAL` / `GEOID_SOURCES` — a git worktree holds no gitignored
+  data, so a publish from one reads the main checkout's `data/global` and writes
+  the worktree's tracked `sources.json`.
+- `--only PATTERN` (repeatable) — the normal flow uploads every loose file, and
+  the dry run showed four OTHER sessions' unpublished files (airports, places,
+  ports, railroads) it would have pushed. With `--only 'flood-ml/*'` and
+  `--only 'landslide-ml/*'` it uploaded exactly 9 new keys (dry-run first;
+  `rclone lsl` confirmed none existed), kept every other fingerprint, and
+  `hazard-validation.json` is now KEEP_LOCAL (tracked, fetched from the site).
+
+Verified on **localhost:8125** (the only origin the bucket's CORS allows
+locally) with one headless viewer load through CDP: `sources.json` answered
+with this branch's copy (and, for the landslide check, the branch's viewer
+modules), the global flood and landslide layers loaded from
+`data.geoidinitiative.com` with 200s and landed in the Workspace. JSON is
+stored gzipped (`content-encoding: gzip`, strong length), the TIFs plain for
+range reads.

@@ -14,9 +14,9 @@
  */
 
 import { floodState, dischargeState, dischargeMean, rebuildSheet, sheetLayer }
-  from "./dem-layer.js?v=20261024-5141e1b";
+  from "./dem-layer.js?v=20261024-256a6da";
 import { SCENARIOS, DEFAULTS, stageRise, meanFlowFromWidth, flowRatio }
-  from "./inundation.js?v=20261024-5141e1b";
+  from "./inundation.js?v=20261024-256a6da";
 
 const byId = (id) => document.getElementById(id);
 const say = (message) => { const n = byId("flood-status"); if (n) n.textContent = message || ""; };
@@ -278,20 +278,25 @@ function initDischarge() {
  * imported on the press so the page pays for it only when it is asked for.
  */
 function initFloodMl() {
-  const button = byId("flood-ml-rerun");
-  if (!button) return;
-  const status = (m) => { const n = byId("flood-ml-status"); if (n) n.textContent = m || ""; };
-  button.addEventListener("click", async () => {
-    button.disabled = true;
-    try {
-      const mod = await import(`./flood-ml-run.js${new URL(import.meta.url).search}`);
-      await mod.showArea({ onProgress: status });
-    } catch (error) {
-      status(`Not run: ${error.message}`);
-    } finally {
-      button.disabled = false;
-    }
-  });
+  // The landslide forest's button is the same shape and is wired here too:
+  // one helper, two forests, rather than a second panel module for one button.
+  for (const [buttonId, statusId, module] of [["flood-ml-rerun", "flood-ml-status", "flood-ml-run.js"],
+    ["landslide-ml-rerun", "landslide-ml-status", "landslide-ml-run.js"]]) {
+    const button = byId(buttonId);
+    if (!button) continue;
+    const status = (m) => { const n = byId(statusId); if (n) n.textContent = m || ""; };
+    button.addEventListener("click", async () => {
+      button.disabled = true;
+      try {
+        const mod = await import(`./${module}${new URL(import.meta.url).search}`);
+        await mod.showArea({ onProgress: status });
+      } catch (error) {
+        status(`Not run: ${error.message}`);
+      } finally {
+        button.disabled = false;
+      }
+    });
+  }
 }
 
 function initAll() {

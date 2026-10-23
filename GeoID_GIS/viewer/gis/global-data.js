@@ -26,18 +26,18 @@
  * rebuilt or updated without guessing what was done to them.
  */
 
-import { runConnector } from "./research/connectors.js?v=20261024-5141e1b";
-import { explainFetchFailure, dataUrl } from "./data-base.js?v=20261024-5141e1b";
-import { mathsFor } from "./equations.js?v=20261024-5141e1b";
+import { runConnector } from "./research/connectors.js?v=20261024-256a6da";
+import { explainFetchFailure, dataUrl } from "./data-base.js?v=20261024-256a6da";
+import { mathsFor } from "./equations.js?v=20261024-256a6da";
 import {
   riskEdges, RISK_LABELS,
-} from "./cyclone-risk.js?v=20261024-5141e1b";
-import { colourRange as volcanicColourRange } from "./volcanic-risk.js?v=20261024-5141e1b";
-import { featureForModel, may, refusal } from "./membership.js?v=20261024-5141e1b";
-import { colourRange as seismicColourRange } from "./seismic-bands.js?v=20261024-5141e1b";
+} from "./cyclone-risk.js?v=20261024-256a6da";
+import { colourRange as volcanicColourRange } from "./volcanic-risk.js?v=20261024-256a6da";
+import { featureForModel, may, refusal } from "./membership.js?v=20261024-256a6da";
+import { colourRange as seismicColourRange } from "./seismic-bands.js?v=20261024-256a6da";
 // The cyclone tracks are classed on the same scale the live storm markers
 // band by, so the archive and the feed cut intensity at the same knots.
-import { SAFFIR_SIMPSON_KTS } from "./event-sources.js?v=20261024-5141e1b";
+import { SAFFIR_SIMPSON_KTS } from "./event-sources.js?v=20261024-256a6da";
 
 /** Order the groups read in, coarse to specific. */
 export const GROUPS = ["Physical", "Hydrology", "Boundaries", "Tectonics",
@@ -118,6 +118,9 @@ export const HOMES = {
   // Hazards ▸ Flood: the river inundation model on the streamed DEM, a TILED
   // row with its flood controls in the row's drawer. No shipped file lives here.
   flood: "flood-catalogue",
+  // Hazards ▸ Landslides: the landslide random forest's two tiers, above the
+  // forecast pipeline and the NI prototype in the same subtab.
+  landslide: "landslide-catalogue",
   // Hazards ▸ Infrastructure: WHAT is there, as Exposure is who. Settlements,
   // ports, airports, roads, railways, bridges, buildings and the cables --
   // each an ordinary layer, and all of them counted inside a hazard footprint
@@ -1188,7 +1191,7 @@ function drawnBbox() {
 async function viewBbox() {
   try {
     const THREE = await import("../vendor/three.module.js");
-    const { visibleBounds } = await import("./view-extent.js?v=20261024-5141e1b");
+    const { visibleBounds } = await import("./view-extent.js?v=20261024-256a6da");
     const b = visibleBounds(window.GeoIDViewer, THREE);
     const ok = b && [b.minLon, b.minLat, b.maxLon, b.maxLat].every(Number.isFinite);
     return ok ? { minLon: b.minLon, minLat: b.minLat, maxLon: b.maxLon, maxLat: b.maxLat } : null;

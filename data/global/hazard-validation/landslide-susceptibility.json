@@ -1,6 +1,6 @@
 {
  "id": "landslide-susceptibility",
- "name": "Landslide susceptibility (Recipe A, ranked classes)",
+ "name": "Landslide susceptibility \u2014 Recipe A weighted overlay (superseded)",
  "hazard": "landslide",
  "product": "ni-prototype/data/ni_landslide_susceptibility_quantile.tif (NI), validated on Wales",
  "model": {
@@ -116,5 +116,5 @@
   "Northern Ireland itself cannot be scored: GSNI publishes no open inventory (n = 1 in the BGS index)."
  ],
  "script": "GeoID_GIS/services/validate-landslide.py",
- "generated": "2026-10-23T19:26:45Z"
+ "generated": "2026-10-23T23:20:23Z"
 }

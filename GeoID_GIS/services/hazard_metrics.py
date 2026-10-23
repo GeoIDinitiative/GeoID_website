@@ -166,7 +166,8 @@ OUT_DIR = os.path.join(ROOT, "data", "global", "hazard-validation")
 OUT_FILE = os.path.join(ROOT, "data", "global", "hazard-validation.json")
 
 # The order the hub lists them in: the maps GeoHUB publishes, the flood tiers first.
-ORDER = ["flood-susceptibility", "flood-susceptibility-fine", "flood-susceptibility-wales", "landslide-susceptibility", "cyclone-risk",
+ORDER = ["flood-susceptibility", "flood-susceptibility-fine", "flood-susceptibility-wales", "landslide-susceptibility-global",
+         "landslide-susceptibility-fine", "landslide-susceptibility", "cyclone-risk",
          "seismic-risk", "volcanic-risk", "volcanic-risk-holocene"]
 
 

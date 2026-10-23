@@ -1,8 +1,8 @@
 /** #/mod — the report queue and the audit log, for admins and community moderators. */
-import * as api from "../api.js?v=20261024-5141e1b";
-import { store } from "../store.js?v=20261024-5141e1b";
-import { h, clear, field, input, select, textarea, toast, busy, empty, timeEl, put } from "../dom.js?v=20261024-5141e1b";
-import { userChip, pagedList, provenanceBadge, kindLabel } from "../components.js?v=20261024-5141e1b";
+import * as api from "../api.js?v=20261024-256a6da";
+import { store } from "../store.js?v=20261024-256a6da";
+import { h, clear, field, input, select, textarea, toast, busy, empty, timeEl, put } from "../dom.js?v=20261024-256a6da";
+import { userChip, pagedList, provenanceBadge, kindLabel } from "../components.js?v=20261024-256a6da";
 
 export function render(root, { query }) {
   if (!store.me) {

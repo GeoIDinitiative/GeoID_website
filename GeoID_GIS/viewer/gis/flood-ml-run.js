@@ -21,8 +21,8 @@
 import {
   TIERS, FEATURES, makeGrid, tilesFor, decodeTile, demOnGrid, buildStack, landCoverUrl, soilOnGrid,
   latticeOnGrid, featureRows, decodeForest, predictForest, wettest3, TERRARIUM_URL,
-} from "./flood-ml.js?v=20261024-5141e1b";
-import { dataUrl } from "./data-base.js?v=20261024-5141e1b";
+} from "./flood-ml.js?v=20261024-256a6da";
+import { dataUrl } from "./data-base.js?v=20261024-256a6da";
 
 export const GLOBAL_NAME = "Flood susceptibility — global (random forest).tif";
 export const AREA_NAME = "Flood susceptibility — here (random forest, 250 m).tif";
@@ -33,7 +33,7 @@ const ASSETS = "/data/global/flood-ml/";
 const cache = {};
 const once = (key, make) => { cache[key] ||= make().catch((e) => { delete cache[key]; throw e; }); return cache[key]; };
 
-async function json(path) {
+export async function json(path) {
   const response = await fetch(await dataUrl(path));
   if (!response.ok) throw new Error(`${path.split("/").pop()}: HTTP ${response.status}`);
   return response.json();
@@ -47,7 +47,7 @@ const loadForest = () => once("forest", async () => {
   return decodeForest(doc);
 });
 
-const loadNormal = () => once("normal", async () => {
+export const loadNormal = () => once("normal", async () => {
   const doc = await json(`${ASSETS}rain-normal-cpc.json`);
   return { field: Float32Array.from(doc.values, (v) => (v == null ? NaN : v)), lattice: doc.lattice };
 });
@@ -63,14 +63,14 @@ export async function chooseBox() {
   let box = null;
   let label = "the view";
   try {
-    const reader = await import("./risk-reader.js?v=20261024-5141e1b");
+    const reader = await import("./risk-reader.js?v=20261024-256a6da");
     const areas = reader.studyAreas?.() || [];
     if (areas.length) { box = areas[areas.length - 1].box; label = areas[areas.length - 1].name; }
   } catch { /* no reader: the view will do */ }
   if (!box) {
     const viewer = window.GeoIDViewer;
     const three = await import("../vendor/three.module.js");
-    const { visibleBounds } = await import("./view-extent.js?v=20261024-5141e1b");
+    const { visibleBounds } = await import("./view-extent.js?v=20261024-256a6da");
     const v = viewer ? visibleBounds(viewer, three) : null;
     if (v && [v.minLon, v.maxLon, v.minLat, v.maxLat].every(Number.isFinite)) {
       box = { west: v.minLon, east: v.maxLon, south: v.minLat, north: v.maxLat };
@@ -106,7 +106,7 @@ async function tileHeights(z, x, y) {
   return decodeTile(ctx.getImageData(0, 0, 256, 256).data, 4);
 }
 
-async function demMosaic(grid, zoom) {
+export async function demMosaic(grid, zoom) {
   const plan = tilesFor(grid, zoom);
   const mw = plan.cols * 256;
   const mosaic = new Float32Array(mw * plan.rows * 256);
@@ -123,18 +123,18 @@ async function demMosaic(grid, zoom) {
   return { mosaic, plan };
 }
 
-async function landCoverClasses(grid, k) {
+export async function landCoverClasses(grid, k) {
   const response = await fetch(landCoverUrl(grid, k));
   if (!response.ok) throw new Error(`land cover: HTTP ${response.status}`);
-  const { loadGeoTiffLibrary } = await import("./geotiff-adapter.js?v=20261024-5141e1b");
+  const { loadGeoTiffLibrary } = await import("./geotiff-adapter.js?v=20261024-256a6da");
   const GeoTIFF = await loadGeoTiffLibrary();
   const tiff = await GeoTIFF.fromArrayBuffer(await response.arrayBuffer());
   const [band] = await (await tiff.getImage()).readRasters();
   return band instanceof Uint8Array ? band : Uint8Array.from(band);
 }
 
-async function soil(grid) {
-  const mod = await import("./soil-thickness.js?v=20261024-5141e1b");
+export async function soil(grid) {
+  const mod = await import("./soil-thickness.js?v=20261024-256a6da");
   const win = await mod.thicknessGridFor({ west: grid.west, east: grid.east, south: grid.south, north: grid.north });
   if (!win?.native) return new Float32Array(grid.width * grid.height).fill(NaN);
   return soilOnGrid(win, grid);
@@ -201,7 +201,7 @@ export async function runArea(box, { onProgress = () => {} } = {}) {
   const p = predictForest(forest, rows);
   const band = new Float32Array(grid.width * grid.height).fill(NaN);
   kept.forEach((i, k) => { band[i] = p[k]; });
-  const { writeGeoTiff } = await import("./geotiff-writer.js?v=20261024-5141e1b");
+  const { writeGeoTiff } = await import("./geotiff-writer.js?v=20261024-256a6da");
   const bytes = writeGeoTiff({ band, width: grid.width, height: grid.height, noData: NaN,
     bounds: { minX: grid.west, maxX: grid.east, minY: grid.south, maxY: grid.north } });
   let over = 0;
@@ -209,7 +209,7 @@ export async function runArea(box, { onProgress = () => {} } = {}) {
   return { bytes, grid, land, fills, rainWindow: rain.window, share: kept.length ? over / kept.length : 0 };
 }
 
-function manager() {
+export function manager() {
   const m = window.GeoIDImportManager;
   if (!m?.importFileList) throw new Error("the import manager is not ready");
   return m;
@@ -219,7 +219,7 @@ export function layerNamed(name) {
   return (window.GeoIDImportManager?.getLayers?.() || []).find((l) => l.name === name) || null;
 }
 
-function replace(name) {
+export function replace(name) {
   const old = layerNamed(name);
   if (old) window.GeoIDImportManager.removeLayer?.(old.id);
 }
@@ -247,13 +247,13 @@ export async function showGlobal({ onProgress = () => {} } = {}) {
   onProgress("Fetching the global flood susceptibility map…");
   const response = await fetch(await dataUrl(`${ASSETS}flood-susceptibility-0p1.hotlink-ok.tif`));
   if (!response.ok) throw new Error(`global map: HTTP ${response.status}`);
-  const { loadGeoTiffLibrary } = await import("./geotiff-adapter.js?v=20261024-5141e1b");
+  const { loadGeoTiffLibrary } = await import("./geotiff-adapter.js?v=20261024-256a6da");
   const GeoTIFF = await loadGeoTiffLibrary();
   const image = await (await GeoTIFF.fromArrayBuffer(await response.arrayBuffer())).getImage();
   const [raw] = await image.readRasters();
   const [west, south, east, north] = image.getBoundingBox();
   const band = Float32Array.from(raw, (v) => (v === 255 ? NaN : v / 250));
-  const { writeGeoTiff } = await import("./geotiff-writer.js?v=20261024-5141e1b");
+  const { writeGeoTiff } = await import("./geotiff-writer.js?v=20261024-256a6da");
   const bytes = writeGeoTiff({ band, width: image.getWidth(), height: image.getHeight(), noData: NaN,
     bounds: { minX: west, maxX: east, minY: south, maxY: north } });
   replace(GLOBAL_NAME);
