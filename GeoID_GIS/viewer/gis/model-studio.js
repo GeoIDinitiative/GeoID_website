@@ -1,20 +1,20 @@
-import { escapeHtml } from "./escape-html.js?v=20261023-d95af1d";
+import { escapeHtml } from "./escape-html.js?v=20261023-d375b8c";
 import * as THREE from "../vendor/three.module.js";
-import { currentBody, getBody, currentBodyId } from "./bodies.js?v=20261023-d95af1d";
-import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20261023-d95af1d";
+import { currentBody, getBody, currentBodyId } from "./bodies.js?v=20261023-d375b8c";
+import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20261023-d375b8c";
 import {
   latticeTetMesh, tetBoundarySurface, qualityStats, elementCounts, toGmsh22,
-} from "./mesh-volume.js?v=20261023-d95af1d";
-import { studioBlenderScript, shapesToSolids, normMesher, blenderUnavailable } from "./studio-blender.js?v=20261023-d95af1d";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20261023-d95af1d";
-import { downloadText } from "./extraction.js?v=20261023-d95af1d";
-import { shellPositions, surfacePositions, tinHeightAt, tinToGrid, gridAsTin, tinValueAt } from "./surface-sampling.js?v=20261023-d95af1d";
-import { rampColour } from "./symbology.js?v=20261023-d95af1d";
-import { layeredVolumes, facetPositions, tinWith, LAYER_FLAGS } from "./layered-model.js?v=20261023-d95af1d";
-import { sectionPolygons, sectionPositions, profileHeightAt } from "./section-model.js?v=20261023-d95af1d";
-import { faceParts, partPositions, studioGmshScript, DEFAULT_FACE_FLAGS } from "./studio-gmsh.js?v=20261023-d95af1d";
-import { describeField, FIELD_TYPES } from "./mesh-size-fields.js?v=20261023-d95af1d";
-import { femSpec } from "./model-build.js?v=20261023-d95af1d";
+} from "./mesh-volume.js?v=20261023-d375b8c";
+import { studioBlenderScript, shapesToSolids, normMesher, blenderUnavailable } from "./studio-blender.js?v=20261023-d375b8c";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20261023-d375b8c";
+import { downloadText } from "./extraction.js?v=20261023-d375b8c";
+import { shellPositions, surfacePositions, tinHeightAt, tinToGrid, gridAsTin, tinValueAt } from "./surface-sampling.js?v=20261023-d375b8c";
+import { rampColour } from "./symbology.js?v=20261023-d375b8c";
+import { layeredVolumes, facetPositions, tinWith, LAYER_FLAGS } from "./layered-model.js?v=20261023-d375b8c";
+import { sectionPolygons, sectionPositions, profileHeightAt } from "./section-model.js?v=20261023-d375b8c";
+import { faceParts, partPositions, studioGmshScript, DEFAULT_FACE_FLAGS } from "./studio-gmsh.js?v=20261023-d375b8c";
+import { describeField, FIELD_TYPES } from "./mesh-size-fields.js?v=20261023-d375b8c";
+import { femSpec } from "./model-build.js?v=20261023-d375b8c";
 
 // Meshing Studio, ported from atlas-ai/services/mesh/meshing_studio.
 //
@@ -51,6 +51,8 @@ const state = {
   placingPoint: false,
   /** Which mesher this model asks for: gmsh (the default) or blender. */
   mesher: "gmsh",
+  /** Elements per 2π of curvature (0 off): a coarse mesh that still resolves a small chamber. */
+  curvature: 0,
 };
 
 // The studio highlights the current selection in orange; the same cue is used
@@ -2369,7 +2371,7 @@ function studioMeshOptions() {
   const alg2 = { MeshAdapt: 1, Delaunay: 5, "Frontal-Delaunay": 6 }[byId("studio-alg2")?.value] || null;
   const alg3 = { Delaunay: 1, HXT: 10 }[byId("studio-alg3")?.value] || null;
   const hi = Number(byId("studio-size-hi")?.value); const lo = Number(byId("studio-size-lo")?.value);
-  return { combine: "min", sizeMaxM: hi > 0 ? hi : null, sizeMinM: lo > 0 ? lo : null, extendFromBoundary: false, fromPoints: false, fromCurvature: 0, algorithm2d: alg2, algorithm3d: alg3 };
+  return { combine: "min", sizeMaxM: hi > 0 ? hi : null, sizeMinM: lo > 0 ? lo : null, extendFromBoundary: false, fromPoints: false, fromCurvature: state.curvature || 0, algorithm2d: alg2, algorithm3d: alg3 };
 }
 
 /** The studio's model as the emitter reads it: entities with their parts' flags, the air, the points, the fields. */
@@ -2505,7 +2507,7 @@ function exportScript() {
  * sentence saying which, and the Export script button still does what it
  * always did.
  */
-async function meshWithGmsh() {
+async function meshWithGmsh({ name: asked = null } = {}) {
   const sidecar = window.GeoIDResearch?.sidecar;
   const store = window.GeoIDResearch?.store;
   if (!sidecar?.isConnected?.()) {
@@ -2524,9 +2526,11 @@ async function meshWithGmsh() {
   try {
     status("meshing in gmsh…");
     log("Sending the model to gmsh in the sidecar…");
-    const name = `studio_${new Date().toISOString().slice(0, 10)}`;
+    const name = asked || `studio_${new Date().toISOString().slice(0, 10)}`;
     const jobId = await sidecar.runGmsh({
-      project: project.folder || project.name,
+      // The project's path under the sidecar's root (earth/<name>), not its
+      // bare folder name: the sidecar resolves it from the root.
+      project: project.dir,
       script: buildGmshScript(),
       name,
       dim: 3,
@@ -2537,9 +2541,11 @@ async function meshWithGmsh() {
       status("gmsh failed");
       return { ok: false, text: `Gmsh failed (exit ${snap.exit_code ?? "?"}). The Jobs drawer has its log.` };
     }
-    log(`Gmsh wrote meshes/${name}.msh — FEM Setup will list it.`);
+    const shown = await showMesh(`meshes/${name}.msh`);
+    const text = `Gmsh wrote meshes/${name}.msh${shown.counts ? ` — ${shown.counts}` : ""}. FEM Setup will list it.`;
+    log(text);
     status("mesh ready");
-    return { ok: true, mesh: `meshes/${name}.msh`, text: `Gmsh wrote meshes/${name}.msh — FEM Setup will list it.` };
+    return { ok: true, mesh: `meshes/${name}.msh`, report: shown.report, text };
   } catch (error) {
     // A 409 from the sidecar is the honest "gmsh is not installed here".
     log(`Gmsh could not run: ${error.message}`);
@@ -2581,7 +2587,7 @@ async function meshWithBlender({ name = null, via = "auto" } = {}) {
     status("meshing in Blender…");
     log(`Sending the model to Blender in the sidecar (${caps.blender.mcp && via !== "headless" ? "your open Blender, over blender-mcp" : "headless"})…`);
     const jobId = await sidecar.runBlender({
-      project: project.folder || project.name,
+      project: project.dir,
       script,
       name: meshName,
       dim: 3,
@@ -2593,19 +2599,54 @@ async function meshWithBlender({ name = null, via = "auto" } = {}) {
       const why = (snap.tail || []).find((l) => /ERROR:/.test(l)) || "";
       return fail(`Blender meshing failed (exit ${snap.exit_code ?? "?"}). ${why} The Jobs drawer has its log.`.trim(), "blender failed");
     }
-    const text = `Blender built the surfaces and gmsh filled them: meshes/${meshName}.msh — FEM Setup will list it.`;
+    const shown = await showMesh(`meshes/${meshName}.msh`);
+    const text = `Blender built the surfaces and gmsh filled them: meshes/${meshName}.msh${shown.counts ? ` — ${shown.counts}` : ""}. FEM Setup will list it.`;
     log(text);
     status("mesh ready");
     setMesherNote("");
-    return { ok: true, mesh: `meshes/${meshName}.msh`, text, notes };
+    return { ok: true, mesh: `meshes/${meshName}.msh`, report: shown.report, text, notes };
   } catch (error) {
     return fail(`Blender could not run: ${error.message}`);
   }
 }
 
 /** Mesh with the model's own mesher, or the one named. */
-function meshWith(mesher = state.mesher) {
-  return normMesher(mesher) === "blender" ? meshWithBlender() : meshWithGmsh();
+function meshWith(mesher = state.mesher, opts = {}) {
+  return normMesher(mesher) === "blender" ? meshWithBlender(opts) : meshWithGmsh(opts);
+}
+
+/**
+ * The mesh a sidecar run wrote, read back from the project and drawn in the
+ * studio's real-mesh card (real-mesh-panel.js): its boundary by flag and its
+ * counts. Returns { report, counts } -- counts a phrase, or null where the
+ * card is not on this page or the file could not be read.
+ */
+async function showMesh(rel) {
+  const store = window.GeoIDResearch?.store;
+  const card = window.GeoIDRealMesh;
+  if (!card?.load || !store?.readProjectFileBytes) return { report: null, counts: null };
+  try {
+    const bytes = await store.readProjectFileBytes(rel);
+    const buffer = bytes instanceof ArrayBuffer ? bytes
+      : ArrayBuffer.isView(bytes) ? bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength)
+        : bytes instanceof Blob ? await bytes.arrayBuffer() : new TextEncoder().encode(String(bytes)).buffer;
+    await card.load(buffer, rel);
+    const r = card.report;
+    if (!r) return { report: null, counts: null };
+    const kinds = (r.kinds || []).map((k) => `${k.count.toLocaleString()} ${k.name}`).join(", ");
+    return { report: r, counts: `${r.nodes.toLocaleString()} nodes, ${kinds || `${r.cells.toLocaleString()} elements`}, drawn in the studio` };
+  } catch (error) {
+    log(`The mesh was written but could not be drawn: ${error.message}`);
+    return { report: null, counts: null };
+  }
+}
+
+/** The mesh size the next sidecar run uses: the Mesh pane's inputs, and a curvature refinement. */
+function setMeshSizes({ maxM = null, minM = null, curvature = null } = {}) {
+  if (maxM > 0 && byId("studio-size-hi")) byId("studio-size-hi").value = String(maxM);
+  if (minM !== null && byId("studio-size-lo")) byId("studio-size-lo").value = String(minM > 0 ? minM : 0);
+  if (curvature !== null) state.curvature = Math.max(0, Math.round(Number(curvature) || 0));
+  return studioMeshOptions();
 }
 
 /** The sentence under the mesher selector: why Blender cannot run here, or nothing. */
@@ -5252,7 +5293,7 @@ window.GeoIDMeshStudio = {
   adoptTerrainSolid, adoptSectionModel, extendTerrain, buildFromText,
   buildGmshScript, exportPackage, getModel: () => studioModel(),
   // The two meshers: gmsh (default) and Blender, chosen per model.
-  getMesher: () => state.mesher, setMesher, meshWith, meshWithGmsh, meshWithBlender, addShapes,
+  getMesher: () => state.mesher, setMesher, meshWith, meshWithGmsh, meshWithBlender, addShapes, setMeshSizes,
   blenderScript: (name = "geoid_studio") => studioBlenderScript({ name, solids: studioModel(name).solids }), addEmbeddedPoint: (p) => { state.points.push({ flag: 20, sizeM: 1, ...p }); renderStudioPoints(); renderDomainsPanel(); ensureStudioCards(); },
   setAtmosphere: (opts) => { Object.assign(state.atmosphere, opts || {}, { on: opts?.on !== false }); return applyStudioAtmosphere(); },
   setStudioBody, getStudioBody,

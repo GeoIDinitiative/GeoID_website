@@ -15,6 +15,8 @@
  * parses to a tool in this list with arguments that pass its own checks.
  */
 
+import { readMeshRequest, readMesher } from "./atlas-mesh-spec.js?v=20261023-d375b8c";
+
 export const TOOLS = [
   {
     name: "ashfall",
@@ -48,16 +50,30 @@ export const TOOLS = [
     args: { type: "object", properties: { description: { type: "string" } } },
   },
   {
+    name: "build_mesh",
+    title: "Build a model from a description and mesh it",
+    says: "Reads a volcano with a magma chamber, or a layered crust block with a dike, from words — "
+      + "with the heights, depths, radii, layer thicknesses and dips they name, in km or m — builds it "
+      + "in the Meshing Studio and meshes it in the local sidecar with gmsh or Blender (the model's own "
+      + "mesher unless the words name one). The mesh lands in the project's meshes/ and is drawn in the studio.",
+    args: {
+      type: "object",
+      required: ["description"],
+      properties: {
+        description: { type: "string", description: "The model in words, e.g. a stratovolcano 3 km high with a magma chamber at 5 km depth" },
+        mesher: { type: "string", enum: ["gmsh", "blender"], description: "Which mesher (default: the one the words or the model name, else gmsh)" },
+      },
+    },
+  },
+  {
     name: "mesh_model",
-    title: "Mesh the Meshing Studio's model",
-    says: "Meshes the model in the Meshing Studio with gmsh (the default) or Blender, in the local "
-      + "sidecar; the mesh lands in the open project's meshes/ for FEM Setup. A description such as "
-      + "\"a volcano with a chamber\" or \"a layered crust with a dike\" builds that model first.",
+    title: "Mesh the Meshing Studio's model as it stands",
+    says: "Meshes whatever is in the Meshing Studio now with gmsh (the default) or Blender, in the local "
+      + "sidecar; the mesh lands in the open project's meshes/ and is drawn in the studio.",
     args: {
       type: "object",
       properties: {
         mesher: { type: "string", enum: ["gmsh", "blender"], description: "Which mesher (default: the model's own, gmsh unless chosen)" },
-        description: { type: "string", description: "A model to build first, in words" },
       },
     },
   },
@@ -204,8 +220,14 @@ export function callFromIntent(intent) {
       };
     case "chamber":
       return { name: "chamber", args: { description: intent.text } };
-    case "blender":
-      return { name: "mesh_model", args: { mesher: "blender", description: intent.text } };
+    case "build_mesh": {
+      // A model named in the words is built from them; "mesh it" meshes
+      // what the studio holds.
+      const mesher = readMesher(intent.text);
+      return readMeshRequest(intent.text)
+        ? { name: "build_mesh", args: { description: intent.text, ...(mesher ? { mesher } : {}) } }
+        : { name: "mesh_model", args: mesher ? { mesher } : {} };
+    }
     case "risk":
       return { name: "total_risk", args: {} };
     default:

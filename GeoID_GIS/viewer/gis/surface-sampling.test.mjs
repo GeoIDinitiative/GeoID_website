@@ -264,7 +264,8 @@ check("the TIN builds", tin.ok, tin.message);
     check("a scenario declares its own params and builds from them", /params: \{\n      crust_width: \["Crust width", 20\],/.test(studio) && /build: \(p\) => \[/.test(studio) && /function renderParamRows\(host, spec, values, mark\)/.test(studio) && /const values = \{ \.\.\.defaultsOf\(tpl\), \.\.\.readParamRows\("#studio-template-params \[data-tparam\]", "tparam"\) \};/.test(studio));
     check("the shapes are grouped by the heading each declares", /const key = spec\.group \|\| "Shapes";/.test(studio) && /studio-palette-caption/.test(studio) && /studio-palette-caption/.test(css));
     const atlas = readFileSync(new URL("./atlas-assistant.js", import.meta.url), "utf8");
-    check("Atlas takes the build-a-volcano phrase the studio's box used to", /studio\.buildFromText\(question\)/.test(atlas));
+    // Through build_mesh now, which honours the sizes in the words and meshes the model.
+    check("Atlas takes the build-a-volcano phrase the studio's box used to", /isMeshRequest\(question\)/.test(atlas) && /runTool\("build_mesh", \{ description: question \}/.test(atlas));
   }
   check("every domain is its flagged faces, each a part with a row and a card", /function renderDomainsPanel/.test(studio) && /function showPartCard/.test(studio) && /\.studio-pane\[data-pane="model"\]/.test(studio) && /master\.indeterminate = shown > 0 && shown < own\.length;/.test(studio) && /\["sides", "wall", 0xa8703f, F\.sides_below/.test(studio) && /\["sky", "lid", 0x9fd8ff, F\.sky/.test(studio));
   check("embedded points are drawn and described", /id: `point:\$\{i\}`, name: `Point — \$\{p\.name\}`/.test(studio) && /flags: \{ \.\.\.state\.flags \},/.test(pipeline));
