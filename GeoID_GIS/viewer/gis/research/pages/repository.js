@@ -1,11 +1,11 @@
-import { registerPage } from "../stages.js?v=20261023-26ffafb";
-import * as store from "../project-store.js?v=20261023-26ffafb";
-import * as bridge from "../bridge.js?v=20261023-26ffafb";
-import { parseTable } from "../table.js?v=20261023-26ffafb";
+import { registerPage } from "../stages.js?v=20261023-99d62f8";
+import * as store from "../project-store.js?v=20261023-99d62f8";
+import * as bridge from "../bridge.js?v=20261023-99d62f8";
+import { parseTable } from "../table.js?v=20261023-99d62f8";
 import {
   el, input, button, row, selectOf, field, statusLine, needProject,
   pageHeader, toolbar, inlineLabel, collapsible, dataTable, console_,
-} from "./common.js?v=20261023-26ffafb";
+} from "./common.js?v=20261023-99d62f8";
 
 /**
  * Data Repository, laid out as `GeoIDDataRepoPage` does (app_qt.py:5487):

@@ -1,4 +1,4 @@
-import { BODIES, currentBodyId } from "./bodies.js?v=20261023-26ffafb";
+import { BODIES, currentBodyId } from "./bodies.js?v=20261023-99d62f8";
 
 /**
  * The worlds, along the bottom of the GIS page.
@@ -54,8 +54,8 @@ const STYLE = `
    translucency the side panels read at, blurred, edged in the data colour like
    #ui, and the collapse control is its last segment. Collapsed, EVERY world
    folds away (owner: "completely collapsed") and only the control is left --
-   a small tab of the same material with a worlds glyph, so it is plain what
-   it is and how to get it back. Themes restyle it alongside
+   one glowing up-chevron on the globe, with no box around it (owner): the
+   worlds are down here, press to raise them. Open, it points down. Themes restyle it alongside
    .layer-dock in viewer-themes.css (and the default theme squares it with the
    rest in side-panels.js). */
 #gis-planet-dock.gis-planet-dock {
@@ -82,6 +82,14 @@ const STYLE = `
   pointer-events: auto;
 }
 .gis-planet-dock[hidden] { display: none !important; }
+
+/* The default theme's bar is black glass, not its panel violet (owner). */
+:root:not([data-skin]) #gis-planet-dock.gis-planet-dock {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.04), transparent 60%), rgba(0, 0, 0, 0.62);
+}
+/* Beige's accent is navy, which vanishes on the night side; the folded arrow
+   is lit white there instead. */
+:root[data-skin="beige"] #gis-planet-dock.is-collapsed .gis-planet-toggle { color: #ffffff; --nav-accent-rgb: 255, 255, 255; }
 
 /* The strip stops being a box of its own: no ground, no edge, no position. */
 #gis-planet-dock > .gis-planet-strip {
@@ -129,17 +137,39 @@ const STYLE = `
   box-shadow: none;
   pointer-events: none;
 }
-#gis-planet-dock.is-collapsed .gis-planet-toggle {
-  width: auto;
-  padding: 0 0.55rem;
-  margin-left: 0;
-  gap: 0.35rem;
-  border-left: 0;
-  border-radius: calc(1.1rem * var(--skin-round, 1));
-  opacity: 0.9;
+/* Unboxed: no ground, edge or shadow -- and specific enough (:root + id +
+   two classes) to beat the themes' own !important panel rules. */
+:root #gis-planet-dock.gis-planet-dock.is-collapsed {
+  padding: 0 !important;
+  background: none !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
 }
-.gis-planet-worlds { display: none; font-size: 0.68rem; letter-spacing: 0.08em; text-transform: uppercase; }
-#gis-planet-dock.is-collapsed .gis-planet-worlds { display: inline; }
+:root #gis-planet-dock.is-collapsed .gis-planet-toggle {
+  width: 2.2rem;
+  height: 1.8rem;
+  margin-left: 0;
+  border: 0 !important;
+  background: none !important;
+  box-shadow: none !important;
+  color: rgb(var(--nav-accent-rgb));
+  opacity: 1;
+}
+/* The glow: a drop-shadow follows the stroke itself, so the arrow is lit
+   rather than sitting in a lit square. */
+#gis-planet-dock.is-collapsed .gis-planet-caret {
+  width: 20px;
+  height: 20px;
+  filter: drop-shadow(0 0 3px rgba(var(--nav-accent-rgb), 0.95)) drop-shadow(0 0 9px rgba(var(--nav-accent-rgb), 0.6));
+}
+@media (hover: hover) and (pointer: fine) {
+  :root #gis-planet-dock.is-collapsed .gis-planet-toggle:hover { background: none !important; }
+  #gis-planet-dock.is-collapsed .gis-planet-toggle:hover .gis-planet-caret {
+    filter: drop-shadow(0 0 4px rgba(var(--nav-accent-rgb), 1)) drop-shadow(0 0 14px rgba(var(--nav-accent-rgb), 0.85));
+  }
+}
 
 /* The collapse control: the bar's last segment, behind a hairline divider. */
 #gis-planet-dock .gis-planet-toggle {
@@ -167,9 +197,10 @@ const STYLE = `
 }
 #gis-planet-dock .gis-planet-toggle:focus-visible { opacity: 1; outline: 2px solid rgba(var(--nav-accent-rgb), 0.85); outline-offset: -2px; }
 #gis-planet-dock .gis-planet-toggle:active { transform: scale(0.94); }
-.gis-planet-caret { display: block; transition: transform 220ms cubic-bezier(0.23, 1, 0.32, 1); }
-/* Open, it points in (fold); folded, it points out (unfold). */
-#gis-planet-dock.is-collapsed .gis-planet-caret { transform: rotate(180deg); }
+.gis-planet-caret { display: block; width: 14px; height: 14px; transform: rotate(180deg);
+  transition: transform 220ms cubic-bezier(0.23, 1, 0.32, 1); }
+/* Open, it points down (lower them); folded, up (raise them). */
+#gis-planet-dock.is-collapsed .gis-planet-caret { transform: none; }
 
 @media (max-height: 560px) and (orientation: landscape) {
   #gis-planet-dock.gis-planet-dock { bottom: 0.3rem; padding: 0.14rem 0.14rem 0.14rem 0.28rem; }
@@ -244,9 +275,10 @@ function buildDock(strip) {
   toggle.id = TOGGLE_ID;
   toggle.className = "gis-planet-toggle";
   toggle.setAttribute("aria-controls", STRIP_ID);
-  // A chevron pointing back along the bar: open, it folds the worlds in.
-  toggle.innerHTML = '<span class="gis-planet-worlds" aria-hidden="true">Worlds</span>'
-    + '<span class="gis-planet-caret" aria-hidden="true">&#8249;</span>';
+  // One chevron: down while the worlds are showing, up once they are folded away.
+  toggle.innerHTML = '<svg class="gis-planet-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor"'
+    + ' stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">'
+    + '<path d="M6 15l6-6 6 6"/></svg>';
   toggle.addEventListener("click", () => setCollapsed(!isCollapsed()));
 
   // The strip first, the control as the bar's last segment -- one object.
