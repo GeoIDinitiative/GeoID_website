@@ -5494,3 +5494,150 @@ app has no risk reader, so the stage list says why it drifts there.
 Verified headless with the reader's readings stubbed (the sandbox reaches no
 WorldPop): built, saved, readings changed → stale banner, rebuilt with the new
 signature and the written Discussion kept; all 65 hub pages mount.
+## Can AI predict flooding? A random forest on recorded floods, and every hazard map scored
+
+Asked for: the flood maps to follow the "can AI predict flooding?" recipe
+(inputs → one grid → no NaNs → a random forest on historical floods → today's
+rain in → a current map), and EVERY published hazard map validated with
+accuracy, precision, recall, F1 and AUC, shown in the Analysis Hub beside each
+model's parameters.
+
+### Where it is
+
+| piece | file |
+| --- | --- |
+| the metric arithmetic, Python | `services/hazard_metrics.py` (`confusion`, `roc`, `youden`, `report`, `write_entry`) |
+| the same, JS (the page's own validator) | `viewer/gis/validation.js` |
+| the two held equal, plus hand-worked matrices | `services/hazard-metrics.test.mjs` |
+| flood random forest, steps 1–5 + validation | `services/bake-flood-rf.py` (`--current` refreshes only today's map) |
+| landslide Recipe A, spatial hold-out | `services/validate-landslide.py` |
+| cyclone, seismic, volcanic ×2, temporal hold-out | `services/validate-point-hazards.py` |
+| what the hub reads | `data/global/hazard-validation.json` (tracked; one fragment per map in `data/global/hazard-validation/`) |
+| the hub's Models tab | `viewer/gis/hazard-models.js` (+ `.test.mjs`), panel `#hub-panel-models` in `/index.html` |
+
+Every validator writes ONE fragment and `write_entry` rebuilds the combined
+file from all of them, so two validators run side by side cannot overwrite each
+other. The hub computes nothing: the card shows what the bake wrote.
+
+### The flood recipe, as built
+
+**Why Wales, not Northern Ireland.** The NI historic flood outlines (DfI
+Rivers, Flood Maps NI "Historical Flooding") are a file geodatabase whose
+commercial re-use goes through LPS, and membership sells these maps. NRW's
+**Historic Flood Map** is OGL v3, live on DataMapWales WFS
+(`inspire-nrw:NRW_HISTORIC_FLOODMAP`), and carries a start and end date on each
+of its 1,223 outlines — exactly the record a supervised model needs. It is the
+landslide recipe's move again: validate where the inventory is, apply the
+method elsewhere and say so.
+
+1. **Inputs.** Satellite: ESA WorldCover 2021 v200 (Sentinel-1/2) — the two
+   3° COGs are only 29 MB and 108 MB, read at their third level (33 m) and
+   reduced to class FRACTIONS per cell. Rainfall: NOAA CPC Global Unified
+   daily gauge analysis (0.5°, 1979–, public domain) for past events, read as a
+   5 × 6 subset by OPeNDAP ASCII (the brackets must be URL-encoded, and the
+   time index runs to 364 in a non-leap year — `[0:365]` is a 400); HadUK-Grid
+   1991–2020 normals for the climate; Open-Meteo for now. Elevation: the
+   Terrarium tiles the globe streams, zoom 10, and from them slope, HAND,
+   upstream area, channel distance, TWI and curvature (priority-flood + ε,
+   D8). Geology: BGS 625k superficial, scored by `ni-flood.js`'s own
+   `DEPOSIT_SCORE` plus alluvium/peat flags.
+2. **One grid**: 900 × 1050 cells of 0.003° × 0.002° (~205 × 222 m), Wales's
+   high-water-mark polygon (`inspire-wg:wales_hwm`) as the mask — 462k land
+   cells. The grid's origin and steps fall on WorldCover's pixel edges, so each
+   cell is exactly 9 × 6 of its pixels and needs no resampling at all.
+3. **No NaNs, each fill counted** (the counts are in the entry's
+   `model.gap_fills` and on the hub card):
+   - **HadUK normals → IDW** (power 2, 8 nearest of 190 cell centres) at every
+     land cell: the 12 km cells do not tile coasts or lakes, the NI trap again.
+   - **Slope, TWI, curvature → nearest valid cell** on the coastal ring where a
+     central difference reaches the sea (~7,100 cells).
+   - **CPC days with a missing cell → IDW** across that day's other cells.
+   - **No superficial unit is NOT a gap**: bedrock at surface, scored 0.2 —
+     the acceptance run lost two thirds of South Wales treating it as no-data.
+   - **Terrarium carries bathymetry**: the high-water mark takes in the
+     estuaries, and cells reading −270 m are sea floor. They leave the mask
+     rather than being filled (below −5 m), which also removed a −1,473
+     curvature spike on every neighbour.
+4. **Train.** The unit is a (cell, event) pair, not a cell: an event is the
+   outlines sharing one recorded date window; a cell inside it is a 1, two
+   cells of Wales outside it on the same dates are 0s, and every row carries
+   THAT event's rain (its wettest 3 days, and the 30 days before it). That is
+   what lets the same forest answer for a different storm. Excluded and
+   counted: windows before February 1979 (no CPC antecedent) and single-day
+   1 January dates (how a year without a day is recorded — `1964-01-01` holds
+   40 outlines). 300 trees, `min_samples_leaf` 10, `max_features` sqrt.
+5. **Now.** Open-Meteo (the feed `forecast.js` already reads) at the same 30
+   half-degree centres: the past 30 days and the wettest 3 of the next 7,
+   bilinear onto the grid, through the saved forest →
+   `data/global/flood-susceptibility-wales-current.tif`, written by the app's
+   own `geotiff-writer.js` through node.
+
+**Validation is TEMPORAL**: trained on events before 2005, scored on events
+from 2005 on. The decision threshold is Youden's J on the TRAINING events'
+out-of-bag votes, fixed before the test set is touched — choosing it on the
+test set would flatter every rate under it.
+
+Measured (run 2026-10-23): 48,831 training rows from 37 events before 2005, 46,343 test rows
+from 72 events 2005–2025 (3,663 flooded cells, 42,680 dry). Threshold 0.338 from the
+training OOB votes.
+
+| | TP | FP | TN | FN | AUC | acc | prec | rec | F1 | kappa |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| held-out | 2,508 | 1,731 | 40,949 | 1,155 | 0.959 | 0.938 | 0.592 | 0.685 | 0.635 | 0.601 |
+
+- **Rainfall barely moves the held-out AUC** (0.958 with no rain columns at all). That
+  is the design, not a failure: every dry cell in a row block shares its event's rain, so the test asks WHERE
+  a storm floods. Whether today's rain is enough is the forest's between-event contrast, which this split does
+  not score — said on the card. Permutation importance on the test set ranks elevation, the 30-day antecedent
+  rain, HAND and the climate normal first.
+- **Today's map** (2026-10-23, rain 2026-09-23..2026-10-29: wettest 3 days up to 91.7 mm, 30-day
+  totals up to 128.2 mm) puts 5.6% of Wales's cells over the
+  threshold, along the floodplains of the Dee, Conwy, Dyfi, Tywi and the South Wales valleys.
+- Negatives are at least 500 per event, so a small event carries far more than two per positive; accuracy
+  is read at that mix.
+
+### Every map, scored
+
+| map | hold-out | AUC | acc | prec | rec | F1 | kappa | n (events) |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| flood-susceptibility | events 2005–2025 (trained <2005) | 0.959 | 0.938 | 0.592 | 0.685 | 0.635 | 0.601 | 46,343 (3,663) |
+| landslide-susceptibility | Mid/North Wales slides (tuned on South Wales) | 0.534 | 0.503 | 0.505 | 0.317 | 0.390 | 0.006 | 2,826 (1,413) |
+| cyclone-risk | seasons 2010–2025 (trained 1980–2009) | 0.941 | 0.876 | 0.941 | 0.874 | 0.906 | 0.723 | 25,421 (17,448) |
+| seismic-risk | M≥5 2006–2025 (trained ≤2005) | 0.960 | 0.972 | 0.623 | 0.439 | 0.515 | 0.501 | 200,000 (6,863) |
+| volcanic-risk | eruptions 2000–2025 (trained ≤1999) | 0.809 | 0.960 | 0.567 | 0.280 | 0.375 | 0.357 | 141,023 (6,049) |
+| volcanic-risk-holocene | eruptions 2000–2025 (trained ≤1999) | 0.847 | 0.959 | 0.543 | 0.315 | 0.399 | 0.379 | 141,023 (6,049) |
+
+- **The landslide recipe does not transfer north.** South Wales (where the
+  slope gate and quantile classes were chosen) reproduces the acceptance report
+  on this grid — AUC 0.832 against 0.841, 76% of slides in the worst 24% of the
+  ground. Held out, Mid and North Wales score **AUC 0.53**: 59% of those slides
+  sit on cells under 5° at 210 m (stream banks in Ceredigion, coastal till
+  cliffs) against 16% in the south, and the gate floors them. The lithology
+  factor also barely discriminates in Wales: `/^MUDSTONE/` scores the Lower
+  Palaeozoic "MUDSTONE, SILTSTONE AND SANDSTONE" 5, about three quarters of
+  the land. Reported as measured; the recipe needs a stream-bank term and a
+  finer slope before it is trusted outside South Wales.
+- **Seismic accuracy is flattered** by free negatives (stable interiors,
+  open ocean); the entry carries an "active ground only" repeat. It ranks well
+  and is cautious at evens over a 20-year test window.
+- **Cyclone** is scored on the published grid's own per-season counts
+  (`cyclone-risk-years.json`), seasons 1980–2009 → 2010–2025.
+- **Volcanic** needed the GVP eruption list, which the bake fetches live and
+  never kept: `validate-point-hazards.py --only volcanic --fetch-eruptions`
+  makes the bake's own WFS call once and caches it in
+  `data/global/.volcanic-risk-work/`.
+- **Points, not quadtree cells**, for the four baked grids: an equal-area
+  Fibonacci lattice, so an 8° ocean cell does not weigh as much as a
+  quarter-degree coastal one.
+
+### The hub's Models tab
+
+`#hub-panel-models` is location-independent, so it is filled on load rather
+than by a pin, and the tab is in the `panels` map (the Tools and Forecast tabs
+are not in that map, which is a separate fault). One card per map: method,
+AUC verdict, hold-out sentence, six metrics, the 2 × 2 matrix with its
+threshold rule, the parameters (`formatParam` flattens nested objects and
+`[name, value]` pairs), inputs, gap fills and limits. A map that could not be
+scored shows NOT ASSESSABLE and no matrix. `hazard-models.test.mjs` also opens
+the published file and fails if any of the six maps is missing or if a card's
+accuracy, precision or recall disagrees with its own confusion matrix.

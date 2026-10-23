@@ -1,0 +1,123 @@
+{
+ "id": "seismic-risk",
+ "name": "Seismic risk",
+ "hazard": "earthquake shaking",
+ "product": "data/global/seismic-risk.geojson (+ -m5..-m8 bands)",
+ "model": {
+  "method": "catalogue rate of earthquakes per magnitude band shaking a point at about MMI VI, each event weighted by P(reach >= d) under a log-normal reach; summed over bands",
+  "parameters": {
+   "reach_law": "log10(R_km) = 0.5 M - 1.7",
+   "sigma": 0.4,
+   "stamp": "R exp(2.5 sigma)",
+   "magnitude_bin": 0.1,
+   "bands": {
+    "m5": [
+     5.0,
+     6.0
+    ],
+    "m6": [
+     6.0,
+     7.0
+    ],
+    "m7": [
+     7.0,
+     8.0
+    ],
+    "m8": [
+     8.0,
+     11.0
+    ]
+   },
+   "windows": {
+    "m5": [
+     1964,
+     2025
+    ],
+    "m6": [
+     1930,
+     2025
+    ],
+    "m7": [
+     1900,
+     2025
+    ],
+    "m8": [
+     1900,
+     2025
+    ]
+   },
+   "min_magnitude": 5.0,
+   "lattice_deg": 0.25,
+   "quadtree_spread": 0.04
+  },
+  "inputs": [
+   {
+    "name": "Three catalogues merged: USGS ComCat (M >= 4.5 since 1900) for density and currency, ISC-GEM v12 (1904-2021) joined on ComCat's own contributing ids for homogenised Mw, and GEM GHEC v1.0 (1008-1903) for the pre-instrumental record",
+    "citation": "U.S. Geological Survey, Earthquake Hazards Program (2017), ANSS Comprehensive Earthquake Catalog (ComCat), https://doi.org/10.5066/F7MS3QZH \u00b7 International Seismological Centre (2025), ISC-GEM Earthquake Catalogue, https://doi.org/10.31905/d808b825 (Storchak et al. 2013, 2015; Di Giacomo et al. 2018) \u00b7 GEM Foundation (2013), GEM Global Historical Earthquake Catalogue v1.0, https://doi.org/10.13127/ghea/ghec.1.0",
+    "licence": "ComCat is US Government public domain. ISC-GEM and GEM GHEC are CC-BY-SA 3.0, so anything derived from them -- these grids included -- is offered under CC-BY-SA 3.0 with the citations above."
+   }
+  ],
+  "grid": "variable, 0.25 to 8 degrees; a cell subdivides while the band inside it varies by more than 2% of its peak, is empty in part, or spans a whole magnitude unit of largest-on-record. Cell size is display resolution only."
+ },
+ "validation": {
+  "n": 200000,
+  "tp": 3014,
+  "fp": 1823,
+  "tn": 191314,
+  "fn": 3849,
+  "accuracy": 0.9716,
+  "precision": 0.6231,
+  "recall": 0.4392,
+  "f1": 0.5152,
+  "kappa": 0.5011,
+  "specificity": 0.9906,
+  "auc": 0.9599,
+  "threshold": 0.03465735902799726,
+  "threshold_rule": "predicted when 1 - exp(-rate x 20 yr) >= 0.5, i.e. rate >= 0.03466/yr",
+  "positives": 6863,
+  "negatives": 193137,
+  "assessable": true,
+  "extra": {
+   "train_events": 63693,
+   "test_events": 39428,
+   "test_years": [
+    2006,
+    2025
+   ],
+   "lattice_points": 200000,
+   "lattice_spacing_km": 50.5,
+   "active_ground_only": {
+    "n": 62070,
+    "accuracy": 0.9101,
+    "precision": 0.6231,
+    "recall": 0.4452,
+    "f1": 0.5193,
+    "kappa": 0.4713,
+    "auc": 0.8887
+   },
+   "youden": {
+    "threshold": 0.0014562719502240339,
+    "tp": 6382,
+    "fp": 24239,
+    "tn": 168898,
+    "fn": 481,
+    "accuracy": 0.8764,
+    "precision": 0.2084,
+    "recall": 0.9299,
+    "f1": 0.3405,
+    "kappa": 0.3013
+   }
+  },
+  "holdout": "temporal: rates re-stamped from events up to 2005 (each band's own completeness window cut there: m5 1964-2005, m6 1930-2005, m7 1900-2005, m8 1900-2005), scored against the 39,428 M>=5 events of 2006-2025",
+  "events": "the merged ComCat/ISC-GEM record (bake-seismic.py's own columns); a point is reached when a test event lies inside its median damaging-shaking radius, d <= 10^(0.5M - 1.7) km",
+  "sample": "200,000 equal-area Fibonacci-lattice points over the whole globe (51 km apart). Stable interiors and open ocean are true negatives the map gets right for free, which inflates accuracy and specificity -- active_ground_only repeats the scores where the training map is non-zero"
+ },
+ "limits": [
+  "Isotropic and depth-blind reach: attenuation differs by region and with depth, so a deep or stable-crust event is mis-sized either way.",
+  "Twenty test years is short against M7+ recurrence; most positives come from M5-6 events, which is what the score mostly rewards.",
+  "Aftershock sequences are not declustered, in training or test: a sequence counts many times, and it recurs where it trained, which flatters the hold-out.",
+  "Lattice points are spatially autocorrelated; n is not the number of independent tests."
+ ],
+ "script": "GeoID_GIS/services/validate-point-hazards.py",
+ "generated": "2026-10-23T19:16:36Z"
+}

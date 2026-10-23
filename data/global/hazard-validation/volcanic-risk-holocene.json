@@ -1,0 +1,136 @@
+{
+ "id": "volcanic-risk-holocene",
+ "name": "Volcanic risk (full Holocene record)",
+ "hazard": "volcanic ash fall",
+ "product": "data/global/volcanic-risk-holocene.geojson (+ -vei1..-vei8 frames)",
+ "model": {
+  "method": "eruptions per year depositing >= 1 mm of ash at a point, each eruption weighted by P(reach >= d) under a log-normal reach per VEI; windows by size class; where a volcano has no eruption of a size inside its window, its own record span",
+  "parameters": {
+   "reach_km_by_vei": {
+    "0": 2.0,
+    "1": 5.0,
+    "2": 15.0,
+    "3": 50.0,
+    "4": 150.0,
+    "5": 350.0,
+    "6": 800.0,
+    "7": 1800.0,
+    "8": 3000.0
+   },
+   "sigma": 0.5,
+   "stamp": "VEI < 5 to R exp(2.0 sigma); VEI >= 5 global",
+   "windows": {
+    "small": [
+     1950,
+     2025
+    ],
+    "vei4": [
+     1900,
+     2025
+    ],
+    "vei56": [
+     1550,
+     2025
+    ],
+    "vei7": [
+     -9700,
+     2025
+    ]
+   },
+   "uncertain_weight": 0.5,
+   "unknown_vei_as": 2,
+   "floor_prior": {
+    "holocene": {
+     "vei": 2,
+     "span": 11726
+    },
+    "pleistocene": {
+     "vei": 3,
+     "span": 2580000
+    }
+   },
+   "vei8_return_years": 17000.0,
+   "mode": "holocene",
+   "lattice_deg": 0.25,
+   "quadtree_spread": 0.02
+  },
+  "inputs": [
+   {
+    "name": "Smithsonian Global Volcanism Program, Volcanoes of the World (Holocene eruption catalogue)",
+    "citation": "Global Volcanism Program (2024). Volcanoes of the World, v. 5.2. Smithsonian Institution. https://doi.org/10.5479/si.GVP.VOTW5-2024.5.2"
+   }
+  ],
+  "grid": "variable, 0.25 to 8.0 degrees; a cell subdivides while the band inside it varies by more than 2% of its peak, or is empty in part, or spans two largest-VEI classes. Cell size is display resolution only."
+ },
+ "validation": {
+  "n": 141023,
+  "tp": 1905,
+  "fp": 1604,
+  "tn": 133370,
+  "fn": 4144,
+  "accuracy": 0.9592,
+  "precision": 0.5429,
+  "recall": 0.3149,
+  "f1": 0.3986,
+  "kappa": 0.3791,
+  "specificity": 0.9881,
+  "auc": 0.8466,
+  "threshold": 0.02665950694461328,
+  "threshold_rule": "predicted when 1 - exp(-rate x 26 yr) >= 0.5, i.e. rate >= 0.02666/yr",
+  "positives": 6049,
+  "negatives": 134974,
+  "assessable": true,
+  "extra": {
+   "train_rows": 6642,
+   "floor_priors": 1771,
+   "test_eruptions": 941,
+   "test_years": [
+    2000,
+    2025
+   ],
+   "lattice_points": 141023,
+   "lattice_spacing_km": 19.8,
+   "by_test_size": {
+    "VEI <= 3 (and unknown, as 2)": {
+     "positives": 1525,
+     "auc": 0.9431,
+     "accuracy": 0.9788,
+     "precision": 0.2913,
+     "recall": 0.6702,
+     "f1": 0.406
+    },
+    "VEI >= 4": {
+     "positives": 4996,
+     "auc": 0.8191,
+     "accuracy": 0.9574,
+     "precision": 0.3554,
+     "recall": 0.2496,
+     "f1": 0.2932
+    }
+   },
+   "youden": {
+    "threshold": 0.0031675346677398925,
+    "tp": 4498,
+    "fp": 26081,
+    "tn": 108893,
+    "fn": 1551,
+    "accuracy": 0.8041,
+    "precision": 0.1471,
+    "recall": 0.7436,
+    "f1": 0.2456,
+    "kappa": 0.1874
+   }
+  },
+  "holdout": "temporal: rates rebuilt from eruptions up to 1999 (holocene mode; windows small 1950-1999, vei4 1900-1999, vei56 1550-1999, vei7 -9700-1999), scored against the 941 confirmed eruptions of 2000-2025",
+  "events": "GVP Volcanoes of the World, confirmed eruptions; a point is reached when it lies inside the eruption's median 1 mm ash reach, R by VEI",
+  "sample": "141,023 equal-area Fibonacci-lattice points (20 km apart) within 200 km of a catalogue volcano"
+ },
+ "limits": [
+  "Isotropic ash: a plume goes downwind, so the reach disc is wrong in shape for every real eruption, and recall/precision read that as misses and false alarms.",
+  "An eruption in GVP is an episode: a volcano erupting through the cutoff (Etna, Sakurajima) trains and tests on the same activity, which flatters the hold-out.",
+  "The test eruptions are dominated by VEI <= 2, whose reach is a few lattice spacings; most of the map's large-VEI reach is never tested in 26 years.",
+  "Lattice points are spatially autocorrelated; n is not the number of independent tests."
+ ],
+ "script": "GeoID_GIS/services/validate-point-hazards.py",
+ "generated": "2026-10-23T19:19:07Z"
+}

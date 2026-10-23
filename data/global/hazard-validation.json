@@ -1,0 +1,934 @@
+{
+ "about": "Validation of every hazard map GeoHUB publishes, against held-out historical events. Built by GeoID_GIS/services/hazard_metrics.py; methods in GeoID_GIS/docs/notes/hazards.md.",
+ "maps": [
+  {
+   "id": "flood-susceptibility",
+   "name": "Flood susceptibility (random forest, Wales)",
+   "hazard": "flood",
+   "product": "data/global/flood-susceptibility-wales-current.tif \u2014 today's map; the NI prototype's weighted overlay (ni-flood.js) remains the in-browser screening map",
+   "model": {
+    "method": "Random forest classifier on (cell, event) pairs: static terrain, geology, land cover and climate at the cell plus that event's own rainfall; the output is the share of trees voting 'flooded'.",
+    "parameters": {
+     "trees": 300,
+     "min_samples_leaf": 10,
+     "max_features": "sqrt",
+     "random_state": 1,
+     "negatives_per_positive": 2,
+     "positives_per_event_cap": 4000,
+     "channel_threshold_km2": 2.0,
+     "features": [
+      "elevation_m",
+      "slope_deg",
+      "hand_m",
+      "log10_upstream_km2",
+      "channel_distance_m",
+      "twi",
+      "curvature",
+      "deposit_score",
+      "alluvium",
+      "peat",
+      "built_frac",
+      "water_frac",
+      "wetland_frac",
+      "tree_frac",
+      "crop_frac",
+      "rain_normal_mm",
+      "rain_3day_max_mm",
+      "rain_30day_mm"
+     ],
+     "feature_importance_gini": [
+      [
+       "deposit_score",
+       0.1355
+      ],
+      [
+       "hand_m",
+       0.1306
+      ],
+      [
+       "rain_normal_mm",
+       0.1186
+      ],
+      [
+       "elevation_m",
+       0.1157
+      ],
+      [
+       "rain_30day_mm",
+       0.1126
+      ],
+      [
+       "alluvium",
+       0.1021
+      ],
+      [
+       "rain_3day_max_mm",
+       0.0694
+      ],
+      [
+       "slope_deg",
+       0.0484
+      ],
+      [
+       "twi",
+       0.0425
+      ],
+      [
+       "curvature",
+       0.0274
+      ],
+      [
+       "channel_distance_m",
+       0.0264
+      ],
+      [
+       "log10_upstream_km2",
+       0.0243
+      ],
+      [
+       "built_frac",
+       0.0225
+      ],
+      [
+       "tree_frac",
+       0.0129
+      ],
+      [
+       "crop_frac",
+       0.0058
+      ],
+      [
+       "water_frac",
+       0.0038
+      ],
+      [
+       "wetland_frac",
+       0.0013
+      ],
+      [
+       "peat",
+       0.0002
+      ]
+     ],
+     "decision_threshold_published_map": 0.2443
+    },
+    "inputs": [
+     {
+      "name": "Historical floods",
+      "source": "Natural Resources Wales, Historic Flood Map (OGL v3)",
+      "detail": "127 dated events used; excluded: {'before 1979-02': 175, '1 January placeholder': 8, 'undated': 0}"
+     },
+     {
+      "name": "Satellite land cover",
+      "source": "ESA WorldCover 2021 v200 (Sentinel-1/2, CC BY 4.0)",
+      "detail": "10 m classes read at 33 m, as fractions per cell"
+     },
+     {
+      "name": "Elevation",
+      "source": "Terrarium DEM (AWS Open Data; SRTM/GMTED/OS Terrain), zoom 10",
+      "detail": "slope, HAND, upstream area, channel distance, TWI, curvature derived here"
+     },
+     {
+      "name": "Superficial geology",
+      "source": "BGS Geology 625k (OGL; Contains British Geological Survey materials \u00a9 UKRI)"
+     },
+     {
+      "name": "Rainfall, climate",
+      "source": "Met Office HadUK-Grid 1991-2020 annual normals (OGL)"
+     },
+     {
+      "name": "Rainfall, past events",
+      "source": "NOAA CPC Global Unified Gauge-Based Daily Precipitation, 0.5\u00b0 (public domain)"
+     },
+     {
+      "name": "Rainfall, now",
+      "source": "Open-Meteo forecast API, the feed GeoHUB's Forecast panel reads",
+      "detail": "issued 2026-10-23, window 2026-09-23..2026-10-29"
+     }
+    ],
+    "grid": "900 x 1050 cells of 0.003 x 0.002 deg (~204 x 221 m), Wales high-water-mark mask",
+    "gap_fills": {
+     "elevation_m": {
+      "method": "none needed; seabed cells dropped from the mask",
+      "cells": 53,
+      "why": "Terrarium has no voids over Wales; cells below -5 m inside the high-water mark are estuary bathymetry and are not modelled"
+     },
+     "slope_deg": {
+      "method": "nearest valid cell",
+      "cells": 7132,
+      "why": "the coastal ring where a central difference reaches the sea"
+     },
+     "curvature": {
+      "method": "nearest valid cell",
+      "cells": 7140,
+      "why": "the coastal ring where a central difference reaches the sea"
+     },
+     "twi": {
+      "method": "nearest valid cell",
+      "cells": 7132,
+      "why": "the coastal ring where a central difference reaches the sea"
+     },
+     "deposit_score": {
+      "method": "not a gap: no superficial unit means bedrock at surface, scored 0.2",
+      "cells": 301362,
+      "why": "the NI acceptance run lost two thirds of South Wales treating this as no-data"
+     },
+     "built_frac": {
+      "method": "nearest valid cell",
+      "cells": 0,
+      "why": "WorldCover no-data pixels (none expected over land)"
+     },
+     "water_frac": {
+      "method": "nearest valid cell",
+      "cells": 0,
+      "why": "WorldCover no-data pixels (none expected over land)"
+     },
+     "wetland_frac": {
+      "method": "nearest valid cell",
+      "cells": 0,
+      "why": "WorldCover no-data pixels (none expected over land)"
+     },
+     "tree_frac": {
+      "method": "nearest valid cell",
+      "cells": 0,
+      "why": "WorldCover no-data pixels (none expected over land)"
+     },
+     "crop_frac": {
+      "method": "nearest valid cell",
+      "cells": 0,
+      "why": "WorldCover no-data pixels (none expected over land)"
+     },
+     "rain_normal_mm": {
+      "method": "inverse-distance weighting, power 2, 8 nearest 12 km cells",
+      "cells": 462559,
+      "why": "HadUK-Grid's 12 km cells do not tile the coast or lakes (Lough Neagh and Slieve Donard came back empty in NI); every land cell is interpolated from 190 cell centres so none is left out"
+     },
+     "cpc_daily": {
+      "method": "inverse-distance weighting across that day's other half-degree cells",
+      "cells": 79050,
+      "why": "a CPC cell with no gauge report on a day"
+     }
+    }
+   },
+   "validation": {
+    "n": 46343,
+    "tp": 2508,
+    "fp": 1731,
+    "tn": 40949,
+    "fn": 1155,
+    "accuracy": 0.9377,
+    "precision": 0.5916,
+    "recall": 0.6847,
+    "f1": 0.6348,
+    "kappa": 0.6009,
+    "specificity": 0.9594,
+    "auc": 0.9586,
+    "threshold": 0.33774684492553586,
+    "threshold_rule": "Youden's J on the TRAINING events' out-of-bag predictions, fixed before the test set was scored",
+    "positives": 3663,
+    "negatives": 42680,
+    "holdout": "temporal: trained on 37 events before 2005, scored on 72 events from 2005 to 2025",
+    "events": "NRW Historic Flood Map outlines (cells inside an event's outline = 1; cells of Wales outside it on the same dates = 0, two per positive and at least 500 per event)",
+    "extra": {
+     "oob_auc_training": 0.991,
+     "auc_without_rainfall": 0.9582,
+     "permutation_importance_auc": [
+      [
+       "elevation_m",
+       0.0385
+      ],
+      [
+       "rain_30day_mm",
+       0.0217
+      ],
+      [
+       "hand_m",
+       0.0209
+      ],
+      [
+       "rain_normal_mm",
+       0.015
+      ],
+      [
+       "built_frac",
+       0.0055
+      ],
+      [
+       "rain_3day_max_mm",
+       0.0045
+      ],
+      [
+       "channel_distance_m",
+       0.0035
+      ],
+      [
+       "slope_deg",
+       0.003
+      ],
+      [
+       "curvature",
+       0.0022
+      ],
+      [
+       "log10_upstream_km2",
+       0.0021
+      ],
+      [
+       "deposit_score",
+       0.002
+      ],
+      [
+       "alluvium",
+       0.0017
+      ],
+      [
+       "twi",
+       0.0012
+      ],
+      [
+       "tree_frac",
+       0.001
+      ],
+      [
+       "water_frac",
+       0.0007
+      ],
+      [
+       "crop_frac",
+       0.0002
+      ],
+      [
+       "peat",
+       -0.0
+      ],
+      [
+       "wetland_frac",
+       -0.0
+      ]
+     ],
+     "train_rows": 48831,
+     "test_rows": 46343
+    }
+   },
+   "current": {
+    "issued": "2026-10-23",
+    "rain_window": "2026-09-23..2026-10-29",
+    "rain_3day_max_mm": 91.7,
+    "rain_30day_max_mm": 128.2,
+    "cells_over_threshold": 25732,
+    "share_over_threshold": 0.0556,
+    "file": "data/global/flood-susceptibility-wales-current.tif",
+    "preview": "/home/owen/GeoID_webpage_v1/data/global/.flood-rf-work/current.png"
+   },
+   "limits": [
+    "An outline's absence is not a dry record: NRW maps the floods it knows of, so some negatives were wet.",
+    "Event rainfall is a 0.5\u00b0 gauge analysis; a convective storm smaller than a cell is smoothed away.",
+    "Repeat floods in the same towns put correlated cells in train and test; the temporal split keeps the events apart, not the places.",
+    "The hold-out tests WHERE a storm floods, not WHETHER: each event's dry cells share its rain, so rainfall barely moves the held-out AUC (see auc_without_rainfall). How the map responds to today's rain is the forest's learnt between-event contrast and is not separately validated here.",
+    "Negatives run at least 500 per event, so small events carry many more than two per positive; accuracy and specificity are read at that mix (positives/negatives on the card).",
+    "Probabilities are relative (two negatives per positive in training), not annual chances; the decision threshold is what turns them into a map.",
+    "Trained on Wales; transfer elsewhere (the NI prototype area) is an extrapolation of the same recipe, as the landslide recipe's South Wales validation was."
+   ],
+   "script": "GeoID_GIS/services/bake-flood-rf.py",
+   "generated": "2026-10-23T19:50:31Z"
+  },
+  {
+   "id": "landslide-susceptibility",
+   "name": "Landslide susceptibility (Recipe A, ranked classes)",
+   "hazard": "landslide",
+   "product": "ni-prototype/data/ni_landslide_susceptibility_quantile.tif (NI), validated on Wales",
+   "model": {
+    "method": "Weighted overlay of reclassified factors (1-5), slope-gated, ranked into quantile classes (docs/ni-prototype/methodology.md Recipe A; recipe.mjs)",
+    "parameters": {
+     "weights": {
+      "slope": 0.35,
+      "lithology": 0.25,
+      "rainfall": 0.15,
+      "drainage": 0.1
+     },
+     "weights_renormalised_over": 0.85,
+     "slope_classes_deg": "0-5:1, 5-12:2, 12-20:3, 20-30:4, >30:5",
+     "rainfall_classes_mm": "<900:1, 900-1100:2, 1100-1300:3, 1300-1600:4, >1600:5",
+     "drainage_classes_m": "<50:5, 50-100:4, 100-250:3, 250-500:2, >500:1",
+     "lithology": "BGS 625k rcs_d scored 1-5 by recipe.mjs lithologyScore()",
+     "slope_gate": "index = 1 below 2\u00b0, capped at 2.5 below 5\u00b0",
+     "quantile_shares": [
+      0.35,
+      0.2,
+      0.15,
+      0.2,
+      0.1
+     ],
+     "quantile_breaks_wales": [
+      2.1764705181121826,
+      2.5,
+      2.7647056579589844,
+      3.3529412746429443
+     ],
+     "land_cover": "not used (CORINE not fetched); weights renormalise over the four"
+    },
+    "inputs": [
+     {
+      "name": "Elevation and slope",
+      "source": "Terrarium DEM, the flood bake's common grid"
+     },
+     {
+      "name": "Bedrock geology",
+      "source": "BGS Geology 625k (OGL; Contains British Geological Survey materials \u00a9 UKRI)"
+     },
+     {
+      "name": "Rainfall",
+      "source": "Met Office HadUK-Grid 1991-2020 annual normals, IDW (OGL)"
+     },
+     {
+      "name": "Drainage",
+      "source": "channels draining >= 2 km\u00b2 on the DEM (recipe.mjs uses OSM waterways)"
+     },
+     {
+      "name": "Landslide inventory",
+      "source": "BGS National Landslide Database index (OGL)"
+     }
+    ],
+    "grid": "900 x 1050 cells of 0.003 x 0.002 deg (~204 m); recipe.mjs ran at 100 m",
+    "gap_fills": {
+     "lithology": {
+      "method": "nearest valid cell",
+      "cells": 19322,
+      "why": "cells between BGS 625k bedrock polygons at the coast"
+     }
+    }
+   },
+   "validation": {
+    "n": 2826,
+    "tp": 448,
+    "fp": 439,
+    "tn": 974,
+    "fn": 965,
+    "accuracy": 0.5032,
+    "precision": 0.5051,
+    "recall": 0.3171,
+    "f1": 0.3896,
+    "kappa": 0.0064,
+    "specificity": 0.6893,
+    "auc": 0.5336,
+    "threshold": 4,
+    "threshold_rule": "class >= 4 (High + Very High, the worst 30% of the ground by quantile construction) is 'predicted landslide'",
+    "positives": 1413,
+    "negatives": 1413,
+    "share_of_slides_in_high_classes": 0.3171,
+    "share_of_area_in_high_classes": 0.3158,
+    "success_rate_auc": 0.5327,
+    "holdout": "spatial: 1413 inventoried slides in Mid and North Wales (north of 51.95 N), ground that played no part in choosing the slope gate or the class rule",
+    "events": "BGS National Landslide Database, Wales (OGL); absences sampled 1:1 from cells with no record",
+    "extra": {
+     "south_wales_tuning_region": {
+      "n": 2706,
+      "tp": 1033,
+      "fp": 320,
+      "tn": 1033,
+      "fn": 320,
+      "accuracy": 0.7635,
+      "precision": 0.7635,
+      "recall": 0.7635,
+      "f1": 0.7635,
+      "kappa": 0.527,
+      "auc": 0.8316,
+      "share_of_slides_in_high_classes": 0.7635,
+      "share_of_area_in_high_classes": 0.2361
+     },
+     "south_wales_slides": 1353,
+     "acceptance_criterion": ">= 70% of slides in High + Very High, those classes <= 30% of area",
+     "criterion_met_holdout": false
+    }
+   },
+   "limits": [
+    "THE RECIPE DOES NOT TRANSFER NORTH. 59% of the Mid/North Wales slides sit on cells under 5\u00b0 at this grid (stream-bank and coastal slides in Ceredigion and the till cliffs), against 16% in South Wales, so the slope gate -- tuned on South Wales valley sides -- floors most of them. The South Wales figure reproduces the acceptance report; the held-out figure is the one to believe outside it.",
+    "The lithology factor barely discriminates in Wales: the Lower Palaeozoic 'MUDSTONE, SILTSTONE AND SANDSTONE' units score 5 under recipe.mjs's /^MUDSTONE/ rule, about three quarters of the land.",
+    "Slope at ~210 m reads lower than at 100 m, so fewer cells reach the steep slope classes than in the NI/South Wales runs; the quantile classes are rank-based and absorb most of it.",
+    "The inventory is biased to roads, railways and surveyed valleys; absences sampled at random include unrecorded slides.",
+    "Drainage proximity here is DEM channels, not the OSM waterways recipe.mjs used.",
+    "Northern Ireland itself cannot be scored: GSNI publishes no open inventory (n = 1 in the BGS index)."
+   ],
+   "script": "GeoID_GIS/services/validate-landslide.py",
+   "generated": "2026-10-23T19:26:45Z"
+  },
+  {
+   "id": "cyclone-risk",
+   "name": "Cyclone risk",
+   "hazard": "tropical cyclone",
+   "product": "data/global/cyclone-risk.geojson (+ cyclone-risk-years.json)",
+   "model": {
+    "method": "Poisson rate of distinct storms passing within a fixed radius of a point, over complete seasons; p_yr = 1 - exp(-rate)",
+    "parameters": {
+     "radius_km": 200.0,
+     "first_season": 1980,
+     "hurricane_kts": 64,
+     "lattice_deg": 0.25,
+     "track_densify_km": 50.0,
+     "quadtree_deg": [
+      0.25,
+      8.0
+     ],
+     "quadtree_spread": 0.02,
+     "seasons_in_map": 46
+    },
+    "inputs": [
+     {
+      "name": "IBTrACS v04r01 - International Best Track Archive for Climate Stewardship",
+      "publisher": "NOAA National Centers for Environmental Information",
+      "citation": "Knapp, K. R., M. C. Kruk, D. H. Levinson, H. J. Diamond, and C. J. Neumann (2010). Bull. Amer. Meteor. Soc., 91, 363-376."
+     }
+    ],
+    "grid": "variable, 0.25 to 8.0 degrees; a cell subdivides while the rate inside it varies by more than 2% of the global peak. Cell size is display resolution only - the value is measured at a point, so it is comparable between a large cell and a small one."
+   },
+   "validation": {
+    "n": 25421,
+    "tp": 15244,
+    "fp": 953,
+    "tn": 7020,
+    "fn": 2204,
+    "accuracy": 0.8758,
+    "precision": 0.9412,
+    "recall": 0.8737,
+    "f1": 0.9062,
+    "kappa": 0.7233,
+    "specificity": 0.8805,
+    "auc": 0.9414,
+    "threshold": 0.04332169878499658,
+    "threshold_rule": "predicted when 1 - exp(-rate x 16 yr) >= 0.5, i.e. rate >= 0.04332/yr",
+    "positives": 17448,
+    "negatives": 7973,
+    "assessable": true,
+    "extra": {
+     "train_seasons": [
+      1980,
+      2009
+     ],
+     "test_seasons": [
+      2010,
+      2025
+     ],
+     "lattice_points": 25421,
+     "lattice_spacing_km": 112.9,
+     "youden": {
+      "threshold": 0.033666666666666664,
+      "tp": 15561,
+      "fp": 1065,
+      "tn": 6908,
+      "fn": 1887,
+      "accuracy": 0.8839,
+      "precision": 0.9359,
+      "recall": 0.8919,
+      "f1": 0.9134,
+      "kappa": 0.7376
+     }
+    },
+    "holdout": "temporal: rates from the 1980-2009 seasons (30), scored against storms of 2010-2025 (16 complete seasons the training never saw)",
+    "events": "IBTrACS v04r01 storms within 200 km, read from the published grid's own per-season counts (cyclone-risk-years.json)",
+    "sample": "25,421 equal-area Fibonacci-lattice points (113 km apart) within 500 km of any ground a storm reached 1980-2025; each takes the published cell it falls in"
+   },
+   "limits": [
+    "Per-season counts are cell means: in a coarse (flat) cell a lattice point is called reached when any part of the cell was, which flatters recall there.",
+    "Lattice points are spatially autocorrelated (one storm reaches dozens), so n overstates the number of independent tests; read AUC and the rates, not significance.",
+    "A 30-season training window is short for the rarest basins' edges; a storm track's year-to-year shift (ENSO, basin activity) is real variance the map cannot know."
+   ],
+   "script": "GeoID_GIS/services/validate-point-hazards.py",
+   "generated": "2026-10-23T19:16:34Z"
+  },
+  {
+   "id": "seismic-risk",
+   "name": "Seismic risk",
+   "hazard": "earthquake shaking",
+   "product": "data/global/seismic-risk.geojson (+ -m5..-m8 bands)",
+   "model": {
+    "method": "catalogue rate of earthquakes per magnitude band shaking a point at about MMI VI, each event weighted by P(reach >= d) under a log-normal reach; summed over bands",
+    "parameters": {
+     "reach_law": "log10(R_km) = 0.5 M - 1.7",
+     "sigma": 0.4,
+     "stamp": "R exp(2.5 sigma)",
+     "magnitude_bin": 0.1,
+     "bands": {
+      "m5": [
+       5.0,
+       6.0
+      ],
+      "m6": [
+       6.0,
+       7.0
+      ],
+      "m7": [
+       7.0,
+       8.0
+      ],
+      "m8": [
+       8.0,
+       11.0
+      ]
+     },
+     "windows": {
+      "m5": [
+       1964,
+       2025
+      ],
+      "m6": [
+       1930,
+       2025
+      ],
+      "m7": [
+       1900,
+       2025
+      ],
+      "m8": [
+       1900,
+       2025
+      ]
+     },
+     "min_magnitude": 5.0,
+     "lattice_deg": 0.25,
+     "quadtree_spread": 0.04
+    },
+    "inputs": [
+     {
+      "name": "Three catalogues merged: USGS ComCat (M >= 4.5 since 1900) for density and currency, ISC-GEM v12 (1904-2021) joined on ComCat's own contributing ids for homogenised Mw, and GEM GHEC v1.0 (1008-1903) for the pre-instrumental record",
+      "citation": "U.S. Geological Survey, Earthquake Hazards Program (2017), ANSS Comprehensive Earthquake Catalog (ComCat), https://doi.org/10.5066/F7MS3QZH \u00b7 International Seismological Centre (2025), ISC-GEM Earthquake Catalogue, https://doi.org/10.31905/d808b825 (Storchak et al. 2013, 2015; Di Giacomo et al. 2018) \u00b7 GEM Foundation (2013), GEM Global Historical Earthquake Catalogue v1.0, https://doi.org/10.13127/ghea/ghec.1.0",
+      "licence": "ComCat is US Government public domain. ISC-GEM and GEM GHEC are CC-BY-SA 3.0, so anything derived from them -- these grids included -- is offered under CC-BY-SA 3.0 with the citations above."
+     }
+    ],
+    "grid": "variable, 0.25 to 8 degrees; a cell subdivides while the band inside it varies by more than 2% of its peak, is empty in part, or spans a whole magnitude unit of largest-on-record. Cell size is display resolution only."
+   },
+   "validation": {
+    "n": 200000,
+    "tp": 3014,
+    "fp": 1823,
+    "tn": 191314,
+    "fn": 3849,
+    "accuracy": 0.9716,
+    "precision": 0.6231,
+    "recall": 0.4392,
+    "f1": 0.5152,
+    "kappa": 0.5011,
+    "specificity": 0.9906,
+    "auc": 0.9599,
+    "threshold": 0.03465735902799726,
+    "threshold_rule": "predicted when 1 - exp(-rate x 20 yr) >= 0.5, i.e. rate >= 0.03466/yr",
+    "positives": 6863,
+    "negatives": 193137,
+    "assessable": true,
+    "extra": {
+     "train_events": 63693,
+     "test_events": 39428,
+     "test_years": [
+      2006,
+      2025
+     ],
+     "lattice_points": 200000,
+     "lattice_spacing_km": 50.5,
+     "active_ground_only": {
+      "n": 62070,
+      "accuracy": 0.9101,
+      "precision": 0.6231,
+      "recall": 0.4452,
+      "f1": 0.5193,
+      "kappa": 0.4713,
+      "auc": 0.8887
+     },
+     "youden": {
+      "threshold": 0.0014562719502240339,
+      "tp": 6382,
+      "fp": 24239,
+      "tn": 168898,
+      "fn": 481,
+      "accuracy": 0.8764,
+      "precision": 0.2084,
+      "recall": 0.9299,
+      "f1": 0.3405,
+      "kappa": 0.3013
+     }
+    },
+    "holdout": "temporal: rates re-stamped from events up to 2005 (each band's own completeness window cut there: m5 1964-2005, m6 1930-2005, m7 1900-2005, m8 1900-2005), scored against the 39,428 M>=5 events of 2006-2025",
+    "events": "the merged ComCat/ISC-GEM record (bake-seismic.py's own columns); a point is reached when a test event lies inside its median damaging-shaking radius, d <= 10^(0.5M - 1.7) km",
+    "sample": "200,000 equal-area Fibonacci-lattice points over the whole globe (51 km apart). Stable interiors and open ocean are true negatives the map gets right for free, which inflates accuracy and specificity -- active_ground_only repeats the scores where the training map is non-zero"
+   },
+   "limits": [
+    "Isotropic and depth-blind reach: attenuation differs by region and with depth, so a deep or stable-crust event is mis-sized either way.",
+    "Twenty test years is short against M7+ recurrence; most positives come from M5-6 events, which is what the score mostly rewards.",
+    "Aftershock sequences are not declustered, in training or test: a sequence counts many times, and it recurs where it trained, which flatters the hold-out.",
+    "Lattice points are spatially autocorrelated; n is not the number of independent tests."
+   ],
+   "script": "GeoID_GIS/services/validate-point-hazards.py",
+   "generated": "2026-10-23T19:16:36Z"
+  },
+  {
+   "id": "volcanic-risk",
+   "name": "Volcanic risk",
+   "hazard": "volcanic ash fall",
+   "product": "data/global/volcanic-risk.geojson (+ -vei1..-vei8 frames)",
+   "model": {
+    "method": "eruptions per year depositing >= 1 mm of ash at a point, each eruption weighted by P(reach >= d) under a log-normal reach per VEI; windows by size class",
+    "parameters": {
+     "reach_km_by_vei": {
+      "0": 2.0,
+      "1": 5.0,
+      "2": 15.0,
+      "3": 50.0,
+      "4": 150.0,
+      "5": 350.0,
+      "6": 800.0,
+      "7": 1800.0,
+      "8": 3000.0
+     },
+     "sigma": 0.5,
+     "stamp": "VEI < 5 to R exp(2.0 sigma); VEI >= 5 global",
+     "windows": {
+      "small": [
+       1950,
+       2025
+      ],
+      "vei4": [
+       1900,
+       2025
+      ],
+      "vei56": [
+       1550,
+       2025
+      ],
+      "vei7": [
+       -9700,
+       2025
+      ]
+     },
+     "uncertain_weight": 0.5,
+     "unknown_vei_as": 2,
+     "floor_prior": {
+      "holocene": {
+       "vei": 2,
+       "span": 11726
+      },
+      "pleistocene": {
+       "vei": 3,
+       "span": 2580000
+      }
+     },
+     "vei8_return_years": 17000.0,
+     "mode": "windowed",
+     "lattice_deg": 0.25,
+     "quadtree_spread": 0.02
+    },
+    "inputs": [
+     {
+      "name": "Smithsonian Global Volcanism Program, Volcanoes of the World (Holocene eruption catalogue)",
+      "citation": "Global Volcanism Program (2024). Volcanoes of the World, v. 5.2. Smithsonian Institution. https://doi.org/10.5479/si.GVP.VOTW5-2024.5.2"
+     }
+    ],
+    "grid": "variable, 0.25 to 8.0 degrees; a cell subdivides while the band inside it varies by more than 2% of its peak, or is empty in part, or spans two largest-VEI classes. Cell size is display resolution only."
+   },
+   "validation": {
+    "n": 141023,
+    "tp": 1694,
+    "fp": 1296,
+    "tn": 133678,
+    "fn": 4355,
+    "accuracy": 0.9599,
+    "precision": 0.5666,
+    "recall": 0.28,
+    "f1": 0.3748,
+    "kappa": 0.3566,
+    "specificity": 0.9904,
+    "auc": 0.8089,
+    "threshold": 0.02665950694461328,
+    "threshold_rule": "predicted when 1 - exp(-rate x 26 yr) >= 0.5, i.e. rate >= 0.02666/yr",
+    "positives": 6049,
+    "negatives": 134974,
+    "assessable": true,
+    "extra": {
+     "train_rows": 4286,
+     "floor_priors": 2298,
+     "test_eruptions": 941,
+     "test_years": [
+      2000,
+      2025
+     ],
+     "lattice_points": 141023,
+     "lattice_spacing_km": 19.8,
+     "by_test_size": {
+      "VEI <= 3 (and unknown, as 2)": {
+       "positives": 1525,
+       "auc": 0.9292,
+       "accuracy": 0.9815,
+       "precision": 0.3197,
+       "recall": 0.6269,
+       "f1": 0.4235
+      },
+      "VEI >= 4": {
+       "positives": 4996,
+       "auc": 0.7769,
+       "accuracy": 0.9588,
+       "precision": 0.3629,
+       "recall": 0.2172,
+       "f1": 0.2717
+      }
+     },
+     "youden": {
+      "threshold": 0.0045429903157299415,
+      "tp": 3802,
+      "fp": 15362,
+      "tn": 119612,
+      "fn": 2247,
+      "accuracy": 0.8751,
+      "precision": 0.1984,
+      "recall": 0.6285,
+      "f1": 0.3016,
+      "kappa": 0.2529
+     }
+    },
+    "holdout": "temporal: rates rebuilt from eruptions up to 1999 (windowed mode; windows small 1950-1999, vei4 1900-1999, vei56 1550-1999, vei7 -9700-1999), scored against the 941 confirmed eruptions of 2000-2025",
+    "events": "GVP Volcanoes of the World, confirmed eruptions; a point is reached when it lies inside the eruption's median 1 mm ash reach, R by VEI",
+    "sample": "141,023 equal-area Fibonacci-lattice points (20 km apart) within 200 km of a catalogue volcano"
+   },
+   "limits": [
+    "Isotropic ash: a plume goes downwind, so the reach disc is wrong in shape for every real eruption, and recall/precision read that as misses and false alarms.",
+    "An eruption in GVP is an episode: a volcano erupting through the cutoff (Etna, Sakurajima) trains and tests on the same activity, which flatters the hold-out.",
+    "The test eruptions are dominated by VEI <= 2, whose reach is a few lattice spacings; most of the map's large-VEI reach is never tested in 26 years.",
+    "Lattice points are spatially autocorrelated; n is not the number of independent tests."
+   ],
+   "script": "GeoID_GIS/services/validate-point-hazards.py",
+   "generated": "2026-10-23T19:18:58Z"
+  },
+  {
+   "id": "volcanic-risk-holocene",
+   "name": "Volcanic risk (full Holocene record)",
+   "hazard": "volcanic ash fall",
+   "product": "data/global/volcanic-risk-holocene.geojson (+ -vei1..-vei8 frames)",
+   "model": {
+    "method": "eruptions per year depositing >= 1 mm of ash at a point, each eruption weighted by P(reach >= d) under a log-normal reach per VEI; windows by size class; where a volcano has no eruption of a size inside its window, its own record span",
+    "parameters": {
+     "reach_km_by_vei": {
+      "0": 2.0,
+      "1": 5.0,
+      "2": 15.0,
+      "3": 50.0,
+      "4": 150.0,
+      "5": 350.0,
+      "6": 800.0,
+      "7": 1800.0,
+      "8": 3000.0
+     },
+     "sigma": 0.5,
+     "stamp": "VEI < 5 to R exp(2.0 sigma); VEI >= 5 global",
+     "windows": {
+      "small": [
+       1950,
+       2025
+      ],
+      "vei4": [
+       1900,
+       2025
+      ],
+      "vei56": [
+       1550,
+       2025
+      ],
+      "vei7": [
+       -9700,
+       2025
+      ]
+     },
+     "uncertain_weight": 0.5,
+     "unknown_vei_as": 2,
+     "floor_prior": {
+      "holocene": {
+       "vei": 2,
+       "span": 11726
+      },
+      "pleistocene": {
+       "vei": 3,
+       "span": 2580000
+      }
+     },
+     "vei8_return_years": 17000.0,
+     "mode": "holocene",
+     "lattice_deg": 0.25,
+     "quadtree_spread": 0.02
+    },
+    "inputs": [
+     {
+      "name": "Smithsonian Global Volcanism Program, Volcanoes of the World (Holocene eruption catalogue)",
+      "citation": "Global Volcanism Program (2024). Volcanoes of the World, v. 5.2. Smithsonian Institution. https://doi.org/10.5479/si.GVP.VOTW5-2024.5.2"
+     }
+    ],
+    "grid": "variable, 0.25 to 8.0 degrees; a cell subdivides while the band inside it varies by more than 2% of its peak, or is empty in part, or spans two largest-VEI classes. Cell size is display resolution only."
+   },
+   "validation": {
+    "n": 141023,
+    "tp": 1905,
+    "fp": 1604,
+    "tn": 133370,
+    "fn": 4144,
+    "accuracy": 0.9592,
+    "precision": 0.5429,
+    "recall": 0.3149,
+    "f1": 0.3986,
+    "kappa": 0.3791,
+    "specificity": 0.9881,
+    "auc": 0.8466,
+    "threshold": 0.02665950694461328,
+    "threshold_rule": "predicted when 1 - exp(-rate x 26 yr) >= 0.5, i.e. rate >= 0.02666/yr",
+    "positives": 6049,
+    "negatives": 134974,
+    "assessable": true,
+    "extra": {
+     "train_rows": 6642,
+     "floor_priors": 1771,
+     "test_eruptions": 941,
+     "test_years": [
+      2000,
+      2025
+     ],
+     "lattice_points": 141023,
+     "lattice_spacing_km": 19.8,
+     "by_test_size": {
+      "VEI <= 3 (and unknown, as 2)": {
+       "positives": 1525,
+       "auc": 0.9431,
+       "accuracy": 0.9788,
+       "precision": 0.2913,
+       "recall": 0.6702,
+       "f1": 0.406
+      },
+      "VEI >= 4": {
+       "positives": 4996,
+       "auc": 0.8191,
+       "accuracy": 0.9574,
+       "precision": 0.3554,
+       "recall": 0.2496,
+       "f1": 0.2932
+      }
+     },
+     "youden": {
+      "threshold": 0.0031675346677398925,
+      "tp": 4498,
+      "fp": 26081,
+      "tn": 108893,
+      "fn": 1551,
+      "accuracy": 0.8041,
+      "precision": 0.1471,
+      "recall": 0.7436,
+      "f1": 0.2456,
+      "kappa": 0.1874
+     }
+    },
+    "holdout": "temporal: rates rebuilt from eruptions up to 1999 (holocene mode; windows small 1950-1999, vei4 1900-1999, vei56 1550-1999, vei7 -9700-1999), scored against the 941 confirmed eruptions of 2000-2025",
+    "events": "GVP Volcanoes of the World, confirmed eruptions; a point is reached when it lies inside the eruption's median 1 mm ash reach, R by VEI",
+    "sample": "141,023 equal-area Fibonacci-lattice points (20 km apart) within 200 km of a catalogue volcano"
+   },
+   "limits": [
+    "Isotropic ash: a plume goes downwind, so the reach disc is wrong in shape for every real eruption, and recall/precision read that as misses and false alarms.",
+    "An eruption in GVP is an episode: a volcano erupting through the cutoff (Etna, Sakurajima) trains and tests on the same activity, which flatters the hold-out.",
+    "The test eruptions are dominated by VEI <= 2, whose reach is a few lattice spacings; most of the map's large-VEI reach is never tested in 26 years.",
+    "Lattice points are spatially autocorrelated; n is not the number of independent tests."
+   ],
+   "script": "GeoID_GIS/services/validate-point-hazards.py",
+   "generated": "2026-10-23T19:19:07Z"
+  }
+ ]
+}

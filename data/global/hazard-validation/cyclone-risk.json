@@ -1,0 +1,83 @@
+{
+ "id": "cyclone-risk",
+ "name": "Cyclone risk",
+ "hazard": "tropical cyclone",
+ "product": "data/global/cyclone-risk.geojson (+ cyclone-risk-years.json)",
+ "model": {
+  "method": "Poisson rate of distinct storms passing within a fixed radius of a point, over complete seasons; p_yr = 1 - exp(-rate)",
+  "parameters": {
+   "radius_km": 200.0,
+   "first_season": 1980,
+   "hurricane_kts": 64,
+   "lattice_deg": 0.25,
+   "track_densify_km": 50.0,
+   "quadtree_deg": [
+    0.25,
+    8.0
+   ],
+   "quadtree_spread": 0.02,
+   "seasons_in_map": 46
+  },
+  "inputs": [
+   {
+    "name": "IBTrACS v04r01 - International Best Track Archive for Climate Stewardship",
+    "publisher": "NOAA National Centers for Environmental Information",
+    "citation": "Knapp, K. R., M. C. Kruk, D. H. Levinson, H. J. Diamond, and C. J. Neumann (2010). Bull. Amer. Meteor. Soc., 91, 363-376."
+   }
+  ],
+  "grid": "variable, 0.25 to 8.0 degrees; a cell subdivides while the rate inside it varies by more than 2% of the global peak. Cell size is display resolution only - the value is measured at a point, so it is comparable between a large cell and a small one."
+ },
+ "validation": {
+  "n": 25421,
+  "tp": 15244,
+  "fp": 953,
+  "tn": 7020,
+  "fn": 2204,
+  "accuracy": 0.8758,
+  "precision": 0.9412,
+  "recall": 0.8737,
+  "f1": 0.9062,
+  "kappa": 0.7233,
+  "specificity": 0.8805,
+  "auc": 0.9414,
+  "threshold": 0.04332169878499658,
+  "threshold_rule": "predicted when 1 - exp(-rate x 16 yr) >= 0.5, i.e. rate >= 0.04332/yr",
+  "positives": 17448,
+  "negatives": 7973,
+  "assessable": true,
+  "extra": {
+   "train_seasons": [
+    1980,
+    2009
+   ],
+   "test_seasons": [
+    2010,
+    2025
+   ],
+   "lattice_points": 25421,
+   "lattice_spacing_km": 112.9,
+   "youden": {
+    "threshold": 0.033666666666666664,
+    "tp": 15561,
+    "fp": 1065,
+    "tn": 6908,
+    "fn": 1887,
+    "accuracy": 0.8839,
+    "precision": 0.9359,
+    "recall": 0.8919,
+    "f1": 0.9134,
+    "kappa": 0.7376
+   }
+  },
+  "holdout": "temporal: rates from the 1980-2009 seasons (30), scored against storms of 2010-2025 (16 complete seasons the training never saw)",
+  "events": "IBTrACS v04r01 storms within 200 km, read from the published grid's own per-season counts (cyclone-risk-years.json)",
+  "sample": "25,421 equal-area Fibonacci-lattice points (113 km apart) within 500 km of any ground a storm reached 1980-2025; each takes the published cell it falls in"
+ },
+ "limits": [
+  "Per-season counts are cell means: in a coarse (flat) cell a lattice point is called reached when any part of the cell was, which flatters recall there.",
+  "Lattice points are spatially autocorrelated (one storm reaches dozens), so n overstates the number of independent tests; read AUC and the rates, not significance.",
+  "A 30-season training window is short for the rarest basins' edges; a storm track's year-to-year shift (ENSO, basin activity) is real variance the map cannot know."
+ ],
+ "script": "GeoID_GIS/services/validate-point-hazards.py",
+ "generated": "2026-10-23T19:16:34Z"
+}
