@@ -17,7 +17,7 @@
  * volcano.
  */
 
-import { ZONES } from "./volcanic-hazards.js?v=20261023-f0a10a7";
+import { ZONES } from "./volcanic-hazards.js?v=20261023-ee9cc1d";
 
 export function isZoneFeature(props = {}) {
   return Number.isFinite(Number(props?.zone)) && Number.isFinite(Number(props?.outer_km))

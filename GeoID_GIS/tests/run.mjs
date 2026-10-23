@@ -32,7 +32,9 @@ const ROOT = join(HERE, "..");                 // GeoID_GIS
  * passing and unrun, which is not a test. Anything under either is picked up
  * with no registration.
  */
-const SEARCH = [join(ROOT, "viewer"), join(ROOT, "services")];
+const SEARCH = [join(ROOT, "viewer"), join(ROOT, "services"),
+  // Earth flight's buildings pipeline (vector-tile decode + extrusion).
+  join(ROOT, "..", "flight_sim", "earth")];
 
 /** Every *.test.mjs under a directory, recursively. */
 function findTests(dir) {

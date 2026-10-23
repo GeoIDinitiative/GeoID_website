@@ -1416,3 +1416,45 @@ iframe's `performance.getEntriesByType("resource")`; the second instance is in
 another realm and leaves no entry there at all. Set a value through the suspect
 copy and see whether the page's pump overwrites it — if it does not, it is not
 the page's copy.
+## Streamed 3D buildings near the ground (`gis/osm-buildings.js`)
+
+Below **6 km above the drawn ground** the Earth globe streams OpenStreetMap
+buildings (OpenFreeMap z14 vector tiles, keyless) around the camera; above
+**8 km** every tile is unloaded; in between nothing new is fetched and nothing
+held is dropped. Sun shadows below **4 km**. Budget: 16 tiles (2.5 km round the
+camera's ground point plus 1.8 km round the view centre), 3 vector tiles in
+flight, 6 roof-imagery requests. The decode/extrude worker, MVT decoder,
+extruder and facade shader are Earth Flight's (`flight_sim/earth/game/`).
+
+Three things found by measuring, each of which produced a plausible wrong
+picture rather than an error:
+
+- **"Altitude" must be above the drawn ground, not the sphere.**
+  `getZoomAltitudeMetres` measures from radius 3.2, and the ground is displaced
+  by the exaggeration until it tapers away close in. Posing a camera 1.1 km
+  above `surfacePoint` over London read as 123 km, because the ground was drawn
+  122 km up at that moment's relief. The module measures camera radius minus
+  `|surfacePoint(eye)|`.
+- **Draw order: groupOrder beats renderOrder.** At renderOrder 45 (above the
+  streamed tiles' 40) the buildings were loaded, counted and invisible: the
+  Sentinel-2 basemap is a LAYER in the imported stack (groupOrder 50+), drawn
+  without a depth test after them. They now hang in one group at 190 — after
+  every ground layer, before pins (199+) — and depth-test, which is also the
+  physically right order.
+- **Tiles are tangent planes in metres, placed by matrix.** A Float32 vertex at
+  radius 3.2 is good to ~40 cm; tile-local is good to a millimetre. Only each
+  tile's anchor follows the relief, re-read from `surfacePoint` every frame.
+
+Shadows: a dedicated zero-intensity DirectionalLight placed 6 km sunward of the
+camera's ground point (the viewer's key light sits 180 units out, where Float32
+puts a shadow camera's position 20 m adrift), sun direction copied from the key
+light. Zero intensity so no lit material in the globe changes; the building
+materials multiply by `getShadowMask()` themselves, and a `ShadowMaterial`
+catcher under each tile carries the ground shadows (the drapes are unlit).
+`renderer.shadowMap.enabled` is switched on once, at first use, and left on —
+toggling it recompiles every material in the globe.
+
+The Explorer entry (`#earth-flight-section`, wired by `gis/earth-flight-entry.js`)
+holds the buildings/shadows switches and an Enter button that opens
+`/flight_sim/earth/` at the view centre, heading and (clamped) height, in the
+TOP window — the viewer is GeoHUB's iframe.

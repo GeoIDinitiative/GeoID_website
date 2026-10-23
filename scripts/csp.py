@@ -61,6 +61,7 @@ APP_PAGES = [
     "earth_explorer/index.html",
     "earth_explorer/etna/index.html",
     "everest/index.html",
+    "flight_sim/earth/index.html",
 ] + [f"planet_explorer/{w}/viewer/index.html" for w in
      ("mercury", "venus", "moon", "mars", "jupiter",
       "saturn", "uranus", "neptune", "pluto")]
