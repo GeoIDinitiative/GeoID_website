@@ -31,14 +31,14 @@
 import * as THREE from "../vendor/three.module.js";
 import {
   WORLD, sampleScalar, rampPalette, wrapLon, compassPoint, beaufort, isGlobal,
-} from "./flow-field.js?v=20261023-9228856";
-import { shadingMesh, disposeMesh, layerShown, currentViewBox } from "./flow-layer.js?v=20261023-9228856";
-import { refreshPolygonOptions, resolvePolygonExtent } from "./extent-picker.js?v=20261023-9228856";
+} from "./flow-field.js?v=20261023-54abc23";
+import { shadingMesh, disposeMesh, layerShown, currentViewBox } from "./flow-layer.js?v=20261023-54abc23";
+import { refreshPolygonOptions, resolvePolygonExtent } from "./extent-picker.js?v=20261023-54abc23";
 import {
   IFS_REPO, IFS_REGISTRY, IFS_CREDIT, IFS_VARIABLES, T0_MS, LAST_MS, STEP_MS, POINTS,
   timeIndex, reducedGrid, latticeFor, regrid, rangeOf, decodeBlosc, asFloat32, levelOffset, windFrom,
   featherWeight, underAlpha,
-} from "./ifs-grid.js?v=20261023-9228856";
+} from "./ifs-grid.js?v=20261023-54abc23";
 
 const LAYER_NAME = "ECMWF IFS analysis";
 /** One opacity for the sheet wherever it is, patch or world (see `underAlpha`). */
@@ -459,8 +459,11 @@ function buildDrawer() {
    * TIME ON ONE LINE: ◀◀ ◀ [date] [hour] ▶ ▶▶. The steppers are the
    * catalogue's own small pill buttons (`gis-catalogue-sym`, the Symbology
    * button beside every row), and the date takes whatever width is left, so
-   * the line holds at the panel's narrowest. A div, not a label: a label
-   * around six controls sends every click on it to the first one.
+   * the line holds at the panel's narrowest. A `label.row` like its
+   * neighbours (so it takes their type size — `.input` inherits its font),
+   * tied to the date with `for`, so a click on the words opens the date and
+   * never presses a stepper. The date's basis is 0: an input's intrinsic
+   * ~145 px would otherwise be the drawer's minimum and push it past the panel.
    */
   const fmt = (ms) => new Date(ms).toISOString().slice(0, 10);
   const day = document.createElement("input");
@@ -470,7 +473,7 @@ function buildDrawer() {
   day.min = fmt(T0_MS);
   day.max = fmt(LAST_MS);
   day.setAttribute("aria-label", "Analysis date (UTC)");
-  day.style.cssText = "flex:1 1 auto;min-width:0;width:auto";
+  day.style.cssText = "flex:1 1 0;min-width:0;width:0";
   const hour = document.createElement("select");
   hour.className = "input";
   hour.id = "ifs-hour";
@@ -509,8 +512,9 @@ function buildDrawer() {
   line.style.cssText = "display:flex;align-items:center;gap:0.2rem;min-width:0";
   line.append(step("◀◀", -4 * STEP_MS), step("◀", -STEP_MS), day, hour, step("▶", STEP_MS), step("▶▶", 4 * STEP_MS));
   show();
-  const time = document.createElement("div");
+  const time = document.createElement("label");
   time.className = "row";
+  time.htmlFor = "ifs-date";
   const label = document.createElement("span");
   label.textContent = "Time (UTC)";
   time.append(label, line);
