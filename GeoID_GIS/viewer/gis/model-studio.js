@@ -1,20 +1,20 @@
-import { escapeHtml } from "./escape-html.js?v=20261023-d375b8c";
+import { escapeHtml } from "./escape-html.js?v=20261023-c653608";
 import * as THREE from "../vendor/three.module.js";
-import { currentBody, getBody, currentBodyId } from "./bodies.js?v=20261023-d375b8c";
-import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20261023-d375b8c";
+import { currentBody, getBody, currentBodyId } from "./bodies.js?v=20261023-c653608";
+import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf, parseThicknesses } from "./mesh-primitives.js?v=20261023-c653608";
 import {
   latticeTetMesh, tetBoundarySurface, qualityStats, elementCounts, toGmsh22,
-} from "./mesh-volume.js?v=20261023-d375b8c";
-import { studioBlenderScript, shapesToSolids, normMesher, blenderUnavailable } from "./studio-blender.js?v=20261023-d375b8c";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20261023-d375b8c";
-import { downloadText } from "./extraction.js?v=20261023-d375b8c";
-import { shellPositions, surfacePositions, tinHeightAt, tinToGrid, gridAsTin, tinValueAt } from "./surface-sampling.js?v=20261023-d375b8c";
-import { rampColour } from "./symbology.js?v=20261023-d375b8c";
-import { layeredVolumes, facetPositions, tinWith, LAYER_FLAGS } from "./layered-model.js?v=20261023-d375b8c";
-import { sectionPolygons, sectionPositions, profileHeightAt } from "./section-model.js?v=20261023-d375b8c";
-import { faceParts, partPositions, studioGmshScript, DEFAULT_FACE_FLAGS } from "./studio-gmsh.js?v=20261023-d375b8c";
-import { describeField, FIELD_TYPES } from "./mesh-size-fields.js?v=20261023-d375b8c";
-import { femSpec } from "./model-build.js?v=20261023-d375b8c";
+} from "./mesh-volume.js?v=20261023-c653608";
+import { studioBlenderScript, shapesToSolids, normMesher, blenderUnavailable } from "./studio-blender.js?v=20261023-c653608";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20261023-c653608";
+import { downloadText } from "./extraction.js?v=20261023-c653608";
+import { shellPositions, surfacePositions, tinHeightAt, tinToGrid, gridAsTin, tinValueAt } from "./surface-sampling.js?v=20261023-c653608";
+import { rampColour } from "./symbology.js?v=20261023-c653608";
+import { layeredVolumes, facetPositions, tinWith, LAYER_FLAGS } from "./layered-model.js?v=20261023-c653608";
+import { sectionPolygons, sectionPositions, profileHeightAt } from "./section-model.js?v=20261023-c653608";
+import { faceParts, partPositions, studioGmshScript, DEFAULT_FACE_FLAGS } from "./studio-gmsh.js?v=20261023-c653608";
+import { describeField, FIELD_TYPES } from "./mesh-size-fields.js?v=20261023-c653608";
+import { femSpec } from "./model-build.js?v=20261023-c653608";
 
 // Meshing Studio, ported from atlas-ai/services/mesh/meshing_studio.
 //
@@ -1610,6 +1610,14 @@ function attachParts(entry, positions, colour, { opacity = 1 } = {}) {
   group.name = `${entry.kind}_${entry.id}`;
   entry.flags = entry.flags || {};
   if (!(Number(entry.flags.volume) > 0)) { entry.flags.volume = state.nextVolumeFlag; state.nextVolumeFlag += 1; }
+  // A layered halfspace is one volume PER LAYER, flagged volume, volume + 1,
+  // … (studio-gmsh.js layer_flags): the next solid must start past the last
+  // layer, or a dike added after three layers took layer 2's flag and was
+  // merged into it in the mesh (measured: 3 volumes where there were 4).
+  if (entry.kind === "layered_halfspace") {
+    const layers = parseThicknesses(entry.params?.thicknesses).length;
+    state.nextVolumeFlag = Math.max(state.nextVolumeFlag, Number(entry.flags.volume) + Math.max(layers, 1));
+  }
   entry.flags.faces = entry.flags.faces || {};
   entry.parts = [];
   const label = PRIMITIVES[entry.kind]?.label ?? entry.params?.label ?? entry.kind;

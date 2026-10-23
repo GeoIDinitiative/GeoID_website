@@ -1,11 +1,11 @@
 import * as THREE from "../vendor/three.module.js";
 import { latLonToVector3, drapedRadius, looksLikeGeographic, sphericalPolygonAreaKm2 }
-  from "./geo-utils.js?v=20261023-d375b8c";
-import { collectionBounds, geometryCoords, polygonsOf, linesOf } from "./geoprocessing.js?v=20261023-d375b8c";
-import { pointInPolygon } from "./geometry.js?v=20261023-d375b8c";
-import { paintOpacity } from "./layer-opacity.js?v=20261023-d375b8c";
-import { applyCutaway } from "./cutaway.js?v=20261023-d375b8c";
-import { categoricalSymbology, suggestCategoryField } from "./symbology.js?v=20261023-d375b8c";
+  from "./geo-utils.js?v=20261023-c653608";
+import { collectionBounds, geometryCoords, polygonsOf, linesOf } from "./geoprocessing.js?v=20261023-c653608";
+import { pointInPolygon } from "./geometry.js?v=20261023-c653608";
+import { paintOpacity } from "./layer-opacity.js?v=20261023-c653608";
+import { applyCutaway } from "./cutaway.js?v=20261023-c653608";
+import { categoricalSymbology, suggestCategoryField } from "./symbology.js?v=20261023-c653608";
 
 // Single renderer for every vector source. Each parser produces a GeoJSON
 // FeatureCollection and this turns it into draped globe geometry, so shapefile,
