@@ -33,18 +33,29 @@
  */
 
 import * as THREE from "/GeoID_GIS/viewer/vendor/three.module.js";
-import { currentBodyId } from "./bodies.js?v=20261023-23841c7";
+import { currentBodyId } from "./bodies.js?v=20261023-7d5503c";
 
+/*
+ * dusk -- TWILIGHT at the terminator, as Earth now has (earth-viewer.js):
+ *   colour  what that world's air does to sunlight on a long path;
+ *   gain    how bright the band is; g how strongly it scatters FORWARD (a
+ *           backlit limb); w how wide the band is in sun elevation.
+ * Within realism: Mars's twilight is BLUE (its fine dust forward-scatters
+ * blue, as the rovers photograph it); Venus's is broad and pale gold under
+ * its thick cloud; the giants' faint and their own tint; Pluto's backlit
+ * haze rings blue (New Horizons) and Titan's orange (Cassini). No air, no
+ * dusk: Mercury and the Moon.
+ */
 const PROFILES = {
   mercury: null,
   moon: null,
-  venus: { beta: [0.95, 0.82, 0.52], k: 0.16, h: 0.045, gain: 0.7 },
-  mars: { beta: [1.0, 0.68, 0.42], k: 0.05, h: 0.022, gain: 0.85 },
-  jupiter: { beta: [0.9, 0.82, 0.66], k: 0.07, h: 0.03, gain: 0.7 },
-  saturn: { beta: [0.98, 0.84, 0.55], k: 0.07, h: 0.03, gain: 0.7 },
-  uranus: { beta: [0.38, 0.82, 0.92], k: 0.09, h: 0.03, gain: 0.8 },
-  neptune: { beta: [0.24, 0.5, 1.0], k: 0.09, h: 0.03, gain: 0.85 },
-  pluto: { beta: [0.38, 0.6, 1.0], k: 0.03, h: 0.02, gain: 0.7 },
+  venus: { beta: [0.95, 0.82, 0.52], k: 0.16, h: 0.045, gain: 0.7, dusk: [1.0, 0.75, 0.42], duskGain: 0.45, duskG: 0.6, duskW: 0.14 },
+  mars: { beta: [1.0, 0.68, 0.42], k: 0.05, h: 0.022, gain: 0.85, dusk: [0.36, 0.6, 1.0], duskGain: 0.38, duskG: 0.8, duskW: 0.08 },
+  jupiter: { beta: [0.9, 0.82, 0.66], k: 0.07, h: 0.03, gain: 0.7, dusk: [1.0, 0.86, 0.62], duskGain: 0.2, duskG: 0.7, duskW: 0.08 },
+  saturn: { beta: [0.98, 0.84, 0.55], k: 0.07, h: 0.03, gain: 0.7, dusk: [1.0, 0.84, 0.55], duskGain: 0.2, duskG: 0.7, duskW: 0.08 },
+  uranus: { beta: [0.38, 0.82, 0.92], k: 0.09, h: 0.03, gain: 0.8, dusk: [0.55, 0.85, 1.0], duskGain: 0.18, duskG: 0.7, duskW: 0.08 },
+  neptune: { beta: [0.24, 0.5, 1.0], k: 0.09, h: 0.03, gain: 0.85, dusk: [0.4, 0.6, 1.0], duskGain: 0.2, duskG: 0.7, duskW: 0.08 },
+  pluto: { beta: [0.38, 0.6, 1.0], k: 0.03, h: 0.02, gain: 0.7, dusk: [0.45, 0.68, 1.0], duskGain: 0.5, duskG: 0.85, duskW: 0.12 },
 };
 const TOP_IN_SCALE_HEIGHTS = 7;
 /**
@@ -78,6 +89,10 @@ const FRAG = `
   uniform float uK;
   uniform vec3 uBeta;
   uniform float uGain;
+  uniform vec3 uDusk;
+  uniform float uDuskGain;
+  uniform float uDuskG;
+  uniform float uDuskW;
   uniform mat3 uToLocal;   // world offsets -> the body's own (unsquashed) frame
   varying vec3 vP;
   const float TAU_PI = 6.2831853;
@@ -109,7 +124,20 @@ const FRAG = `
     vec3 scatter = 1.0 - exp(-uBeta * tau);
     float c = dot(rd, sunL);
     float phase = 0.75 * (1.0 + c * c);
-    gl_FragColor = vec4(sunlight * scatter * phase * uGain * uFade, 1.0);
+    // TWILIGHT (restored 2026-10-23). The air along the terminator is
+    // lit by sunlight that has crossed a long path of air -- red on
+    // Earth -- and scatters it FORWARD, so the band glows most when
+    // you look toward the sun past the limb. A Gaussian band in the
+    // sun's elevation at that air, the optical depth along the view,
+    // and a Henyey-Greenstein forward lobe (uDuskG). Added on top, so
+    // the cap above and the dark night limb are untouched elsewhere.
+    float duskBand = exp(-(s - 0.02) * (s - 0.02) / (uDuskW * uDuskW));
+    float duskG2 = uDuskG * uDuskG;
+    float duskHG = (1.0 - duskG2) / pow(1.0 + duskG2 - 2.0 * uDuskG * c, 1.5);
+    float duskLobe = 0.25 + 0.75 * min(duskHG / 6.0, 1.0);
+    vec3 dusk = uDusk * duskBand * (1.0 - exp(-tau * 1.5)) * duskLobe * uDuskGain;
+    vec3 col = sunlight * scatter * phase * uGain + dusk;
+    gl_FragColor = vec4(min(col, vec3(1.2)) * uFade, 1.0);
   }`;
 
 function findSun(scene) {
@@ -167,6 +195,10 @@ function makeShell(body, profile, sun) {
         uK: { value: profile.k },
         uBeta: { value: new THREE.Vector3(...profile.beta) },
         uGain: { value: profile.gain },
+        uDusk: { value: new THREE.Vector3(...(profile.dusk || [0, 0, 0])) },
+        uDuskGain: { value: profile.duskGain || 0 },
+        uDuskG: { value: profile.duskG ?? 0.7 },
+        uDuskW: { value: profile.duskW || 0.08 },
       },
       vertexShader: VERT,
       fragmentShader: FRAG,
@@ -354,8 +386,10 @@ function attach(viewer) {
  * few minutes because a viewer builds its moon layer after its globe.
  */
 const MOON_AIR = {
-  Titan: { beta: [1.0, 0.52, 0.16], k: 0.32, h: 0.07, gain: 0.75 },  // thick orange-brown haze
-  Triton: { beta: [0.38, 0.6, 1.0], k: 0.03, h: 0.02, gain: 0.6 },   // thin nitrogen
+  // thick orange-brown haze; backlit, the orange ring Cassini photographed
+  Titan: { beta: [1.0, 0.52, 0.16], k: 0.32, h: 0.07, gain: 0.75, dusk: [1.0, 0.58, 0.22], duskGain: 0.6, duskG: 0.8, duskW: 0.14 },
+  // thin nitrogen; a faint cool twilight
+  Triton: { beta: [0.38, 0.6, 1.0], k: 0.03, h: 0.02, gain: 0.6, dusk: [0.6, 0.75, 1.0], duskGain: 0.25, duskG: 0.8, duskW: 0.1 },
 };
 const MOON_LIFT = 0.45;
 const MOON_NIGHT = 0.22;

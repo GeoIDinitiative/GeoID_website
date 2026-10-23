@@ -2,13 +2,13 @@ import * as THREE from "./vendor/three.module.js";
 // The polygon-area rule lives in one place, with a test. Stamped by hand
 // once: stamp.py only rewrites a ?v= that already exists.
 import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
-  from "./gis/geo-utils.js?v=20261023-23841c7";
+  from "./gis/geo-utils.js?v=20261023-7d5503c";
 import { attachReliefAttributes, followRelief }
-  from "./gis/vector-render.js?v=20261023-23841c7";
+  from "./gis/vector-render.js?v=20261023-7d5503c";
 import { rockClass, crustalSetting, rockClassLabel, classificationBasis }
-  from "./gis/rock-class.js?v=20261023-23841c7";
+  from "./gis/rock-class.js?v=20261023-7d5503c";
 import { lithologyLabel }
-  from "./gis/lithology-label.js?v=20261023-23841c7";
+  from "./gis/lithology-label.js?v=20261023-7d5503c";
 
 /**
  * This module's own cache stamp, read off its own URL.
@@ -14519,6 +14519,11 @@ function fmtProp(value) {
         uK: { value: 0.12 },                      // vertical optical depth (blue) at the ground
         uBeta: { value: ATMO_BETA },
         uGain: { value: 1.0 },
+        // Twilight: Earth's is orange-red, forward-scattered by its aerosols.
+        uDusk: { value: new THREE.Vector3(1.0, 0.42, 0.16) },
+        uDuskGain: { value: 0.55 },
+        uDuskG: { value: 0.72 },
+        uDuskW: { value: 0.09 },
       };
       const atmoShell = new THREE.Mesh(
         new THREE.SphereGeometry(1, 160, 120),
@@ -14541,6 +14546,10 @@ function fmtProp(value) {
             uniform float uK;
             uniform vec3 uBeta;
             uniform float uGain;
+            uniform vec3 uDusk;
+            uniform float uDuskGain;
+            uniform float uDuskG;
+            uniform float uDuskW;
             varying vec3 vP;
             const float TAU_PI = 6.2831853;
             void main() {
@@ -14576,8 +14585,21 @@ function fmtProp(value) {
               // Rayleigh phase: a little brighter looking toward or away from the sun.
               float c = dot(rd, uSun);
               float phase = 0.75 * (1.0 + c * c);
-              vec3 col = sunlight * scatter * phase * uGain;
-              gl_FragColor = vec4(col * uFade, 1.0);
+
+              // TWILIGHT (restored 2026-10-23). The air along the terminator is
+              // lit by sunlight that has crossed a long path of air -- red on
+              // Earth -- and scatters it FORWARD, so the band glows most when
+              // you look toward the sun past the limb. A Gaussian band in the
+              // sun's elevation at that air, the optical depth along the view,
+              // and a Henyey-Greenstein forward lobe (uDuskG). Added on top, so
+              // the cap above and the dark night limb are untouched elsewhere.
+              float duskBand = exp(-(s - 0.02) * (s - 0.02) / (uDuskW * uDuskW));
+              float duskG2 = uDuskG * uDuskG;
+              float duskHG = (1.0 - duskG2) / pow(1.0 + duskG2 - 2.0 * uDuskG * c, 1.5);
+              float duskLobe = 0.25 + 0.75 * min(duskHG / 6.0, 1.0);
+              vec3 dusk = uDusk * duskBand * (1.0 - exp(-tau * 1.5)) * duskLobe * uDuskGain;
+              vec3 col = sunlight * scatter * phase * uGain + dusk;
+              gl_FragColor = vec4(min(col, vec3(1.2)) * uFade, 1.0);
             }`,
           side: THREE.FrontSide,
           blending: THREE.AdditiveBlending,
