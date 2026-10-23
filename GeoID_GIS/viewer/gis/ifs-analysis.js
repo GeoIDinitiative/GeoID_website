@@ -31,14 +31,14 @@
 import * as THREE from "../vendor/three.module.js";
 import {
   WORLD, sampleScalar, rampPalette, wrapLon, compassPoint, beaufort, isGlobal,
-} from "./flow-field.js?v=20261023-9d94c66";
-import { shadingMesh, disposeMesh, layerShown, currentViewBox } from "./flow-layer.js?v=20261023-9d94c66";
-import { refreshPolygonOptions, resolvePolygonExtent } from "./extent-picker.js?v=20261023-9d94c66";
+} from "./flow-field.js?v=20261023-cc9eda6";
+import { shadingMesh, disposeMesh, layerShown, currentViewBox } from "./flow-layer.js?v=20261023-cc9eda6";
+import { refreshPolygonOptions, resolvePolygonExtent } from "./extent-picker.js?v=20261023-cc9eda6";
 import {
   IFS_REPO, IFS_REGISTRY, IFS_CREDIT, IFS_VARIABLES, T0_MS, LAST_MS, STEP_MS, POINTS,
   timeIndex, reducedGrid, latticeFor, regrid, rangeOf, decodeBlosc, asFloat32, levelOffset, windFrom,
   featherWeight, underAlpha,
-} from "./ifs-grid.js?v=20261023-9d94c66";
+} from "./ifs-grid.js?v=20261023-cc9eda6";
 
 const LAYER_NAME = "ECMWF IFS analysis";
 /** One opacity for the sheet wherever it is, patch or world (see `underAlpha`). */
@@ -462,7 +462,9 @@ function buildDrawer() {
    * arrows step 6 h and a day across days. Measured at the panel's narrowest
    * (20rem, 191 px of drawer) six controls at the panel's type size do not
    * fit with a whole date, so when the line would overflow the day-steps
-   * (◀◀ ▶▶) step aside and ◀ [date] [18Z] ▶ stays whole — never a wrap.
+   * (◀◀ ▶▶) step aside, and at the very narrowest (a phone held landscape,
+   * where ◀ [date] [18Z] ▶ still needs ~205 px of 179) the hour pill does too:
+   * ◀ ▶ still move the hour and the status line names it. Never a wrap.
    *
    * A `label.row` like its neighbours, tied to the date with `for`, so a click
    * on the words opens the date and never presses a stepper.
@@ -484,6 +486,7 @@ function buildDrawer() {
     b.textContent = glyph;
     b.title = title;
     b.setAttribute("aria-label", title);
+    b.style.padding = "0.15rem 0.24rem";
     return b;
   };
   const hour = pill("18Z", "Analysis hour (UTC) — click for the next of 00, 06, 12, 18");
@@ -524,12 +527,11 @@ function buildDrawer() {
   line.style.cssText = "flex-direction:row;align-items:center;gap:0.2rem;margin:0;width:0;min-width:100%";
   line.append(dayBack, step("◀", -STEP_MS), day, hour, step("▶", STEP_MS), dayOn);
   const fit = () => {
-    dayBack.hidden = false;
-    dayOn.hidden = false;
-    if (line.clientWidth && line.scrollWidth > line.clientWidth + 1) {
-      dayBack.hidden = true;
-      dayOn.hidden = true;
-    }
+    if (!line.clientWidth) return;
+    const over = () => line.scrollWidth > line.clientWidth + 1;
+    dayBack.hidden = false; dayOn.hidden = false; hour.hidden = false;
+    if (over()) { dayBack.hidden = true; dayOn.hidden = true; }
+    if (over()) hour.hidden = true;
   };
   if (typeof ResizeObserver === "function") new ResizeObserver(fit).observe(line);
   show();

@@ -1,12 +1,12 @@
-import { escapeHtml } from "../../escape-html.js?v=20261023-9d94c66";
-import { registerPage } from "../stages.js?v=20261023-9d94c66";
-import * as store from "../project-store.js?v=20261023-9d94c66";
-import { STAGES, getPage } from "../stages.js?v=20261023-9d94c66";
+import { escapeHtml } from "../../escape-html.js?v=20261023-cc9eda6";
+import { registerPage } from "../stages.js?v=20261023-cc9eda6";
+import * as store from "../project-store.js?v=20261023-cc9eda6";
+import { STAGES, getPage } from "../stages.js?v=20261023-cc9eda6";
 import {
   el, card, field, input, textarea, selectOf, button, row, statGrid, statusLine,
   guard, crossPage, findTables, saveTable,
   pageHeader, toolbar, inlineLabel, collapsible, dataTable, console_,
-} from "./common.js?v=20261023-9d94c66";
+} from "./common.js?v=20261023-cc9eda6";
 
 /**
  * Dashboard, Project Manager, Pipeline and Data Hub.
