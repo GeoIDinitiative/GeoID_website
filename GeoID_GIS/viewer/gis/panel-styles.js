@@ -14,6 +14,84 @@
  */
 
 const STYLE = `
+/* ── "Open Control Centre": the edge tab that brings the panel back ────────
+   It is the way back into everything, so it should be found at a glance --
+   but it sits beside the globe all the time, so it must not tug at the eye.
+   Frosted glass in the theme's panel colour, a hairline edge, and a thin
+   accent rail along its outer side whose halo BREATHES: 3.6 s a cycle,
+   opacity only, on pseudo-elements, so nothing moves and nothing repaints
+   under the globe. Hover slides it out a touch and lights the rail fully.
+   Every planet viewer has this tab and this module; the planets' own
+   pulsing box-shadow animation is switched off in favour of this one. */
+:root #nav-tab {
+  overflow: visible;
+  padding: 1.35rem 0.62rem 1.25rem;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-left: 0;
+  border-radius: 0 calc(0.85rem * var(--skin-round, 1)) calc(0.85rem * var(--skin-round, 1)) 0;
+  background:
+    linear-gradient(90deg, rgba(255, 255, 255, 0.03), transparent 70%),
+    rgba(var(--skin-panel, 22, 9, 51), 0.58);
+  -webkit-backdrop-filter: blur(14px) saturate(140%);
+  backdrop-filter: blur(14px) saturate(140%);
+  box-shadow: 6px 0 22px rgba(0, 0, 0, 0.32);
+  color: var(--skin-ink, #eef6ff);
+  font-family: var(--skin-body, "Exo 2", "Segoe UI", sans-serif);
+  font-size: 0.66rem;
+  font-weight: 600;
+  letter-spacing: 0.24em;
+  text-shadow: 0 0 10px rgba(var(--nav-accent-rgb), 0.35);
+  animation: none;
+  translate: 0 0;
+  transition: translate 220ms cubic-bezier(0.23, 1, 0.32, 1), color 150ms ease, background-color 150ms ease;
+}
+/* The rail: a 2px line of the accent down the tab's outer edge. */
+:root #nav-tab::before {
+  content: "";
+  position: absolute;
+  top: 0.7rem; bottom: 0.7rem; right: -1px;
+  width: 2px;
+  border-radius: 2px;
+  background: linear-gradient(180deg, transparent, rgb(var(--nav-accent-rgb)) 18%, rgb(var(--nav-accent-rgb)) 82%, transparent);
+  box-shadow: 0 0 8px rgba(var(--nav-accent-rgb), 0.9);
+  pointer-events: none;
+}
+/* The halo: the whole tab's outline glowing, fading in and out. */
+:root #nav-tab::after {
+  content: "";
+  position: absolute;
+  inset: -1px -1px -1px 0;
+  border-radius: inherit;
+  box-shadow: 0 0 0 1px rgba(var(--nav-accent-rgb), 0.55), 0 0 22px 2px rgba(var(--nav-accent-rgb), 0.38),
+    inset 0 0 14px rgba(var(--nav-accent-rgb), 0.12);
+  opacity: 0.25;
+  pointer-events: none;
+  animation: geoid-navtab-breathe 3.6s ease-in-out infinite alternate;
+}
+@keyframes geoid-navtab-breathe { to { opacity: 0.85; } }
+@media (hover: hover) and (pointer: fine) {
+  :root #nav-tab:hover {
+    translate: 3px 0;
+    color: #ffffff;
+    background:
+      linear-gradient(90deg, rgba(var(--nav-accent-rgb), 0.1), transparent 80%),
+      rgba(var(--skin-panel, 22, 9, 51), 0.7);
+    box-shadow: 6px 0 22px rgba(0, 0, 0, 0.32);
+    border-color: rgba(255, 255, 255, 0.14);
+  }
+  :root #nav-tab:hover::after { animation: none; opacity: 1; }
+}
+:root #nav-tab:focus-visible { outline: 2px solid rgba(var(--nav-accent-rgb), 0.9); outline-offset: 2px; }
+:root #nav-tab:active { translate: 1px 0; }
+:root:not([data-skin]) #nav-tab, :root[data-skin="pixel"] #nav-tab, :root[data-skin="hud"] #nav-tab { border-radius: 0; }
+:root[data-skin="beige"] #nav-tab { color: #ffffff; --nav-accent-rgb: 255, 255, 255; }
+@media (prefers-reduced-motion: reduce) {
+  :root #nav-tab::after { animation: none; opacity: 0.6; }
+  :root #nav-tab, :root #nav-tab:hover { translate: 0 0; }
+}
+@media (prefers-reduced-transparency: reduce) {
+  :root #nav-tab { background: rgb(var(--skin-panel, 22, 9, 51)); -webkit-backdrop-filter: none; backdrop-filter: none; }
+}
 /* ── The clock and the LIVE pill: readouts ON the globe, not tiles ──────────
    They were two opaque boxes with accent outlines in the corner of the view
    (owner, 2026-10-23: "unbounded by the box, or a subtle outline"). Now there
