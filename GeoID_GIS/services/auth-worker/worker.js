@@ -12,6 +12,7 @@
  *   GET  /auth/callback/email?token=                        the link, followed
  *   GET  /auth/me            (cookie)                       who is this
  *   POST /auth/data-token    (cookie)                       a short pass for the bucket
+ *   POST /auth/social-token  (cookie)                       an hour's pass for GeoHUB Social
  *   POST /auth/signout       (cookie)                       drop the session
  *   POST /stripe/webhook     (Stripe-Signature)             a payment became a membership
  *
@@ -48,6 +49,7 @@ import {
 
 const WEEK = 7 * 24 * 3600;
 const DATA_TOKEN_SECONDS = 15 * 60;
+const SOCIAL_TOKEN_SECONDS = 3600;
 
 
 // ── JWT, HS256, hand-rolled because a Worker has WebCrypto and needs no dep ──
@@ -703,6 +705,35 @@ export default {
         token: await sign({ aud: "data", iat: now, exp: now + DATA_TOKEN_SECONDS },
           env.JWT_SECRET),
         expires: now + DATA_TOKEN_SECONDS,
+      }, 200, head);
+    }
+
+    // ── a pass for GeoHUB Social ───────────────────────────────────────────
+    if (url.pathname === "/auth/social-token") {
+      if (request.method !== "POST") return json({ error: "POST only." }, 405, head);
+      const claims = await verify(credential(request), env.JWT_SECRET, { audience: "site" });
+      if (!claims) return json({ error: "Sign in to use GeoHUB Social." }, 401, head);
+      const holds = await membership(env, claims.email);
+      const now = Math.floor(Date.now() / 1000);
+      /**
+       * A BEARER TOKEN FOR ANOTHER ORIGIN, because the session cookie is
+       * host-only and so never reaches the social Worker. Unlike the bucket's
+       * pass it DOES say who somebody is -- the social Worker keys accounts by
+       * the verified address -- so it is held in memory by the page, sent as a
+       * header (never a URL), and lives an hour. Audience `social`, so it can
+       * open nothing here, and the plan is re-read now rather than copied from
+       * the week-old session, the same rule /auth/me follows.
+       */
+      const exp = now + SOCIAL_TOKEN_SECONDS;
+      // Signed with the key the Social Worker holds. A key of its own, not the
+      // site session's: Social can verify these and nothing else, and setting it
+      // up never needed the session key moved (which would sign everybody out).
+      return json({
+        token: await sign({
+          aud: "social", email: claims.email, name: claims.name || "",
+          plan: holds?.plan || "explorer", member: !!holds, iat: now, exp,
+        }, env.SOCIAL_JWT_SECRET || env.JWT_SECRET),
+        expires: exp,
       }, 200, head);
     }
 

@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; script-src 'self' https://static.cloudflareinsights.com 'sha256-9dg0V8T8uqDPOMe2P4VIZlkgoL/cM9afeGFW9ZGK4LA=' 'sha256-W8FT6G4RE788B7jdWRmPkDCse6elzMVMn2ApJz43QHI=' 'sha256-32cgCMEAJZZr4yMVJkU9PEIL784LKl0b8OGVH89zmJs=' 'sha256-rDdYEm63cRodo0Pct49R3DJzYsrko6oYkWHIvG0U4Wc=' 'sha256-mH24M4jOScFabkmAKkoOc2iC5IjaCL6zfyzTZvL1nRo='; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https: http://localhost:* http://127.0.0.1:*; media-src 'self' data: blob: https:; connect-src 'self' data: blob: https: http://localhost:* http://127.0.0.1:*; frame-src 'self' blob: https://docs.google.com https://drive.google.com; form-action 'self' https://formspree.io https://buy.stripe.com https://docs.google.com; worker-src 'self' blob:; child-src 'self' blob:; upgrade-insecure-requests">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; script-src 'self' https://static.cloudflareinsights.com 'sha256-7kC8QkHng5owIxBzuDK7lzB8+aW1hGLJkvM0q1dZLSY=' 'sha256-W8FT6G4RE788B7jdWRmPkDCse6elzMVMn2ApJz43QHI=' 'sha256-32cgCMEAJZZr4yMVJkU9PEIL784LKl0b8OGVH89zmJs=' 'sha256-rDdYEm63cRodo0Pct49R3DJzYsrko6oYkWHIvG0U4Wc=' 'sha256-mH24M4jOScFabkmAKkoOc2iC5IjaCL6zfyzTZvL1nRo='; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https: http://localhost:* http://127.0.0.1:*; media-src 'self' data: blob: https:; connect-src 'self' data: blob: https: http://localhost:* http://127.0.0.1:*; frame-src 'self' blob: https://docs.google.com https://drive.google.com; form-action 'self' https://formspree.io https://buy.stripe.com https://docs.google.com; worker-src 'self' blob:; child-src 'self' blob:; upgrade-insecure-requests">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>Pluto</title>
   <meta name="robots" content="noindex, follow">
@@ -10,10 +10,10 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;600;700&family=Exo+2:wght@300;400;500&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=20261018-a533d54">
-  <link rel="stylesheet" href="/styles/flightsim.css?v=20261018-a533d54">
-  <link rel="stylesheet" href="/styles/viewer-skin.css?v=20261018-a533d54">
-  <link rel="stylesheet" href="/styles/viewer-themes.css?v=20261018-a533d54">
+  <link rel="stylesheet" href="styles.css?v=20261023-d47f653">
+  <link rel="stylesheet" href="/styles/flightsim.css?v=20261023-d47f653">
+  <link rel="stylesheet" href="/styles/viewer-skin.css?v=20261023-d47f653">
+  <link rel="stylesheet" href="/styles/viewer-themes.css?v=20261023-d47f653">
   <!-- THE LIVE SITE HAS ONE DOOR TO THIS WORLD, AND IT IS GEOHUB. This file
        is the viewer GeoHUB frames (via /transit/) when Pluto is chosen from
        the planet strip or asked for as /?world=pluto; inside the shell
@@ -22,13 +22,13 @@
        as an old, broken viewer. So a top-level load goes to the shell, and
        the shell frames this page where it works. Before theme.js, so nothing
        is painted first. -->
-  <script>if (window.self === window.top) { window.location.replace("/?world=pluto" + window.location.hash); }</script>
-  <script src="/scripts/theme.js?v=20261018-a533d54"></script>
-  <script src="/scripts/gamepad.js?v=20261018-a533d54" defer></script>
-  <script src="/scripts/tour-enter.js?v=20261018-a533d54" defer></script>
-  <script src="/scripts/ui-sound.js?v=20261018-a533d54" defer></script>
+  <script>if (window.self === window.top) { var c = ""; try { var q = new URLSearchParams(window.location.search); ["post", "project"].forEach(function (k) { var v = q.get(k); if (v && /^[A-Za-z0-9_-]{1,64}$/.test(v)) c += "&" + k + "=" + encodeURIComponent(v); }); } catch (_e) {} window.location.replace("/?world=pluto" + c + window.location.hash); }</script>
+  <script src="/scripts/theme.js?v=20261023-d47f653"></script>
+  <script src="/scripts/gamepad.js?v=20261023-d47f653" defer></script>
+  <script src="/scripts/tour-enter.js?v=20261023-d47f653" defer></script>
+  <script src="/scripts/ui-sound.js?v=20261023-d47f653" defer></script>
   <!-- The GIS layer: shared shell markup, styling and modules. -->
-  <link rel="stylesheet" href="/GeoID_GIS/viewer/gis/shell.css?v=20261018-a533d54">
+  <link rel="stylesheet" href="/GeoID_GIS/viewer/gis/shell.css?v=20261023-d47f653">
 </head>
 <body class="viewer-page">
   <div id="app"></div>
@@ -1220,7 +1220,7 @@
     </div>
   </div>
 
-<script src="pluto-manifest.js?v=20261018-a533d54" defer></script>
+<script src="pluto-manifest.js?v=20261023-d47f653" defer></script>
 <script>
   const statusNode = document.getElementById("status");
 
@@ -1298,8 +1298,8 @@
 
   void bootPlutoViewer();
 </script>
-<script src="ui-controls.js?v=20261018-a533d54" defer></script>
-<script src="music.js?v=20261018-a533d54" defer></script>
+<script src="ui-controls.js?v=20261023-d47f653" defer></script>
+<script src="music.js?v=20261023-d47f653" defer></script>
 
 
   <div id="portrait-advisory" role="status" aria-live="polite">
@@ -1320,8 +1320,8 @@
       });
     })();
   </script>
-<script src="/scripts/flightsim.js?v=20261018-a533d54-atmos2" defer></script>
+<script src="/scripts/flightsim.js?v=20261023-d47f653-atmos2" defer></script>
   <script>if (window.self !== window.top) document.body.classList.add("is-embedded");</script>
-  <script type="module" src="/GeoID_GIS/viewer/gis/boot.js?v=20261018-a533d54"></script>
+  <script type="module" src="/GeoID_GIS/viewer/gis/boot.js?v=20261023-d47f653"></script>
 </body>
 </html>

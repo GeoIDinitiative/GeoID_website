@@ -273,5 +273,28 @@ await (async () => {
   check("toBytes reads a foreign-realm-shaped buffer by tag, never instanceof", [...(await store.toBytes({ arrayBuffer: async () => raw.buffer.slice(0, 2) }))].join() === "1,2");
 })();
 
+// ── A project's Social link, and reading a project without opening it ──────
+// The GeoHUB Social link (`social: {project_id, version, role, linked_at}`) is
+// ordinary metadata: written by updateMetadata, read back by every list. The
+// list reads each row with readProjectMeta, which must NOT open the project --
+// opening announces to every listener and moves the header's project chip.
+await (async () => {
+  store.useAdapter(memoryAdapter("social-link"));
+  onWorld("earth");
+  await store.createProject("Linked");
+  const link = { project_id: "pr_abc123", version: 3, role: "editor", linked_at: "2026-10-23T10:00:00.000Z" };
+  await store.updateMetadata({ social: link });
+  await store.createProject("Other");
+  let heard = 0;
+  const off = store.onChange(() => { heard += 1; });
+  const meta = await store.readProjectMeta("earth/Linked");
+  off();
+  eq("readProjectMeta returns the stored social link", meta?.social, link);
+  check("readProjectMeta does not change the open project", store.getActive()?.dir === "earth/Other", store.getActive()?.dir);
+  check("readProjectMeta announces nothing", heard === 0, String(heard));
+  const bare = await store.readProjectMeta("earth/Nowhere");
+  check("a folder without metadata reads as defaults, not an error", bare?.name === "Nowhere" && !bare.social);
+})();
+
 console.log(`\n${failures ? `${failures} failed` : "all passed"}`);
 process.on("exit", () => { process.exitCode = failures ? 1 : 0; });

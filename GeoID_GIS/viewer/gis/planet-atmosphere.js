@@ -33,7 +33,7 @@
  */
 
 import * as THREE from "/GeoID_GIS/viewer/vendor/three.module.js";
-import { currentBodyId } from "./bodies.js?v=20261018-a533d54";
+import { currentBodyId } from "./bodies.js?v=20261023-d47f653";
 
 const PROFILES = {
   mercury: null,

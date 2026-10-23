@@ -20,6 +20,11 @@
 /scripts/*
   Cache-Control: public, max-age=0, must-revalidate
 
+# GeoHUB Social's modules import each other unstamped, so they revalidate
+# too; the coastline under social/assets is small and changes only on a bake.
+/social/*
+  Cache-Control: public, max-age=0, must-revalidate
+
 # The service worker must never be cached, or a released fix cannot reach the
 # browsers holding the previous one.
 /sw.js

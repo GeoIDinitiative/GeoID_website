@@ -1,12 +1,12 @@
-import { registerPage } from "../stages.js?v=20261018-a533d54";
-import * as store from "../project-store.js?v=20261018-a533d54";
-import * as bridge from "../bridge.js?v=20261018-a533d54";
-import { currentBody, currentBodyId } from "../../bodies.js?v=20261018-a533d54";
+import { registerPage } from "../stages.js?v=20261023-d47f653";
+import * as store from "../project-store.js?v=20261023-d47f653";
+import * as bridge from "../bridge.js?v=20261023-d47f653";
+import { currentBody, currentBodyId } from "../../bodies.js?v=20261023-d47f653";
 import {
   el, card, field, input, textarea, selectOf, button, row, statusLine,
   pageHeader, splitPanes, tabbedPanel, editorCard, editorHero, fieldGrid,
   slider, editTable,
-} from "./common.js?v=20261018-a533d54";
+} from "./common.js?v=20261023-d47f653";
 
 /**
  * Projects, laid out as `GeoIDProjectsPage` lays it out (app_qt.py:4570):
@@ -111,6 +111,8 @@ async function mount(host, ctx) {
         if (store.getActive()?.dir === dir) {
           line.appendChild(el("span", "research-list-tag", "open"));
         }
+        // On GeoHUB Social? Read from the project's own metadata, without opening it.
+        void window.GeoIDSocial?.decorateProjectRow?.(line, dir);
         line.addEventListener("click", async () => {
           selected = dir;
           try {
@@ -224,10 +226,23 @@ async function mount(host, ctx) {
     return wrap;
   }
 
+  /**
+   * GeoHUB Social, for the open project and for what others share: publish,
+   * push a version, update from Social, and "Shared with me". The block is
+   * social-bridge.js's -- the Project dialog shows the same one -- so this tab
+   * only gives it room. Not a Qt tab: the desktop app has no network to link to.
+   */
+  function workspaceSocial() {
+    const panel = window.GeoIDSocial?.projectSocialPanel?.();
+    if (panel) return panel;
+    return el("p", "research-note", "GeoHUB Social is not loaded on this page.");
+  }
+
   const workspace = tabbedPanel("Workspace", {
     Projects: workspaceProjects,
     "Command Center": workspaceCommandCentre,
     Activity: workspaceActivity,
+    Social: workspaceSocial,
   });
 
   // ── Right: Project Editor ─────────────────────────────────────────────────

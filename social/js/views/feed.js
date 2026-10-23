@@ -1,0 +1,99 @@
+/** #/ — the feed, with tabs and filter chips; #/search — search results. */
+import * as api from "../api.js";
+import { store } from "../store.js";
+import { h, clear, field, input, select, put } from "../dom.js";
+import { KINDS, postCard, pagedList, userRow, kindLabel, followButton } from "../components.js";
+
+const TABS = [
+  ["following", "Following", "Posts from people, projects, tags, places and communities you follow."],
+  ["discover", "Discover", "Recent public work, weighted by comments, forks and reactions — not by follower counts."],
+  ["world", "Around the world", "Posts that carry a location."],
+  ["research", "Research & methods", "Analyses, workflows, datasets, papers and monitors."],
+  ["opportunities", "Opportunities", "Jobs, grants, events and challenges."],
+];
+
+export function render(root, { query }) {
+  const signedIn = !!store.me;
+  const tab = TABS.some(([id]) => id === query.tab) ? query.tab : (signedIn ? "following" : "discover");
+  const kind = KINDS[query.kind] ? query.kind : "";
+  const tag = String(query.tag || "").replace(/[^a-z0-9-]/gi, "").toLowerCase();
+
+  const link = (changes) => {
+    const q = new URLSearchParams({ tab, ...(kind ? { kind } : {}), ...(tag ? { tag } : {}), ...changes });
+    for (const [k, v] of [...q.entries()]) if (!v) q.delete(k);
+    return `#/?${q.toString()}`;
+  };
+
+  const tabs = h("nav", { class: "s-tabs", "aria-label": "Feed" },
+    TABS.map(([id, label]) => h("a", { href: link({ tab: id }), class: id === tab ? "is-active" : "",
+      "aria-current": id === tab ? "page" : null }, label)));
+  const blurb = h("p", { class: "s-muted s-tab-blurb", text: TABS.find(([id]) => id === tab)[2] });
+
+  const chips = h("div", { class: "s-chips", role: "group", "aria-label": "Filter by kind" },
+    h("a", { href: link({ kind: "" }), class: `s-chip${kind ? "" : " is-on"}`, "aria-current": kind ? null : "true" }, "All kinds"),
+    Object.keys(KINDS).map((k) => h("a", { href: link({ kind: k }), class: `s-chip${k === kind ? " is-on" : ""}`,
+      "aria-current": k === kind ? "true" : null }, kindLabel(k))));
+
+  const tagBar = tag ? h("div", { class: "s-filter-on" },
+    h("span", {}, "Tag: ", h("strong", {}, `#${tag}`)),
+    followButton("tag", tag, false, "tag"),
+    h("a", { href: link({ tag: "" }), class: "btn-ghost s-btn-sm" }, "Clear tag")) : null;
+
+  let body;
+  if (tab === "following" && !signedIn) {
+    body = h("div", { class: "s-empty" },
+      h("p", { class: "s-empty-title", text: "Sign in to see who you follow." }),
+      h("p", { class: "s-muted", text: "Public posts are open to everyone under Discover." }),
+      h("a", { class: "btn-ghost", href: link({ tab: "discover" }) }, "Browse Discover"));
+  } else {
+    body = pagedList(
+      (cursor) => api.get("/v1/feed", { tab, kind, tag, cursor }),
+      postCard,
+      {
+        emptyTitle: tab === "following" ? "Nothing from the people and topics you follow yet." : "No posts match.",
+        emptyDetail: tab === "following" ? "Follow people, tags, places or communities, or look under Discover." : "Try another kind or clear the tag filter.",
+      });
+  }
+
+  const trending = h("aside", { class: "s-side", "aria-label": "Trending tags" });
+  api.get("/v1/tags/trending").then((data) => {
+    const list = Array.isArray(data) ? data : data?.items || [];
+    if (!list.length) return;
+    put(trending, h("h2", { class: "s-side-title", text: "Tags this fortnight" }),
+      h("ul", { class: "s-tags s-tags-col" }, list.slice(0, 20).map((t) =>
+        h("li", {}, h("a", { href: link({ tag: t.tag }) }, `#${t.tag}`), h("span", { class: "s-muted" }, ` ${t.count}`)))));
+  }).catch(() => {});
+
+  put(clear(root),
+    h("div", { class: "s-grid-main" },
+      h("section", { "aria-label": "Feed" }, h("h1", { class: "s-h1", text: "Feed" }), tabs, blurb, chips, tagBar, body),
+      trending));
+}
+
+export function renderSearch(root, { query }) {
+  const q = String(query.q || "");
+  const type = ["posts", "people", "communities", "projects", "tags"].includes(query.type) ? query.type : "posts";
+  const box = input("q", { value: q, type: "search", minlength: 2, required: true });
+  const kind = select("type", [["posts", "Posts"], ["people", "People"], ["communities", "Communities"], ["projects", "Projects"], ["tags", "Tags"]], type);
+  const form = h("form", { class: "s-inline-form", role: "search" }, field("Search", box), field("In", kind),
+    h("button", { type: "submit", class: "btn-primary" }, "Search"));
+  form.addEventListener("submit", (e) => {
+    e.preventDefault();
+    location.hash = `#/search?q=${encodeURIComponent(box.value)}&type=${kind.value}`;
+  });
+  const results = h("div");
+  if (q.length >= 2) {
+    const renderItem = (it) => {
+      if (type === "people") return h("ul", { class: "s-rows" }, userRow(it));
+      if (type === "communities") return h("a", { class: "s-card s-link-card", href: `#/c/${encodeURIComponent(it.slug)}` }, h("strong", {}, it.name), h("span", { class: "s-muted" }, ` ${it.member_count || 0} members`));
+      if (type === "projects") return h("a", { class: "s-card s-link-card", href: `#/p/${encodeURIComponent(it.id)}` }, h("strong", {}, it.title), h("span", { class: "s-muted" }, ` ${it.stage || ""}`));
+      if (type === "tags") return h("a", { class: "s-chip", href: `#/?tab=discover&tag=${encodeURIComponent(it.tag)}` }, `#${it.tag} (${it.count})`);
+      return postCard(it);
+    };
+    put(results, pagedList((cursor) => api.get("/v1/search", { q, type, cursor }), renderItem,
+      { emptyTitle: `Nothing found for “${q}”.`, emptyDetail: "Search matches titles, names and tags you can see." }));
+  } else if (q) {
+    put(results, h("p", { class: "s-muted", text: "Type at least two characters." }));
+  }
+  put(clear(root), h("h1", { class: "s-h1", text: "Search" }), form, results);
+}

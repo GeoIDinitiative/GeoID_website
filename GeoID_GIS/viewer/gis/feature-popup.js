@@ -20,24 +20,24 @@
  * the same order the eye reads, so the answer is the polygon you clicked.
  */
 
-import { pointInPolygon, boundsOf, haversineMetres } from "./geometry.js?v=20261018-a533d54";
-import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20261018-a533d54";
+import { pointInPolygon, boundsOf, haversineMetres } from "./geometry.js?v=20261023-d47f653";
+import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20261023-d47f653";
 import {
   attachReliefAttributes, followRelief, markerRingTexture,
-} from "./vector-render.js?v=20261018-a533d54";
-import { rockClass, crustalSetting, rockClassLabel } from "./rock-class.js?v=20261018-a533d54";
-import { lithologyLabel } from "./lithology-label.js?v=20261018-a533d54";
-import { isIceFeature, iceCard } from "./ice-card.js?v=20261018-a533d54";
-import { isSoilFeature, soilCard } from "./soil-card.js?v=20261018-a533d54";
-import { waterCard, WATER_SAID } from "./water-card.js?v=20261018-a533d54";
-import { isRiskFeature, riskCard } from "./cyclone-risk-card.js?v=20261018-a533d54";
-import { isVolcanicRiskFeature, volcanicRiskCard } from "./volcanic-risk-card.js?v=20261018-a533d54";
-import { isSeismicRiskFeature, seismicRiskCard } from "./seismic-risk-card.js?v=20261018-a533d54";
-import { isEarthquakeFeature, earthquakeCard } from "./earthquake-card.js?v=20261018-a533d54";
-import { isZoneFeature, zoneCard } from "./volcanic-zone-card.js?v=20261018-a533d54";
+} from "./vector-render.js?v=20261023-d47f653";
+import { rockClass, crustalSetting, rockClassLabel } from "./rock-class.js?v=20261023-d47f653";
+import { lithologyLabel } from "./lithology-label.js?v=20261023-d47f653";
+import { isIceFeature, iceCard } from "./ice-card.js?v=20261023-d47f653";
+import { isSoilFeature, soilCard } from "./soil-card.js?v=20261023-d47f653";
+import { waterCard, WATER_SAID } from "./water-card.js?v=20261023-d47f653";
+import { isRiskFeature, riskCard } from "./cyclone-risk-card.js?v=20261023-d47f653";
+import { isVolcanicRiskFeature, volcanicRiskCard } from "./volcanic-risk-card.js?v=20261023-d47f653";
+import { isSeismicRiskFeature, seismicRiskCard } from "./seismic-risk-card.js?v=20261023-d47f653";
+import { isEarthquakeFeature, earthquakeCard } from "./earthquake-card.js?v=20261023-d47f653";
+import { isZoneFeature, zoneCard } from "./volcanic-zone-card.js?v=20261023-d47f653";
 import {
   canEditRow, editableFields, applyRowChange,
-} from "./table-editor.js?v=20261018-a533d54";
+} from "./table-editor.js?v=20261023-d47f653";
 
 /* A line has no interior, so it is picked by proximity. Scaled to the view:
    8 px worth of ground at the current altitude, floored so a click at orbital
@@ -1243,6 +1243,20 @@ function showStack(x, y, hits, at) {
    * says the same thing with the hand-written description. One card; the gold
    * outline says which shape answered, and goes when that card closes.
    */
+  /**
+   * A LAYER THAT DRAWS ITS OWN CARD answers with it, in this popup's frame.
+   *
+   * The GeoHUB Social community layer is the case: what a click on a post
+   * owes the reader is its title, where it came from, who posted it and a way
+   * to the discussion -- not the attribute table, and not the viewer's place
+   * card, which would present a stranger's post in the voice of the atlas.
+   * The layer hands over a node; placement, closing and ownership stay here.
+   */
+  const own = top.layer?.cardFor?.(top.feature);
+  if (own) {
+    showOwnCard(x, y, own, top.layer);
+    return;
+  }
   const named = top.layer?.sceneItemFor?.(top.feature);
   if (named && window.GeoIDViewer?.openSceneFeature?.(named)) {
     hidePopup({ keepOutline: true });
@@ -1280,6 +1294,40 @@ function showStack(x, y, hits, at) {
   // nothing, and it is the only reason this fallback exists.
   showPopup(x, y, top.layer.name || "Layer", top.feature, top.layer);
   if (at) void showOutline(top.feature, { layer: top.layer });
+}
+
+/**
+ * A card a layer built itself, beside the click and inside the map -- the
+ * same clamp `showPopup` keeps, without the attribute rows it does not have.
+ */
+function showOwnCard(x, y, node, layerRecord) {
+  const outer = ensurePopup();
+  outer.innerHTML = "";
+  const close = document.createElement("button");
+  close.type = "button";
+  close.className = "gis-fp-close";
+  close.textContent = "✕";
+  close.setAttribute("aria-label", "Close");
+  close.addEventListener("click", hidePopup);
+  const head = document.createElement("div");
+  head.className = "gis-fp-head";
+  head.appendChild(close);
+  const host = document.createElement("div");
+  host.className = "gis-fp-scroll";
+  host.append(head, node);
+  outer.appendChild(host);
+  outer.hidden = false;
+  window.GeoIDCardOwner?.own?.("feature", layerRecord, () => hidePopup());
+  const MARGIN = 8;
+  const rect = window.GeoIDViewer?.renderer?.domElement?.getBoundingClientRect?.();
+  const area = rect && rect.width > 0 && rect.height > 0
+    ? rect
+    : { left: 0, top: 0, right: window.innerWidth, bottom: window.innerHeight };
+  const box = outer.getBoundingClientRect();
+  outer.style.left = `${Math.max(area.left + MARGIN, Math.min(x + 14, area.right - box.width - MARGIN))}px`;
+  outer.style.top = `${Math.max(area.top + MARGIN, Math.min(y + 12, area.bottom - box.height - MARGIN))}px`;
+  outer.dataset.tail = "left";
+  outer.style.setProperty("--tail-y", "12px");
 }
 
 /** Area of a polygon feature in km2, or 0 for anything else. */

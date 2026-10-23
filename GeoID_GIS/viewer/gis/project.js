@@ -1,8 +1,8 @@
-import * as store from "./research/project-store.js?v=20261018-a533d54";
-import { currentBodyId, currentBody } from "./bodies.js?v=20261018-a533d54";
-import { ready as shellReady } from "./shell.js?v=20261018-a533d54";
-import { may, refusal } from "./membership.js?v=20261018-a533d54";
-import { lockCard, lockMark } from "./feature-locks.js?v=20261018-a533d54";
+import * as store from "./research/project-store.js?v=20261023-d47f653";
+import { currentBodyId, currentBody } from "./bodies.js?v=20261023-d47f653";
+import { ready as shellReady } from "./shell.js?v=20261023-d47f653";
+import { may, refusal } from "./membership.js?v=20261023-d47f653";
+import { lockCard, lockMark } from "./feature-locks.js?v=20261023-d47f653";
 
 /**
  * The folder button in the sidebar header.
@@ -145,7 +145,19 @@ async function render() {
   }
   body.appendChild(folder);
 
-  if (!root) return;
+  /**
+   * GeoHUB Social lives here, beside the folder it is the public counterpart
+   * of: "keep this" and "show this". Share (what, and to which feed, team,
+   * community or project), the open project's link -- publish, push, update
+   * -- and "Shared with me". Built by social-bridge.js, which owns all of it;
+   * absent when that module is not on the page. Not behind the save gate --
+   * posting is Social's, and Social asks for its own sign-in.
+   */
+  const social = window.GeoIDSocial?.projectBlock?.(active) || null;
+  if (!root) {
+    if (social) body.appendChild(social);
+    return;
+  }
 
   // New project.
   const world = currentBody();
@@ -216,6 +228,8 @@ async function render() {
     // The world is only worth showing when the list spans more than one.
     if (showAllWorlds && home) row.appendChild(el("span", "research-list-tag", home));
     if (active?.dir === dir) row.appendChild(el("span", "research-list-tag", "open"));
+    // Which of these are on GeoHUB Social, read from each one's own metadata.
+    void window.GeoIDSocial?.decorateProjectRow?.(row, dir);
     row.addEventListener("click", async () => {
       try {
         await store.openProject(dir);
@@ -243,6 +257,7 @@ async function render() {
   });
   more.appendChild(go);
   body.appendChild(more);
+  if (social) body.appendChild(social);
 
   const statusLine = el("p", "research-status");
   statusLine.id = "project-status";

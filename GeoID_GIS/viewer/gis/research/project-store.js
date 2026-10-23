@@ -1,7 +1,7 @@
-import { directoryAdapter, memoryAdapter, indexedDbAdapter } from "./fs-adapter.js?v=20261018-a533d54";
-import { currentBodyId, getBody } from "../bodies.js?v=20261018-a533d54";
-import { saveRootHandle, loadRootHandle, clearRootHandle } from "./handles.js?v=20261018-a533d54";
-import { may, refusal } from "../membership.js?v=20261018-a533d54";
+import { directoryAdapter, memoryAdapter, indexedDbAdapter } from "./fs-adapter.js?v=20261023-d47f653";
+import { currentBodyId, getBody } from "../bodies.js?v=20261023-d47f653";
+import { saveRootHandle, loadRootHandle, clearRootHandle } from "./handles.js?v=20261023-d47f653";
+import { may, refusal } from "../membership.js?v=20261023-d47f653";
 
 /**
  * Projects, on disk, in the layout the Qt Research app uses.
@@ -392,6 +392,26 @@ export async function createProject(name, overrides = {}) {
   rememberProject(dir);
   announce();
   return active;
+}
+
+/**
+ * Any project's metadata, read without opening it.
+ *
+ * A list that says something about each row -- which ones are on GeoHUB
+ * Social, say -- needs every row's metadata, and opening each would make each
+ * the active project in turn and announce it to every listener. Read-only and
+ * forgiving: a folder without metadata is a project with defaults.
+ */
+export async function readProjectMeta(dir) {
+  if (!rootAdapter || !dir) return null;
+  let payload = null;
+  try {
+    payload = JSON.parse(await rootAdapter.readFile(`${dir}/${METADATA_PATH}`));
+  } catch (error) {
+    payload = null;
+  }
+  const parts = String(dir).split("/").filter(Boolean);
+  return mergeMetadata(parts[parts.length - 1], payload, bodyOfDir(dir));
 }
 
 export async function openProject(dir) {

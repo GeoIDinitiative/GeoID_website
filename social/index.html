@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; script-src 'self' https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https: http://localhost:8790 http://127.0.0.1:8790; media-src 'self' data: blob: https://data.geoidinitiative.com; connect-src 'self' https://social.geoidinitiative.com https://auth.geoidinitiative.com https://cloudflareinsights.com http://localhost:8790 http://127.0.0.1:8790; frame-src 'self'; form-action 'self'; upgrade-insecure-requests">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="description" content="GeoHUB Social: the professional network for Earth and planetary science. Share 3D scenes, analyses, field observations, datasets and papers; ask and answer; review drafts; share workspaces with your team.">
+  <title>GeoHUB Social — GeoID Initiative</title>
+  <!-- The membership service (sign-in) and the Social API. The page asks the
+       first for a short-lived token and sends it to the second; see
+       social/js/api.js. connect-src names both, and localhost:8790 for a
+       `wrangler dev` of the Social Worker (only honoured on a localhost page). -->
+  <meta name="geoid-auth" content="https://auth.geoidinitiative.com">
+  <meta name="geoid-social" content="https://social.geoidinitiative.com">
+  <link rel="canonical" href="https://geoidinitiative.com/social/">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="GeoID Initiative">
+  <meta property="og:url" content="https://geoidinitiative.com/social/">
+  <meta property="og:title" content="GeoHUB Social — GeoID Initiative">
+  <meta property="og:description" content="The professional network for Earth and planetary science, built around GeoHUB.">
+  <meta property="og:image" content="https://geoidinitiative.com/assets/og_geoid.jpg">
+  <meta name="twitter:card" content="summary">
+  <link rel="icon" type="image/png" href="/assets/GeoID_mark.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="/styles/shared.css?v=20261023-d47f653">
+  <link rel="stylesheet" href="/styles/v2-site.css?v=20261023-d47f653">
+  <script src="/scripts/v2-site.js?v=20261023-d47f653" defer></script>
+  <link rel="stylesheet" href="/styles/skins/synthwave.css">
+  <link rel="stylesheet" href="/styles/site-nav.css?v=20261023-d47f653">
+  <link rel="stylesheet" href="/social/social.css?v=20261023-d47f653">
+  <link rel="stylesheet" href="/styles/site-unify.css?v=20261023-d47f653">
+</head>
+<body>
+  <a class="s-skip" href="#social-main">Skip to content</a>
+  <nav class="site-nav" role="navigation" aria-label="Primary navigation">
+    <a class="nav-wordmark" href="/" aria-label="GeoID Initiative Home">
+      <img class="nav-brand-icon" src="/assets/GeoID_logo_icon.png" alt="">
+    </a>
+    <ul class="nav-links">
+      <li><a href="/dashboard/">Dashboard</a></li>      <li class="nav-dropdown">
+        <a class="nav-dropdown-toggle" href="/about/">About</a>
+        <div class="nav-dropdown-menu" aria-label="About pages">
+          <a href="/about/">Overview</a>
+          <a href="/about_geohub/">GeoHUB</a>
+          <a href="/team/">Our Team</a>
+          <a href="/get-involved/">Get Involved</a>
+          <a href="/updates/">Journal</a>
+        </div>
+      </li>
+      <li><a href="/"><span class="geohub-word"><span class="geohub-prefix">Geo</span>HUB</span></a></li>
+      <li><a href="/social/" class="active" aria-current="page">Social</a></li>
+
+      <li><a href="/contact/">Contact</a></li>
+    </ul>
+    <div class="nav-right-logo">
+      <a class="nav-act nav-act-signin" id="nav-membership" href="/sign-in/">Sign in</a>
+      <a class="nav-act nav-act-donate" href="https://buy.stripe.com/dRm3cv1Op4903zb858bV600" target="_blank" rel="noopener noreferrer">Donate</a>
+    </div>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-label="Open navigation menu">☰</button>
+  </nav>
+  <div class="page-wrap">
+    <div id="social-app" class="s-app">
+      <noscript><p class="s-noscript">GeoHUB Social needs JavaScript.</p></noscript>
+    </div>
+
+      <footer class="site-footer">
+        <div class="footer-inner">
+          <div class="footer-content">
+            <div class="footer-brand">
+              <div class="footer-brand-logo">
+                <img src="/assets/GeoID_logo_icon.png" alt="GeoID Logo" loading="lazy" decoding="async">
+              </div>
+              <p>A free hazard GIS on a 3D globe, six modelled hazard maps for members, and the methods behind them published in the open.</p>
+            </div>
+            <div class="footer-section">              <h4>Navigation</h4>
+              <ul>
+                <li><a href="/about/">Overview</a></li>
+                <li><a href="/">GeoHUB</a></li>
+                <li><a href="/dashboard/">Dashboard</a></li>
+                <li><a href="/social/">GeoHUB Social</a></li>
+                <li><a href="/about_geohub/#worlds">Ten Worlds</a></li>
+                <li><a href="/membership/">Membership</a></li>
+                <li><a href="/get-involved/">Get Involved</a></li>
+                <li><a href="/team/">Our Team</a></li>
+                <li><a href="/contact/">Contact</a></li>
+              </ul>
+            </div>
+            <div class="footer-section">
+              <h4>Resources</h4>
+              <ul>
+                <li><a href="https://www.copernicus.eu/" target="_blank" rel="noopener">Copernicus Programme</a></li>
+                <li><a href="https://earthdata.nasa.gov/" target="_blank" rel="noopener">NASA Earth Data</a></li>
+                <li><a href="https://www.emc.ncep.noaa.gov/emc/pages/numerical_forecast_systems/gfs.php" target="_blank" rel="noopener">GFS NOAA API</a></li>
+              </ul>
+            </div>
+            <div class="footer-section">
+              <h4>Legal</h4>
+              <ul>
+                <li><a href="/privacy/">Privacy Policy</a></li>
+                <li><a href="/terms/">Terms of Service</a></li>
+                <li><a href="/disclaimer/">Disclaimer</a></li>
+                <li><a href="/refund/">Billing &amp; Refunds</a></li>
+              </ul>
+            </div>
+          </div>
+          <div class="footer-bottom">
+            <p>&copy; 2026 GeoID Initiative. Led by Owen McCluskey. All rights reserved.</p>
+            <div class="footer-social-links">
+              <a href="mailto:geoid.initiative@gmail.com" class="footer-social-link" aria-label="Email">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+                  <polyline points="22,6 12,13 2,6"></polyline>
+                </svg>
+              </a>
+            </div>
+          </div>
+        </div>
+      </footer>
+  </div>
+
+  <script type="module" src="/scripts/nav-membership.js?v=20261023-d47f653"></script>
+  <script type="module" src="/social/js/app.js?v=20261023-d47f653"></script>
+  <script src="/scripts/site.js?v=20261023-d47f653"></script>
+</body>
+</html>

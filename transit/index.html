@@ -20,11 +20,20 @@
       var WORLDS = ["mercury", "venus", "moon", "mars", "jupiter", "saturn", "uranus", "neptune", "pluto"];
       var dest = "";
       try { dest = (new URLSearchParams(window.location.search).get("destination") || "mars").toLowerCase(); } catch (_e) {}
-      window.location.replace(WORLDS.indexOf(dest) === -1 ? "/" : "/?world=" + dest);
+      // A shared post or project (GeoHUB Social) goes back into the shell with it.
+      var carry = "";
+      try {
+        var q = new URLSearchParams(window.location.search);
+        ["post", "project"].forEach(function (key) {
+          var value = q.get(key);
+          if (value && /^[A-Za-z0-9_-]{1,64}$/.test(value)) carry += "&" + key + "=" + encodeURIComponent(value);
+        });
+      } catch (_e) {}
+      window.location.replace(WORLDS.indexOf(dest) === -1 ? (carry ? "/?" + carry.slice(1) : "/") : "/?world=" + dest + carry);
     })();
   </script>
   <meta charset="UTF-8">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; script-src 'self' https://static.cloudflareinsights.com 'sha256-gqZervCh0LjknXcRuRgppk1ee0wxzaJQKYND0hWU29k=' 'sha256-mCa+aejnqy2lJtGbyV+8EuPw4LmtBwRuKsLHKE8/OiM=' 'sha256-rDdYEm63cRodo0Pct49R3DJzYsrko6oYkWHIvG0U4Wc='; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https: http://localhost:* http://127.0.0.1:*; media-src 'self' data: blob: https:; connect-src 'self' data: blob: https: http://localhost:* http://127.0.0.1:*; frame-src 'self' blob: https://docs.google.com https://drive.google.com; form-action 'self' https://formspree.io https://buy.stripe.com https://docs.google.com; worker-src 'self' blob:; child-src 'self' blob:; upgrade-insecure-requests">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; script-src 'self' https://static.cloudflareinsights.com 'sha256-3iFaCEEv3eVIbX1pHy33eGEDLRMexOW7oS2VGe8rlpc=' 'sha256-4SL+MAoz1tZ1g5kAYD1QZd82cF6EqQKvJZ+xaS/1mok=' 'sha256-rDdYEm63cRodo0Pct49R3DJzYsrko6oYkWHIvG0U4Wc='; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https: http://localhost:* http://127.0.0.1:*; media-src 'self' data: blob: https:; connect-src 'self' data: blob: https: http://localhost:* http://127.0.0.1:*; frame-src 'self' blob: https://docs.google.com https://drive.google.com; form-action 'self' https://formspree.io https://buy.stripe.com https://docs.google.com; worker-src 'self' blob:; child-src 'self' blob:; upgrade-insecure-requests">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>GeoID: Explorer | Transit</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -148,8 +157,8 @@
 
   <p id="tx-sr" class="tx-sr" aria-live="polite"></p>
 
-  <script src="transit-render.js?v=20261018-a533d54"></script>
-  <script src="transit-sequence.js?v=20261018-a533d54"></script>
+  <script src="transit-render.js?v=20261023-d47f653"></script>
+  <script src="transit-sequence.js?v=20261023-d47f653"></script>
   <script>
     const destinations = {
       mercury: {
@@ -261,7 +270,18 @@
         }
       });
     })();
-    const targetUrl = dest.target + (dest.target.includes("?") ? "&" : "?") + "transit=1";
+    /**
+     * THE SHELL'S SHARED-THING PARAMETERS GO THROUGH TO THE VIEWER. The shell
+     * hands `?post=` / `?project=` (GeoHUB Social) to this page because this
+     * page is what it frames; the viewer that reads them is one frame further
+     * in. Same alphabet check as the shell's, so nothing else is carried.
+     */
+    const carried = ["post", "project"]
+      .map((key) => [key, params.get(key)])
+      .filter(([, value]) => value && /^[A-Za-z0-9_-]{1,64}$/.test(value))
+      .map(([key, value]) => `&${key}=${encodeURIComponent(value)}`)
+      .join("");
+    const targetUrl = dest.target + (dest.target.includes("?") ? "&" : "?") + "transit=1" + carried;
 
     // Start preloading the viewer — but NOT while the rotate advisory is up.
     //

@@ -394,6 +394,44 @@ async function sessionChecks() {
   check("the pass says nothing about who anybody is",
     !!passClaims && !("email" in passClaims) && !("sub" in passClaims));
 
+  // The social pass DOES carry who somebody is -- the social Worker keys
+  // accounts by address -- so what is pinned is its audience (it opens
+  // nothing here), its hour, and that the plan is the one read NOW.
+  const social = await worker.fetch(new Request(
+    "https://auth.example.org/auth/social-token",
+    { method: "POST", headers: { Cookie: `geoid_session=${token}`, Origin: "https://example.org" } }), env);
+  const socialBody = await social.json();
+  const socialClaims = await verify(socialBody.token, SECRET, { audience: "social" });
+  check("/auth/social-token mints an audience-social pass from the cookie",
+    social.status === 200 && socialClaims?.email === "mem@example.org"
+      && socialClaims.name === "A Member" && socialClaims.member === true
+      && socialClaims.plan === "member", JSON.stringify(socialClaims).slice(0, 120));
+  check("...for an hour, and says when",
+    !!socialClaims && socialClaims.exp - socialClaims.iat === 3600
+      && socialBody.expires === socialClaims.exp);
+  check("...with credentialed CORS for the site's own origin",
+    social.headers.get("access-control-allow-origin") === "https://example.org"
+      && social.headers.get("access-control-allow-credentials") === "true");
+  check("the social pass is not a session here",
+    (await verify(socialBody.token, SECRET, { audience: "site" })) === null);
+  const socialBare = await worker.fetch(new Request(
+    "https://auth.example.org/auth/social-token", { method: "POST" }), env);
+  const socialBareBody = await socialBare.json();
+  check("signed out, no social pass: 401 with a sentence",
+    socialBare.status === 401 && typeof socialBareBody.error === "string" && !socialBareBody.token);
+  const lapsedToken = await sign({
+    sub: "gone@example.org", email: "gone@example.org", name: "Lapsed",
+    member: true, plan: "member", aud: "site", iat: now, exp: now + 3600,
+  }, SECRET);
+  const lapsed = await worker.fetch(new Request(
+    "https://auth.example.org/auth/social-token",
+    { method: "POST", headers: { Cookie: `geoid_session=${lapsedToken}` } }), env);
+  const lapsedClaims = await verify((await lapsed.json()).token, SECRET, { audience: "social" });
+  check("an explorer gets a pass too, with the plan re-read rather than copied",
+    lapsed.status === 200 && lapsedClaims?.member === false && lapsedClaims.plan === "explorer");
+  const socialGet = await withCookie("/auth/social-token", "GET");
+  check("the social pass is POST only", socialGet.status === 405);
+
   const bare = await worker.fetch(new Request(
     "https://auth.example.org/auth/data-token", { method: "POST" }), env);
   check("no cookie, no pass", bare.status === 403);

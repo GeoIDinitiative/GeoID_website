@@ -96,8 +96,13 @@ BASE = [
     "font-src 'self' data: https://fonts.gstatic.com",
     "img-src 'self' data: blob: https:",
     "media-src 'self' data: blob: https://data.geoidinitiative.com",
+    # GeoHUB Social (GeoID_GIS/services/social-worker) is named for the site
+    # pages: the account and membership pages read it beside the auth
+    # service. The APP pages reach it already through their broad `https:`
+    # below, where every viewer's fetches are allowed for the reason given.
     "connect-src 'self' https://data.geoidinitiative.com "
-    "https://auth.geoidinitiative.com https://formspree.io " + CF_RUM,
+    "https://auth.geoidinitiative.com https://social.geoidinitiative.com "
+    "https://formspree.io " + CF_RUM,
     "frame-src 'self' https://docs.google.com",
     "form-action 'self' https://formspree.io https://buy.stripe.com "
     "https://docs.google.com",

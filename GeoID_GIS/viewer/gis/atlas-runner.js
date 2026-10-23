@@ -8,7 +8,7 @@
  * words rather than failing somewhere a reader cannot see.
  */
 
-import { toolByName, checkArgs } from "./atlas-tools.js?v=20261018-a533d54";
+import { toolByName, checkArgs } from "./atlas-tools.js?v=20261023-d47f653";
 
 const STAMP = new URL(import.meta.url).search || "";
 
@@ -75,6 +75,18 @@ const RUNNERS = {
         ? `Total factor of safety at the centre of the view over the next 3 days: **${fos.toFixed(2)}**. The Workspace shield reads each risk map for the people there.`
         : "Computed. The Workspace shield reads each risk map for the people there.",
       actions: [],
+    };
+  },
+
+  async community_near(args) {
+    const S = window.GeoIDSocial;
+    if (!S?.near) return { text: "GeoHUB Social is not loaded on this page.", actions: [] };
+    const out = await S.near({ radiusKm: args.radiusKm ?? 50 });
+    return {
+      text: out.text,
+      actions: out.items.length
+        ? [["Show the Community layer", () => S.setCommunity(true)]]
+        : [],
     };
   },
 
