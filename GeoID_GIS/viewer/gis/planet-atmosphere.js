@@ -33,7 +33,7 @@
  */
 
 import * as THREE from "/GeoID_GIS/viewer/vendor/three.module.js";
-import { currentBodyId } from "./bodies.js?v=20261023-7d5503c";
+import { currentBodyId } from "./bodies.js?v=20261023-1912e0d";
 
 /*
  * dusk -- TWILIGHT at the terminator, as Earth now has (earth-viewer.js):
@@ -552,7 +552,8 @@ function startGlare() {
   sunDistanceFactors();
   let canvas = null, ctx = null, light = null, sunMesh = null;
   const v3 = () => new THREE.Vector3();
-  const sunPos = v3(), sunDir = v3(), centre = v3(), toC = v3(), proj = v3(), camDir = v3(), camUp = v3(), tmp = v3();
+  const sunPos = v3(), sunDir = v3(), toC = v3(), proj = v3(), camDir = v3(), camUp = v3(), tmp = v3();
+  const camL = v3(), sunL = v3(), inv = new THREE.Matrix4();
   const reduced = (() => { try { return window.matchMedia("(prefers-reduced-transparency: reduce)").matches; } catch { return false; } })();
   // Spikes: [angle offset in rad, length (fraction of diagonal), width px]. Alternating long/short, 16 rays.
   // Shorter and finer than a first pass, which read as a cartoon star: in the
@@ -644,16 +645,28 @@ function startGlare() {
     const facing = camDir.dot(sunDir);
     if (facing <= 0.05) return;                      // behind the camera
 
-    // The planet in the way: closest approach of the sight line to its centre.
-    globe.getWorldPosition(centre);
-    const R = (globe.geometry?.parameters?.radius || 3.2) * globe.getWorldScale(tmp).x;
-    toC.copy(centre).sub(cam.position);
-    const along = toC.dot(sunDir);
-    const ahead = along > 0 && along < sunDist;
-    const miss = ahead ? Math.sqrt(Math.max(toC.lengthSq() - along * along, 0)) : Infinity;
-    const clear = ahead ? THREE.MathUtils.smoothstep(miss, R * 0.985, R * 1.04) : 1;
-    const limb = ahead ? Math.exp(-Math.pow((miss - R * 1.008) / (R * 0.015), 2)) : 0;
-    let vis = Math.min(1.4, clear + 0.8 * limb);
+    // The planet in the way, tested against the HORIZON AS DRAWN (reported:
+    // the sun showed through the planet just inside its limb). Done in the
+    // globe's own frame, where it is a true sphere of its geometry radius --
+    // so a flattened giant is tested as drawn, not as a sphere round it --
+    // and against that radius plus the relief the displaced terrain stands
+    // up to. The sun starts to show only once its line of sight clears that
+    // horizon, and the limb flare rides on the clearing, never ahead of it.
+    globe.updateWorldMatrix(true, false);
+    inv.copy(globe.matrixWorld).invert();
+    camL.copy(cam.position).applyMatrix4(inv);
+    sunL.copy(sunPos).applyMatrix4(inv).sub(camL);
+    const sunDistL = sunL.length();
+    sunL.normalize();
+    const R0 = Number(globe.geometry?.parameters?.radius) || Number(viewer.GLOBE_RADIUS) || 3.2;
+    const reliefL = Math.max(0, Number(viewer.getEffectiveRelief?.()) || Number(globe.material?.displacementScale) || 0);
+    const Rh = R0 + reliefL * 0.6 + R0 * 0.004;
+    const alongL = -camL.dot(sunL);
+    const aheadL = alongL > 0 && alongL < sunDistL;
+    const miss = aheadL ? Math.sqrt(Math.max(camL.lengthSq() - alongL * alongL, 0)) : Infinity;
+    const clear = aheadL ? THREE.MathUtils.smoothstep(miss, Rh, Rh + R0 * 0.035) : 1;
+    const limb = aheadL ? Math.exp(-Math.pow((miss - Rh - R0 * 0.01) / (R0 * 0.012), 2)) : 0;
+    let vis = Math.min(1.4, clear * (1 + 0.8 * limb));
     // MOON-VIEWER MODE (and flight past a moon): the camera sits beside a
     // moon, and THAT body hides the sun as much as the planet does. Every lit
     // moon sphere (seenMoons, from watchMoons) is tested the same way, with
@@ -667,9 +680,10 @@ function startGlare() {
       const al = toC.dot(sunDir);
       if (!(al > 0 && al < sunDist) || mr <= 0) continue;
       const mm = Math.sqrt(Math.max(toC.lengthSq() - al * al, 0));
-      const mClear = THREE.MathUtils.smoothstep(mm, mr * 0.985, mr * 1.04);
-      const mLimb = Math.exp(-Math.pow((mm - mr * 1.008) / (mr * 0.015), 2));
-      vis = Math.min(vis, Math.min(1.4, mClear + 0.8 * mLimb));
+      // Same rule as the planet: no light until the line clears the limb.
+      const mClear = THREE.MathUtils.smoothstep(mm, mr * 1.004, mr * 1.04);
+      const mLimb = Math.exp(-Math.pow((mm - mr * 1.014) / (mr * 0.012), 2));
+      vis = Math.min(vis, Math.min(1.4, mClear * (1 + 0.8 * mLimb)));
     }
     if (vis < 0.01) return;
 

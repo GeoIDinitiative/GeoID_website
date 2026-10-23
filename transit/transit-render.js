@@ -44,6 +44,8 @@
 
   // THE ACTS, on the canonical clock. GATE is where the cruise holds.
   const REVEAL = 3.2, GATE = 6.6, APPROACH = 6.75, SHARP = 8.2, HAND = 8.9, CRUISE = 5.3;
+  // Where the chart's lock has finished pulsing: a direct leg resumes at GATE from here.
+  const LOCKED = 3.45;
 
   /** Hohmann transfer Δv (km/s) between two circular heliocentric orbits. */
   function hohmannDv(r1au, r2au) {
@@ -73,7 +75,11 @@
    */
   function planFor(config) {
     const key = config.key;
-    const isMoon = key === "moon", isIss = key === "earth", plot = !isIss;
+    // THE ISS LEG IS DIRECT (owner, 2026-10-23): coming home is a rendezvous,
+    // not a voyage -- the chart plots and locks the station's orbit, and then
+    // the clock JUMPS from the lock to the arrival: no warp, no starfield run.
+    const isMoon = key === "moon", isIss = key === "earth", plot = true;
+    const jump = isIss ? GATE - LOCKED : 0;
     const keys = flybysFor(key);
     const flybys = keys.map((k, i) => {
       const n = keys.length, at = n === 1 ? 5.6 : n <= 3 ? lerp(4.95, 6.35, i / (n - 1)) : 4.95 + 0.8 * i;
@@ -81,12 +87,15 @@
       return { key: k, at, ox: left ? -0.95 : 1.05, oy: left ? 0.28 : -0.22, big: FLY_R[k] > 0.3 };
     });
     const extra = Math.max(0, (flybys.length ? flybys[flybys.length - 1].at : 0) - 6.35);
-    const logAt = plot ? [0.2, 0.7, 1.3, 2.2, 2.95, 3.4] : [0.4];
+    const logAt = jump ? [0.2, 0.7, 1.3, 2.2, 2.95] : [0.2, 0.7, 1.3, 2.2, 2.95, 3.4];
     flybys.forEach((fb) => logAt.push(fb.at - 0.15));
-    logAt.push(7.3 + extra);
-    return { key, isMoon, isIss, plot, flybys, extra, logAt };
+    logAt.push(7.3 + extra - jump);
+    return { key, isMoon, isIss, plot, flybys, extra, logAt, jump };
   }
-  const canonFor = (extra) => (x) => x < CRUISE ? x : x < CRUISE + extra ? CRUISE : x - extra;
+  /** Real seconds -> the canonical clock. A direct leg skips LOCKED..GATE. */
+  const canonFor = (extra, jump = 0) => (jump
+    ? (x) => (x < LOCKED ? x : x + jump)
+    : (x) => (x < CRUISE ? x : x < CRUISE + extra ? CRUISE : x - extra));
 
   /** The arrival's frame style at canonical time c (applied by the page). */
   function approachAt(c) {
@@ -161,8 +170,12 @@
    */
   function createRenderer({ back, front, config, emit }) {
     const plan = planFor(config);
-    const { key, isMoon, isIss, plot, flybys, extra: EXTRA, logAt } = plan;
-    const canon = canonFor(EXTRA);
+    const { key, isMoon, isIss, plot, flybys, extra: EXTRA, logAt, jump: JUMP } = plan;
+    const canon = canonFor(EXTRA, JUMP);
+    // Real-clock times of the gate and the end: a direct leg reaches both sooner.
+    const GATE_T = GATE + EXTRA - JUMP, END_T = HAND + EXTRA - JUMP;
+    const geo = isMoon || isIss;                 // a chart about Earth, not the Sun
+    const geoKey = isMoon ? "moon" : "iss";
     const destAu = isMoon ? null : AU[key];
     const bctx = back.getContext("2d"), fctx = front.getContext("2d");
     const bitmaps = {};
@@ -178,32 +191,36 @@
     const logs = [];
     if (plot) {
       logs.push([["Reading ephemeris", DATA], ["J2000", "i"]]);
-      logs.push([["Solving transfer ", DATA], [`Earth → ${config.name}`, GOLD]]);
+      logs.push(isIss ? [["Solving rendezvous ", DATA], ["Earth orbit → ISS", GOLD]]
+        : [["Solving transfer ", DATA], [`Earth → ${config.name}`, GOLD]]);
       logs.push([["Δv budget", DATA], [`${dv.toFixed(1)} km/s`, "i"]]);
-      logs.push([["Tracing arc", DATA], [`${fmt(Math.round(config.etaDays))} days`, "i"]]);
+      logs.push(isIss ? [["Tracing orbit", DATA], ["408 km · 51.6°", "i"]]
+        : [["Tracing arc", DATA], [`${fmt(Math.round(config.etaDays))} days`, "i"]]);
       logs.push([["Target locked ", DATA], [config.name, GOLD]]);
     }
-    logs.push([["Warp engaged", DATA], ["OK", "i"]]);
+    if (!JUMP) logs.push([["Warp engaged", DATA], ["OK", "i"]]);
     flybys.forEach((fb) => logs.push([[`${cap(fb.key)} flyby`, DATA], [`${AU[fb.key]} AU`, "i"]]));
     logs.push([["Orbit insertion · handing over", DATA]]);
 
     // ── the chart, in the mock-up's units about the frame centre ──
     const SUN = { x: -240, y: 40 }, K = 0.38, TH0 = Math.PI - 0.35, RMAX = 452;
-    const orbitKeys = isMoon ? ["moon"] : Object.keys(AU).filter((k) => AU[k] <= Math.max(1, destAu || 1) + 1e-9);
-    const auMax = isMoon ? 1 : Math.max(1, destAu);
-    const radiusOf = (k) => isMoon ? (k === "moon" ? RMAX * 0.62 : 0) : RMAX * Math.sqrt(AU[k] / auMax);
-    const centre = isMoon ? { x: -120, y: 40 } : SUN;
+    const orbitKeys = geo ? [geoKey] : Object.keys(AU).filter((k) => AU[k] <= Math.max(1, destAu || 1) + 1e-9);
+    const auMax = geo ? 1 : Math.max(1, destAu);
+    // The station's orbit is drawn well out from Earth so it reads; to scale it
+    // would sit on the planet's edge.
+    const radiusOf = (k) => geo ? (k === geoKey ? RMAX * (isIss ? 0.42 : 0.62) : 0) : RMAX * Math.sqrt(AU[k] / auMax);
+    const centre = geo ? { x: -120, y: 40 } : SUN;
     const pt = (r, th) => ({ x: centre.x + r * Math.cos(th), y: centre.y + r * Math.sin(th) * K });
-    const rE = isMoon ? 0 : radiusOf("earth"), rT = isMoon ? radiusOf("moon") : radiusOf(key);
+    const rE = geo ? 0 : radiusOf("earth"), rT = geo ? radiusOf(geoKey) : radiusOf(key);
     const target = pt(rT, TH0 + Math.PI);
     const arc = (p) => {
-      if (isMoon) { const r = lerp(18, rT, ease.inOut(p)); return pt(r, TH0 + Math.PI * p); }
+      if (geo) { const r = lerp(18, rT, ease.inOut(p)); return pt(r, TH0 + Math.PI * p); }
       const a = (rE + rT) / 2, e = Math.abs(rT - rE) / (rT + rE), ph = Math.PI * p;
       const r = a * (1 - e * e) / (1 + (rT >= rE ? 1 : -1) * e * Math.cos(ph));
       return pt(r, TH0 + ph);
     };
 
-    const speed = (c) => c < REVEAL ? (plot ? 0.07 : 0.4) : c < 4.3 ? lerp(plot ? 0.07 : 0.4, 1.7, ease.in(seg(c, REVEAL, 4.3)))
+    const speed = (c) => JUMP ? 0.07 : c < REVEAL ? (plot ? 0.07 : 0.4) : c < 4.3 ? lerp(plot ? 0.07 : 0.4, 1.7, ease.in(seg(c, REVEAL, 4.3)))
       : c < 6.9 ? 1.7 : lerp(1.7, 0.02, ease.out(seg(c, 6.9, 8.0)));
 
     // ── size ──
@@ -235,7 +252,7 @@
       let next = t + dt;
       if (!revealed && canon(next) >= REVEAL) { revealed = true; emit("reveal", {}); }
       if (!released && canon(next) >= GATE) {
-        next = GATE + EXTRA;
+        next = GATE_T;
         if (!gated) { gated = true; emit("gate", {}); }
       }
       dist += speed(canon(next)) * dt * 0.55;
@@ -243,14 +260,14 @@
       draw();
       const c = canon(t);
       emit("tick", { t, c, now, approach: released ? approachAt(c) : null });
-      if (t >= HAND + EXTRA) { done = true; emit("done", {}); }
+      if (t >= END_T) { done = true; emit("done", {}); }
     }
 
     function release(f) {
       if (f > 0.02 && f < 0.6) frac = f;
       released = true;
     }
-    function skip() { if (!done && t < GATE + EXTRA - 0.2) t = GATE + EXTRA - 0.2; }
+    function skip() { if (!done && t < GATE_T - 0.2) t = GATE_T - 0.2; }
 
     // ── drawing ──
     function text(ctx, s, x, y, { font, colour, spacing = "0px", align = "left", base = "alphabetic", alpha = 1 }) {
@@ -265,26 +282,27 @@
     };
 
     function drawChart(ctx, c) {
-      const chartA = seg(c, 0.0, 0.5) * (1 - seg(c, 3.05, 3.6));
+      // A direct leg leaves the chart at the lock, so it has gone by then.
+      const chartA = seg(c, 0.0, 0.5) * (1 - (JUMP ? seg(c, 3.0, LOCKED) : seg(c, 3.05, 3.6)));
       if (!plot || chartA <= 0) return;
       ctx.save(); ctx.translate(W / 2, H / 2);
       const zoom = u * (1 + 0.25 * ease.in(seg(c, 3.05, 3.6)));
       ctx.scale(zoom, zoom); ctx.globalAlpha = chartA;
       const drawn = ease.out(seg(c, 0.05, 0.9));
       ctx.lineWidth = 1.2 / zoom;
-      if (isMoon) {
+      if (geo) {
         const g = ctx.createRadialGradient(centre.x, centre.y, 0, centre.x, centre.y, 18);
         g.addColorStop(0, "rgba(120,200,255,1)"); g.addColorStop(1, "rgba(60,140,255,0)"); ctx.fillStyle = g;
         ctx.beginPath(); ctx.arc(centre.x, centre.y, 18, 0, Math.PI * 2); ctx.fill();
       }
       for (const k of orbitKeys) {
         const r = radiusOf(k);
-        ctx.strokeStyle = k === key || (isMoon && k === "moon") ? "rgba(247,189,104,.75)" : k === "earth" ? "rgba(126,231,255,.7)" : "rgba(126,231,255,.22)";
+        ctx.strokeStyle = k === key || (geo && k === geoKey) ? "rgba(247,189,104,.75)" : k === "earth" ? "rgba(126,231,255,.7)" : "rgba(126,231,255,.22)";
         ctx.beginPath();
         for (let i = 0; i <= 180 * drawn; i += 1) { const q = pt(r, TH0 + (i / 180) * Math.PI * 2); i ? ctx.lineTo(q.x, q.y) : ctx.moveTo(q.x, q.y); }
         ctx.stroke();
       }
-      if (!isMoon) {
+      if (!geo) {
         const g = ctx.createRadialGradient(centre.x, centre.y, 0, centre.x, centre.y, 26);
         g.addColorStop(0, "rgba(255,230,170,1)"); g.addColorStop(1, "rgba(255,190,90,0)"); ctx.fillStyle = g;
         ctx.beginPath(); ctx.arc(centre.x, centre.y, 26, 0, Math.PI * 2); ctx.fill();
@@ -297,10 +315,11 @@
       const sp = arc(p); ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(sp.x, sp.y, 4, 0, Math.PI * 2); ctx.fill();
       ctx.font = "500 13px 'Exo 2', sans-serif"; ctx.textAlign = "left"; ctx.textBaseline = "alphabetic";
       ctx.fillStyle = "rgba(126,231,255,.9)";
-      const ep = isMoon ? centre : pt(rE, TH0); ctx.fillText("EARTH", ep.x - 58, ep.y + 4);
+      const ep = geo ? centre : pt(rE, TH0); ctx.fillText("EARTH", ep.x - 58, ep.y + 4);
       ctx.fillStyle = "rgba(247,189,104,.95)"; ctx.fillText(NAME, target.x + 14, target.y - 10);
       ctx.fillStyle = "rgba(255,255,255,.45)";
-      ctx.fillText(`Δv ${dv.toFixed(1)} km/s · ${fmt(Math.round(p * config.etaDays))} / ${fmt(Math.round(config.etaDays))} d`, sp.x + 12, sp.y + 22);
+      ctx.fillText(isIss ? `Δv ${dv.toFixed(1)} km/s · ${Math.round(p * 100)}% to orbit`
+        : `Δv ${dv.toFixed(1)} km/s · ${fmt(Math.round(p * config.etaDays))} / ${fmt(Math.round(config.etaDays))} d`, sp.x + 12, sp.y + 22);
       ctx.fillStyle = "rgba(247,189,104,1)"; ctx.beginPath(); ctx.arc(target.x, target.y, 5, 0, Math.PI * 2); ctx.fill();
       const close = seg(c, 2.5, 2.9), pulse = seg(c, 2.9, 3.4);
       if (close > 0 && close < 1) { ctx.strokeStyle = `rgba(247,189,104,${close})`; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(target.x, target.y, lerp(60, 10, ease.out(close)), 0, Math.PI * 2); ctx.stroke(); }
@@ -442,9 +461,9 @@
         ctx.restore();
       }
       // the line under it
-      let line = plot ? `${isMoon ? "Translunar injection" : "Hohmann transfer"} · ${Math.round(ease.inOut(seg(c, 0.7, 2.9)) * 100)}%` : "orbit 408 km";
-      if (plot && c > 2.9) line = "target locked";
-      if (c > REVEAL) line = "engaging warp";
+      let line = `${isMoon ? "Translunar injection" : isIss ? "Rendezvous" : "Hohmann transfer"} · ${Math.round(ease.inOut(seg(c, 0.7, 2.9)) * 100)}%`;
+      if (c > 2.9) line = "target locked";
+      if (c > REVEAL) line = JUMP ? "target locked" : "engaging warp";
       if (c > 3.9 && !isIss) line = "departing Earth";
       for (const fb of flybys) if (t > fb.at - 0.9) line = `passing ${cap(fb.key)}`;
       const sys = `${config.name} ${isMoon || isIss ? "approach" : "system"}`;
@@ -475,7 +494,7 @@
       ctx.globalAlpha = hudA;
       ctx.fillStyle = "rgba(255,255,255,.08)"; ctx.fillRect(0, H - 4, W, 4);
       ctx.fillStyle = DATA; ctx.shadowColor = DATA; ctx.shadowBlur = 12;
-      ctx.fillRect(0, H - 4, W * clamp(t / (HAND + EXTRA)), 4);
+      ctx.fillRect(0, H - 4, W * clamp(t / END_T), 4);
       ctx.shadowBlur = 0; ctx.globalAlpha = 1;
     }
 
@@ -486,5 +505,5 @@
   }
 
   root.GeoIDTransitRender = { createRenderer, planFor, canonFor, approachAt, flybysFor, hohmannDv,
-    AU, RINGS, REVEAL, GATE, APPROACH, SHARP, HAND };
+    AU, RINGS, REVEAL, GATE, APPROACH, SHARP, HAND, LOCKED };
 })(typeof self !== "undefined" ? self : this);

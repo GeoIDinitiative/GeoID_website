@@ -6,15 +6,15 @@
  * Workspace handoff: GeoHUB puts {title, world, manifest} in
  * sessionStorage['geoid:social-workspace'] and opens #/projects/new.
  */
-import * as api from "../api.js?v=20261023-7d5503c";
-import { store } from "../store.js?v=20261023-7d5503c";
+import * as api from "../api.js?v=20261023-1912e0d";
+import { store } from "../store.js?v=20261023-1912e0d";
 import {
   h, clear, field, input, select, textarea, checkbox, toast, busy, splitList, errorBox, loading, empty,
   confirmDialog, modal, timeEl, dateToEpoch, dateText, put,
-} from "../dom.js?v=20261023-7d5503c";
+} from "../dom.js?v=20261023-1912e0d";
 import {
   act, pagedList, postCard, userChip, followButton, tagList, requireSignIn, LICENCES, WORLDS, ROLES, share,
-} from "../components.js?v=20261023-7d5503c";
+} from "../components.js?v=20261023-1912e0d";
 
 const WS_KEY = "geoid:social-workspace";
 // The Worker's four stages (CONTRACT.md): a project grows from an idea into an

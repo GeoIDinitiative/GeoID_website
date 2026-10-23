@@ -131,7 +131,9 @@
 
   /** The chart, the lock and the run -- everything up to the gate. */
   function soundRun(s, plan) {
-    const X = plan.extra || 0;
+    // A direct leg (the ISS) reaches the gate JUMP seconds sooner, and has no
+    // warp: the beds are cut to its length and the warp's cues are left out.
+    const X = (plan.extra || 0) - (plan.jump || 0);
     s.pad(0, GATE + X + 1.6, { freqs: [55, 82.41, 110, 130.81], gain: 0.17, attack: 0.9, release: 1.6, lp0: 260, lp1: 1100, wet: 0.7 });
     s.tone(0, GATE + X + 1.4, { f0: 41.2, gain: 0.2, attack: 1.0, release: 1.2, wet: 0.2 });
     if (plan.plot) {
@@ -143,6 +145,7 @@
       s.echo(2.9, 1318.5, 0.3, 0.9); s.echo(3.08, 1760, 0.16, 0.9);
       s.impact(2.9, { f0: 95, f1: 45, gain: 0.35, dur: 1.6, wet: 0.8 });
     }
+    if (plan.jump) return;
     s.impact(REVEAL + 0.05, { f0: 62, f1: 24, gain: 0.85, dur: 3.2, wet: 0.6 });
     s.noise(REVEAL, GATE + X - REVEAL + 0.6, { type: "lowpass", f0: 70, f1: 240, q: 0.7, gain: 0.55, attack: 0.6, release: 0.8, wet: 0.3 });
     s.pad(3.3, GATE + X - 3.3 + 1.2, { freqs: [220, 329.63, 440, 659.25], gain: 0.07, attack: 1.4, release: 1.2, lp0: 500, lp1: 3200, wet: 0.9, spread: 18 });
@@ -185,7 +188,7 @@
     const $ = (id) => document.getElementById(id);
     const back = $("tx-back"), front = $("tx-front");
     const plan = R.planFor(config);
-    const canon = R.canonFor(plan.extra);
+    const canon = R.canonFor(plan.extra, plan.jump);
     let H = window.innerHeight;
     let frac = 0.3, lastT = 0, lastC = 0, released = false, revealed = false, done = false, chromeShown = null;
     let revealedAt = 0, snd = null, sndHold = false, worker = null, main = null;

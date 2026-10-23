@@ -1,4 +1,4 @@
-import { BODIES, currentBodyId } from "./bodies.js?v=20261023-7d5503c";
+import { BODIES, currentBodyId } from "./bodies.js?v=20261023-1912e0d";
 
 /**
  * The worlds, along the bottom of the GIS page.
@@ -18,11 +18,11 @@ import { BODIES, currentBodyId } from "./bodies.js?v=20261023-7d5503c";
  * something to watch rather than a white page.
  *
  * Earth too, from anywhere else (owner, 2026-10-23): it linked straight to
- * the globe, so coming home was the one jump with no journey. Its transit
- * arrives at the International Space Station, with the station's photographs
- * behind the cruise (transit/transit-photos.js). On Earth its node is "you
- * are here" and links nowhere, so the transit is only ever the trip back;
- * the first arrival of a session keeps the start-up screen.
+ * the globe, so coming home was the one jump with no journey. Its transit is
+ * DIRECT: the chart plots and locks the ISS's orbit and the viewer opens, with
+ * no warp (transit-render.js `jump`). On Earth its node is "you are here" and
+ * links nowhere, so the transit is only ever the trip back; the first
+ * arrival of a session keeps the start-up screen.
  */
 
 // Orrery order, not registry order -- Sun outward, with the Moon beside Earth,
