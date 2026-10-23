@@ -1123,3 +1123,24 @@ else 350 (firn) — Shepherd et al. 2019's split, our threshold. Result: AIS
 −1,397 Gt, West −2,656 Gt, G-H −2,725 Gt since 1993. The Peninsula comes out
 POSITIVE where GRACE shows loss: radar altimetry over its mountains is poor, and
 the chart says so.
+
+### The altimetry Gt is not the IMBIE number — and why (Oct 2026)
+
+Over the SAME window (Jan 1993–Dec 2020) the layer's altimetry estimate is
+−983 Gt and IMBIE 2021 (Otosaka et al. 2023, ESSD 15:1597) is −2,617 Gt. Not
+units, not epoch, not a coverage bug: by region West −2,002 vs −2,357, East
++761 vs +101, Peninsula +259 vs −361. The cause is volume→mass: on identical
+cells, plausible density rules give −107 (all firn) to −4,603 Gt (loss as ice,
+gain as firn); IMBIE's altimetry inputs use firn-densification models. The
+Peninsula is also 30% uncovered by the CPOM grid, with a spurious +1 m mean.
+So the chart draws IMBIE (UK PDC, OGL v3, `ramadda.data.bas.ac.uk` entry
+77b64c55…; imbie.org no longer links the files) re-zeroed at Jan 1993 with its
+±1σ band, labels the blue line "Altimetry (this layer)", and the bake writes
+the numbers into `reconcile` so the note and Metadata quote them.
+
+**Publishing it:** `publish-data.py` uploads EVERY unpublished loose file and
+rewrites `sources.json` from what is on disk — run from a worktree that lacks
+the gitignored data, it would drop almost every fingerprint; run from main it
+would also publish other sessions' files. The COG went up with the script's own
+`upload()` narrowed to one key (scratchpad `publish_one.py`), and only its
+fingerprint was added to `sources.json`.

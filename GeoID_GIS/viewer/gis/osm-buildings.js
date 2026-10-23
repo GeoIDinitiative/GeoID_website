@@ -36,7 +36,7 @@
 // transparent pass in a group sorted at 190 (see GROUP_ORDER), still
 // depth-tested and depth-writing against the globe and each other.
 
-import { isEarth } from "./bodies.js?v=20261024-c030154";
+import { isEarth } from "./bodies.js?v=20261024-5141e1b";
 import { facade } from "../../../flight_sim/earth/game/facade.js?v=1";
 
 const BUILDINGS_TILEJSON = "https://tiles.openfreemap.org/planet";

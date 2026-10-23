@@ -2,7 +2,7 @@
  "name": "CPOM Land Ice Portal",
  "portal": "https://www.cpom.ucl.ac.uk/landice_portal",
  "about": "https://cpom.org.uk/leeds_data/test-data/",
- "baked": "2026-10-23T19:19:47Z",
+ "baked": "2026-10-23T23:04:33Z",
  "regions": {
   "antarctica": {
    "label": "Antarctic Ice Sheet",
