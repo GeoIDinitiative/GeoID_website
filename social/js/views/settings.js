@@ -1,9 +1,9 @@
 /** #/settings — privacy, contact, matcher, notifications, follows, blocks, and your data. */
-import * as api from "../api.js?v=20261023-93d8e06";
-import { store, refreshMe, myHandle } from "../store.js?v=20261023-93d8e06";
-import { h, clear, field, input, select, checkbox, toast, busy, errorBox, loading, empty, modal, put } from "../dom.js?v=20261023-93d8e06";
-import { act, userChip, requireSignIn } from "../components.js?v=20261023-93d8e06";
-import { myAffiliations } from "./orgs.js?v=20261023-93d8e06";
+import * as api from "../api.js?v=20261023-b1f251a";
+import { store, refreshMe, myHandle } from "../store.js?v=20261023-b1f251a";
+import { h, clear, field, input, select, checkbox, toast, busy, errorBox, loading, empty, modal, put } from "../dom.js?v=20261023-b1f251a";
+import { act, userChip, requireSignIn } from "../components.js?v=20261023-b1f251a";
+import { myAffiliations } from "./orgs.js?v=20261023-b1f251a";
 
 // The kinds the API knows (NOTIFY_KINDS in social-worker/profiles.js); a
 // toggle for any other name would be silently ignored by the server.

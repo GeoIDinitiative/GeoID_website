@@ -1,0 +1,210 @@
+{
+ "name": "CPOM Land Ice Portal",
+ "portal": "https://www.cpom.ucl.ac.uk/landice_portal",
+ "about": "https://cpom.org.uk/leeds_data/test-data/",
+ "baked": "2026-10-23T19:19:47Z",
+ "regions": {
+  "antarctica": {
+   "label": "Antarctic Ice Sheet",
+   "status": "published",
+   "crs": "EPSG:3031",
+   "grid": {
+    "nx": 1128,
+    "ny": 968,
+    "dx": 5000.0,
+    "x0": -2817500.0,
+    "y0": 2417500.0,
+    "order": "rows north-up (y descending), x ascending; values are cell centres"
+   },
+   "raster": "/data/global/ice/cpom/antarctica-sec.hotlink-ok.tif",
+   "series": "/data/global/ice/cpom/antarctica-basins.json",
+   "scale": 0.01,
+   "nodata": -32768,
+   "unit": "m",
+   "bands": [
+    {
+     "band": 0,
+     "end": "199312",
+     "start": "199301"
+    },
+    {
+     "band": 1,
+     "end": "199412",
+     "start": "199301"
+    },
+    {
+     "band": 2,
+     "end": "199512",
+     "start": "199301"
+    },
+    {
+     "band": 3,
+     "end": "199612",
+     "start": "199301"
+    },
+    {
+     "band": 4,
+     "end": "199712",
+     "start": "199301"
+    },
+    {
+     "band": 5,
+     "end": "199812",
+     "start": "199301"
+    },
+    {
+     "band": 6,
+     "end": "199912",
+     "start": "199301"
+    },
+    {
+     "band": 7,
+     "end": "200012",
+     "start": "199301"
+    },
+    {
+     "band": 8,
+     "end": "200112",
+     "start": "199301"
+    },
+    {
+     "band": 9,
+     "end": "200212",
+     "start": "199301"
+    },
+    {
+     "band": 10,
+     "end": "200312",
+     "start": "199301"
+    },
+    {
+     "band": 11,
+     "end": "200412",
+     "start": "199301"
+    },
+    {
+     "band": 12,
+     "end": "200512",
+     "start": "199301"
+    },
+    {
+     "band": 13,
+     "end": "200612",
+     "start": "199301"
+    },
+    {
+     "band": 14,
+     "end": "200712",
+     "start": "199301"
+    },
+    {
+     "band": 15,
+     "end": "200812",
+     "start": "199301"
+    },
+    {
+     "band": 16,
+     "end": "200912",
+     "start": "199301"
+    },
+    {
+     "band": 17,
+     "end": "201012",
+     "start": "199301"
+    },
+    {
+     "band": 18,
+     "end": "201112",
+     "start": "199301"
+    },
+    {
+     "band": 19,
+     "end": "201212",
+     "start": "199301"
+    },
+    {
+     "band": 20,
+     "end": "201312",
+     "start": "199301"
+    },
+    {
+     "band": 21,
+     "end": "201412",
+     "start": "199301"
+    },
+    {
+     "band": 22,
+     "end": "201512",
+     "start": "199301"
+    },
+    {
+     "band": 23,
+     "end": "201612",
+     "start": "199301"
+    },
+    {
+     "band": 24,
+     "end": "201712",
+     "start": "199301"
+    },
+    {
+     "band": 25,
+     "end": "201812",
+     "start": "199301"
+    },
+    {
+     "band": 26,
+     "end": "201912",
+     "start": "199301"
+    },
+    {
+     "band": 27,
+     "end": "202012",
+     "start": "199301"
+    },
+    {
+     "band": 28,
+     "end": "202112",
+     "start": "199301"
+    },
+    {
+     "band": 29,
+     "end": "202212",
+     "start": "199301"
+    },
+    {
+     "band": 30,
+     "end": "202312",
+     "start": "199301"
+    },
+    {
+     "band": 31,
+     "end": "202412",
+     "start": "199301"
+    },
+    {
+     "band": 32,
+     "end": "202511",
+     "start": "199301"
+    }
+   ],
+   "density_band": 33,
+   "next": "https://dap.ceda.ac.uk/neodc/esacci/ice_sheets_antarctica/data/surface_elevation_change/v2.0/ESACCI-AIS-L3C-SEC-MULTIMISSION_ANNUAL_CUMULATIVE_DH_GRID-5KM/ESACCI-AIS-L3C-SEC-MULTIMISSION_ANNUAL_CUMULATIVE_DH_GRID-5KM_199301_202612-fv2.nc",
+   "listing": "https://data.ceda.ac.uk/neodc/esacci/ice_sheets_antarctica/data/surface_elevation_change/v2.0/ESACCI-AIS-L3C-SEC-MULTIMISSION_ANNUAL_CUMULATIVE_DH_GRID-5KM",
+   "catalogue": "https://catalogue.ceda.ac.uk/uuid/6415e9e095e249ab9509f9c7878d1f11",
+   "source": null,
+   "institution": "Centre for Polar Observation and Modelling (CPOM)",
+   "title": "Antarctic Surface Elevation Change at 5.0km resolution from 1991 until 2025 from Multi-Mission Radar Altimetry",
+   "gia": "ij05",
+   "references": "Trends in Antarctic Ice Sheet Elevation and Mass, Shepherd et al, GRL,2019, doi: 10.1029/2019GL082182",
+   "licence": "ESA CCI Data Policy: free and open access; cite the catalogue record.",
+   "citation": "ESA Antarctic Ice Sheet Climate Change Initiative (Antarctic_Ice_Sheet_cci): Antarctic Ice Sheet Surface Elevation Change v2.0, produced by the Centre for Polar Observation and Modelling (CPOM). NERC EDS Centre for Environmental Data Analysis. https://catalogue.ceda.ac.uk/uuid/6415e9e095e249ab9509f9c7878d1f11"
+  },
+  "greenland": {
+   "label": "Greenland Ice Sheet",
+   "status": "pending",
+   "crs": "EPSG:3413",
+   "note": "Announced by the CPOM Land Ice Portal and not yet published. When it is, fill in REGIONS in services/bake-cpom-landice.py and re-run."
+  }
+ }
+}

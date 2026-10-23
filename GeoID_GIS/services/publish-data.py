@@ -68,6 +68,10 @@ NESTED_FILES = (
     "soil-thickness/soil_thickness_1km.hotlink-ok.tif",
     "worldpop/ppp_2020_1km.hotlink-ok.tif",
 )
+# The CPOM land-ice frames (bake-cpom-landice.py): one COG per ice sheet the
+# portal has published. Its manifest and basin series stay with the site.
+NESTED_FILES += tuple(sorted(f"ice/cpom/{p.name}"
+                             for p in (GLOBAL / "ice" / "cpom").glob("*.hotlink-ok.tif")))
 # IAU named-feature outlines, one file per world and moon
 # (bake-nomenclature.py): every one that has been baked.
 NESTED_FILES += tuple(sorted(f"nomenclature/{p.name}"

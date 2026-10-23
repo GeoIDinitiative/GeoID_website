@@ -100,7 +100,10 @@ const quadKm = (box, { sx, sy }) => {
   // The wiring: `drape` must ask the rule, and must not build a square grid
   // out of the number its caller passed.
   const src = readFileSync(fileURLToPath(new URL("./gee.js", import.meta.url)), "utf8");
-  check("drape sizes its grid from the ground", /const \{ sx, sy \} = patchSegments\(box, segments\);/.test(src));
+  // A caller-supplied lattice (a polar grid, cpom-landice.js) brings its own
+  // node counts; every lat/lon box still asks the rule.
+  check("drape sizes its grid from the ground",
+    /const \{ sx, sy \} = (lattice \|\| )?patchSegments\(box, segments\);/.test(src));
   check("and builds the plane on both axes", /new THREE\.PlaneGeometry\(1, 1, sx, sy\)/.test(src));
   check("no square grid is built from the caller's segments any more",
     !/PlaneGeometry\(1, 1, segments, segments\)/.test(src));
