@@ -46,7 +46,7 @@ CARDS = {
     "updates/index.html":       ("journal", "A notebook and pen on a desk"),
     "researchers/index.html":   ("researchers", "A terrain surface as a finite-element wireframe"),
     "team/index.html":          ("team", "A volcanic crater floor during fieldwork"),
-    "consultancy/index.html":   ("consultancy", "A steaming volcanic crater floor during fieldwork"),
+    "consultancy/index.html":   ("consultancy", "A large landslide scar on a forested mountainside, seen from the air"),
     "get-involved/index.html":  ("get-involved", "The Milky Way over a dark sky"),
     "contact/index.html":       ("contact", "The Earth from space"),
     "everest/index.html":       ("everest", "The summit of Mount Everest above the surrounding peaks"),

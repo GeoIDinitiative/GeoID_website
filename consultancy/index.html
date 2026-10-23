@@ -36,12 +36,12 @@
   <meta property="og:image" content="https://geoidinitiative.com/assets/social/consultancy.jpg">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
-  <meta property="og:image:alt" content="A steaming volcanic crater floor during fieldwork">
+  <meta property="og:image:alt" content="A large landslide scar on a forested mountainside, seen from the air">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="Consultancy | Focused Geohazard Assessments">
   <meta name="twitter:description" content="Focused geohazard assessments from the GeoID team, with the method, assumptions and uncertainty stated.">
   <meta name="twitter:image" content="https://geoidinitiative.com/assets/social/consultancy.jpg">
-  <meta name="twitter:image:alt" content="A steaming volcanic crater floor during fieldwork">
+  <meta name="twitter:image:alt" content="A large landslide scar on a forested mountainside, seen from the air">
   <link rel="icon" type="image/png" href="/assets/GeoID_mark.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -50,8 +50,15 @@
   <!-- font link consolidated by v2 skin -->
   <link rel="stylesheet" href="/styles/shared.css?v=20261024-5141e1b">
   <style>
-    /* ── Page-level overrides ── */
-    .page-wrap { padding-top: var(--nav-h); }
+    /* ── Consultancy page ──────────────────────────────────────────────────
+       Full-bleed photo bands instead of framed tiles. Each band is a photo
+       (an <img>, so it lazy-loads), a shade for legibility, and a centred
+       column of content. Headings use the site-wide .tile-title / .tile-desc
+       so site-unify.css gives them the same type as every other page.
+       Class names carry a cx- prefix: shared.css has broad mobile rules on
+       [class*="hero-"], [class*="-section"] and `section img` that would
+       otherwise re-pad these bands and cap the photos at 55vh. */
+    .page-wrap { padding-top: var(--nav-h); overflow-x: clip; }
 
     .page-utility {
       position: sticky;
@@ -62,12 +69,10 @@
       border-right: none;
       border-top: none;
       padding: 0.45rem 1.5rem;
-      margin-bottom: 1.25rem;
+      margin-bottom: 0;
       justify-content: center;
     }
-
     .page-jump { justify-content: center; width: 100%; }
-
     .page-jump a {
       border: none;
       background: none;
@@ -80,71 +85,69 @@
       color: var(--muted);
       padding: 0.34rem 0.68rem;
     }
-
     .page-jump a:hover {
       color: var(--text);
       background: rgba(var(--accent-rgb), 0.08);
       border-color: transparent;
     }
 
-    /* Shared frame for every top-level tile on this page. */
-    .c-tile {
+    /* ── The band ── */
+    .cx-band {
       position: relative;
-      overflow: hidden;
-      border: 1px solid var(--line);
-      border-radius: 1.35rem;
-      background: var(--panel);
-      box-shadow: var(--shadow);
-      margin-bottom: var(--u-section-gap, 4rem);
+      width: 100vw;
+      margin-left: calc(50% - 50vw);
+      isolation: isolate;
+      scroll-margin-top: calc(var(--nav-h) + 2.5rem);
     }
-
-    .c-title {
-      font-family: "Archivo", system-ui, sans-serif;
-      font-size: clamp(1.9rem, 3.6vw, 3rem);
-      font-weight: 700;
-      letter-spacing: -0.035em;
-      line-height: 1.06;
-      color: var(--text);
-      margin: 0 0 1.1rem;
-      text-wrap: balance;
-    }
-
-    .c-lead {
-      color: var(--muted);
-      line-height: 1.75;
-      max-width: 46rem;
-      margin: 0;
-    }
-
-    /* ── Hero — fieldwork photo, availability, the four facts ── */
-    .hero-tile {
-      min-height: 34rem;
-      display: flex;
-      align-items: flex-end;
-    }
-
-    .hero-bg {
-      position: absolute;
+    .cx-band + .cx-band { border-top: 1px solid rgba(255, 255, 255, 0.06); }
+    .cx-bg {
+      position: absolute !important;
       inset: 0;
-      background: url('/assets/opt/fieldwork.webp') center 40% / cover no-repeat;
-      opacity: 0.8;
+      z-index: -2;
+      width: 100% !important;
+      height: 100% !important;
+      max-width: none !important;
+      max-height: none !important;
+      object-fit: cover;
+      display: block;
+    }
+    .cx-shade { position: absolute; inset: 0; z-index: -1; }
+    /* Three shades: from the left (text on the left), from the bottom, and
+       an even wash for bands whose content spans the width. */
+    .shade-left   { background: linear-gradient(90deg, rgba(8,0,20,0.94) 0%, rgba(8,0,20,0.82) 38%, rgba(8,0,20,0.35) 72%, rgba(8,0,20,0.15) 100%); }
+    .shade-right  { background: linear-gradient(270deg, rgba(8,0,20,0.94) 0%, rgba(8,0,20,0.82) 38%, rgba(8,0,20,0.35) 72%, rgba(8,0,20,0.15) 100%); }
+    .shade-bottom { background: linear-gradient(180deg, rgba(8,0,20,0.20) 0%, rgba(8,0,20,0.55) 45%, rgba(8,0,20,0.96) 100%); }
+    .shade-even   { background: rgba(8,0,20,0.80); }
+    .shade-heavy  { background: rgba(8,0,20,0.90); }
+
+    .cx-inner {
+      max-width: 76rem;
+      margin: 0 auto;
+      padding: clamp(5rem, 9vw, 8.5rem) clamp(1.25rem, 5vw, 3rem);
+    }
+    .cx-narrow { max-width: 38rem; }
+    .cx-case .cx-narrow { max-width: 46rem; }
+    .cx-right { margin-left: auto; }
+
+    .cx-band .tile-title { margin-bottom: 1.25rem; }
+    .cx-band .tile-desc { color: rgba(236, 232, 248, 0.80); line-height: 1.75; margin: 0; max-width: 46rem; }
+    .cx-band p { line-height: 1.75; }
+    .cx-plain .tile-desc { color: var(--muted); }
+
+    .cx-kicker {
+      display: inline-block;
+      font-family: "Public Sans", sans-serif;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 0.9rem;
     }
 
-    .hero-overlay {
-      position: absolute;
-      inset: 0;
-      background:
-        linear-gradient(180deg, rgba(8,0,20,0.05) 0%, rgba(8,0,20,0.55) 55%, rgba(8,0,20,0.94) 100%),
-        linear-gradient(90deg, rgba(8,0,20,0.80) 0%, rgba(8,0,20,0.35) 45%, rgba(8,0,20,0) 75%);
-    }
-
-    .hero-content {
-      position: relative;
-      z-index: 2;
-      width: 100%;
-      padding: clamp(2rem, 5vw, 4rem) clamp(1.5rem, 4vw, 3.5rem) clamp(1.75rem, 3vw, 2.5rem);
-    }
-
+    /* ── Hero ── */
+    .cx-top { min-height: min(calc(100vh - var(--nav-h) - 2.6rem), 56rem); display: flex; align-items: flex-end; }
+    .cx-top .cx-inner { width: 100%; box-sizing: border-box; padding-bottom: clamp(3rem, 6vw, 5rem); }
     .avail {
       display: inline-flex;
       align-items: center;
@@ -152,7 +155,7 @@
       padding: 0.38rem 0.85rem;
       border: 1px solid rgba(94, 230, 160, 0.45);
       border-radius: 999px;
-      background: rgba(94, 230, 160, 0.08);
+      background: rgba(8, 0, 20, 0.55);
       color: #8ff0bf;
       font-family: "Public Sans", sans-serif;
       font-size: 12px;
@@ -164,7 +167,6 @@
       width: 8px; height: 8px;
       border-radius: 50%;
       background: #5ee6a0;
-      box-shadow: 0 0 0 0 rgba(94, 230, 160, 0.6);
       animation: avail-pulse 2.4s ease-out infinite;
     }
     @keyframes avail-pulse {
@@ -173,346 +175,274 @@
     }
     @media (prefers-reduced-motion: reduce) { .avail-dot { animation: none; } }
 
-    .hero-content h1 {
+    .cx-top h1 {
       font-family: "Archivo", system-ui, sans-serif;
-      font-size: clamp(2.3rem, 5.6vw, 4.4rem);
+      font-size: clamp(2.6rem, 6.4vw, 5.4rem);
       font-weight: 700;
-      line-height: 1.02;
-      letter-spacing: -0.035em;
+      line-height: 1;
+      letter-spacing: -0.04em;
       color: var(--text);
-      margin: 1.1rem 0 1rem;
-      max-width: 15ch;
+      margin: 1.25rem 0 1.25rem;
+      max-width: 13ch;
     }
-    .hero-content h1 span { color: var(--accent); }
+    .cx-top h1 span { color: var(--accent); }
+    .cx-lead { color: rgba(236, 232, 248, 0.86); font-size: clamp(1rem, 1.3vw, 1.15rem); max-width: 40rem; margin: 0; }
+    .cx-btns { display: flex; gap: 0.75rem; flex-wrap: wrap; margin-top: 2rem; }
 
-    .hero-content > p {
-      color: rgba(236, 232, 248, 0.82);
-      font-size: 1.06rem;
-      line-height: 1.7;
-      max-width: 40rem;
-      margin: 0;
-    }
-
-    .hero-actions {
-      display: flex;
-      gap: 0.75rem;
-      flex-wrap: wrap;
-      margin-top: 1.6rem;
-    }
-
-    .c-facts {
+    .cx-facts {
       display: grid;
       grid-template-columns: repeat(4, minmax(0, 1fr));
-      gap: 1px;
-      margin-top: clamp(2rem, 4vw, 3rem);
-      background: var(--line);
-      border: 1px solid var(--line);
-      border-radius: 0.9rem;
-      overflow: hidden;
+      gap: clamp(1.25rem, 3vw, 2.5rem);
+      margin-top: clamp(3rem, 6vw, 5rem);
+      padding-top: 1.5rem;
+      border-top: 1px solid rgba(255, 255, 255, 0.16);
     }
-    .c-fact {
-      background: rgba(8, 0, 20, 0.72);
-      backdrop-filter: blur(10px);
-      padding: 1rem 1.15rem;
-    }
-    .c-fact strong {
+    .cx-facts strong {
       display: block;
-      font-family: "Archivo", system-ui, sans-serif;
-      font-size: 1rem;
-      letter-spacing: -0.01em;
-      color: var(--text);
-      margin-bottom: 0.2rem;
-    }
-    .c-fact span { color: var(--muted); font-size: 0.86rem; line-height: 1.5; }
-
-    /* ── Split tile: words beside a photo ── */
-    .split {
-      display: grid;
-      grid-template-columns: 1.05fr 1fr;
-      align-items: stretch;
-    }
-    .split.flip { grid-template-columns: 1fr 1.05fr; }
-    .split.flip .split-media { order: -1; }
-    .split-body { padding: clamp(2rem, 4vw, 3.5rem) clamp(1.5rem, 4vw, 3rem); }
-    .split-body p { color: var(--muted); line-height: 1.75; margin: 0 0 1rem; }
-    .split-body p:last-child { margin-bottom: 0; }
-    .split-body strong { color: var(--text); }
-    .split-media {
-      position: relative;
-      min-height: 22rem;
-      margin: 0;
-    }
-    .split-media img {
-      position: absolute;
-      inset: 0;
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-      display: block;
-    }
-    .split-media figcaption {
-      position: absolute;
-      left: 0.9rem;
-      bottom: 0.9rem;
-      padding: 0.3rem 0.65rem;
-      border-radius: 0.45rem;
-      background: rgba(8, 0, 20, 0.72);
-      backdrop-filter: blur(8px);
-      color: rgba(236, 232, 248, 0.82);
-      font-size: 0.76rem;
-    }
-
-    .credentials {
-      list-style: none;
-      padding: 0;
-      margin: 1.5rem 0 0;
-      display: grid;
-      gap: 0.7rem;
-    }
-    .credentials li {
-      display: grid;
-      grid-template-columns: 1.4rem 1fr;
-      gap: 0.6rem;
-      color: var(--muted);
-      line-height: 1.6;
-      font-size: 0.94rem;
-    }
-    .credentials li::before {
-      content: "";
-      width: 0.55rem;
-      height: 0.55rem;
-      margin-top: 0.5rem;
-      border-radius: 2px;
-      background: var(--accent);
-      transform: rotate(45deg);
-      justify-self: center;
-    }
-
-    /* ── Assessment types: photo cards ── */
-    .section-pad { padding: clamp(2rem, 4vw, 3.5rem) clamp(1.5rem, 4vw, 3rem); }
-
-    .svc-grid {
-      display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: var(--u-card-gap, 1.5rem);
-      margin-top: clamp(2rem, 4vw, 3rem);
-    }
-
-    .svc-card {
-      display: flex;
-      flex-direction: column;
-      border: 1px solid var(--line);
-      border-radius: 0.9rem;
-      overflow: hidden;
-      background: var(--bg-1, rgba(10, 4, 24, 0.9));
-      transition: border-color 0.24s, transform 0.24s, box-shadow 0.24s;
-    }
-    .svc-card:hover {
-      border-color: rgba(var(--accent-rgb), 0.45);
-      transform: translateY(-3px);
-      box-shadow: 0 18px 40px rgba(0, 0, 0, 0.4);
-    }
-
-    .svc-photo {
-      position: relative;
-      aspect-ratio: 16 / 10;
-      overflow: hidden;
-      background: rgba(255, 255, 255, 0.03);
-    }
-    .svc-photo img {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-      display: block;
-      transition: transform 0.5s ease;
-    }
-    .svc-card:hover .svc-photo img { transform: scale(1.045); }
-
-    .svc-tag {
-      position: absolute;
-      top: 0.75rem;
-      left: 0.75rem;
-      padding: 0.22rem 0.55rem;
-      border-radius: 0.4rem;
-      background: rgba(8, 0, 20, 0.75);
-      backdrop-filter: blur(8px);
-      font-family: "Public Sans", sans-serif;
-      font-size: 11px;
-      font-weight: 600;
-      letter-spacing: 0.12em;
-      color: var(--accent);
-    }
-
-    .svc-body { padding: 1.25rem 1.3rem 1.4rem; display: flex; flex-direction: column; flex: 1; }
-    .svc-body h3 {
-      font-family: "Archivo", system-ui, sans-serif;
-      font-size: 1.15rem;
-      letter-spacing: -0.015em;
-      color: var(--text);
-      margin: 0 0 0.5rem;
-    }
-    .svc-body > p { color: var(--muted); font-size: 0.92rem; line-height: 1.65; margin: 0 0 0.9rem; }
-    .svc-out {
-      list-style: none;
-      margin: auto 0 0;
-      padding: 0.9rem 0 0;
-      border-top: 1px solid var(--line);
-      display: grid;
-      gap: 0.4rem;
-    }
-    .svc-out li {
-      position: relative;
-      padding-left: 1.05rem;
-      color: rgba(236, 232, 248, 0.78);
-      font-size: 0.85rem;
-      line-height: 1.5;
-    }
-    .svc-out li::before {
-      content: "";
-      position: absolute;
-      left: 0;
-      top: 0.55em;
-      width: 0.4rem;
-      height: 1px;
-      background: var(--accent);
-    }
-
-    /* ── Process: four steps on a hairline rail ── */
-    .steps {
-      list-style: none;
-      margin: 1.75rem 0 0;
-      padding: 0;
-      counter-reset: step;
-      display: grid;
-      gap: 0;
-    }
-    .steps li {
-      counter-increment: step;
-      position: relative;
-      padding: 0 0 1.5rem 3.2rem;
-    }
-    .steps li:last-child { padding-bottom: 0; }
-    .steps li::before {
-      content: counter(step, decimal-leading-zero);
-      position: absolute;
-      left: 0;
-      top: 0;
-      width: 2.2rem;
-      height: 2.2rem;
-      display: grid;
-      place-items: center;
-      border: 1px solid rgba(var(--accent-rgb), 0.55);
-      border-radius: 50%;
-      font-family: "Public Sans", sans-serif;
-      font-size: 11px;
-      font-weight: 700;
-      letter-spacing: 0.06em;
-      color: var(--accent);
-      background: var(--bg-1, #0a0418);
-    }
-    .steps li::after {
-      content: "";
-      position: absolute;
-      left: 1.1rem;
-      top: 2.2rem;
-      bottom: 0.1rem;
-      width: 1px;
-      background: var(--line);
-    }
-    .steps li:last-child::after { display: none; }
-    .steps h3 {
       font-family: "Archivo", system-ui, sans-serif;
       font-size: 1.05rem;
       color: var(--text);
-      margin: 0.35rem 0 0.3rem;
+      margin-bottom: 0.3rem;
     }
-    .steps p { color: var(--muted); font-size: 0.92rem; line-height: 1.65; margin: 0; }
+    .cx-facts span { color: rgba(236, 232, 248, 0.70); font-size: 0.9rem; line-height: 1.55; }
 
-    /* ── In scope / out of scope ── */
-    .scope-grid {
+    /* ── Plain lists with a small accent mark ── */
+    .cx-ticks { list-style: none; margin: 2rem 0 0; padding: 0; display: grid; gap: 0.85rem; }
+    .cx-ticks li {
+      position: relative;
+      padding-left: 1.5rem;
+      color: rgba(236, 232, 248, 0.82);
+      line-height: 1.6;
+    }
+    .cx-ticks li::before {
+      content: "";
+      position: absolute;
+      left: 0.15rem;
+      top: 0.55rem;
+      width: 0.5rem;
+      height: 0.5rem;
+      background: var(--accent);
+      transform: rotate(45deg);
+    }
+
+    /* ── The six assessments: a wall of photographs ── */
+    .cx-wall {
       display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: var(--u-card-gap, 1.5rem);
-      margin-top: clamp(1.75rem, 3vw, 2.5rem);
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 2px;
+      background: #080014;
     }
-    .scope-col {
-      border: 1px solid var(--line);
-      border-radius: 0.9rem;
-      padding: 1.4rem 1.5rem;
-      background: rgba(255, 255, 255, 0.015);
-    }
-    .scope-col h3 {
+    .cx-cell {
+      position: relative;
+      isolation: isolate;
+      min-height: clamp(26rem, 38vw, 34rem);
       display: flex;
-      align-items: center;
-      gap: 0.6rem;
+      align-items: flex-end;
+      overflow: hidden;
+    }
+    .cx-cell .cx-bg { transition: transform 0.8s cubic-bezier(0.16, 0.84, 0.44, 1); }
+    .cx-cell:hover .cx-bg { transform: scale(1.04); }
+    .cx-cell-text { padding: clamp(1.5rem, 2.6vw, 2.25rem); max-width: 30rem; }
+    .cx-num {
+      font-family: "Public Sans", sans-serif;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.16em;
+      color: var(--accent);
+    }
+    .cx-cell h3 {
       font-family: "Archivo", system-ui, sans-serif;
-      font-size: 1.1rem;
+      font-size: clamp(1.3rem, 1.9vw, 1.6rem);
+      letter-spacing: -0.02em;
+      color: var(--text);
+      margin: 0.45rem 0 0.6rem;
+    }
+    .cx-cell p { color: rgba(236, 232, 248, 0.82); font-size: 0.93rem; line-height: 1.65; margin: 0 0 0.9rem; }
+    .cx-out { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 0.4rem; }
+    .cx-out li {
+      padding: 0.22rem 0.6rem;
+      border: 1px solid rgba(255, 255, 255, 0.22);
+      border-radius: 999px;
+      color: rgba(236, 232, 248, 0.86);
+      font-size: 0.78rem;
+      background: rgba(8, 0, 20, 0.35);
+    }
+
+    /* ── Columns divided by hairlines, never boxed ── */
+    .cx-cols {
+      display: grid;
+      grid-template-columns: repeat(var(--n, 3), minmax(0, 1fr));
+      margin-top: clamp(2.5rem, 5vw, 4rem);
+    }
+    .cx-col {
+      padding: 0 clamp(1.25rem, 2.5vw, 2.25rem);
+      border-left: 1px solid rgba(255, 255, 255, 0.16);
+    }
+    .cx-col:first-child { padding-left: 0; border-left: none; }
+    .cx-col:last-child { padding-right: 0; }
+    .cx-col h3 {
+      font-family: "Archivo", system-ui, sans-serif;
+      font-size: 1.3rem;
+      letter-spacing: -0.02em;
+      color: var(--text);
+      margin: 0 0 0.35rem;
+    }
+    .cx-col p { color: rgba(236, 232, 248, 0.76); font-size: 0.93rem; margin: 0 0 1rem; }
+    .cx-col .cx-ticks { margin-top: 0; gap: 0.55rem; }
+    .cx-col .cx-ticks li { font-size: 0.9rem; }
+    .cx-time {
+      display: block;
+      font-family: "Public Sans", sans-serif;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 0.6rem;
+    }
+    .cx-q { color: var(--text) !important; font-size: 1rem !important; font-style: italic; }
+    .cx-fee {
+      margin-top: 1.25rem !important;
+      padding-top: 1rem;
+      border-top: 1px solid rgba(255, 255, 255, 0.12);
+      font-size: 0.86rem !important;
+    }
+    .cx-fee strong { color: var(--text); }
+    .cx-fine { color: rgba(236, 232, 248, 0.62); font-size: 0.84rem; margin: clamp(2.5rem, 4vw, 3.5rem) 0 0; max-width: 52rem; }
+
+    /* ── The four steps, on one rule ── */
+    .cx-steps {
+      list-style: none;
+      margin: clamp(2.5rem, 5vw, 4rem) 0 0;
+      padding: 0;
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: clamp(1.25rem, 3vw, 2.5rem);
+      counter-reset: step;
+      position: relative;
+    }
+    .cx-steps::before {
+      content: "";
+      position: absolute;
+      left: 1.2rem;
+      right: 0;
+      top: 1.2rem;
+      height: 1px;
+      background: rgba(255, 255, 255, 0.22);
+    }
+    .cx-steps li { counter-increment: step; position: relative; }
+    .cx-steps li::before {
+      content: counter(step, decimal-leading-zero);
+      display: grid;
+      place-items: center;
+      width: 2.4rem;
+      height: 2.4rem;
+      margin-bottom: 1.1rem;
+      border: 1px solid var(--accent);
+      border-radius: 50%;
+      background: #0b0418;
+      color: var(--accent);
+      font-family: "Public Sans", sans-serif;
+      font-size: 12px;
+      font-weight: 700;
+      position: relative;
+    }
+    .cx-steps h3 { font-family: "Archivo", system-ui, sans-serif; font-size: 1.15rem; color: var(--text); margin: 0 0 0.45rem; }
+    .cx-steps p { color: rgba(236, 232, 248, 0.78); font-size: 0.92rem; margin: 0; }
+
+    /* ── Track record ── */
+    .cx-case .cx-inner { min-height: 34rem; display: flex; flex-direction: column; justify-content: center; box-sizing: border-box; }
+    .cx-case h3 {
+      font-family: "Archivo", system-ui, sans-serif;
+      font-size: clamp(1.6rem, 2.8vw, 2.3rem);
+      letter-spacing: -0.03em;
+      line-height: 1.1;
       color: var(--text);
       margin: 0 0 1rem;
     }
-    .scope-col h3 svg { flex: none; }
-    .scope-col.yes h3 svg { color: #5ee6a0; }
-    .scope-col.no h3 svg { color: #f7bd68; }
-    .scope-col ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.65rem; }
-    .scope-col li { color: var(--muted); font-size: 0.92rem; line-height: 1.6; padding-left: 1rem; position: relative; }
-    .scope-col li::before {
-      content: "";
-      position: absolute;
-      left: 0;
-      top: 0.62em;
-      width: 0.35rem;
-      height: 0.35rem;
-      border-radius: 50%;
-      background: currentColor;
-      opacity: 0.5;
-    }
-    .scope-col.yes li::before { background: #5ee6a0; opacity: 0.8; }
-    .scope-col.no li::before { background: #f7bd68; opacity: 0.8; }
-
-    .shot {
-      margin: clamp(1.75rem, 3vw, 2.5rem) 0 0;
-      border: 1px solid var(--line);
-      border-radius: 0.9rem;
-      overflow: hidden;
-    }
-    .shot img { display: block; width: 100%; height: clamp(14rem, 32vw, 26rem); object-fit: cover; object-position: center 40%; }
-    .shot figcaption {
-      padding: 0.75rem 1rem;
-      color: var(--muted);
-      font-size: 0.84rem;
-      border-top: 1px solid var(--line);
-      background: rgba(255, 255, 255, 0.02);
-    }
-
-    /* ── Who it is for ── */
-    .who-grid {
-      display: grid;
-      grid-template-columns: repeat(4, minmax(0, 1fr));
-      gap: 1px;
-      background: var(--line);
-      border: 1px solid var(--line);
-      margin-top: clamp(1.75rem, 3vw, 2.5rem);
-    }
-    .who-card {
-      background: var(--bg-1, #0a0418);
-      padding: 1.5rem 1.4rem;
-      transition: background 0.3s;
-    }
-    .who-card:hover { background: var(--bg-2, #120a26); }
-    .who-card h3 {
+    .cx-case p { color: rgba(236, 232, 248, 0.82); margin: 0 0 1rem; }
+    .cx-figs { display: flex; flex-wrap: wrap; gap: clamp(1.5rem, 3vw, 2.75rem); margin: 1.75rem 0; }
+    .cx-figs strong {
+      display: block;
       font-family: "Archivo", system-ui, sans-serif;
-      font-size: 1.02rem;
+      font-size: clamp(2rem, 3.4vw, 2.8rem);
+      letter-spacing: -0.04em;
+      line-height: 1;
       color: var(--text);
-      margin: 0 0 0.45rem;
     }
-    .who-card p { color: var(--muted); font-size: 0.89rem; line-height: 1.65; margin: 0; }
+    .cx-figs > div { flex: 1 1 0; min-width: 8.5rem; }
+    .cx-figs span { display: block; margin-top: 0.4rem; max-width: 12rem; color: rgba(236, 232, 248, 0.70); font-size: 0.82rem; line-height: 1.45; }
+    .cx-lesson { border-left: 2px solid var(--accent); padding-left: 1rem; color: var(--text) !important; margin-bottom: 0 !important; }
 
-    /* ── Terms, limitations and data protection ── */
+    .cx-scores { margin-top: clamp(2.5rem, 5vw, 4rem); max-width: 60rem; }
+    .cx-score {
+      display: grid;
+      grid-template-columns: 13rem 1fr 3.5rem;
+      align-items: center;
+      gap: 1.25rem;
+      padding: 0.85rem 0;
+      border-top: 1px solid var(--line);
+    }
+    .cx-score:last-child { border-bottom: 1px solid var(--line); }
+    .cx-score .name { color: var(--text); font-size: 0.95rem; }
+    .cx-score .name small { display: block; color: var(--muted); font-size: 0.78rem; margin-top: 0.1rem; }
+    .cx-bar { position: relative; height: 6px; border-radius: 3px; background: rgba(255, 255, 255, 0.07); overflow: hidden; }
+    .cx-bar i { position: absolute; inset: 0 auto 0 0; border-radius: 3px; background: var(--accent); }
+    .cx-bar.weak i { background: #f7bd68; }
+    .cx-score .val { text-align: right; font-family: "Archivo", system-ui, sans-serif; font-size: 1.05rem; color: var(--text); }
+
+    /* ── Scope: two columns, a rule between ── */
+    .cx-scope h3 { display: flex; align-items: center; gap: 0.6rem; }
+    .cx-scope h3 svg { flex: none; }
+    .cx-yes h3 svg { color: #5ee6a0; }
+    .cx-no h3 svg { color: #f7bd68; }
+    .cx-no .cx-ticks li::before { background: #f7bd68; }
+    .cx-yes .cx-ticks li::before { background: #5ee6a0; }
+
+    /* ── FAQ: heading beside the questions ── */
+    .cx-split { display: grid; grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.6fr); gap: clamp(2rem, 6vw, 6rem); align-items: start; }
+    .cx-split > div:first-child { position: sticky; top: calc(var(--nav-h) + 4rem); }
+    .faq { border-top: 1px solid var(--line); }
+    .faq details { border-bottom: 1px solid var(--line); }
+    .faq summary {
+      list-style: none;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 1rem;
+      padding: 1.3rem 0.25rem;
+      font-family: "Archivo", system-ui, sans-serif;
+      font-size: 1.08rem;
+      color: var(--text);
+    }
+    .faq summary::-webkit-details-marker { display: none; }
+    .faq summary::after {
+      content: "+";
+      flex: none;
+      width: 1.7rem;
+      height: 1.7rem;
+      display: grid;
+      place-items: center;
+      border: 1px solid var(--line);
+      border-radius: 50%;
+      color: var(--accent);
+      font-family: "Public Sans", sans-serif;
+      transition: transform 0.2s;
+    }
+    .faq details[open] summary::after { transform: rotate(45deg); }
+    .faq summary:hover { color: var(--accent); }
+    .faq .ans { padding: 0 0.25rem 1.4rem; }
+    .faq .ans p { color: var(--muted); font-size: 0.95rem; line-height: 1.75; margin: 0 0 0.6rem; }
+    .faq .ans p:last-child { margin-bottom: 0; }
+    .faq .ans a { color: var(--accent); }
+
+    /* ── Terms ── */
     .legal-wrap {
       display: grid;
       grid-template-columns: 15rem minmax(0, 1fr);
-      gap: clamp(1.5rem, 4vw, 3.5rem);
-      margin-top: clamp(1.75rem, 3vw, 2.5rem);
+      gap: clamp(1.5rem, 5vw, 4.5rem);
+      margin-top: clamp(2.5rem, 5vw, 4rem);
     }
     .legal-toc {
       position: sticky;
@@ -530,13 +460,13 @@
       color: var(--muted);
       margin: 0 0 0.75rem;
     }
-    .legal-toc ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.4rem; counter-reset: toc; }
+    .legal-toc ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.45rem; counter-reset: toc; }
     .legal-toc li { counter-increment: toc; }
     .legal-toc a {
       display: grid;
       grid-template-columns: 1.6rem 1fr;
       color: var(--muted);
-      font-size: 0.84rem;
+      font-size: 0.85rem;
       line-height: 1.4;
       text-decoration: none;
       transition: color 0.18s;
@@ -550,79 +480,47 @@
       padding-top: 0.12rem;
     }
     .legal-toc a:hover { color: var(--text); }
-
+    /* v2-site.css squares every *-body; this one has no frame at all. */
+    .legal-body { border: none !important; background: none !important; padding: 0 !important; }
     .legal-callout {
       display: grid;
       grid-template-columns: auto 1fr;
       gap: 0.9rem;
-      border: 1px solid rgba(247, 189, 104, 0.42);
+      border-left: 2px solid #f7bd68;
       background: rgba(247, 189, 104, 0.07);
-      border-radius: 0.85rem;
       padding: 1.1rem 1.3rem;
-      margin-bottom: 2rem;
+      margin-bottom: 2.25rem;
       color: #f7d39c;
-      font-size: 0.94rem;
+      font-size: 0.95rem;
       line-height: 1.65;
     }
     .legal-callout svg { color: #f7bd68; margin-top: 0.15rem; }
     .legal-callout strong { color: #ffe2b3; }
-
-    .clause {
-      scroll-margin-top: calc(var(--nav-h) + 4rem);
-      padding: 1.6rem 0;
-      border-top: 1px solid var(--line);
-    }
+    .clause { scroll-margin-top: calc(var(--nav-h) + 4rem); padding: 1.75rem 0; border-top: 1px solid var(--line); }
     .clause:first-of-type { border-top: none; padding-top: 0; }
     .clause h3 {
       display: flex;
       gap: 0.8rem;
       align-items: baseline;
       font-family: "Archivo", system-ui, sans-serif;
-      font-size: 1.12rem;
+      font-size: 1.15rem;
       letter-spacing: -0.01em;
       color: var(--text);
-      margin: 0 0 0.75rem;
+      margin: 0 0 0.8rem;
     }
-    .clause h3 span {
-      font-family: "Public Sans", sans-serif;
-      font-size: 11px;
-      font-weight: 700;
-      letter-spacing: 0.08em;
-      color: var(--accent);
-    }
-    .clause p, .clause li { color: var(--muted); font-size: 0.93rem; line-height: 1.75; }
+    .clause h3 span { font-family: "Public Sans", sans-serif; font-size: 11px; font-weight: 700; letter-spacing: 0.08em; color: var(--accent); }
+    .clause p, .clause li { color: var(--muted); font-size: 0.94rem; line-height: 1.75; }
     .clause p { margin: 0 0 0.8rem; }
     .clause p:last-child { margin-bottom: 0; }
     .clause ul { list-style: none; margin: 0.3rem 0 0.9rem; padding: 0; }
     .clause li { position: relative; margin-bottom: 0.35rem; padding-left: 1.1rem; }
-    .clause li::before {
-      content: "";
-      position: absolute;
-      left: 0.1rem;
-      top: 0.8em;
-      width: 0.4rem;
-      height: 1px;
-      background: var(--accent);
-    }
+    .clause li::before { content: ""; position: absolute; left: 0.1rem; top: 0.8em; width: 0.4rem; height: 1px; background: var(--accent); }
     .clause strong { color: rgba(236, 232, 248, 0.92); }
     .clause a { color: var(--accent); text-decoration: none; }
     .clause a:hover { text-decoration: underline; }
-
-    .data-table {
-      width: 100%;
-      min-width: 36rem;
-      border-collapse: collapse;
-      margin: 0.5rem 0 1rem;
-      font-size: 0.88rem;
-    }
-    .data-table th, .data-table td {
-      text-align: left;
-      vertical-align: top;
-      padding: 0.65rem 0.75rem;
-      border-bottom: 1px solid var(--line);
-      color: var(--muted);
-      line-height: 1.55;
-    }
+    .table-scroll { overflow-x: auto; }
+    .data-table { width: 100%; min-width: 36rem; border-collapse: collapse; margin: 0.5rem 0 1rem; font-size: 0.88rem; }
+    .data-table th, .data-table td { text-align: left; vertical-align: top; padding: 0.65rem 0.75rem; border-bottom: 1px solid var(--line); color: var(--muted); line-height: 1.55; }
     .data-table th {
       font-family: "Public Sans", sans-serif;
       font-size: 11px;
@@ -632,200 +530,20 @@
       color: var(--text);
       background: rgba(255, 255, 255, 0.03);
     }
-    .table-scroll { overflow-x: auto; }
-
     .legal-meta { color: var(--muted); font-size: 0.82rem; margin: 0.75rem 0 0; }
 
-
-    /* ── Ways to engage: three sizes of engagement ── */
-    .tier-grid {
-      display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: var(--u-card-gap, 1.5rem);
-      margin-top: clamp(2rem, 4vw, 3rem);
-    }
-    .tier {
-      display: flex;
-      flex-direction: column;
-      border: 1px solid var(--line);
-      border-radius: 0.9rem;
-      padding: 1.6rem 1.5rem 1.5rem;
-      background: rgba(255, 255, 255, 0.015);
-    }
-    .tier.core {
-      border-color: rgba(var(--accent-rgb), 0.55);
-      background: linear-gradient(180deg, rgba(var(--accent-rgb), 0.09), rgba(var(--accent-rgb), 0.015) 60%);
-    }
-    .tier-head { display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; }
-    .tier h3 {
-      font-family: "Archivo", system-ui, sans-serif;
-      font-size: 1.3rem;
-      letter-spacing: -0.02em;
-      color: var(--text);
-      margin: 0;
-    }
-    .tier-time {
-      flex: none;
-      font-family: "Public Sans", sans-serif;
-      font-size: 11px;
-      font-weight: 600;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-      color: var(--accent);
-    }
-    .tier-q { color: var(--text); font-size: 0.95rem; line-height: 1.55; margin: 0.7rem 0 0.6rem; opacity: 0.9; }
-    .tier > p { color: var(--muted); font-size: 0.9rem; line-height: 1.65; margin: 0 0 1rem; }
-    .tier ul { list-style: none; margin: 0 0 1.2rem; padding: 0; display: grid; gap: 0.45rem; }
-    .tier li { position: relative; padding-left: 1.05rem; color: rgba(236, 232, 248, 0.78); font-size: 0.86rem; line-height: 1.5; }
-    .tier li::before { content: ""; position: absolute; left: 0; top: 0.55em; width: 0.4rem; height: 1px; background: var(--accent); }
-    .tier-fee {
-      margin-top: auto;
-      padding-top: 0.9rem;
-      border-top: 1px solid var(--line);
-      color: var(--muted);
-      font-size: 0.84rem;
-    }
-    .tier-fee strong { color: var(--text); }
-    .fine { color: var(--muted); font-size: 0.82rem; line-height: 1.6; margin: 1.25rem 0 0; }
-
-    /* ── Track record ── */
-    .case {
-      display: grid;
-      grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
-      border: 1px solid var(--line);
-      border-radius: 0.9rem;
-      overflow: hidden;
-      background: rgba(255, 255, 255, 0.015);
-      margin-top: var(--u-card-gap, 1.5rem);
-    }
-    .case:first-of-type { margin-top: clamp(2rem, 4vw, 3rem); }
-    .case:nth-of-type(even) { grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr); }
-    .case:nth-of-type(even) .case-media { order: 2; }
-    .case-media { position: relative; min-height: 17rem; margin: 0; }
-    .case-media img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
-    .case-body { padding: clamp(1.5rem, 3vw, 2.25rem); }
-    .case-kind {
-      font-family: "Public Sans", sans-serif;
-      font-size: 11px;
-      font-weight: 600;
-      letter-spacing: 0.12em;
-      text-transform: uppercase;
-      color: var(--accent);
-    }
-    .case h3 {
-      font-family: "Archivo", system-ui, sans-serif;
-      font-size: 1.35rem;
-      letter-spacing: -0.02em;
-      color: var(--text);
-      margin: 0.45rem 0 0.7rem;
-    }
-    .case p { color: var(--muted); font-size: 0.92rem; line-height: 1.7; margin: 0 0 0.8rem; }
-    .case-stats { display: flex; flex-wrap: wrap; gap: 1.6rem; margin: 1rem 0; }
-    .case-stat strong {
-      display: block;
-      font-family: "Archivo", system-ui, sans-serif;
-      font-size: 1.7rem;
-      letter-spacing: -0.03em;
-      color: var(--text);
-      line-height: 1.1;
-    }
-    .case-stat span { color: var(--muted); font-size: 0.78rem; line-height: 1.4; display: block; max-width: 11rem; }
-    .case-lesson {
-      border-left: 2px solid var(--accent);
-      padding: 0.15rem 0 0.15rem 0.9rem;
-      color: rgba(236, 232, 248, 0.88) !important;
-      margin-bottom: 0 !important;
-    }
-
-    .scores {
-      margin-top: clamp(2rem, 4vw, 3rem);
-      border: 1px solid var(--line);
-      border-radius: 0.9rem;
-      padding: 1.4rem 1.5rem;
-    }
-    .scores h3 {
-      font-family: "Archivo", system-ui, sans-serif;
-      font-size: 1.1rem;
-      color: var(--text);
-      margin: 0 0 0.35rem;
-    }
-    .scores > p { color: var(--muted); font-size: 0.88rem; line-height: 1.6; margin: 0 0 1.1rem; }
-    .score-row {
-      display: grid;
-      grid-template-columns: 11rem 1fr 3.2rem;
-      align-items: center;
-      gap: 0.9rem;
-      padding: 0.45rem 0;
-      border-top: 1px solid var(--line);
-      font-size: 0.86rem;
-    }
-    .score-row .name { color: var(--text); }
-    .score-row .name small { display: block; color: var(--muted); font-size: 0.74rem; }
-    .score-bar { position: relative; height: 8px; border-radius: 4px; background: rgba(255, 255, 255, 0.06); overflow: hidden; }
-    .score-bar i { position: absolute; inset: 0 auto 0 0; border-radius: 4px; background: var(--accent); }
-    .score-bar.weak i { background: #f7bd68; }
-    .score-row .val { text-align: right; font-family: "Archivo", system-ui, sans-serif; color: var(--text); }
-
-    /* ── FAQ ── */
-    .faq { margin-top: clamp(1.75rem, 3vw, 2.5rem); border-top: 1px solid var(--line); }
-    .faq details { border-bottom: 1px solid var(--line); }
-    .faq summary {
-      list-style: none;
-      cursor: pointer;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 1rem;
-      padding: 1.1rem 0.25rem;
-      font-family: "Archivo", system-ui, sans-serif;
-      font-size: 1.04rem;
-      color: var(--text);
-    }
-    .faq summary::-webkit-details-marker { display: none; }
-    .faq summary::after {
-      content: "+";
-      flex: none;
-      width: 1.6rem;
-      height: 1.6rem;
-      display: grid;
-      place-items: center;
-      border: 1px solid var(--line);
-      border-radius: 50%;
-      color: var(--accent);
-      font-family: "Public Sans", sans-serif;
-      transition: transform 0.2s;
-    }
-    .faq details[open] summary::after { transform: rotate(45deg); }
-    .faq summary:hover { color: var(--accent); }
-    .faq .ans { padding: 0 0.25rem 1.2rem; max-width: 52rem; }
-    .faq .ans p { color: var(--muted); font-size: 0.93rem; line-height: 1.75; margin: 0 0 0.6rem; }
-    .faq .ans p:last-child { margin-bottom: 0; }
-    .faq .ans a { color: var(--accent); }
-
-    /* ── Enquiry form ── */
-    .enq {
-      display: grid;
-      grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr);
-      gap: clamp(1.5rem, 4vw, 3.5rem);
-      position: relative;
-      z-index: 2;
-      padding: clamp(2rem, 4vw, 3.5rem) clamp(1.5rem, 4vw, 3rem);
-      text-align: left;
-      width: 100%;
-    }
-    .enq-intro p { color: rgba(236, 232, 248, 0.82); line-height: 1.75; margin: 0 0 1rem; }
-    .enq-intro ol { margin: 1.25rem 0 0; padding-left: 1.2rem; color: rgba(236, 232, 248, 0.82); line-height: 1.7; font-size: 0.93rem; }
-    .enq-intro li { margin-bottom: 0.4rem; }
-    .enq-intro a { color: var(--text); }
+    /* ── Enquiry form, on the closing photograph ── */
+    .cx-enq { display: grid; grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr); gap: clamp(2rem, 5vw, 4.5rem); align-items: start; }
+    .cx-enq ol { margin: 1.75rem 0 0; padding-left: 1.2rem; color: rgba(236, 232, 248, 0.86); line-height: 1.8; }
+    .cx-enq ol a { color: var(--text); }
     .enq-form {
-      border: 1px solid var(--line);
-      border-radius: 0.9rem;
-      background: rgba(8, 0, 20, 0.82);
-      backdrop-filter: blur(14px);
-      padding: clamp(1.25rem, 3vw, 1.9rem);
+      background: rgba(8, 0, 20, 0.80);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      padding: clamp(1.4rem, 3vw, 2.25rem);
     }
     .f-row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.9rem; }
-    .f-group { display: flex; flex-direction: column; gap: 0.35rem; margin-bottom: 0.95rem; min-width: 0; }
+    .f-group { display: flex; flex-direction: column; gap: 0.35rem; margin-bottom: 1rem; min-width: 0; }
     .f-group label, .f-group legend {
       font-family: "Public Sans", sans-serif;
       font-size: 11px;
@@ -839,9 +557,8 @@
     .enq-form input[type="text"], .enq-form input[type="email"], .enq-form select, .enq-form textarea {
       width: 100%;
       box-sizing: border-box;
-      padding: 0.65rem 0.8rem;
+      padding: 0.7rem 0.8rem;
       border: 1px solid var(--line);
-      border-radius: 0.5rem;
       background: rgba(255, 255, 255, 0.04);
       color: var(--text);
       font: inherit;
@@ -855,7 +572,7 @@
       border-color: rgba(var(--accent-rgb), 0.7);
       background: rgba(var(--accent-rgb), 0.06);
     }
-    fieldset.f-group { border: none; margin: 0 0 0.95rem; padding: 0; }
+    fieldset.f-group { border: none; margin: 0 0 1rem; padding: 0; }
     .chips { display: flex; flex-wrap: wrap; gap: 0.45rem; margin-top: 0.15rem; }
     .chip { position: relative; }
     .chip input { position: absolute; opacity: 0; width: 1px; height: 1px; }
@@ -873,65 +590,29 @@
     }
     .chip input:checked + span { border-color: var(--accent); color: var(--text); background: rgba(var(--accent-rgb), 0.16); }
     .chip input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 2px; }
-    .consent {
-      display: grid;
-      grid-template-columns: auto 1fr;
-      gap: 0.6rem;
-      align-items: start;
-      color: var(--muted);
-      font-size: 0.84rem;
-      line-height: 1.6;
-      margin: 0.3rem 0 1.1rem;
-    }
+    .consent { display: grid; grid-template-columns: auto 1fr; gap: 0.6rem; align-items: start; color: var(--muted); font-size: 0.84rem; line-height: 1.6; margin: 0.3rem 0 1.1rem; }
     .consent input { margin-top: 0.3rem; accent-color: var(--accent); }
     .consent a { color: var(--accent); }
     .enq-form button { width: 100%; cursor: pointer; border: none; }
     .f-note { color: var(--muted); font-size: 0.8rem; line-height: 1.6; margin: 0.9rem 0 0; }
-    .f-note a { color: var(--text); }
 
-    /* ── Closing call to action ── */
-    .cta-tile {
-      min-height: 22rem;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-    .cta-bg {
-      position: absolute;
-      inset: 0;
-      background: url('/assets/opt/binevenagh.webp') center 35% / cover no-repeat;
-      opacity: 0.7;
-    }
-    .cta-overlay {
-      position: absolute;
-      inset: 0;
-      background: radial-gradient(ellipse at center, rgba(8,0,20,0.78) 0%, rgba(8,0,20,0.55) 100%);
-    }
-    .cta-content {
-      position: relative;
-      z-index: 2;
-      padding: clamp(2.5rem, 5vw, 4rem) clamp(1.5rem, 4vw, 3rem);
-      max-width: 44rem;
-    }
-    .cta-content p { color: var(--muted); line-height: 1.75; margin: 0 auto; }
-    .cta-content .hero-actions { justify-content: center; }
-    .cta-mail {
-      margin-top: 1.25rem !important;
-      font-size: 0.88rem;
-    }
-    .cta-mail a { color: var(--text); }
+    /* ── Photo credits ── */
+    .cx-credits summary { cursor: pointer; color: var(--muted); font-size: 0.85rem; }
+    .cx-credits summary:hover { color: var(--text); }
+    .cx-credits ul { list-style: none; margin: 1rem 0 0; padding: 0; columns: 2; column-gap: 3rem; }
+    .cx-credits li { break-inside: avoid; color: var(--muted); font-size: 0.78rem; line-height: 1.55; margin-bottom: 0.55rem; }
+    .cx-credits a { color: rgba(236, 232, 248, 0.82); }
+    .cx-credits .cx-inner { padding-top: 2.5rem; padding-bottom: 2.5rem; }
 
     /* ── Footer ── */
     .site-footer {
-      margin-top: 2.5rem;
+      margin-top: 0;
       border-top: 1px solid var(--line);
       background: rgba(5,10,16,0.7);
       backdrop-filter: blur(12px);
       padding: 3rem 0 1.5rem;
     }
-
     .footer-inner { max-width: 1840px; margin: 0 auto; padding: 0 1rem; }
-
     .footer-content {
       display: grid;
       grid-template-columns: 2fr repeat(3, 1fr);
@@ -939,12 +620,10 @@
       padding-bottom: 2.5rem;
       border-bottom: 1px solid var(--line);
     }
-
     .footer-brand-logo { display: flex; align-items: center; gap: 0.6rem; margin-bottom: 1rem; }
     .footer-brand-logo img { height: 32px; width: auto; }
     .footer-brand p { color: var(--muted); font-size: 0.88rem; line-height: 1.68; }
     .footer-brand p + p { margin-top: 0.75rem; }
-
     .footer-section h4 {
       font-family: "Public Sans", sans-serif;
       font-size: 0.7rem;
@@ -954,25 +633,13 @@
       color: var(--muted);
       margin-bottom: 1.1rem;
     }
-
     .footer-section ul { list-style: none; padding: 0; margin: 0; }
     .footer-section li { margin-bottom: 0.6rem; }
     .footer-section a { color: var(--muted); text-decoration: none; font-size: 0.88rem; transition: color 0.18s; }
     .footer-section a:hover { color: var(--text); }
-
-    .footer-bottom {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      flex-wrap: wrap;
-      gap: 1rem;
-      padding-top: 1.75rem;
-    }
-
+    .footer-bottom { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; padding-top: 1.75rem; }
     .footer-bottom p { color: var(--muted); font-size: 0.82rem; }
-
     .footer-social-links { display: flex; gap: 0.6rem; }
-
     .footer-social-link {
       width: 36px; height: 36px;
       border-radius: 8px;
@@ -982,48 +649,45 @@
       color: var(--muted); text-decoration: none;
       transition: color 0.18s, background 0.18s;
     }
-
     .footer-social-link:hover { color: var(--cyan); background: var(--cyan-soft); }
 
     /* ── Responsive ── */
     @media (max-width: 1080px) {
-      .svc-grid { grid-template-columns: 1fr 1fr; }
-      .who-grid { grid-template-columns: 1fr 1fr; }
-      .c-facts { grid-template-columns: 1fr 1fr; }
+      .cx-wall { grid-template-columns: 1fr 1fr; }
+      .cx-facts { grid-template-columns: 1fr 1fr; }
+      .cx-steps { grid-template-columns: 1fr 1fr; row-gap: 2.5rem; }
+      .cx-steps::before { display: none; }
+      .cx-cols[style*="--n:4"] { grid-template-columns: 1fr 1fr; row-gap: 2.5rem; }
+      .cx-cols[style*="--n:4"] .cx-col:nth-child(3) { padding-left: 0; border-left: none; }
       .footer-content { grid-template-columns: 1fr 1fr; }
-      .tier-grid { grid-template-columns: 1fr; max-width: 40rem; }
       .legal-wrap { grid-template-columns: 1fr; }
       .legal-toc { position: static; border-left: none; padding-left: 0; }
       .legal-toc ol { grid-template-columns: 1fr 1fr; column-gap: 1.5rem; }
+      .cx-split { grid-template-columns: 1fr; }
+      .cx-split > div:first-child { position: static; }
     }
-
     @media (max-width: 820px) {
-      .split, .split.flip { grid-template-columns: 1fr; }
-      .split.flip .split-media { order: 0; }
-      .split-media { min-height: 16rem; }
-      .scope-grid { grid-template-columns: 1fr; }
-      .case, .case:nth-of-type(even) { grid-template-columns: 1fr; }
-      .case:nth-of-type(even) .case-media { order: 0; }
-      .case-media { min-height: 14rem; }
-      .enq { grid-template-columns: 1fr; }
+      .cx-cols, .cx-cols[style*="--n:4"] { grid-template-columns: 1fr; row-gap: 0; }
+      .cx-col, .cx-cols[style*="--n:4"] .cx-col:nth-child(3) { padding: 1.75rem 0; border-left: none; border-top: 1px solid rgba(255, 255, 255, 0.16); }
+      .cx-col:first-child { padding-top: 0; border-top: none; }
+      .cx-enq { grid-template-columns: 1fr; }
+      .shade-left, .shade-right { background: rgba(8,0,20,0.80); }
+      .cx-case .cx-inner { min-height: 0; }
     }
-
     @media (max-width: 640px) {
-      .svc-grid, .who-grid { grid-template-columns: 1fr; }
-      .c-facts { grid-template-columns: 1fr; }
+      .cx-wall, .cx-facts, .cx-steps { grid-template-columns: 1fr; }
+      .cx-cell { min-height: 24rem; }
+      .f-row { grid-template-columns: 1fr; gap: 0; }
       .legal-toc ol { grid-template-columns: 1fr; }
+      .cx-score { grid-template-columns: 1fr 3rem; row-gap: 0.5rem; }
+      .cx-score .cx-bar { grid-column: 1 / -1; grid-row: 2; }
+      .cx-credits ul { columns: 1; }
+      .page-utility { display: none !important; }
       .footer-content { grid-template-columns: 1fr; gap: 2rem; }
       .footer-bottom { flex-direction: column; text-align: center; }
-      .page-utility { display: none !important; }
-      .c-fact { padding: 0.8rem 1rem; }
-      .f-row { grid-template-columns: 1fr; gap: 0; }
-      .score-row { grid-template-columns: 1fr 3rem; }
-      .score-row .score-bar { grid-column: 1 / -1; grid-row: 2; }
     }
-
     @media print {
-      .site-nav, .page-utility, .status-bar, .hero-bg, .cta-tile, .site-footer, .legal-toc { display: none !important; }
-      .c-tile { box-shadow: none; border-color: #ccc; }
+      .site-nav, .page-utility, .status-bar, .cx-bg, .cx-shade, #enquire, .site-footer, .legal-toc { display: none !important; }
     }
   </style>
   <link rel="stylesheet" href="/styles/v2-site.css?v=20261024-5141e1b">
@@ -1077,357 +741,299 @@
     <div class="page-inner">
 
       <!-- Hero -->
-      <header class="c-tile hero-tile" id="hero">
-        <div class="hero-bg" role="img" aria-label="A steaming crater floor on Mount Etna during fieldwork"></div>
-        <div class="hero-overlay"></div>
-        <div class="hero-content">
+      <header class="cx-band cx-top" id="top">
+        <img class="cx-bg" src="/assets/consultancy/hero.webp" alt="" fetchpriority="high" decoding="async">
+        <div class="cx-shade shade-bottom"></div>
+        <div class="cx-shade" style="background:linear-gradient(90deg, rgba(8,0,20,0.70), rgba(8,0,20,0) 65%);"></div>
+        <div class="cx-inner">
           <span class="avail"><span class="avail-dot" aria-hidden="true"></span>Taking enquiries for 2026&ndash;27</span>
           <h1>Focused <span>geohazard</span> assessments</h1>
-          <p>Freelance consultancy from the GeoID team. One site or one region, one question &mdash; landslide, flood, volcanic, seismic or glacial &mdash; answered with a model built for it, and the method, assumptions and uncertainty written down beside every map.</p>
-          <div class="hero-actions">
+          <p class="cx-lead">Freelance consultancy from the GeoID team. One site or one region, one question &mdash; landslide, flood, volcanic, seismic or glacial &mdash; answered with a model built for it, and the method, assumptions and uncertainty written down beside every map.</p>
+          <div class="cx-btns">
             <a class="btn-primary" href="#enquire">Request an assessment</a>
             <a class="btn-ghost" href="#assessments">What we assess</a>
             <a class="btn-ghost" href="#terms">Terms &amp; limitations</a>
           </div>
-          <div class="c-facts">
-            <div class="c-fact"><strong>Scoped first</strong><span>A free scoping call, then a fixed-fee written proposal</span></div>
-            <div class="c-fact"><strong>Desk or field</strong><span>Desk-based by default; site visits by agreement</span></div>
-            <div class="c-fact"><strong>Open method</strong><span>Every assumption and data source listed in the report</span></div>
-            <div class="c-fact"><strong>UK &amp; international</strong><span>Based in Northern Ireland; remote delivery worldwide</span></div>
+          <div class="cx-facts">
+            <div><strong>Scoped first</strong><span>A free scoping call, then a fixed-fee written proposal</span></div>
+            <div><strong>Desk or field</strong><span>Desk-based by default; site visits by agreement</span></div>
+            <div><strong>Open method</strong><span>Every assumption and data source listed in the report</span></div>
+            <div><strong>UK &amp; international</strong><span>Based in Northern Ireland; remote delivery worldwide</span></div>
           </div>
         </div>
       </header>
 
       <!-- Why -->
-      <section class="c-tile split" id="why">
-        <div class="split-body">
-          <h2 class="c-title">Specialist modelling, sized to the question</h2>
-          <p>Most hazard questions don't need a year-long study. They need someone who can find the right data, choose a method that fits it, run it properly, and say plainly how far the answer can be trusted. That is what a focused assessment is.</p>
-          <p>The work draws on the same tools that run <strong>GeoHUB</strong> &mdash; its catalogues, its terrain and geology, and its six hazard models &mdash; and, where the question calls for it, on <strong>finite-element modelling with the GALES solver</strong>, the code behind the Etna magma-dynamics research.</p>
-          <ul class="credentials">
-            <li>Led by Owen McCluskey, computational geoscientist (PhD, University of Pisa / INGV)</li>
-            <li>Finite-element modelling of magma dynamics, glaciology and volcanogenic floods</li>
-            <li>Regional landslide and flood screening validated against mapped inventories</li>
-            <li>Every deliverable reproducible: data, parameters and code versions recorded</li>
-          </ul>
+      <section class="cx-band" id="why">
+        <img class="cx-bg" src="/assets/consultancy/intro.webp" alt="" loading="lazy" decoding="async">
+        <div class="cx-shade shade-left"></div>
+        <div class="cx-inner">
+          <div class="cx-narrow">
+            <h2 class="tile-title">Specialist modelling, sized to the question</h2>
+            <p class="tile-desc">Most hazard questions don't need a year-long study. They need someone who can find the right data, choose a method that fits it, run it properly, and say plainly how far the answer can be trusted. That is what a focused assessment is.</p>
+            <p class="tile-desc" style="margin-top:1rem;">The work draws on the tools that run <strong style="color:var(--text);">GeoHUB</strong> &mdash; its catalogues, terrain, geology and six hazard models &mdash; and, where the question calls for it, <strong style="color:var(--text);">finite-element modelling with the GALES solver</strong>, the code behind the Etna magma-dynamics research.</p>
+            <ul class="cx-ticks">
+              <li>Led by Owen McCluskey, computational geoscientist (PhD, University of Pisa / INGV)</li>
+              <li>Finite-element modelling of magma dynamics, glaciology and volcanogenic floods</li>
+              <li>Regional landslide and flood screening validated against mapped inventories</li>
+              <li>Every deliverable reproducible: data, parameters and code versions recorded</li>
+            </ul>
+          </div>
         </div>
-        <figure class="split-media">
-          <img src="/assets/opt/binevenagh.webp" alt="The basalt escarpment of Binevenagh above farmland in Northern Ireland" loading="lazy" decoding="async">
-          <figcaption>Binevenagh escarpment, Northern Ireland</figcaption>
-        </figure>
       </section>
 
       <!-- Assessment types -->
-      <section class="c-tile section-pad" id="assessments">
-        <h2 class="c-title">What we assess</h2>
-        <p class="c-lead">Six kinds of focused study. Most engagements are one of these over one area; some combine two where one hazard drives another, such as rainfall-triggered landslides feeding a debris flow.</p>
-        <div class="svc-grid">
-
-          <article class="svc-card">
-            <div class="svc-photo">
-              <img src="/assets/opt/swiss.webp" alt="A debris-flow scar running down an Alpine valley, seen from above" loading="lazy" decoding="async">
-              <span class="svc-tag">01</span>
-            </div>
-            <div class="svc-body">
+      <section class="cx-band cx-plain" id="assessments">
+        <div class="cx-inner" style="padding-bottom:clamp(3rem,5vw,4.5rem);">
+          <h2 class="tile-title">What we assess</h2>
+          <p class="tile-desc">Six kinds of focused study. Most engagements are one of these over one area; some combine two where one hazard drives another, such as rainfall-triggered landslides feeding a debris flow.</p>
+        </div>
+        <div class="cx-wall">
+          <article class="cx-cell">
+            <img class="cx-bg" src="/assets/consultancy/landslide.webp" alt="The head scarp of a large landslide cutting through forest, from the air" loading="lazy" decoding="async">
+            <div class="cx-shade shade-bottom"></div>
+            <div class="cx-cell-text">
+              <span class="cx-num">01</span>
               <h3>Landslide &amp; slope stability</h3>
-              <p>Susceptibility mapping and infinite-slope Factor of Safety from terrain, mapped geology and rainfall scenarios, checked against any landslide inventory that exists for the area.</p>
-              <ul class="svc-out">
-                <li>Susceptibility and Factor-of-Safety maps</li>
-                <li>Rainfall-trigger scenarios</li>
-                <li>Validation statistics where an inventory exists</li>
-              </ul>
+              <p>Susceptibility mapping and infinite-slope Factor of Safety from terrain, geology and rainfall scenarios, checked against any landslide inventory for the area.</p>
+              <ul class="cx-out"><li>Factor-of-Safety maps</li><li>Rainfall triggers</li><li>Validation scores</li></ul>
             </div>
           </article>
-
-          <article class="svc-card">
-            <div class="svc-photo">
-              <img src="/assets/opt/hero_flood.webp" alt="A river in flood through a village, seen from the air" loading="lazy" decoding="async">
-              <span class="svc-tag">02</span>
-            </div>
-            <div class="svc-body">
+          <article class="cx-cell">
+            <img class="cx-bg" src="/assets/consultancy/flood.webp" alt="A river town surrounded by floodwater, seen from the air" loading="lazy" decoding="async">
+            <div class="cx-shade shade-bottom"></div>
+            <div class="cx-cell-text">
+              <span class="cx-num">02</span>
               <h3>Flood &amp; inundation scenarios</h3>
-              <p>Fluvial and surface-water inundation for chosen discharge or rainfall scenarios over a catchment or a site, with depth and extent mapped and compared with any recorded flood outlines.</p>
-              <ul class="svc-out">
-                <li>Depth and extent maps per scenario</li>
-                <li>Drainage and catchment analysis</li>
-                <li>Exposure of named assets or parcels</li>
-              </ul>
+              <p>Fluvial and surface-water inundation for chosen discharge or rainfall scenarios, with depth and extent mapped and compared with recorded flood outlines.</p>
+              <ul class="cx-out"><li>Depth &amp; extent maps</li><li>Catchment analysis</li><li>Asset exposure</li></ul>
             </div>
           </article>
-
-          <article class="svc-card">
-            <div class="svc-photo">
-              <img src="/assets/opt/etna_banner.webp" alt="A lava flow descending the snow-covered flank of Mount Etna" loading="lazy" decoding="async">
-              <span class="svc-tag">03</span>
-            </div>
-            <div class="svc-body">
+          <article class="cx-cell">
+            <img class="cx-bg" src="/assets/consultancy/volcanic.webp" alt="An ash plume streaming from Mount Etna, photographed from the International Space Station" loading="lazy" decoding="async">
+            <div class="cx-shade shade-bottom"></div>
+            <div class="cx-cell-text">
+              <span class="cx-num">03</span>
               <h3>Volcanic hazard &amp; ashfall</h3>
-              <p>Ash dispersal and deposit thickness from eruption scenarios and real wind fields, lava-flow path screening on terrain, and the eruptive record of the volcano in question.</p>
-              <ul class="svc-out">
-                <li>Ashfall thickness and footprint maps</li>
-                <li>Flow-path and inundation screening</li>
-                <li>Eruptive-history summary</li>
-              </ul>
+              <p>Ash dispersal and deposit thickness from eruption scenarios and real wind fields, lava-flow path screening, and the eruptive record of the volcano.</p>
+              <ul class="cx-out"><li>Ashfall footprints</li><li>Flow-path screening</li><li>Eruptive history</li></ul>
             </div>
           </article>
-
-          <article class="svc-card">
-            <div class="svc-photo">
-              <img src="/assets/opt/etna_seismic.webp" alt="Earthquake hypocentres beneath a volcano shown as a 3D cloud of coloured points" loading="lazy" decoding="async">
-              <span class="svc-tag">04</span>
-            </div>
-            <div class="svc-body">
+          <article class="cx-cell">
+            <img class="cx-bg" src="/assets/consultancy/seismic.webp" alt="The San Andreas Fault crossing the Carrizo Plain, seen from high altitude" loading="lazy" decoding="async">
+            <div class="cx-shade shade-bottom"></div>
+            <div class="cx-cell-text">
+              <span class="cx-num">04</span>
               <h3>Seismic hazard context</h3>
-              <p>The instrumental and historical earthquake record around a site, mapped faults, and a published hazard model's ground-motion levels, drawn together for a desk study or planning context.</p>
-              <ul class="svc-out">
-                <li>Catalogue and fault compilation</li>
-                <li>Ground-motion context from published models</li>
-                <li>3D hypocentre visualisation</li>
-              </ul>
+              <p>The instrumental and historical earthquake record around a site, mapped faults, and published ground-motion levels, drawn together for a desk study.</p>
+              <ul class="cx-out"><li>Catalogue &amp; faults</li><li>Ground-motion context</li><li>3D hypocentres</li></ul>
             </div>
           </article>
-
-          <article class="svc-card">
-            <div class="svc-photo">
-              <img src="/assets/opt/hero_iceland.webp" alt="A braided glacial river running across a gravel plain in Iceland" loading="lazy" decoding="async">
-              <span class="svc-tag">05</span>
-            </div>
-            <div class="svc-body">
+          <article class="cx-cell">
+            <img class="cx-bg" src="/assets/consultancy/glacial.webp" alt="A meltwater channel cut through bedrock beside a glacier in Alaska" loading="lazy" decoding="async">
+            <div class="cx-shade shade-bottom"></div>
+            <div class="cx-cell-text">
+              <span class="cx-num">05</span>
               <h3>Glacial &amp; volcanogenic floods</h3>
-              <p>Outburst-flood and meltwater scenarios from ice-covered volcanoes and glacial lakes: source volumes, routing down the valley, and arrival times at points that matter.</p>
-              <ul class="svc-out">
-                <li>Scenario routing and arrival times</li>
-                <li>Ice and terrain change from public data</li>
-                <li>Sensitivity to source volume</li>
-              </ul>
+              <p>Outburst-flood and meltwater scenarios from ice-covered volcanoes and glacial lakes: source volumes, routing down the valley, and arrival times.</p>
+              <ul class="cx-out"><li>Scenario routing</li><li>Arrival times</li><li>Volume sensitivity</li></ul>
             </div>
           </article>
-
-          <article class="svc-card">
-            <div class="svc-photo">
-              <img src="/assets/opt/mesh.webp" alt="A terrain surface rendered as a finite-element wireframe mesh" loading="lazy" decoding="async">
-              <span class="svc-tag">06</span>
-            </div>
-            <div class="svc-body">
+          <article class="cx-cell">
+            <img class="cx-bg" src="/assets/consultancy/model.webp" alt="A grey shaded-relief rendering of mountainous terrain" loading="lazy" decoding="async">
+            <div class="cx-shade shade-bottom"></div>
+            <div class="cx-cell-text">
+              <span class="cx-num">06</span>
               <h3>Bespoke numerical modelling</h3>
-              <p>Where a screening model is not enough: a site-specific finite-element model built from the terrain up and run with GALES &mdash; meshing, boundary conditions, parameter study and a written method.</p>
-              <ul class="svc-out">
-                <li>Mesh and model set-up from real terrain</li>
-                <li>Parameter and sensitivity runs</li>
-                <li>Method note suitable for peer review</li>
-              </ul>
+              <p>A site-specific finite-element model built from the terrain up and run with GALES: meshing, boundary conditions, parameter study and a written method.</p>
+              <ul class="cx-out"><li>Mesh from real terrain</li><li>Sensitivity runs</li><li>Method note</li></ul>
             </div>
           </article>
-
         </div>
       </section>
 
-
       <!-- Ways to engage -->
-      <section class="c-tile section-pad" id="engage">
-        <h2 class="c-title">Three sizes of engagement</h2>
-        <p class="c-lead">Every engagement is scoped to the question, but most fall into one of three sizes. The scoping call settles which one fits, or whether something smaller would do.</p>
-        <div class="tier-grid">
-          <article class="tier">
-            <div class="tier-head"><h3>Rapid screen</h3><span class="tier-time">~1&ndash;2 weeks</span></div>
-            <p class="tier-q">&ldquo;Is there a hazard question here worth paying to answer?&rdquo;</p>
-            <p>One hazard, one site or small area, using GeoHUB's screening models and the public record. Tells you whether a fuller study is warranted, and what it should look at.</p>
-            <ul>
-              <li>Short technical memo with maps</li>
-              <li>Hazard record and setting summary</li>
-              <li>Recommendation on next steps</li>
-            </ul>
-            <p class="tier-fee"><strong>Fixed fee</strong> &middot; quoted after scoping</p>
-          </article>
-          <article class="tier core">
-            <div class="tier-head"><h3>Focused assessment</h3><span class="tier-time">~3&ndash;6 weeks</span></div>
-            <p class="tier-q">&ldquo;How exposed is this place, under which scenarios, and how sure are we?&rdquo;</p>
-            <p>One or two hazards with a model built for the area, scenarios agreed with you, and validation against local records wherever they exist. The core service.</p>
-            <ul>
-              <li>Full report, assumptions register and uncertainty statement</li>
-              <li>Scenario maps as figures and GIS layers</li>
-              <li>Local validation where an inventory exists</li>
-              <li>Interim results review and walk-through call</li>
-            </ul>
-            <p class="tier-fee"><strong>Fixed fee</strong> &middot; quoted after scoping</p>
-          </article>
-          <article class="tier">
-            <div class="tier-head"><h3>Modelling study</h3><span class="tier-time">~6&ndash;12 weeks</span></div>
-            <p class="tier-q">&ldquo;What does the physics say at this site, and what does it depend on?&rdquo;</p>
-            <p>Bespoke numerical modelling, including finite-element work with GALES, or a multi-hazard study where one process drives another.</p>
-            <ul>
-              <li>Model set-up from real terrain and geology</li>
-              <li>Parameter and sensitivity study</li>
-              <li>Method note written to peer-review standard</li>
-            </ul>
-            <p class="tier-fee"><strong>Fixed fee or staged</strong> &middot; quoted after scoping</p>
-          </article>
+      <section class="cx-band" id="engage">
+        <img class="cx-bg" src="/assets/consultancy/engage.webp" alt="" loading="lazy" decoding="async">
+        <div class="cx-shade shade-heavy"></div>
+        <div class="cx-inner">
+          <h2 class="tile-title">Three sizes of engagement</h2>
+          <p class="tile-desc">Every engagement is scoped to the question, but most fall into one of three sizes. The scoping call settles which one fits, or whether something smaller would do.</p>
+          <div class="cx-cols" style="--n:3">
+            <div class="cx-col">
+              <span class="cx-time">About 1&ndash;2 weeks</span>
+              <h3>Rapid screen</h3>
+              <p class="cx-q">&ldquo;Is there a hazard question here worth paying to answer?&rdquo;</p>
+              <p>One hazard, one site or small area, using GeoHUB's screening models and the public record. Tells you whether a fuller study is warranted.</p>
+              <ul class="cx-ticks"><li>Technical memo with maps</li><li>Hazard record and setting</li><li>Recommended next steps</li></ul>
+              <p class="cx-fee"><strong>Fixed fee</strong> &middot; quoted after scoping</p>
+            </div>
+            <div class="cx-col core">
+              <span class="cx-time">About 3&ndash;6 weeks &middot; Core service</span>
+              <h3>Focused assessment</h3>
+              <p class="cx-q">&ldquo;How exposed is this place, under which scenarios, and how sure are we?&rdquo;</p>
+              <p>One or two hazards with a model built for the area, scenarios agreed with you, and validation against local records wherever they exist.</p>
+              <ul class="cx-ticks"><li>Report, assumptions register, uncertainty statement</li><li>Scenario maps and GIS layers</li><li>Local validation where possible</li><li>Interim review and walk-through</li></ul>
+              <p class="cx-fee"><strong>Fixed fee</strong> &middot; quoted after scoping</p>
+            </div>
+            <div class="cx-col">
+              <span class="cx-time">About 6&ndash;12 weeks</span>
+              <h3>Modelling study</h3>
+              <p class="cx-q">&ldquo;What does the physics say at this site, and what does it depend on?&rdquo;</p>
+              <p>Bespoke numerical modelling, including finite-element work with GALES, or a multi-hazard study where one process drives another.</p>
+              <ul class="cx-ticks"><li>Model from real terrain and geology</li><li>Parameter and sensitivity study</li><li>Method note to peer-review standard</li></ul>
+              <p class="cx-fee"><strong>Fixed fee or staged</strong> &middot; quoted after scoping</p>
+            </div>
+          </div>
+          <p class="cx-fine">Timescales are indicative and run from the point the scope is agreed and the data are in hand. Fees depend on the area, the hazards, the data available and the deliverables, and are always agreed in writing before work begins. Site visits are quoted separately, with travel at cost.</p>
         </div>
-        <p class="fine">Timescales are indicative and run from the point the scope is agreed and the data are in hand. Fees depend on the area, the hazards, the data available and the deliverables, and are always agreed in writing before work begins. Site visits, where wanted, are quoted separately with travel at cost.</p>
       </section>
 
       <!-- Process -->
-      <section class="c-tile split flip" id="process">
-        <div class="split-body">
-          <h2 class="c-title">How an engagement runs</h2>
-          <p>Four stages, each ending in something you can read before the next begins. Nothing is charged until you have accepted a written proposal.</p>
-          <ol class="steps">
-            <li>
-              <h3>Scoping call</h3>
-              <p>A free conversation about the site, the decision the assessment has to support, and the data that already exists. If a focused assessment is not the right tool, we will say so.</p>
-            </li>
-            <li>
-              <h3>Written proposal</h3>
-              <p>The question, the method, the data, the deliverables, the timetable and a fixed fee &mdash; plus the known limitations of the chosen approach, stated before any work starts.</p>
-            </li>
-            <li>
-              <h3>Data, modelling &amp; checks</h3>
-              <p>Data compiled and reviewed, models built and run, results checked against observations wherever observations exist. You get an interim look at the results before the report is written.</p>
-            </li>
-            <li>
-              <h3>Report &amp; handover</h3>
-              <p>A written report with maps, an assumptions register and an uncertainty statement, the GIS layers, and a walk-through call. A short period for clarification questions is included.</p>
-            </li>
+      <section class="cx-band" id="process">
+        <img class="cx-bg" src="/assets/consultancy/process.webp" alt="" loading="lazy" decoding="async">
+        <div class="cx-shade shade-even"></div>
+        <div class="cx-inner">
+          <h2 class="tile-title">How an engagement runs</h2>
+          <p class="tile-desc">Four stages, each ending in something you can read before the next begins. Nothing is charged until you have accepted a written proposal.</p>
+          <ol class="cx-steps">
+            <li><h3>Scoping call</h3><p>A free conversation about the site, the decision the assessment has to support, and the data that already exists. If a focused assessment is not the right tool, we say so.</p></li>
+            <li><h3>Written proposal</h3><p>The question, method, data, deliverables, timetable and a fixed fee &mdash; plus the known limitations of the approach, stated before any work starts.</p></li>
+            <li><h3>Modelling &amp; checks</h3><p>Data compiled and reviewed, models built and run, results checked against observations wherever they exist. You see interim results before the report is written.</p></li>
+            <li><h3>Report &amp; handover</h3><p>A written report with maps, an assumptions register and an uncertainty statement, the GIS layers, and a walk-through call, with time for questions afterwards.</p></li>
           </ol>
         </div>
-        <figure class="split-media">
-          <img src="/assets/opt/learn.webp" alt="A hand writing notes with a pen beside a notebook and coffee cup" loading="lazy" decoding="async">
-          <figcaption>Every stage ends in a written record</figcaption>
-        </figure>
       </section>
 
-
       <!-- Track record -->
-      <section class="c-tile section-pad" id="record">
-        <h2 class="c-title">Track record: scored, not asserted</h2>
-        <p class="c-lead">The models behind the assessments are tested against events they were not built from, and the results are reported whether they flatter the model or not. Three examples, including one where the answer was &ldquo;this does not transfer&rdquo;.</p>
+      <section class="cx-band cx-plain" id="record">
+        <div class="cx-inner" style="padding-bottom:clamp(3rem,5vw,4.5rem);">
+          <h2 class="tile-title">Track record: scored, not asserted</h2>
+          <p class="tile-desc">The models behind the assessments are tested against events they were not built from, and the results are reported whether they flatter the model or not &mdash; including one where the answer was &ldquo;this does not transfer&rdquo;.</p>
+        </div>
+      </section>
 
-        <article class="case">
-          <figure class="case-media">
-            <img src="/assets/opt/geohub-radar.webp" alt="Great Britain and Ireland on the GeoHUB globe with a rainfall radar overlay" loading="lazy" decoding="async">
-          </figure>
-          <div class="case-body">
-            <span class="case-kind">Landslide susceptibility &middot; Wales</span>
+      <article class="cx-band cx-case">
+        <img class="cx-bg" src="/assets/consultancy/rec-wales.webp" alt="The Rhondda valley in South Wales, terraced towns along the valley floor" loading="lazy" decoding="async">
+        <div class="cx-shade shade-left"></div>
+        <div class="cx-inner">
+          <div class="cx-narrow">
+            <span class="cx-kicker">Landslide susceptibility &middot; Wales</span>
             <h3>A good score where it was tuned, and a candid one where it wasn't</h3>
-            <p>A regional landslide susceptibility model built from terrain, geology and rainfall was validated against 1,242 inventoried landslides in South Wales. Two corrections &mdash; area-share classes and a slope gate &mdash; were kept only because they measurably improved the fit.</p>
-            <div class="case-stats">
-              <div class="case-stat"><strong>0.841</strong><span>success-rate AUC, South Wales</span></div>
-              <div class="case-stat"><strong>74%</strong><span>of landslides in the classes covering 27.5% of the ground</span></div>
-              <div class="case-stat"><strong>0.534</strong><span>AUC on held-out Mid &amp; North Wales: little skill</span></div>
+            <p>A regional landslide model built from terrain, geology and rainfall was validated against 1,242 inventoried landslides in South Wales. Two corrections &mdash; area-share classes and a slope gate &mdash; were kept only because they measurably improved the fit.</p>
+            <div class="cx-figs">
+              <div><strong>0.841</strong><span>success-rate AUC, South Wales</span></div>
+              <div><strong>74%</strong><span>of landslides in classes covering 27.5% of the ground</span></div>
+              <div><strong>0.534</strong><span>AUC on held-out Mid &amp; North Wales: little skill</span></div>
             </div>
-            <p class="case-lesson">Why it matters to you: a model's score belongs to the place it was tested. Every focused assessment checks against local records rather than borrowing a regional number.</p>
+            <p class="cx-lesson">A model's score belongs to the place it was tested. Every focused assessment checks against local records rather than borrowing a regional number.</p>
           </div>
-        </article>
+        </div>
+      </article>
 
-        <article class="case">
-          <figure class="case-media">
-            <img src="/assets/opt/etna_subsurface.webp" alt="A 3D model of the subsurface beneath Mount Etna with magma bodies and fracture networks" loading="lazy" decoding="async">
-          </figure>
-          <div class="case-body">
-            <span class="case-kind">Volcano dynamics &middot; Mount Etna &middot; PhD research</span>
+      <article class="cx-band cx-case">
+        <img class="cx-bg" src="/assets/consultancy/rec-etna.webp" alt="Lava fountaining from Mount Etna at night" loading="lazy" decoding="async">
+        <div class="cx-shade shade-right"></div>
+        <div class="cx-inner">
+          <div class="cx-narrow cx-right">
+            <span class="cx-kicker">Volcano dynamics &middot; Mount Etna &middot; PhD research</span>
             <h3>Finite-element modelling, and a negative result stated precisely</h3>
-            <p>Doctoral research with the University of Pisa and INGV: GALES finite-element models of magma mixing beneath Etna predicted the very-long-period ground tilt it should produce. A matched-filter search of tilt records from an eruptive and a quiet period looked for those signals.</p>
-            <div class="case-stats">
-              <div class="case-stat"><strong>12,406</strong><span>candidate windows screened</span></div>
-              <div class="case-stat"><strong>0</strong><span>confirmed detections</span></div>
-              <div class="case-stat"><strong>2.7&ndash;9.8</strong><span>signal-to-noise detection limit, per station</span></div>
+            <p>Doctoral research with the University of Pisa and INGV: GALES models of magma mixing beneath Etna predicted the very-long-period ground tilt it should produce, and a matched-filter search of tilt records from an eruptive and a quiet period looked for it.</p>
+            <div class="cx-figs">
+              <div><strong>12,406</strong><span>candidate windows screened</span></div>
+              <div><strong>0</strong><span>confirmed detections</span></div>
+              <div><strong>2.7&ndash;9.8</strong><span>signal-to-noise detection limit, per station</span></div>
             </div>
-            <p class="case-lesson">Why it matters to you: knowing what the data cannot show is a result. Reports say so plainly, with the limit quantified, rather than stretching a weak signal into a conclusion.</p>
+            <p class="cx-lesson">Knowing what the data cannot show is a result. Reports say so plainly, with the limit quantified, rather than stretching a weak signal into a conclusion.</p>
           </div>
-        </article>
+        </div>
+      </article>
 
-        <article class="case">
-          <figure class="case-media">
-            <img src="/assets/opt/malaga.webp" alt="Cars piled in a mud-covered street after a flash flood" loading="lazy" decoding="async">
-          </figure>
-          <div class="case-body">
-            <span class="case-kind">Flood susceptibility &middot; global screening</span>
+      <article class="cx-band cx-case">
+        <img class="cx-bg" src="/assets/consultancy/rec-flood.webp" alt="The Brisbane River in flood beneath the city skyline, January 2011" loading="lazy" decoding="async">
+        <div class="cx-shade shade-left"></div>
+        <div class="cx-inner">
+          <div class="cx-narrow">
+            <span class="cx-kicker">Flood susceptibility &middot; global screening</span>
             <h3>Trained on the past, tested on the twenty years after it</h3>
-            <p>GeoHUB's flood susceptibility model was trained on floods before 2005 and scored on the floods of 2005&ndash;2025 that it had never seen &mdash; the same way a client's question is really asked: what happens next?</p>
-            <div class="case-stats">
-              <div class="case-stat"><strong>0.959</strong><span>AUC on held-out 2005&ndash;2025 events</span></div>
-              <div class="case-stat"><strong>69%</strong><span>of flooded cells caught at the working threshold</span></div>
-              <div class="case-stat"><strong>31%</strong><span>missed &mdash; and reported, not hidden</span></div>
+            <p>GeoHUB's flood susceptibility model was trained on floods before 2005 and scored on the floods of 2005&ndash;2025 it had never seen &mdash; the way a client's question is really asked: what happens next?</p>
+            <div class="cx-figs">
+              <div><strong>0.959</strong><span>AUC on held-out 2005&ndash;2025 events</span></div>
+              <div><strong>69%</strong><span>of flooded cells caught at the working threshold</span></div>
+              <div><strong>31%</strong><span>missed &mdash; and reported, not hidden</span></div>
             </div>
-            <p class="case-lesson">Why it matters to you: a high headline score still misses floods. The miss rate goes in the report next to the hit rate, so you know how much weight a map can bear.</p>
+            <p class="cx-lesson">A high headline score still misses floods. The miss rate goes in the report next to the hit rate, so you know how much weight a map can bear.</p>
           </div>
-        </article>
+        </div>
+      </article>
 
-        <div class="scores">
-          <h3>Held-out scores for the GeoHUB screening models</h3>
-          <p>Area under the ROC curve on events after each model's training period (0.5 is no skill, 1 is a perfect ranking; bars run from 0.5 to 1). These are the global and regional screening models that a focused assessment starts from, not the site-specific models it builds.</p>
-          <div class="score-row"><span class="name">Seismic<small>M&ge;5, 2006&ndash;2025</small></span><span class="score-bar" aria-hidden="true"><i style="width:92%"></i></span><span class="val">0.960</span></div>
-          <div class="score-row"><span class="name">Flood<small>events 2005&ndash;2025</small></span><span class="score-bar" aria-hidden="true"><i style="width:91.8%"></i></span><span class="val">0.959</span></div>
-          <div class="score-row"><span class="name">Tropical cyclone<small>seasons 2010&ndash;2025</small></span><span class="score-bar" aria-hidden="true"><i style="width:88.2%"></i></span><span class="val">0.941</span></div>
-          <div class="score-row"><span class="name">Volcanic<small>Holocene record, eruptions 2000&ndash;2025</small></span><span class="score-bar" aria-hidden="true"><i style="width:69.4%"></i></span><span class="val">0.847</span></div>
-          <div class="score-row"><span class="name">Landslide<small>held-out Mid &amp; North Wales</small></span><span class="score-bar weak" aria-hidden="true"><i style="width:6.8%"></i></span><span class="val">0.534</span></div>
+      <section class="cx-band cx-plain" aria-label="Held-out model scores">
+        <div class="cx-inner">
+          <h2 class="tile-title" style="font-size:clamp(1.4rem,2.4vw,1.9rem)!important;">Held-out scores for the GeoHUB screening models</h2>
+          <p class="tile-desc">Area under the ROC curve on events after each model's training period (0.5 is no skill, 1 is a perfect ranking; bars run from 0.5 to 1). These are the screening models an assessment starts from, not the site-specific models it builds.</p>
+          <div class="cx-scores">
+            <div class="cx-score"><span class="name">Seismic<small>M&ge;5, 2006&ndash;2025</small></span><span class="cx-bar" aria-hidden="true"><i style="width:92%"></i></span><span class="val">0.960</span></div>
+            <div class="cx-score"><span class="name">Flood<small>events 2005&ndash;2025</small></span><span class="cx-bar" aria-hidden="true"><i style="width:91.8%"></i></span><span class="val">0.959</span></div>
+            <div class="cx-score"><span class="name">Tropical cyclone<small>seasons 2010&ndash;2025</small></span><span class="cx-bar" aria-hidden="true"><i style="width:88.2%"></i></span><span class="val">0.941</span></div>
+            <div class="cx-score"><span class="name">Volcanic<small>Holocene record, eruptions 2000&ndash;2025</small></span><span class="cx-bar" aria-hidden="true"><i style="width:69.4%"></i></span><span class="val">0.847</span></div>
+            <div class="cx-score"><span class="name">Landslide<small>held-out Mid &amp; North Wales</small></span><span class="cx-bar weak" aria-hidden="true"><i style="width:6.8%"></i></span><span class="val">0.534</span></div>
+          </div>
         </div>
       </section>
 
       <!-- Scope -->
-      <section class="c-tile section-pad" id="scope">
-        <h2 class="c-title">What you receive &mdash; and what an assessment is not</h2>
-        <p class="c-lead">A focused assessment is a desk-based, model-led study. It is precise about what it covers and equally precise about what it does not, so that nobody relies on it for something it was never built to do.</p>
-        <div class="scope-grid">
-          <div class="scope-col yes">
-            <h3><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>Included</h3>
-            <ul>
-              <li>A written report: the question, method, data, results and conclusions</li>
-              <li>Hazard maps as figures and as GIS layers (GeoTIFF, GeoPackage or shapefile)</li>
-              <li>An <strong>assumptions register</strong> listing every simplification made</li>
-              <li>An <strong>uncertainty statement</strong>: what the result is sensitive to and by how much</li>
-              <li>A data-source list with licences, versions and access dates</li>
-              <li>An optional GeoHUB project so you can explore the results on the globe</li>
-              <li>A walk-through call and a clarification period after delivery</li>
-            </ul>
+      <section class="cx-band" id="scope">
+        <img class="cx-bg" src="/assets/consultancy/who.webp" alt="" loading="lazy" decoding="async">
+        <div class="cx-shade shade-heavy"></div>
+        <div class="cx-inner">
+          <h2 class="tile-title">What you receive &mdash; and what an assessment is not</h2>
+          <p class="tile-desc">A focused assessment is a desk-based, model-led study. It is precise about what it covers and equally precise about what it does not, so that nobody relies on it for something it was never built to do.</p>
+          <div class="cx-cols cx-scope" style="--n:2">
+            <div class="cx-col cx-yes">
+              <h3><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>Included</h3>
+              <ul class="cx-ticks" style="margin-top:1.25rem;">
+                <li>A written report: the question, method, data, results and conclusions</li>
+                <li>Hazard maps as figures and as GIS layers (GeoTIFF, GeoPackage or shapefile)</li>
+                <li>An <strong>assumptions register</strong> listing every simplification made</li>
+                <li>An <strong>uncertainty statement</strong>: what the result is sensitive to, and by how much</li>
+                <li>A data-source list with licences, versions and access dates</li>
+                <li>An optional private GeoHUB project to explore the results on the globe</li>
+                <li>A walk-through call and a clarification period after delivery</li>
+              </ul>
+            </div>
+            <div class="cx-col cx-no">
+              <h3><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>Not included unless agreed in writing</h3>
+              <ul class="cx-ticks" style="margin-top:1.25rem;">
+                <li>Intrusive site investigation, drilling, sampling or laboratory testing</li>
+                <li>Geotechnical or structural <strong>design</strong>, or sign-off of works</li>
+                <li>A flood risk assessment or other report for <strong>statutory or regulatory submission</strong></li>
+                <li>Certification by a chartered engineer or chartered geologist</li>
+                <li>Real-time monitoring, early warning or emergency advice</li>
+                <li>Insurance, valuation, conveyancing or legal advice</li>
+                <li>Any guarantee that a hazard will or will not occur</li>
+              </ul>
+            </div>
           </div>
-          <div class="scope-col no">
-            <h3><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>Not included unless agreed in writing</h3>
-            <ul>
-              <li>Intrusive site investigation, drilling, sampling or laboratory testing</li>
-              <li>Geotechnical or structural <strong>design</strong>, or sign-off of works</li>
-              <li>A flood risk assessment or other report for <strong>statutory or regulatory submission</strong></li>
-              <li>Certification by a chartered engineer or chartered geologist</li>
-              <li>Real-time monitoring, early warning or emergency advice</li>
-              <li>Insurance, valuation, conveyancing or legal advice</li>
-              <li>Any guarantee that a hazard will or will not occur</li>
-            </ul>
+
+          <h2 class="tile-title" id="who" style="margin-top:clamp(4rem,8vw,6.5rem);scroll-margin-top:calc(var(--nav-h) + 3rem);">Who it's for</h2>
+          <p class="tile-desc">Organisations that need a defensible first answer to a hazard question, quickly, from someone who will show their working.</p>
+          <div class="cx-cols" style="--n:4">
+            <div class="cx-col"><h3 style="font-size:1.1rem;">Public bodies &amp; NGOs</h3><p>Screening an area you are responsible for, prioritising where detailed investigation should go, or preparing for a community conversation about risk.</p></div>
+            <div class="cx-col"><h3 style="font-size:1.1rem;">Consultancies</h3><p>Specialist hazard modelling as a subcontract, with your chartered staff retaining design responsibility and sign-off.</p></div>
+            <div class="cx-col"><h3 style="font-size:1.1rem;">Researchers</h3><p>Modelling support for a project or proposal, numerical work with GALES, or a hazard layer built for a study region.</p></div>
+            <div class="cx-col"><h3 style="font-size:1.1rem;">Developers &amp; landowners</h3><p>An early, desk-based view of the hazards around a site before committing to a full investigation by a chartered practice.</p></div>
           </div>
         </div>
-        <figure class="shot">
-          <img src="/assets/opt/geohub-quakes.webp" alt="The GeoHUB globe showing the global earthquake catalogue with its layer panel" loading="lazy" decoding="async">
-          <figcaption>Results can be handed over as a GeoHUB project, opened on the same globe as the global hazard record.</figcaption>
-        </figure>
       </section>
-
-      <!-- Who -->
-      <section class="c-tile section-pad" id="who">
-        <h2 class="c-title">Who it's for</h2>
-        <p class="c-lead">Organisations that need a defensible first answer to a hazard question, quickly, from someone who will show their working.</p>
-        <div class="who-grid">
-          <article class="who-card">
-            <h3>Public bodies &amp; NGOs</h3>
-            <p>Screening an area you are responsible for, prioritising where detailed investigation should go, or preparing for a community conversation about risk.</p>
-          </article>
-          <article class="who-card">
-            <h3>Engineering &amp; environmental consultancies</h3>
-            <p>Specialist hazard modelling as a subcontract, with your chartered staff retaining design responsibility and sign-off.</p>
-          </article>
-          <article class="who-card">
-            <h3>Researchers &amp; universities</h3>
-            <p>Modelling support for a project or proposal, numerical work with GALES, or a hazard layer built for a study region.</p>
-          </article>
-          <article class="who-card">
-            <h3>Developers &amp; landowners</h3>
-            <p>An early, desk-based view of the hazards around a site before committing to a full investigation by a chartered practice.</p>
-          </article>
-        </div>
-      </section>
-
 
       <!-- FAQ -->
-      <section class="c-tile section-pad" id="faq">
-        <h2 class="c-title">Questions clients ask</h2>
+      <section class="cx-band cx-plain" id="faq">
+        <div class="cx-inner">
+          <div class="cx-split">
+            <div>
+              <h2 class="tile-title">Questions clients ask</h2>
+              <p class="tile-desc">Anything else, ask in the enquiry form or by email &mdash; the scoping call is free.</p>
+            </div>
         <div class="faq">
           <details>
             <summary>How much does an assessment cost?</summary>
@@ -1466,14 +1072,16 @@
             <div class="ans"><p>No, not without your written consent. Client sites, data and results are confidential and are never placed in the public parts of GeoHUB. If you would like a private GeoHUB project to explore the results, it is set up for you alone.</p></div>
           </details>
         </div>
+          </div>
+        </div>
       </section>
 
       <!-- Terms, limitations and data protection -->
-      <section class="c-tile section-pad" id="terms">
-        <h2 class="c-title">Terms, limitations &amp; data protection</h2>
-        <p class="c-lead">Please read this section before requesting an assessment. It explains what a modelled hazard assessment can and cannot tell you, who may rely on it, how liability is limited, and how information you share with us is protected. The written proposal or engagement letter for each project sets out the specific terms, and prevails over this page where the two differ.</p>
-
-        <div class="legal-wrap">
+      <section class="cx-band cx-plain" id="terms">
+        <div class="cx-inner">
+          <h2 class="tile-title">Terms, limitations &amp; data protection</h2>
+          <p class="tile-desc">Please read this before requesting an assessment. It explains what a modelled hazard assessment can and cannot tell you, who may rely on it, how liability is limited, and how information you share with us is protected. The written proposal or engagement letter for each project sets out the specific terms, and prevails over this page where the two differ.</p>
+          <div class="legal-wrap">
           <nav class="legal-toc" aria-label="Terms contents">
             <p>Contents</p>
             <ol>
@@ -1620,24 +1228,27 @@
               <p class="legal-meta">Last updated: October 2026. See also the site-wide <a href="/disclaimer/">Disclaimer</a> and <a href="/terms/">Terms of Service</a>.</p>
             </div>
           </div>
+
+          </div>
         </div>
       </section>
 
       <!-- Enquire -->
-      <section class="c-tile cta-tile" id="enquire">
-        <div class="cta-bg" aria-hidden="true"></div>
-        <div class="cta-overlay"></div>
-        <div class="enq">
-          <div class="enq-intro">
-            <h2 class="c-title">Start with a scoping call</h2>
-            <p>Tell us where the site is, which hazard concerns you, and what decision the answer has to support. We reply within a few working days to arrange a call.</p>
-            <ol>
-              <li>Send the form, or email <a href="mailto:geoid.initiative@gmail.com?subject=Geohazard%20assessment%20enquiry">geoid.initiative@gmail.com</a></li>
-              <li>A free, no-obligation scoping call</li>
-              <li>A written proposal with a fixed fee</li>
-              <li>Work starts only when you accept it</li>
-            </ol>
-          </div>
+      <section class="cx-band" id="enquire">
+        <img class="cx-bg" src="/assets/consultancy/enquire.webp" alt="" loading="lazy" decoding="async">
+        <div class="cx-shade" style="background:linear-gradient(90deg, rgba(8,0,20,0.88) 0%, rgba(8,0,20,0.62) 45%, rgba(8,0,20,0.45) 100%);"></div>
+        <div class="cx-inner">
+          <div class="cx-enq">
+            <div>
+              <h2 class="tile-title">Start with a scoping call</h2>
+              <p class="tile-desc">Tell us where the site is, which hazard concerns you, and what decision the answer has to support. We reply within a few working days to arrange a call.</p>
+              <ol>
+                <li>Send the form, or email <a href="mailto:geoid.initiative@gmail.com?subject=Geohazard%20assessment%20enquiry">geoid.initiative@gmail.com</a></li>
+                <li>A free, no-obligation scoping call</li>
+                <li>A written proposal with a fixed fee</li>
+                <li>Work starts only when you accept it</li>
+              </ol>
+            </div>
           <form class="enq-form" action="https://formspree.io/f/xlgvpopb" method="POST">
             <input type="hidden" name="_subject" value="Consultancy enquiry: geohazard assessment">
             <input type="hidden" name="interest" value="consultancy">
@@ -1704,10 +1315,37 @@
             <button type="submit" class="btn-primary">Send enquiry</button>
             <p class="f-note">Sent securely through Formspree, our form provider (see clause 11). Sending an enquiry creates no obligation on either side.</p>
           </form>
+          </div>
         </div>
       </section>
 
-      <!-- Footer -->
+      <!-- Photo credits -->
+      <section class="cx-band cx-plain cx-credits" aria-label="Photo credits">
+        <div class="cx-inner">
+          <details>
+            <summary>Photo credits</summary>
+            <ul>
+              <li><a href="https://commons.wikimedia.org/wiki/File:2014_Landslide_in_Washington_State_-_13715756774.jpg" target="_blank" rel="noopener">2014 Landslide in Washington State - 13715756774</a> &middot; U.S. Geological Survey &middot; <a href="https://creativecommons.org/licenses/by/2.0" target="_blank" rel="noopener">CC BY 2.0</a></li>
+              <li><a href="https://commons.wikimedia.org/wiki/File:Etna_April_2011_Eruption_-_Creative_Commons_by_gnuckx_(5607628642).jpg" target="_blank" rel="noopener">Etna April 2011 Eruption - Creative Commons by gnuckx (5607628642)</a> &middot; gnuckx &middot; <a href="https://creativecommons.org/licenses/by/2.0" target="_blank" rel="noopener">CC BY 2.0</a></li>
+              <li><a href="https://commons.wikimedia.org/wiki/File:2014_Landslide_in_Washington_State_-_13715379615.jpg" target="_blank" rel="noopener">2014 Landslide in Washington State - 13715379615</a> &middot; U.S. Geological Survey &middot; <a href="https://creativecommons.org/licenses/by/2.0" target="_blank" rel="noopener">CC BY 2.0</a></li>
+              <li><a href="https://commons.wikimedia.org/wiki/File:FEMA_-_36456_-_Aerial_of_a_partially_flooded_town_in_Missouri.jpg" target="_blank" rel="noopener">FEMA - 36456 - Aerial of a partially flooded town in Missouri</a> &middot; Jocelyn Augustino &middot; Public domain</li>
+              <li><a href="https://commons.wikimedia.org/wiki/File:Etna_eruption_seen_from_the_International_Space_Station.jpg" target="_blank" rel="noopener">Etna eruption seen from the International Space Station</a> &middot; NASA &middot; Public domain</li>
+              <li><a href="https://commons.wikimedia.org/wiki/File:Carrizo_Plain_birds_eye_view_showing_the_San_Andreas_Fault.jpg" target="_blank" rel="noopener">Carrizo Plain birds eye view showing the San Andreas Fault</a> &middot; Nelson Saarni &middot; <a href="https://creativecommons.org/licenses/by-sa/4.0" target="_blank" rel="noopener">CC BY-SA 4.0</a></li>
+              <li><a href="https://commons.wikimedia.org/wiki/File:J%C3%B6kulhlaup_creek_gf33.jpg" target="_blank" rel="noopener">Jökulhlaup creek gf33</a> &middot; Gillfoto &middot; <a href="https://creativecommons.org/licenses/by-sa/4.0" target="_blank" rel="noopener">CC BY-SA 4.0</a></li>
+              <li><a href="https://commons.wikimedia.org/wiki/File:Tutorial_optimization_shaded_relief_map_02.jpg" target="_blank" rel="noopener">Tutorial optimization shaded relief map 02</a> &middot; Eric Gaba (Sting) &middot; <a href="http://creativecommons.org/licenses/by-sa/3.0/" target="_blank" rel="noopener">CC BY-SA 3.0</a></li>
+              <li><a href="https://commons.wikimedia.org/wiki/File:Topographic_map_of_Colorado,_1913_-_DPLA_-_d75176df7e1e681e1df6298868f64ce6.jpg" target="_blank" rel="noopener">Topographic map of Colorado, 1913 - DPLA - d75176df7e1e681e1df6298868f64ce6</a> &middot; George, Russell D., 1866-, mapmaker; Colorado State Geological Survey, publisher &middot; Public domain</li>
+              <li><a href="https://commons.wikimedia.org/wiki/File:Geological_survey.jpg" target="_blank" rel="noopener">Geological survey</a> &middot; Evgeniya Soldatova &middot; <a href="https://creativecommons.org/licenses/by/4.0" target="_blank" rel="noopener">CC BY 4.0</a></li>
+              <li><a href="https://commons.wikimedia.org/wiki/File:Rhondda_valley_(geograph_7505671).jpg" target="_blank" rel="noopener">Rhondda valley (geograph 7505671)</a> &middot; Alan Hughes &middot; <a href="https://creativecommons.org/licenses/by-sa/2.0" target="_blank" rel="noopener">CC BY-SA 2.0</a></li>
+              <li><a href="https://commons.wikimedia.org/wiki/File:Amenta_Giuseppe-052586-Etna_Eruption_15-2021.jpg" target="_blank" rel="noopener">Amenta Giuseppe-052586-Etna Eruption 15-2021</a> &middot; Giuseppe.amenta &middot; <a href="https://creativecommons.org/licenses/by-sa/4.0" target="_blank" rel="noopener">CC BY-SA 4.0</a></li>
+              <li><a href="https://commons.wikimedia.org/wiki/File:Brisbane_River_Town_Reach_in_flood_from_Story_Bridge_Fortitude_Valley_P1090886.jpg" target="_blank" rel="noopener">Brisbane River Town Reach in flood from Story Bridge Fortitude Valley P1090886</a> &middot; John Robert McPherson &middot; <a href="https://creativecommons.org/licenses/by-sa/4.0" target="_blank" rel="noopener">CC BY-SA 4.0</a></li>
+              <li><a href="https://commons.wikimedia.org/wiki/File:FEMA_-_36449_-_Aerial_of_flooding_in_Missouri.jpg" target="_blank" rel="noopener">FEMA - 36449 - Aerial of flooding in Missouri</a> &middot; Jocelyn Augustino &middot; Public domain</li>
+              <li><a href="https://commons.wikimedia.org/wiki/File:Mourne_Wall_on_Slieve_Bearnagh_in_the_Mourne_Mountains.jpg" target="_blank" rel="noopener">Mourne Wall on Slieve Bearnagh in the Mourne Mountains</a> &middot; Rossographer &middot; <a href="https://creativecommons.org/licenses/by-sa/4.0" target="_blank" rel="noopener">CC BY-SA 4.0</a></li>
+              <li>Photographs resized and cropped for this page; licences as listed on each Wikimedia Commons file page.</li>
+            </ul>
+          </details>
+        </div>
+      </section>
+
       <footer class="site-footer">
         <div class="footer-inner">
           <div class="footer-content">
