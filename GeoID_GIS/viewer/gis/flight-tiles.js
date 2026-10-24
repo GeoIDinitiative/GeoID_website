@@ -26,7 +26,7 @@
 // Esri World Imagery (blankTile=false: a missing tile is a 404 and the
 // ancestor stays). Flight only.
 
-import { NIGHT } from "./night-lights.js?v=20261024-36652d4";
+import { NIGHT } from "./night-lights.js?v=20261024-ef0852d";
 
 const URL_TEMPLATE = "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}?blankTile=false";
 const ROOT_Z = 7;
@@ -399,7 +399,9 @@ const NIGHT_FRAGMENT = /* glsl */`
     float paved = smoothstep(0.14, 0.05, sat) * smoothstep(0.12, 0.24, lum) * smoothstep(0.62, 0.40, lum);
     float rad = 0.0;
     if (uLightsOn > 0.5) {
-      vec3 bm = texture2D(uLights, uLightsXf.xy + vTileUv * uLightsXf.z).rgb;
+      // Blurred (a mip bias of 2.5, ~2 km): skyglow is scattered light, and
+      // Black Marble's 500 m pixels read as blotches when sharp.
+      vec3 bm = texture2D(uLights, uLightsXf.xy + vTileUv * uLightsXf.z, 2.5).rgb;
       rad = clamp(dot(bm, vec3(0.35, 0.45, 0.20)) * 1.8, 0.0, 1.0);
     }
     // The lamps themselves are real points on real roads (flight-lights.js);
@@ -627,7 +629,9 @@ function tick() {
     const old = [...tiles.values()].filter((t) => !t.want && !t.ancestorWanted).sort((a, b) => a.used - b.used);
     for (const t of old.slice(0, tiles.size - MAX_TILES_KEPT)) dispose(t);
   }
-  SKYGLOW.value = 0.05 + 0.20 * Math.min(1, Math.max(0, (altM - 6000) / 24000));
+  // Faint: the lamps (flight-lights.js) carry the light; this only fills
+  // between them, a little more as the view widens.
+  SKYGLOW.value = 0.035 + 0.075 * Math.min(1, Math.max(0, (altM - 6000) / 24000));
   // The buildings' night (lit windows, dimmed walls) is the ship's.
   if (sunL) {
     const p = viewer.surfacePoint(f.shipLatLon.lat, f.shipLatLon.lon, 0);

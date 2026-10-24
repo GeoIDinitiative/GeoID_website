@@ -15,15 +15,18 @@
 //     roads only in bright centres. LED white or low-pressure sodium by a
 //     stable hash of the lamp's place, more LED on the main roads.
 //   * AT EVERY RANGE: every lit street within ~4 km (z14 tiles), the main
-//     roads to ~30 km (z11), motorways and trunk roads to ~120 km (z9),
-//     cross-fading between them. Each lamp is a hot point with a halo whose
+//     roads to ~30 km (z11), motorways and trunk roads to ~120-220 km (z9),
+//     cross-fading between them. From ~3 km up the lamps turn from sharp
+//     lanterns into a soft glow (their light spread over a few pixels, so the
+//     sum follows the roads), and the every-street ring hands over to the
+//     main roads. Each lamp is a hot point with a halo whose
 //     size follows its real distance (sub-pixel lamps keep their light, so a
 //     far motorway is a dotted line of light); close in, each also throws a
 //     pool of light on the road (an additive disc lying on the ground).
 //   * Depth-tested: hills and buildings hide what is behind them. Night only
 //     (the ship's NIGHT from flight-tiles.js); nothing runs by day.
 
-import { NIGHT } from "./night-lights.js?v=20261024-36652d4";
+import { NIGHT } from "./night-lights.js?v=20261024-ef0852d";
 import { litPower, radianceAboveBackground, CLASS_BY_CODE } from "../../../flight_sim/earth/game/lamps.js?v=1";
 
 const TILEJSON = "https://tiles.openfreemap.org/planet";
@@ -81,7 +84,7 @@ let fetching = 0, nextJob = 1;
 const jobs = new Map();
 const bm = new Map();             // "x/y" (z8) -> Uint8ClampedArray | "loading" | "missing"
 const shared = {
-  uNight: { value: 0 }, uPxScale: { value: 800 }, uShipW: { value: null },
+  uNight: { value: 0 }, uPxScale: { value: 800 }, uShipW: { value: null }, uDiffuse: { value: 0 },
 };
 export const stats = { tiles: 0, lamps: 0, lit: 0 };
 
@@ -121,13 +124,14 @@ function ensureBM(z, x, y) {
 }
 
 const LAMP_VERT = /* glsl */`
-  uniform float uNight, uPxScale;
+  uniform float uNight, uPxScale, uDiffuse;
   uniform vec3 uShipW;
   uniform vec4 uFade;           // in0, in1, out0, out1 (m from the aircraft)
   attribute vec3 color;         // lamp colour x power
   varying vec3 vCol;
   varying float vA;
   varying float vCore;
+  varying float vDiffuse;
   #include <common>
   #include <logdepthbuf_pars_vertex>
   void main() {
@@ -135,15 +139,24 @@ const LAMP_VERT = /* glsl */`
     vec4 mv = viewMatrix * wp;
     gl_Position = projectionMatrix * mv;
     #include <logdepthbuf_vertex>
+    float upm = ${UNITS_PER_M.toExponential(8)};
     float dCam = max(-mv.z, 1e-9);
-    float dShip = distance(wp.xyz, uShipW) / ${UNITS_PER_M.toExponential(8)};
+    float dShip = distance(wp.xyz, uShipW) / upm;
     float keep = smoothstep(uFade.x, uFade.y + 0.001, dShip) * (1.0 - smoothstep(uFade.z, uFade.w, dShip));
-    // The glow's real radius (~12 m) in pixels; a lamp smaller than that
-    // still draws two pixels and keeps its light, so far roads stay dotted.
-    float px = 12.0 * ${UNITS_PER_M.toExponential(8)} * uPxScale / dCam;
-    gl_PointSize = clamp(px * 2.0, 2.0, 32.0);
-    vCore = clamp(1.6 / max(px * 2.0, 2.0), 0.03, 0.6);   // the hot core: ~1.6 px or the lantern
-    vA = keep * uNight * clamp(px, 0.35, 1.0);
+    // The lantern's glow (~12 m) in pixels; a lamp smaller than that still
+    // draws two pixels and keeps its light, so far roads stay dotted.
+    float px = 12.0 * upm * uPxScale / dCam;
+    float energy = clamp(px, 0.35, 1.0) * 4.0;            // light of a 2 px dot
+    // HIGH UP the dots go soft: the glow widens to a few pixels whatever the
+    // distance, the light SPREAD over it (energy / area), so thousands of
+    // lamps add up to a diffuse glow that still follows the roads, rather
+    // than a scatter of sub-pixel sparks.
+    float diffusePx = mix(2.0, 9.0, uDiffuse);
+    float size = clamp(max(px * 2.0, diffusePx), 2.0, 32.0);
+    gl_PointSize = size;
+    vCore = clamp(1.6 / size, 0.03, 0.6);
+    vA = keep * uNight * mix(clamp(px, 0.35, 1.0), energy / (size * size) * 2.2, uDiffuse);
+    vDiffuse = uDiffuse;
     vCol = color;
   }
 `;
@@ -151,22 +164,24 @@ const LAMP_FRAG = /* glsl */`
   varying vec3 vCol;
   varying float vA;
   varying float vCore;
+  varying float vDiffuse;
   #include <common>
   #include <logdepthbuf_pars_fragment>
   void main() {
     #include <logdepthbuf_fragment>
     vec2 p = gl_PointCoord * 2.0 - 1.0;
     float r = length(p);
-    if (r > 1.0 || vA < 0.003) discard;
+    if (r > 1.0 || vA < 0.0005) discard;
     float core = exp(-(r * r) / (vCore * vCore));
     float halo = exp(-r * r * 5.0) * 0.28 + (1.0 - r) * (1.0 - r) * 0.08;
-    vec3 c = vCol * (core * 1.8 + halo) * vA;
-    gl_FragColor = vec4(c, 1.0);
+    float soft = exp(-r * r * 3.2);                       // diffuse: a gaussian, no hot core
+    float f = mix(core * 1.8 + halo, soft, vDiffuse);
+    gl_FragColor = vec4(vCol * f * vA, 1.0);
   }
 `;
 const POOL_VERT = /* glsl */`
   uniform vec3 uShipW;
-  uniform float uNight;
+  uniform float uNight, uDiffuse;
   varying vec2 vUv;
   varying vec3 vCol;
   varying float vA;
@@ -178,7 +193,7 @@ const POOL_VERT = /* glsl */`
     gl_Position = projectionMatrix * viewMatrix * wp;
     #include <logdepthbuf_vertex>
     float dShip = distance(wp.xyz, uShipW) / ${UNITS_PER_M.toExponential(8)};
-    vA = uNight * (1.0 - smoothstep(3000.0, 4500.0, dShip));
+    vA = uNight * (1.0 - smoothstep(3000.0, 4500.0, dShip)) * (1.0 - uDiffuse);
     vCol = instanceColor;
   }
 `;
@@ -331,6 +346,18 @@ function tick() {
   shared.uShipW.value = viewer.globe.localToWorld(shipLocal.clone());
   const canvas = viewer.renderer?.domElement;
   shared.uPxScale.value = (canvas?.clientHeight || 800) / (2 * Math.tan((viewer.camera.fov * Math.PI / 180) / 2));
+  // Sharp lanterns low down, a diffuse glow from ~3 km up (fully by ~12 km);
+  // the major-road ring reaches further as the view widens.
+  const altM = (Number(f.shipAltUnits) || 0) / UNITS_PER_M;
+  shared.uDiffuse.value = Math.min(1, Math.max(0, (altM - 3000) / 9000));
+  LEVELS[2].reach = Math.max(125000, Math.min(220000, 4 * altM));
+  LEVELS[2].fade[3] = LEVELS[2].reach; LEVELS[2].fade[2] = LEVELS[2].reach * 0.85;
+  // From ~2.5 km up the every-street ring hands over to the main-roads ring,
+  // so a city does not glow as a bright disc under the aircraft with only
+  // its arterials lit round it.
+  const hand = 1 - Math.min(1, Math.max(0, (altM - 2500) / 2500));
+  LEVELS[0].fade[2] = 3500 * hand; LEVELS[0].fade[3] = 4500 * hand + 1;
+  LEVELS[1].fade[0] = 3500 * hand; LEVELS[1].fade[1] = 4500 * hand;
   const now = performance.now();
   for (const t of tiles.values()) t.want = false;
   const tv = window.GeoIDFlightTerrain?.getVersion?.() ?? 0;
@@ -341,7 +368,7 @@ function tick() {
       if (!t) { t = { level, z: w.z, x: w.x, y: w.y, state: null }; tiles.set(key, t); }
       t.want = true; t.d = w.d; t.used = now;
       if (!t.state) { t.state = "fetch"; fetchQueue.push(t); }
-      if (t.points) t.points.visible = true;
+      if (t.points) { t.points.visible = true; t.points.material.uniforms.uFade.value.set(...level.fade); }
       if (t.pools) t.pools.visible = true;
       // The close lamps follow the terrain as finer heights stream in.
       if (t.state === "built" && li === 0 && t.count && t.terrainVersion !== tv && t.lamps && !buildQueue.includes(t)) buildQueue.push(t);
