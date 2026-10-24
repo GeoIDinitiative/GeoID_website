@@ -23,7 +23,7 @@
 //   * Depth-tested: hills and buildings hide what is behind them. Night only
 //     (the ship's NIGHT from flight-tiles.js); nothing runs by day.
 
-import { NIGHT } from "./night-lights.js?v=20261024-0be119a";
+import { NIGHT } from "./night-lights.js?v=20261024-7a19849";
 import { litPower, radianceAboveBackground, CLASS_BY_CODE } from "../../../flight_sim/earth/game/lamps.js?v=1";
 
 const TILEJSON = "https://tiles.openfreemap.org/planet";
@@ -193,7 +193,9 @@ const POOL_FRAG = /* glsl */`
     float r = length(vUv * 2.0 - 1.0);
     if (r > 1.0 || vA < 0.003) discard;
     // A lamp's light on the road: brightest under it, falling off softly.
-    float f = pow(1.0 - r, 2.2) * 0.30 + exp(-r * r * 18.0) * 0.18;
+    // Tight enough that the dark between columns stays dark: each lamp lights
+    // its own stretch of road, as from the air at night.
+    float f = pow(1.0 - r, 3.0) * 0.13 + exp(-r * r * 22.0) * 0.12;
     gl_FragColor = vec4(vCol * f * vA, 1.0);
   }
 `;
@@ -248,7 +250,7 @@ function build(viewer, t) {
     col.push(r, g, b);
     if (t.level.pools) {
       const cls = CLASS_BY_CODE[code];
-      const diam = (cls.offset * 2 + 10) * UNITS_PER_M;
+      const diam = (cls.offset * 1.5 + 9) * UNITS_PER_M;
       const gp = v.clone().addScaledVector(up, -LAMP_HEIGHT_M * UNITS_PER_M + 0.15 * UNITS_PER_M).sub(centre);
       q.setFromUnitVectors(Z, up);
       m.compose(gp, q, sc.set(diam, diam, 1));
