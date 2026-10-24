@@ -302,7 +302,10 @@ function request(t) {
 }
 
 function pump() {
-  queue.sort((a, b) => (a.want ? 0 : 1) - (b.want ? 0 : 1) || a.d - b.d);
+  // The few coarse ancestors first (each covers dozens of leaves at once),
+  // then the leaves, nearest first.
+  const rank = (t) => (t.cover ? 0 : t.want ? 1 : 2);
+  queue.sort((a, b) => rank(a) - rank(b) || a.d - b.d);
   while (inflight < FETCH_BUDGET && queue.length) {
     const t = queue.shift();
     if (!t.want && !t.ancestorWanted) { t.loading = false; continue; }
@@ -382,7 +385,7 @@ function tick() {
   const reach = Math.max(25000, Math.min(400000, 1.4 * horizonM));
   const leaves = selectLeaves(f.shipLatLon, altM, reach);
   const now = performance.now();
-  for (const t of tiles.values()) { t.want = false; t.ancestorWanted = false; }
+  for (const t of tiles.values()) { t.want = false; t.ancestorWanted = false; t.cover = false; }
   const terrainVersion = window.GeoIDFlightTerrain?.getVersion?.() ?? 0;
   // Building and re-lifting meshes reads the DEM per vertex, so it is
   // budgeted per tick, nearest first: every wanted tile first gets a coarse
@@ -410,6 +413,7 @@ function tick() {
       if (t.z - up < 1) continue;
       const a = tileFor(t.z - up, t.x >> up, t.y >> up);
       a.ancestorWanted = true; a.used = now; a.d = Math.min(a.d, t.d);
+      if (up === 5) a.cover = true;
       request(a);
     }
     applyTexture(t);
