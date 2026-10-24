@@ -21,7 +21,7 @@
 //      frame): aim the globe there, then open pre-flight, whose centre
 //      crosshair takes the site from wherever the globe is aimed.
 
-import { isEarth } from "./bodies.js?v=20261024-9f9b1b9";
+import { isEarth } from "./bodies.js?v=20261024-32219cb";
 
 /** `?flight=earth&lat=..&lon=..` -> { lat, lon } or { lat: null } or null. */
 export function parseFlightLink(search) {
@@ -145,6 +145,23 @@ function wire() {
     if (host) new MutationObserver(() => { if (host.firstChild !== section) placePanel(section); })
       .observe(host, { childList: true });
   });
+
+  // Help and Controls sit under the model clock (styles/flightsim.css). The
+  // clock moves with the sidebar and the window, so its foot is re-measured.
+  const clock = document.getElementById("time-scrub-toggle");
+  const pinUnderClock = () => {
+    const r = clock?.getBoundingClientRect();
+    if (!r || !r.width) return;
+    document.body.style.setProperty("--fs-clock-left", `${Math.round(r.left)}px`);
+    document.body.style.setProperty("--fs-clock-bottom", `${Math.round(r.bottom + 6)}px`);
+  };
+  if (clock) {
+    pinUnderClock();
+    new ResizeObserver(pinUnderClock).observe(clock);
+    window.addEventListener("resize", pinUnderClock);
+    for (const ev of ["flightsim:engaged", "flightsim:disengaged"]) window.addEventListener(ev, () => setTimeout(pinUnderClock, 50));
+    setInterval(pinUnderClock, 1500);   // the sidebar slides; cheap enough
+  }
 
   // The aircraft is listed in the Workspace while it flies, so its credit is
   // in the Metadata tab with every other source on screen.

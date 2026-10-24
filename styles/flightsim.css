@@ -388,7 +388,7 @@ body.fs-flying #fs-preflight { display: none; }
 /* Open chrome (Earth): the Workspace box keeps the bottom-left corner, so the
    meters step out to its right and up above the HUD's bottom bar. */
 body.fs-open-chrome #fs-meters {
-  left: calc(min(24rem, 100vw - 2rem) + 2rem);
+  left: calc(min(24rem, 100vw - 2rem) + 2rem + 7.4rem);  /* and clear of the compass */
   bottom: 4.8rem;
 }
 .fs-throttle-row { display: flex; align-items: center; gap: 0.3rem; }
@@ -463,6 +463,26 @@ body.is-embedded .fs-tr-buttons {
   z-index: 39;
   pointer-events: auto;
 }
+/* Earth (open chrome) keeps GeoHUB's own top-right corner -- Events, the
+   rail -- so the launcher row is taken and the buttons put there collided
+   with Events. They sit directly under the model clock instead, the one
+   instrument in the header with free room below it. earth-flight-entry.js
+   measures the clock and publishes where its foot is. */
+body.is-embedded.fs-open-chrome .fs-tr-buttons,
+body.fs-open-chrome .fs-tr-buttons {
+  position: fixed;
+  top: var(--fs-clock-bottom, 4.6rem);
+  left: var(--fs-clock-left, 26rem);
+  right: auto;
+  z-index: 39;
+  pointer-events: auto;
+}
+/* The HUD carries TEMP and PRESSURE in its own row; GeoHUB's surface readout
+   beside the compass printed the same two numbers over the HUD's V/SPEED. */
+body.fs-open-chrome.fs-flying #surface-conditions { display: none !important; }
+/* ...and the compass rises onto the meters' baseline, clear of the HUD's
+   bottom instrument row, which starts at the same left edge. */
+body.fs-open-chrome.fs-flying #bottom-right-hud { bottom: 4.6rem !important; }
 #fs-touch {
   display: flex; flex-direction: column; align-items: center; gap: 0.4rem;
 }

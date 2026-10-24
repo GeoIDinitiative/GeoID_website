@@ -2,15 +2,15 @@ import * as THREE from "./vendor/three.module.js";
 // The polygon-area rule lives in one place, with a test. Stamped by hand
 // once: stamp.py only rewrites a ?v= that already exists.
 import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
-  from "./gis/geo-utils.js?v=20261024-9f9b1b9";
+  from "./gis/geo-utils.js?v=20261024-32219cb";
 import { attachReliefAttributes, followRelief }
-  from "./gis/vector-render.js?v=20261024-9f9b1b9";
+  from "./gis/vector-render.js?v=20261024-32219cb";
 import { rockClass, crustalSetting, rockClassLabel, classificationBasis }
-  from "./gis/rock-class.js?v=20261024-9f9b1b9";
+  from "./gis/rock-class.js?v=20261024-32219cb";
 import { lithologyLabel }
-  from "./gis/lithology-label.js?v=20261024-9f9b1b9";
+  from "./gis/lithology-label.js?v=20261024-32219cb";
 import { formatLatLon }
-  from "./gis/coord-format.js?v=20261024-9f9b1b9";
+  from "./gis/coord-format.js?v=20261024-32219cb";
 
 /**
  * This module's own cache stamp, read off its own URL.
@@ -679,111 +679,173 @@ function fmtProp(value) {
       return Math.round(101325 * Math.exp(-elevMeters / 8500));
     }
 
+    // THE 3D COMPASS (bottom left). It replaced a little wireframe globe with a
+    // dot on it, which said where the view was centred but not which way it
+    // FACED -- and in flight, or tilted low over a city, facing is the question.
+    // The rose lies in the ground plane under the view centre and is drawn as
+    // the camera sees it: turned so the view's heading is up, foreshortened by
+    // the camera's tilt off the vertical. Straight down it is a flat dial;
+    // skimming the horizon it is a disc seen nearly edge-on. Heading and tilt
+    // come from the same local basis as the flight HUD (north = up x east,
+    // east = axis x up), so the two can never disagree.
     const locatorCtx = hemisphereLocatorCanvas?.getContext("2d") ?? null;
     const locatorCameraLocal = new THREE.Vector3();
     let locatorLatLon = { lat: 0, lon: 0 };
-    let locatorDrawnLatLon = { lat: NaN, lon: NaN };
+    const locatorDrawn = { heading: NaN, tilt: NaN };
     const locatorViewState = { camera: null, planetGroup: null, globe: null };
+    const compassUp = new THREE.Vector3();
+    const compassAxis = new THREE.Vector3();
+    const compassEast = new THREE.Vector3();
+    const compassNorth = new THREE.Vector3();
+    const compassFwd = new THREE.Vector3();
+    const compassCentre = new THREE.Vector3();
+    const compassQuat = new THREE.Quaternion();
 
-    function drawHemisphereLocator(latDeg, lonDeg) {
+    function sampleCompass() {
+      const { camera: cam, globe: g } = locatorViewState;
+      if (!cam || !g) {
+        return null;
+      }
+      g.getWorldPosition(compassCentre);
+      compassUp.copy(cam.position).sub(compassCentre);
+      if (compassUp.lengthSq() < 1e-10) {
+        return null;
+      }
+      compassUp.normalize();
+      g.getWorldQuaternion(compassQuat);
+      compassAxis.set(0, 1, 0).applyQuaternion(compassQuat);
+      compassEast.crossVectors(compassAxis, compassUp);
+      if (compassEast.lengthSq() < 1e-10) {
+        compassEast.set(1, 0, 0);       // over a pole: any east will do
+      }
+      compassEast.normalize();
+      compassNorth.crossVectors(compassUp, compassEast).normalize();
+      cam.getWorldDirection(compassFwd);
+      const down = -compassFwd.dot(compassUp);
+      const tilt = THREE.MathUtils.radToDeg(Math.acos(THREE.MathUtils.clamp(down, -1, 1)));
+      // Looking (nearly) straight down, the forward vector has no heading to
+      // give; the camera's own up does.
+      const dir = down > 0.985 ? compassFwd.copy(cam.up).applyQuaternion(cam.quaternion) : compassFwd;
+      const heading = (THREE.MathUtils.radToDeg(Math.atan2(dir.dot(compassEast), dir.dot(compassNorth))) + 360) % 360;
+      return { heading, tilt };
+    }
+
+    function drawCompass(headingDeg, tiltDeg) {
       if (!locatorCtx || !hemisphereLocatorCanvas) {
         return;
       }
       const ctx = locatorCtx;
       const width = hemisphereLocatorCanvas.width;
       const height = hemisphereLocatorCanvas.height;
-      const centerX = width * 0.5;
-      const centerY = height * 0.5;
-      const radius = Math.min(width, height) * 0.39;
-      const latRad = THREE.MathUtils.degToRad(latDeg || 0);
-      const lonRad = THREE.MathUtils.degToRad(lonDeg || 0);
-      const sinTilt = Math.sin(THREE.MathUtils.degToRad(22));
-      const cosTilt = Math.cos(THREE.MathUtils.degToRad(22));
-      const project = (lat, lon) => {
-        const phi = THREE.MathUtils.degToRad(lat);
-        const lambda = THREE.MathUtils.degToRad(lon) - lonRad;
-        const x = Math.cos(phi) * Math.sin(lambda);
-        const y0 = Math.sin(phi);
-        const z0 = Math.cos(phi) * Math.cos(lambda);
-        const y = y0 * cosTilt - z0 * sinTilt;
-        const z = y0 * sinTilt + z0 * cosTilt;
-        return { x: centerX + x * radius, y: centerY - y * radius, visible: z >= 0 };
+      const cx = width * 0.5;
+      const cy = height * 0.54;
+      const r = Math.min(width, height) * 0.34;
+      // Never edge-on: a chase camera sits ~85 degrees off the vertical, where
+      // the true view would flatten the dial to a line. Capped at 58 it still
+      // reads as a disc lying on the ground.
+      const tilt = THREE.MathUtils.degToRad(Math.min(58, Math.max(0, tiltDeg)));
+      const squash = Math.cos(tilt);
+      const hdg = THREE.MathUtils.degToRad(headingDeg);
+      // A ground-plane point (east, north, height) -> canvas, heading up.
+      const project = (e, n, h = 0) => {
+        const right = e * Math.cos(hdg) - n * Math.sin(hdg);
+        const ahead = e * Math.sin(hdg) + n * Math.cos(hdg);
+        const persp = 1 / (1 + ahead * Math.sin(tilt) * 0.18);
+        return { x: cx + right * r * persp, y: cy - (ahead * squash + h * Math.sin(tilt)) * r * persp };
+      };
+      const ring = (rad, h = 0) => {
+        ctx.beginPath();
+        for (let i = 0; i <= 72; i++) {
+          const a = (i / 72) * Math.PI * 2;
+          const p = project(Math.sin(a) * rad, Math.cos(a) * rad, h);
+          if (i) ctx.lineTo(p.x, p.y); else ctx.moveTo(p.x, p.y);
+        }
       };
 
       ctx.clearRect(0, 0, width, height);
-
-      const globeFill = ctx.createRadialGradient(centerX - radius * 0.28, centerY - radius * 0.32, radius * 0.18, centerX, centerY, radius);
-      globeFill.addColorStop(0, "rgba(255, 255, 255, 0.03)");
-      globeFill.addColorStop(0.55, "rgba(255, 255, 255, 0.012)");
-      globeFill.addColorStop(1, "rgba(255, 255, 255, 0.005)");
-      ctx.beginPath();
-      ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
-      ctx.fillStyle = globeFill;
+      // The bezel's depth: a lower rim, then the face over it.
+      ring(1.0, -0.09);
+      ctx.fillStyle = "rgba(8, 12, 20, 0.55)";
       ctx.fill();
-
-      const drawPolyline = (points, strokeStyle, lineWidth = 1, alpha = 1) => {
-        let drawing = false;
-        ctx.strokeStyle = strokeStyle;
-        ctx.lineWidth = lineWidth;
-        ctx.globalAlpha = alpha;
-        ctx.beginPath();
-        for (const point of points) {
-          if (!point.visible) {
-            drawing = false;
-            continue;
-          }
-          if (!drawing) {
-            ctx.moveTo(point.x, point.y);
-            drawing = true;
-          } else {
-            ctx.lineTo(point.x, point.y);
-          }
-        }
-        ctx.stroke();
-        ctx.globalAlpha = 1;
-      };
-
-      for (let lat = -60; lat <= 60; lat += 30) {
-        const points = [];
-        for (let lon = -180; lon <= 180; lon += 4) {
-          points.push(project(lat, lon));
-        }
-        drawPolyline(points, "rgba(255, 255, 255, 0.26)");
-      }
-
-      for (let lon = -150; lon <= 180; lon += 30) {
-        const points = [];
-        for (let lat = -90; lat <= 90; lat += 4) {
-          points.push(project(lat, lon));
-        }
-        drawPolyline(points, "rgba(255, 255, 255, 0.18)");
-      }
-
-      ctx.beginPath();
-      ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
-      ctx.strokeStyle = "rgba(255, 255, 255, 0.75)";
+      ctx.strokeStyle = "rgba(255, 255, 255, 0.28)";
+      ctx.lineWidth = 1;
+      ctx.stroke();
+      ring(1.0);
+      ctx.fillStyle = "rgba(10, 16, 26, 0.62)";
+      ctx.fill();
+      ctx.strokeStyle = "rgba(255, 255, 255, 0.78)";
+      ctx.lineWidth = 1.2;
+      ctx.stroke();
+      ring(0.72);
+      ctx.strokeStyle = "rgba(255, 255, 255, 0.22)";
       ctx.lineWidth = 1;
       ctx.stroke();
 
-      const eqStart = project(0, -180);
-      const eqEnd = project(0, 180);
-      drawPolyline([eqStart, eqEnd], "rgba(255, 255, 255, 0.42)", 1);
-
-      const marker = project(latDeg, lonDeg);
-      if (marker.visible) {
+      // Ticks every 15 degrees, longer at the cardinals.
+      for (let d = 0; d < 360; d += 15) {
+        const a = THREE.MathUtils.degToRad(d);
+        const inner = d % 90 === 0 ? 0.78 : d % 45 === 0 ? 0.84 : 0.9;
+        const p0 = project(Math.sin(a) * inner, Math.cos(a) * inner);
+        const p1 = project(Math.sin(a) * 0.98, Math.cos(a) * 0.98);
         ctx.beginPath();
-        ctx.arc(marker.x, marker.y, 4.2, 0, Math.PI * 2);
-        ctx.fillStyle = "rgba(255, 255, 255, 0.98)";
-        ctx.shadowColor = "rgba(255, 255, 255, 0.42)";
-        ctx.shadowBlur = 8;
-        ctx.fill();
-        ctx.shadowBlur = 0;
-        ctx.beginPath();
-        ctx.arc(marker.x, marker.y, 7.5, 0, Math.PI * 2);
-        ctx.strokeStyle = "rgba(111, 217, 232, 0.78)";
-        ctx.lineWidth = 1;
+        ctx.moveTo(p0.x, p0.y);
+        ctx.lineTo(p1.x, p1.y);
+        ctx.strokeStyle = d % 90 === 0 ? "rgba(255, 255, 255, 0.9)" : "rgba(255, 255, 255, 0.4)";
+        ctx.lineWidth = d % 90 === 0 ? 1.6 : 1;
         ctx.stroke();
       }
+
+      // The needle: a raised two-tone diamond, north half red. Each half is
+      // split down its spine into a lit and a shaded face, which is what makes
+      // it read as a solid rather than a flat arrow.
+      const tipH = 0.12;
+      const half = (sign, lit, shade) => {
+        const tip = project(0, sign * 0.68, 0);
+        const hub = project(0, 0, tipH);
+        const left = project(-0.12, 0, 0);
+        const right = project(0.12, 0, 0);
+        for (const [side, col] of [[left, lit], [right, shade]]) {
+          ctx.beginPath();
+          ctx.moveTo(tip.x, tip.y);
+          ctx.lineTo(hub.x, hub.y);
+          ctx.lineTo(side.x, side.y);
+          ctx.closePath();
+          ctx.fillStyle = col;
+          ctx.fill();
+        }
+      };
+      half(-1, "rgba(220, 226, 236, 0.95)", "rgba(150, 160, 176, 0.95)");
+      half(1, "rgba(255, 92, 72, 0.98)", "rgba(190, 48, 36, 0.98)");
+      const hub = project(0, 0, tipH);
+      ctx.beginPath();
+      ctx.arc(hub.x, hub.y, Math.max(2, r * 0.07), 0, Math.PI * 2);
+      ctx.fillStyle = "rgba(111, 217, 232, 0.95)";
+      ctx.fill();
+
+      // Cardinal letters stand up off the dial (billboards), so they stay
+      // readable at any tilt.
+      ctx.font = `600 ${Math.round(r * 0.3)}px "Exo 2", "Segoe UI", sans-serif`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      for (const [label, d] of [["N", 0], ["E", 90], ["S", 180], ["W", 270]]) {
+        const a = THREE.MathUtils.degToRad(d);
+        const p = project(Math.sin(a) * 1.2, Math.cos(a) * 1.2);
+        ctx.fillStyle = label === "N" ? "rgba(255, 110, 90, 1)" : "rgba(255, 255, 255, 0.85)";
+        ctx.shadowColor = "rgba(0, 0, 0, 0.85)";
+        ctx.shadowBlur = 3;
+        ctx.fillText(label, p.x, p.y);
+        ctx.shadowBlur = 0;
+      }
+
+      // Fixed lubber mark on the bezel at the top: the way the view faces.
+      const top = 1 / (1 + Math.sin(tilt) * 0.18);
+      ctx.beginPath();
+      ctx.moveTo(cx, cy - 0.8 * squash * r * top);
+      ctx.lineTo(cx - r * 0.09, cy - squash * r * top);
+      ctx.lineTo(cx + r * 0.09, cy - squash * r * top);
+      ctx.closePath();
+      ctx.fillStyle = "rgba(111, 217, 232, 0.95)";
+      ctx.fill();
     }
 
     function sampleLocatorLatLon() {
@@ -813,16 +875,21 @@ function fmtProp(value) {
       if (latLon) {
         locatorLatLon = latLon;
       }
+      const view = sampleCompass();
       if (
-        !Number.isFinite(locatorDrawnLatLon.lat) ||
-        Math.abs(locatorDrawnLatLon.lat - locatorLatLon.lat) > 0.15 ||
-        Math.abs(locatorDrawnLatLon.lon - locatorLatLon.lon) > 0.15
+        view && (
+          !Number.isFinite(locatorDrawn.heading) ||
+          Math.abs(((view.heading - locatorDrawn.heading + 540) % 360) - 180) > 0.5 ||
+          Math.abs(view.tilt - locatorDrawn.tilt) > 0.5
+        )
       ) {
-        drawHemisphereLocator(locatorLatLon.lat, locatorLatLon.lon);
-        locatorDrawnLatLon = { ...locatorLatLon };
+        drawCompass(view.heading, view.tilt);
+        locatorDrawn.heading = view.heading;
+        locatorDrawn.tilt = view.tilt;
       }
       if (hemisphereLocatorReadout) {
-        hemisphereLocatorReadout.textContent = `Center ${locatorLatLon.lat.toFixed(1)}°, ${locatorLatLon.lon.toFixed(1)}°E`;
+        const hdg = Number.isFinite(locatorDrawn.heading) ? `${String(Math.round(locatorDrawn.heading) % 360).padStart(3, "0")}° · ` : "";
+        hemisphereLocatorReadout.textContent = `${hdg}${locatorLatLon.lat.toFixed(1)}°, ${locatorLatLon.lon.toFixed(1)}°E`;
       }
     }
 
@@ -1752,6 +1819,7 @@ function fmtProp(value) {
       "Moon": "/GeoID_Earth/assets/moon_texture_1024.jpg",
     };
     let currentMetadataState = null;
+    let lastMetadataArgs = null;   // what syncInfoPanels last built it from
     const EARTH_MEAN_RADIUS_KM = 6371.0;
     let activeCutClipPlane = null;
     const REGION_MASK_DEFS = {
@@ -5012,6 +5080,37 @@ function fmtProp(value) {
           ].filter(Boolean),
         });
       }
+      // The streamed elevation under the view (gis/dem-stream.js): every
+      // flight and every close view stands on it, so it is credited whenever
+      // it is running, not only when a DEM layer is listed.
+      if (window.GeoIDDem?.credit) {
+        sourceEntries.push({
+          title: "Streamed elevation",
+          copy: window.GeoIDDem.credit,
+          citation: window.GeoIDDem.source?.licence || "",
+          links: [makeMetadataLink("Terrain Tiles on AWS", "https://registry.opendata.aws/terrain-tiles/")].filter(Boolean),
+        });
+      }
+      // Every Workspace layer that states where it came from: the streamed 3D
+      // buildings and trees, the Earth Flight aircraft, imports. Read through
+      // provenanceOf's fields (info/metadata) so this list and the row's card
+      // cannot disagree about a citation.
+      for (const layer of window.GeoIDImportManager?.getLayers?.() || []) {
+        const meta = layer?.metadata || {};
+        const info = layer?.info || {};
+        const citation = meta.citation || info.citation || "";
+        const source = meta.source || info.source || "";
+        if (!citation && !source) {
+          continue;
+        }
+        const crs = meta.crs || info.crs;
+        sourceEntries.push({
+          title: layer.name || "Workspace layer",
+          copy: [source, crs ? `CRS: ${crs}` : "", info.licence || meta.licence || ""].filter(Boolean).join(" · "),
+          citation,
+          links: [],
+        });
+      }
       sourceEntries.push({
         title: "Background music",
         copy: "Ambient space music licensed via Pixabay. Music by Nikita Kondrashev and Sigma Music Art.",
@@ -6302,6 +6401,7 @@ function fmtProp(value) {
         }
       }
       renderLegendPanel(buildLegendEntries(baseLayers, geologyLayers, mineralLayers, geologyInteractiveState, geologyStructureLayers));
+      lastMetadataArgs = [baseLayers, geologyLayers, mineralLayers, geologyInteractiveState, geologyStructureLayers];
       currentMetadataState = buildMetadataState(baseLayers, geologyLayers, mineralLayers, geologyInteractiveState, geologyStructureLayers);
       metadataButton.textContent = currentMetadataState?.sections?.some((section) => section.title === "Legend")
         ? "Open Metadata And Legend"
@@ -21715,7 +21815,10 @@ uniform float uViewportWidth;`,
       });
 
       metadataButton.addEventListener("click", () => {
-        renderMetadataModal(currentMetadataState || buildMetadataState(baseLayers, geologyLayers, mineralLayers, geologyInteractiveState));
+        // Built at open, not reused: the Sources list reads the Workspace,
+        // which changes without passing through the layer refresh that caches
+        // this (a flight adopting its buildings and aircraft, an import).
+        renderMetadataModal(buildMetadataState(...(lastMetadataArgs || [baseLayers, geologyLayers, mineralLayers, geologyInteractiveState])));
         metadataModal.hidden = false;
       });
 
