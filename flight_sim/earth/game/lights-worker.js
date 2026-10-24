@@ -17,7 +17,6 @@ import { placeLamps, litPower, radianceAboveBackground, CLASS_BY_CODE } from "./
 const R = 3.2;
 const UNITS_PER_M = R / 6371000;
 const LAMP_HEIGHT_M = 9;
-const DEM_N = 33;
 const LED = [1.0, 0.9, 0.78], SODIUM = [1.0, 0.56, 0.2];
 
 const bmTiles = new Map();       // "x/y" (z8) -> Uint8ClampedArray
@@ -60,7 +59,12 @@ function decode(buf, tileSizeM, classes, thin) {
 }
 
 /** Stand a tile's lamps on the terrain: positions, colours, pool matrices. */
-function stand(L, z, x, y, dem, pools, thin = 1) {
+function stand(L, z, x, y, dem, pools, thin = 1, DEM_N = 33) {
+  // Coarse tiles (z12 and out) take the LOWEST of the four samples round a
+  // lamp, not a straight interpolation, which bridged valleys and left their
+  // lamps floating; at worst a lamp sits a little low, which the depth margin
+  // covers.
+  const floorBias = z <= 12;
   const centre = globePoint(yToLat(y + 0.5, z), xToLon(x + 0.5, z), R, [0, 0, 0]);
   const pos = [], col = [], mats = [];
   const p = [0, 0, 0];
@@ -69,8 +73,9 @@ function stand(L, z, x, y, dem, pools, thin = 1) {
     const fx = Math.min(Math.max(u * (DEM_N - 1), 0), DEM_N - 1), fy = Math.min(Math.max(v * (DEM_N - 1), 0), DEM_N - 1);
     const x0 = Math.floor(fx), y0 = Math.floor(fy), x1 = Math.min(x0 + 1, DEM_N - 1), y1 = Math.min(y0 + 1, DEM_N - 1);
     const tx = fx - x0, ty = fy - y0;
-    return (dem[y0 * DEM_N + x0] * (1 - tx) + dem[y0 * DEM_N + x1] * tx) * (1 - ty)
-      + (dem[y1 * DEM_N + x0] * (1 - tx) + dem[y1 * DEM_N + x1] * tx) * ty;
+    const a = dem[y0 * DEM_N + x0], b = dem[y0 * DEM_N + x1], c = dem[y1 * DEM_N + x0], d = dem[y1 * DEM_N + x1];
+    if (floorBias) return Math.min(a, b, c, d);
+    return (a * (1 - tx) + b * tx) * (1 - ty) + (c * (1 - tx) + d * tx) * ty;
   };
   for (let i = 0; i < L.length; i += 4) {
     const u = L[i], v = L[i + 1], code = L[i + 2], hash = L[i + 3];
@@ -106,7 +111,7 @@ function stand(L, z, x, y, dem, pools, thin = 1) {
 self.onmessage = (e) => {
   const m = e.data;
   if (m.bm) { bmTiles.set(m.bmKey, m.bm); return; }
-  const { id, key, buf, z, x, y, tileSizeM, classes, dem, pools, thin = 1 } = m;
+  const { id, key, buf, z, x, y, tileSizeM, classes, dem, pools, thin = 1, demN = 33 } = m;
   try {
     let L = candidates.get(key);
     if (!L) {
@@ -115,7 +120,7 @@ self.onmessage = (e) => {
       candidates.set(key, L);
       if (candidates.size > CANDIDATES_KEPT) candidates.delete(candidates.keys().next().value);
     }
-    const r = stand(L, z, x, y, dem, pools, thin);
+    const r = stand(L, z, x, y, dem, pools, thin, demN || 33);
     const transfer = [r.positions.buffer, r.colours.buffer];
     if (r.pools) transfer.push(r.pools.buffer);
     self.postMessage({ id, ...r }, transfer);

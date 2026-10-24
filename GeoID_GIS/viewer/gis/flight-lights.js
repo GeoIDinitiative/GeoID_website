@@ -29,7 +29,7 @@
 //   * Depth-tested: hills and buildings hide what is behind them. Night only
 //     (the ship's NIGHT from flight-tiles.js); nothing runs by day.
 
-import { NIGHT } from "./night-lights.js?v=20261024-73c6325";
+import { NIGHT } from "./night-lights.js?v=20261024-1f7e9a7";
 
 const TILEJSON = "https://tiles.openfreemap.org/planet";
 const BM = "https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/VIIRS_Black_Marble/default/2016-01-01/GoogleMapsCompatible_Level8/{z}/{y}/{x}.png";
@@ -133,17 +133,27 @@ function ensureBM(z, x, y) {
   return false;
 }
 
-/** The tile's ground heights (scene units, at the Vertical scale) on a 33 x 33 grid, for the worker. */
-const DEM_N = 33;
+/** The tile's ground heights (scene units, at the Vertical scale) for the
+ *  worker: 33 x 33, or 65 x 65 on the big z9-z11 tiles. */
 function demGrid(t) {
   const T = window.GeoIDFlightTerrain;
   if (!T?.active?.()) return null;
-  const dem = new Float32Array(DEM_N * DEM_N);
-  for (let j = 0; j < DEM_N; j++) {
-    const lat = yToLat(t.y + j / (DEM_N - 1), t.z);
-    for (let i = 0; i < DEM_N; i++) dem[j * DEM_N + i] = T.heightUnits(lat, xToLon(t.x + i / (DEM_N - 1), t.z)) || 0;
+  const n = t.z <= 11 ? 65 : 33;
+  const dem = new Float32Array(n * n);
+  for (let j = 0; j < n; j++) {
+    const lat = yToLat(t.y + j / (n - 1), t.z);
+    for (let i = 0; i < n; i++) dem[j * n + i] = T.heightUnits(lat, xToLon(t.x + i / (n - 1), t.z)) || 0;
   }
   return dem;
+}
+/** A few heights across a tile: has the terrain under its lamps really changed? */
+function heightSig(t) {
+  const T = window.GeoIDFlightTerrain;
+  const out = [];
+  for (let j = 0; j < 3; j++) for (let i = 0; i < 3; i++) {
+    out.push(T?.heightUnits?.(yToLat(t.y + (j + 0.5) / 3, t.z), xToLon(t.x + (i + 0.5) / 3, t.z)) || 0);
+  }
+  return out;
 }
 
 const LAMP_VERT = /* glsl */`
@@ -305,11 +315,14 @@ function stand(t) {
   const id = nextJob++;
   jobs.set(id, t);
   t.state = "standing";
-  const msg = { id, key: t.key, z: t.z, x: t.x, y: t.y, tileSizeM: tileSizeM(t.z, t.y), classes: t.level.classes, dem: demGrid(t), pools: !!t.level.pools, thin: t.level.thin || 1 };
+  const dem = demGrid(t);
+  const msg = { id, key: t.key, z: t.z, x: t.x, y: t.y, tileSizeM: tileSizeM(t.z, t.y), classes: t.level.classes, dem, demN: dem ? Math.round(Math.sqrt(dem.length)) : 0, pools: !!t.level.pools, thin: t.level.thin || 1 };
   const transfer = [];
   if (t.buf) { msg.buf = t.buf; transfer.push(t.buf); t.buf = null; }
   if (msg.dem) transfer.push(msg.dem.buffer);
   t.terrainVersion = window.GeoIDFlightTerrain?.getVersion?.() ?? 0;
+  t.sig = heightSig(t);
+  t.vex = window.GeoIDFlightTerrain?.getVex?.() ?? 1;
   workerFor(t.key).postMessage(msg, transfer);
 }
 
@@ -447,6 +460,8 @@ function tick() {
   const now = performance.now();
   for (const t of tiles.values()) t.want = false;
   const tv = window.GeoIDFlightTerrain?.getVersion?.() ?? 0;
+  let restands = 0;
+  const vexNow = window.GeoIDFlightTerrain?.getVex?.() ?? 1;
   LEVELS.forEach((level, li) => {
     if (level.reach <= 0) return;
     // HYSTERESIS: a tile joins inside its ring and leaves only 15% beyond
@@ -462,7 +477,20 @@ function tick() {
       if (t.points) { t.points.visible = true; t.points.material.uniforms.uFade.value.set(...level.fade); }
       if (t.pools) t.pools.visible = true;
       // The close lamps follow the terrain as finer heights stream in.
-      if (t.state === "built" && li === 0 && t.count && t.terrainVersion !== tv) readyQueue.push(t);
+      // EVERY ring follows the terrain as finer heights stream in (only the
+      // close one did, and lamps stood on early, coarse heights stayed
+      // floating over valleys): re-stood when the heights under the tile have
+      // really moved, a few tiles a tick, nearest first.
+      // A change of the Vertical scale re-stands everything at once: lamps
+      // left at the old scale floated kilometres up (or sank), and where two
+      // rings overlap the same road showed twice, at two heights.
+      if (t.state === "built" && t.count && t.vex !== vexNow) { t.terrainVersion = tv; readyQueue.push(t); }
+      else if (t.state === "built" && t.count && t.terrainVersion !== tv && restands < 20) {
+        const sig = heightSig(t);
+        const moved = !t.sig || sig.some((h, i) => Math.abs(h - t.sig[i]) / UNITS_PER_M > 3);
+        t.terrainVersion = tv;
+        if (moved) { readyQueue.push(t); restands++; }
+      }
     }
   });
   for (const t of tiles.values()) { t.wasWanted = t.want; if (!t.want) { if (t.points) t.points.visible = false; if (t.pools) t.pools.visible = false; } }
@@ -501,7 +529,7 @@ export async function startFlightLights() {
       meshes(t, e.data);
     };
     for (let i = 0; i < POOL; i++) {
-      const w = new Worker(new URL("../../../flight_sim/earth/game/lights-worker.js?v=3", import.meta.url), { type: "module" });
+      const w = new Worker(new URL("../../../flight_sim/earth/game/lights-worker.js?v=4", import.meta.url), { type: "module" });
       w.onmessage = onmessage;
       workers.push(w);
     }
