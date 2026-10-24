@@ -7,9 +7,9 @@
  * file knows is only which catalogue to draw and where to put it.
  */
 
-import { grouped, addMapLayer, removeMapLayer, layerForMap, layerById } from "./map-layers.js?v=20261024-f2934af";
-import { renderCatalogue } from "./catalogue-list.js?v=20261024-f2934af";
-import { TILE_SOURCES } from "./tile-sources.js?v=20261024-f2934af";
+import { grouped, addMapLayer, removeMapLayer, layerForMap, layerById } from "./map-layers.js?v=20261024-baa9364";
+import { renderCatalogue } from "./catalogue-list.js?v=20261024-baa9364";
+import { TILE_SOURCES } from "./tile-sources.js?v=20261024-baa9364";
 
 const byId = (id) => document.getElementById(id);
 

@@ -6,10 +6,10 @@
  * sessions a gallery of posters. eventPanel() is the block the post page
  * draws under an event post.
  */
-import * as api from "../api.js?v=20261024-f2934af";
-import { store } from "../store.js?v=20261024-f2934af";
-import { h, clear, field, input, select, dateToEpoch, epochToDate, put, toast, loading, errorBox, textarea, busy, empty } from "../dom.js?v=20261024-f2934af";
-import { OPP_TYPES, postCard, pagedList, act, userChip, requireSignIn } from "../components.js?v=20261024-f2934af";
+import * as api from "../api.js?v=20261024-baa9364";
+import { store } from "../store.js?v=20261024-baa9364";
+import { h, clear, field, input, select, dateToEpoch, epochToDate, put, toast, loading, errorBox, textarea, busy, empty } from "../dom.js?v=20261024-baa9364";
+import { OPP_TYPES, postCard, pagedList, act, userChip, requireSignIn } from "../components.js?v=20261024-baa9364";
 
 export function renderOpportunities(root, { query }) {
   const type = select("type", [["", "Any type"], ...OPP_TYPES.map((t) => [t, t[0].toUpperCase() + t.slice(1)])], query.type || "");
@@ -29,8 +29,29 @@ export function renderOpportunities(root, { query }) {
     h("div", { class: "s-title-row" }, h("h1", { class: "s-h1", text: "Opportunities" }), h("a", { class: "btn-primary", href: "#/compose?kind=opportunity" }, "Post an opportunity")),
     h("p", { class: "s-muted", text: "Jobs, grants, studentships, fellowships, fieldwork, expertise wanted and offered. Sponsored challenges are always labelled." }),
     form,
+    boardLinks(),
     pagedList((cursor) => api.get("/v1/feed", { tab: "opportunities", kind: kind.value, type: query.type || "", skill: query.skill || "", cursor }), postCard,
       { emptyTitle: "No opportunities match.", emptyDetail: "Clear a filter, or post one yourself." }));
+}
+
+/**
+ * Job boards searched with the field already chosen. Their newest adverts are
+ * imported here (credited, "Imported from jobs.ac.uk"); the board itself has
+ * the rest, and its own alerts.
+ */
+const JOB_BOARDS = [
+  {
+    name: "jobs.ac.uk",
+    filters: "Environmental sciences, geography and geology",
+    url: "https://www.jobs.ac.uk/search/?activeFacet=subDisciplineFacet&sortOrder=1&pageSize=25&startIndex=1&academicDisciplineFacet%5B0%5D=physical-and-environmental-sciences&subDisciplineFacet%5B0%5D=environmental-sciences&subDisciplineFacet%5B1%5D=geography&subDisciplineFacet%5B2%5D=geology",
+  },
+];
+
+function boardLinks() {
+  return h("aside", { class: "s-boards", "aria-label": "Job boards" },
+    h("span", { class: "s-label", text: "More on job boards" }),
+    JOB_BOARDS.map((b) => h("a", { class: "s-board", href: b.url, target: "_blank", rel: "noopener noreferrer" },
+      h("strong", { text: b.name }), h("span", { class: "s-muted", text: ` · ${b.filters}` }), " ↗")));
 }
 
 export function renderEvents(root, { query }) {

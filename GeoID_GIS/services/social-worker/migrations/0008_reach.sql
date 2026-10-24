@@ -77,7 +77,7 @@ ALTER TABLE review_comments ADD COLUMN quote TEXT NOT NULL DEFAULT '';
 -- ── Imported opportunities and events ────────────────────────────────────
 -- The Atlas Career Scanner's model, run on the Worker: each source is a
 -- careers page or a calendar, read on a rota by the 15-minute cron; every
--- posting it lists is scored against geoscience keywords, and what passes is
+-- posting it lists is checked for a geoscience field (no score), and what passes is
 -- posted under the Network's own account with the source credited and linked.
 CREATE TABLE import_sources (
   id              TEXT PRIMARY KEY,
@@ -97,8 +97,7 @@ CREATE TABLE import_sources (
 CREATE TABLE imported (
   url_key       TEXT PRIMARY KEY,                  -- the posting's canonical URL
   source_id     TEXT NOT NULL REFERENCES import_sources(id),
-  post_id       TEXT REFERENCES posts(id),         -- null when it scored too low to post
-  score         INTEGER NOT NULL DEFAULT 0,
+  post_id       TEXT REFERENCES posts(id),         -- null when it was not in a geoscience field
   first_seen    INTEGER NOT NULL,
   last_seen     INTEGER NOT NULL,
   gone_at       INTEGER                            -- the source stopped listing it
