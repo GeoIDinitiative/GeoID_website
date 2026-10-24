@@ -2,15 +2,15 @@ import * as THREE from "./vendor/three.module.js";
 // The polygon-area rule lives in one place, with a test. Stamped by hand
 // once: stamp.py only rewrites a ?v= that already exists.
 import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
-  from "./gis/geo-utils.js?v=20261024-66b6e04";
+  from "./gis/geo-utils.js?v=20261024-9a03241";
 import { attachReliefAttributes, followRelief }
-  from "./gis/vector-render.js?v=20261024-66b6e04";
+  from "./gis/vector-render.js?v=20261024-9a03241";
 import { rockClass, crustalSetting, rockClassLabel, classificationBasis }
-  from "./gis/rock-class.js?v=20261024-66b6e04";
+  from "./gis/rock-class.js?v=20261024-9a03241";
 import { lithologyLabel }
-  from "./gis/lithology-label.js?v=20261024-66b6e04";
+  from "./gis/lithology-label.js?v=20261024-9a03241";
 import { formatLatLon }
-  from "./gis/coord-format.js?v=20261024-66b6e04";
+  from "./gis/coord-format.js?v=20261024-9a03241";
 
 /**
  * This module's own cache stamp, read off its own URL.
@@ -23223,6 +23223,10 @@ uniform float uViewportWidth;`,
         },
         getLabelDensity() {
           return currentLodLevel;
+        },
+        /** Is this place category ticked in the Location legend? (Earth Flight's labels.) */
+        isPlaceCategoryEnabled(category) {
+          return placeCategoryEnabled(category);
         },
         /** Every label's size, one factor (Workspace ▸ Location labels). */
         setLabelSizeScale(k) {

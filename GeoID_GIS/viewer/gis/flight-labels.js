@@ -31,8 +31,8 @@
 import * as THREE from "../vendor/three.module.js";
 // The Mars module, loaded when flight labels start: it imports three.js by an
 // absolute web path, which only a browser resolves (Node tests import this file).
-const MARS_LABELS = "../../../planet_explorer/mars/viewer/label-layer.js?v=20261024-66b6e04";
-let buildLabelLayer = null, updateLabelVisibility = null, updateLabelAnchors = null;
+const MARS_LABELS = "../../../planet_explorer/mars/viewer/label-layer.js?v=20261024-9a03241";
+let buildLabelLayer = null, updateLabelVisibility = null, updateLabelAnchors = null, makeLabelTexture = null;
 
 /* ── What the Mars viewer's scope provided, from Earth ─────────────────── */
 
@@ -78,6 +78,8 @@ function getReliefPoint(radius, _sampler, _cache, _relief, lat, lon, lift = 0) {
  */
 const AREA_CATEGORIES = new Set(["place-island", "place-landform", "place-marine"]);
 function earthHidden(entry, km, altKm, beyondHorizon) {
+  // The Location legend's category ticks (Cities, Islands, Seas...).
+  if (entry.item?.category && window.GeoIDViewer?.isPlaceCategoryEnabled?.(entry.item.category) === false) return true;
   const lod = Number(entry.item?.lod) || 3;
   const horizonKm = Math.sqrt(2 * (MARS_RADIUS_METERS / 1000) * Math.max(0.05, altKm));
   const reach = Math.min(700, Math.max(150, 3 * horizonKm)) * (lod <= 1 ? 1.6 : lod === 2 ? 1.25 : 1);
@@ -100,6 +102,29 @@ let lastItemsAt = 0;
 function rebuild(viewer, items) {
   dispose();
   labelLayer = buildLabelLayer(3.2, null, null, null, getReliefPoint, items);
+  // EARTH: the Location legend's colours. Each place carries its category's
+  // colour and chip palette (earth-viewer.js PLACE_CATEGORIES: cities white,
+  // islands green, seas blue...); Mars builds a label from its own themes,
+  // so the build is wrapped: the chip is made with the place's palette
+  // before Mars's lazy path would make a themed one, and the dot, the leader
+  // and the horizon triangle (which copies the dot) take its colour.
+  const build = labelLayer.entries._buildEntry;
+  labelLayer.entries._buildEntry = (entry) => {
+    build(entry);
+    const item = entry.item;
+    if (item.label_colour) {
+      entry.marker?.material?.color?.set(item.label_colour);
+      entry.line?.material?.color?.set(item.label_colour);
+    }
+    if (item.label_palette && entry.sprite && !entry.sprite.material.map) {
+      const t = makeLabelTexture(item, { customPalette: item.label_palette, backingScale: 1 });
+      entry.sprite.material.map = t.texture;
+      entry.sprite.material.needsUpdate = true;
+      const k = item.lod === 1 ? 1.55 : item.lod === 2 ? 1.30 : item.lod === 3 ? 1.10 : item.lod === 5 ? 0.88 : 1.0;
+      entry.sprite.scale.set((t.width / 200) * 0.66 * k, (t.height / 200) * 0.66 * k, 1);
+      entry.baseScale = entry.sprite.scale.clone();
+    }
+  };
   labelLayer.group.name = "GeoID-FlightPlaceLabels";
   viewer.globe.add(labelLayer.group);
 }
@@ -312,6 +337,7 @@ function step() {
 
   // Pass 1 — classify every label: in view (promote) or beyond horizon.
   const candidates = [];
+  const promoted = [];
   for (const entry of labelLayer.entries) {
     if (!entry || !entry.sprite || !entry.marker) continue;
     // Base visibility = the viewer's own declutter verdict, refreshed on
@@ -385,7 +411,8 @@ function step() {
       // A REAL, in-view label always outranks a horizon proxy. Bank its
       // screen box so the declutter pass below can yield to it rather
       // than stacking a skyline flag on top of it.
-      if (onScreen) occupiedRects.push(spriteScreenRect(entry.sprite));
+      // EARTH: banked after the loop, most significant first (see below).
+      if (onScreen) promoted.push({ entry, gamma });
       if (onScreen) cullStats.promotedShown++; else cullStats.promotedCulled++;
       continue;
     }
@@ -395,6 +422,20 @@ function step() {
     if (cosG <= 0.03) { cullStats.farSide = (cullStats.farSide || 0) + 1; hideProxies(entry); continue; } // far side — not "upcoming"
     cullStats.candidates = (cullStats.candidates || 0) + 1;
     candidates.push({ entry, over, cosG, P, R });
+  }
+  // EARTH: in-view labels never overlap. They are re-anchored above their
+  // dots after the viewer's declutter ran, so two near places could still
+  // land on each other (reported: Newcastle over Sunderland). Most
+  // significant first, then nearest; a label whose box is taken is hidden.
+  promoted.sort((a, b) => ((Number(a.entry.item?.lod) || 3) - (Number(b.entry.item?.lod) || 3)) || (a.gamma - b.gamma));
+  for (const { entry } of promoted) {
+    const rect = spriteScreenRect(entry.sprite);
+    if (rect && occupiedRects.some((r) => rectsOverlap(r, rect))) {
+      entry.sprite.visible = false;
+      if (entry.line) entry.line.visible = false;
+      entry.marker.visible = false;
+      cullStats.promotedDecluttered = (cullStats.promotedDecluttered || 0) + 1;
+    } else if (rect) occupiedRects.push(rect);
   }
   // Pass 2 — declutter the horizon band: nearest feature wins each
   // azimuth bin, capped so the skyline never crowds.
@@ -620,23 +661,39 @@ function onClick(ev) {
   });
   const hit = ray.intersectObjects(live, false)[0];
   const item = hit?.object?.userData?.feature;
-  if (item) viewer.openPlace?.(item);
+  if (!item) return;
+  // EARTH: the card the geology and the imported layers use, pinned to the
+  // place in the scene and moving with it (owner: "more like the geology pop
+  // ups"), not the corner card. The place says what it is (`type`), its name
+  // heads it, and its description and source follow; `geological: false`
+  // keeps the card from classifying a city as rock.
+  const card = {
+    geological: false,
+    type: item.type || "Place",
+    rock_type: String(item.name || "").replace(/\s*\([^)]*\)\s*/g, " ").trim(),
+    name: item.name,
+    description: [item.elevation_m != null ? `${Number(item.elevation_m).toLocaleString()} m.` : "", item.description || ""].filter(Boolean).join(" "),
+    source: item.source,
+    lat: item.lat, lon: item.lon,
+  };
+  if (!viewer.showFeatureCard?.(card, item.lat, item.lon)) viewer.openPlace?.(item);
+  ev.stopPropagation();
 }
 
 /** Start following the view (idempotent). */
 export async function startFlightLabels() {
   if (frame) return;
-  if (!buildLabelLayer) ({ buildLabelLayer, updateLabelVisibility, updateLabelAnchors } = await import(MARS_LABELS));
+  if (!buildLabelLayer) ({ buildLabelLayer, updateLabelVisibility, updateLabelAnchors, makeLabelTexture } = await import(MARS_LABELS));
   if (frame || !window.__flightSim?.active) return;
   frame = requestAnimationFrame(step);
-  window.GeoIDViewer?.renderer?.domElement?.addEventListener("click", onClick);
+  window.GeoIDViewer?.renderer?.domElement?.addEventListener("click", onClick, true);
 }
 
 /** Stop and clear. */
 export function stopFlightLabels() {
   if (frame) cancelAnimationFrame(frame);
   frame = null;
-  window.GeoIDViewer?.renderer?.domElement?.removeEventListener("click", onClick);
+  window.GeoIDViewer?.renderer?.domElement?.removeEventListener("click", onClick, true);
   dispose();
   itemsKey = "";
   window.__fsTriActive = false;

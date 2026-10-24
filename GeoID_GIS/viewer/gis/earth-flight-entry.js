@@ -21,14 +21,14 @@
 //      frame): aim the globe there, then open pre-flight, whose centre
 //      crosshair takes the site from wherever the globe is aimed.
 
-import { startFlightTerrain, stopFlightTerrain, setVex, primeLaunchSite } from "./flight-terrain.js?v=20261024-66b6e04";
-import { startFlightLabels, stopFlightLabels } from "./flight-labels.js?v=20261024-66b6e04";
-import { showFlightMap, hideFlightMap } from "./flight-map.js?v=20261024-66b6e04";
-import { showFlightSky, hideFlightSky } from "./flight-sky.js?v=20261024-66b6e04";
-import { startFlightTiles, stopFlightTiles } from "./flight-tiles.js?v=20261024-66b6e04";
-import { startFlightClouds, stopFlightClouds } from "./flight-clouds.js?v=20261024-66b6e04";
-import "./flight-place.js?v=20261024-66b6e04";
-import { isEarth } from "./bodies.js?v=20261024-66b6e04";
+import { startFlightTerrain, stopFlightTerrain, setVex, primeLaunchSite } from "./flight-terrain.js?v=20261024-9a03241";
+import { startFlightLabels, stopFlightLabels } from "./flight-labels.js?v=20261024-9a03241";
+import { showFlightMap, hideFlightMap } from "./flight-map.js?v=20261024-9a03241";
+import { showFlightSky, hideFlightSky } from "./flight-sky.js?v=20261024-9a03241";
+import { startFlightTiles, stopFlightTiles } from "./flight-tiles.js?v=20261024-9a03241";
+import { startFlightClouds, stopFlightClouds } from "./flight-clouds.js?v=20261024-9a03241";
+import "./flight-place.js?v=20261024-9a03241";
+import { isEarth } from "./bodies.js?v=20261024-9a03241";
 
 /** `?flight=earth&lat=..&lon=..` -> { lat, lon } or { lat: null } or null. */
 export function parseFlightLink(search) {

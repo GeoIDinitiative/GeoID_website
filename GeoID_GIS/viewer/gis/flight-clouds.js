@@ -146,16 +146,21 @@ const FRAG = /* glsl */`
     vec2 p = vUv * 220.0 + vec2(uTime * 0.004, uTime * 0.0015);
     float n = fbm(p) * 0.75 + fbm(p * 3.1 + 7.0) * 0.25;
     float cover = smoothstep(1.0 - frac, 1.0 - frac + 0.22, n) * smoothstep(0.03, 0.2, frac);
+    // Even a 100 % cell is not a sheet: its thickness varies with a second,
+    // larger field, so overcast has texture and thin places, never a filter.
+    float thick = mix(0.45, 1.0, smoothstep(0.25, 0.75, fbm(vUv * 60.0 + 3.7 + uTime * 0.001)));
     float edge = smoothstep(0.0, 0.12, vUv.x) * smoothstep(1.0, 0.88, vUv.x) * smoothstep(0.0, 0.12, vUv.y) * smoothstep(1.0, 0.88, vUv.y);
-    float a = cover * edge * 0.85;
-    if (a < 0.01) discard;
     float s = uSun.x;
     float day = smoothstep(-0.10, 0.12, s);
+    // At night cloud is barely seen from above: thin and dark, so the ground
+    // and its lights still read through it.
+    float a = cover * thick * edge * mix(0.30, 0.85, day);
+    if (a < 0.01) discard;
     float low = 1.0 - smoothstep(0.0, 0.30, abs(s));            // the sun near the horizon
     vec3 lit = mix(vec3(0.95, 0.96, 0.98), vec3(1.0, 0.72, 0.52), low * 0.7);
-    vec3 night = vec3(0.07, 0.08, 0.11);
-    // Thicker cloud is a little darker in its middle.
-    vec3 col = mix(night, lit, day) * (1.0 - 0.18 * smoothstep(0.5, 1.0, cover));
+    vec3 night = vec3(0.035, 0.04, 0.055);
+    // Billows: lighter tops and darker hollows from the noise itself.
+    vec3 col = mix(night, lit, day) * (0.78 + 0.32 * n) * (1.0 - 0.15 * smoothstep(0.5, 1.0, cover * thick));
     gl_FragColor = vec4(col, a);
     #include <colorspace_fragment>
   }
