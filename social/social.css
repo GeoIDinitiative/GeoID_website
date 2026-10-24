@@ -1132,18 +1132,7 @@ a.s-stat:focus-visible, button.s-stat:focus-visible { color: var(--text); outlin
 .s-officehours .s-row { display: grid; grid-template-columns: minmax(13rem, auto) 1fr auto; align-items: center; gap: 0.4rem 1rem; }
 @media (max-width: 560px) { .s-officehours .s-row { grid-template-columns: 1fr auto; } }
 
-/* Opportunities: job boards searched with the field already chosen. */
-.s-boards { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.4rem 1rem; margin: 0.4rem 0 1.2rem; padding: 0.65rem 0.9rem;
-  border: 1px solid var(--line); border-radius: var(--n-radius, 12px); background: var(--n-glass, rgba(9, 12, 28, 0.62)); }
-.s-boards .s-label { margin: 0; display: inline; }
-.s-boards a.s-board { display: inline-flex; flex: 0 0 auto; width: auto; align-items: baseline; gap: 0.3rem; }
-.s-board strong { color: var(--text); }
-
-/* Opportunities → External: the daily scan, packaged. */
-.s-scan { margin: 0.2rem 0 0.9rem; }
-.s-scan-line { margin: 0 0 0.25rem; }
-.s-scan .s-chips { margin-top: 0.7rem; }
-.s-chip-n { margin-left: 0.4rem; font-size: 0.78em; color: var(--muted); font-variant-numeric: tabular-nums; }
+/* Opportunities → External: gathered adverts as compact listings. */
 .s-scan-group { margin: 1.4rem 0 0.6rem; color: var(--muted); font-size: 0.8rem; letter-spacing: 0.08em; text-transform: uppercase; }
 .s-listings { gap: 0.6rem; }
 .s-listing { display: grid; grid-template-columns: 1fr auto; gap: 0.5rem 1.5rem; align-items: center; padding: 0.85rem 1.1rem; }
