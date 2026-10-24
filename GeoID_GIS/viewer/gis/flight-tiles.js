@@ -26,7 +26,7 @@
 // Esri World Imagery (blankTile=false: a missing tile is a 404 and the
 // ancestor stays). Flight only.
 
-import { NIGHT } from "./night-lights.js?v=20261024-f1f3c9f";
+import { NIGHT } from "./night-lights.js?v=20261024-402b0f2";
 
 const URL_TEMPLATE = "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}?blankTile=false";
 const ROOT_Z = 7;
@@ -420,7 +420,12 @@ const NIGHT_FRAGMENT = /* glsl */`
       float r = length(f);
       // A small hot core and a faint pool on the road round it.
       float lamp = step(0.78, h) * (smoothstep(0.12, 0.02, r) * 1.6 + smoothstep(0.48, 0.08, r) * 0.22);
-      glow = mix(carpet, rad * (0.012 + paved * (0.02 + 2.2 * lamp)), near);
+      // The lamps REDISTRIBUTE the carpet's light rather than replacing it:
+      // the pattern above averages ~0.02 a cell, so lamp / 0.02 averages 1
+      // and the street keeps the brightness it had from further off. (As a
+      // replacement it averaged a fraction of the carpet, and the ground went
+      // dark exactly where the lamps began -- a hard line across the view.)
+      glow = carpet * mix(1.0, 0.12 + 0.88 * min(lamp / 0.02, 40.0), near);
       warm = mix(warm, mix(vec3(1.0, 0.62, 0.28), vec3(1.0, 0.90, 0.75), fract(h * 7.0)), near);   // sodium and LED
     }
     vec3 moon = day * vec3(0.035, 0.045, 0.07);

@@ -16,7 +16,7 @@
 // Places come from the globe's own gazetteer (GeoIDViewer.getAllPlaceItems),
 // whether or not the Location labels switch is on. Looked up every 2 s.
 
-import { dataUrl } from "./data-base.js?v=20261024-f1f3c9f";
+import { dataUrl } from "./data-base.js?v=20261024-402b0f2";
 
 // A published dataset: local first, R2 when the local copy is not served (data-base.js).
 const COUNTRIES_PATH = "/data/global/countries_50m.geojson";
@@ -107,7 +107,8 @@ function ensure() {
     dataUrl(COUNTRIES_PATH).then((url) => fetch(url)).then((r) => (r.ok ? r.json() : null)).then((fc) => { index = indexCountries(fc); })
       .catch(() => { index = []; });
   }
-  if (!places || performance.now() - placesAt > 30000) {
+  // Re-read until the gazetteer has arrived, then every 30 s.
+  if (!places?.length || performance.now() - placesAt > 30000) {
     placesAt = performance.now();
     places = (window.GeoIDViewer?.getAllPlaceItems?.() || []).filter((p) => p.category && Number.isFinite(p.lat) && Number.isFinite(p.lon));
   }
