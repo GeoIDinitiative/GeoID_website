@@ -2005,17 +2005,21 @@
     rec.onReady = put;
   }
 
-  // GeoID livery: the brand's lockup and globe mark as decals, flat planes
-  // standing a centimetre or two off the hull (the STLs carry no UVs). Every
-  // placement is read off scripts/make-aircraft-stl.py's lofts and fins: the
-  // side decals sit on the rear fuselage and are yawed to its taper, the mark
-  // on both faces of the fin. Each side reads left to right from outside.
+  // GeoID livery: the website's own logo (the header's /assets/GeoID_logo_icon.png)
+  // as decals, flat planes standing a centimetre or two off the hull (the
+  // STLs carry no UVs). Its "Geo" is white, so on the white Cessna it sits on
+  // a brand-navy panel; the navy helicopter carries it bare; the fins get the
+  // logo's globe. Every placement is read off scripts/make-aircraft-stl.py's
+  // lofts and surfaces. `face`: "side" decals go on both flanks, yawed to the
+  // hull's taper, each reading left to right from outside; "top" decals lie
+  // on both wings' upper surface, tangent to the airfoil, reading the right
+  // way up from the chase camera behind.
   const _livery = {};
   function liveryTexture(file) {
     if (_livery[file]) return _livery[file];
     const t = new THREE.TextureLoader().load(`/assets/aircraft/${file}`);
     t.colorSpace = THREE.SRGBColorSpace;
-    t.anisotropy = 4;
+    t.anisotropy = 8;
     t.userData.shared = true;           // cached per file; disposeGroup must skip it
     return (_livery[file] = t);
   }
@@ -2028,9 +2032,14 @@
       });
       for (const side of [1, -1]) {
         const m = new THREE.Mesh(new THREE.PlaneGeometry(d.w, d.h), mat);
-        // PlaneGeometry faces +Z; yaw it to face out of this side, leaning
-        // with the hull's taper (the surface narrows toward the tail, +Z).
-        m.rotation.y = side * (Math.PI / 2 - (d.taper || 0));
+        if (d.face === "top") {
+          // PlaneGeometry faces +Z: lay it face up, its top edge toward the
+          // nose (-Z), tipped back by the airfoil's slope there.
+          m.rotation.x = -Math.PI / 2 + (d.tilt || 0);
+        } else {
+          // Face out of this flank, leaning with the hull's taper toward +Z.
+          m.rotation.y = side * (Math.PI / 2 - (d.taper || 0));
+        }
         m.position.set(side * d.x, d.y, d.z);
         m.name = "GeoID-Livery";
         group.add(m);
@@ -2056,10 +2065,13 @@
     };
     attachBaked(group, loadBakedGeometry("cessna", Object.keys(mats), "/assets/aircraft"), mats, 1);
     addLivery(group, [
-      // Rear fuselage z 0.70..2.20: half-width 0.49 -> 0.30 there, ~7 deg of taper.
-      { file: "livery-logo-light.png", w: 1.5, h: 0.46, x: 0.425, y: 0.31, z: 1.45, taper: 0.127 },
+      // Wings: 1.62 m chord from z -1.95 at y 1.18; the panel spans 20-75 %
+      // of the chord, tangent to the upper surface at mid-panel (slope 0.083).
+      { file: "livery-site-panel.png", face: "top", w: 2.6, h: 0.89, x: 2.75, y: 1.29, z: -1.18, tilt: 0.083 },
+      // Rear fuselage z 0.80..2.00: half-width 0.48 -> 0.32 there, ~7 deg of taper.
+      { file: "livery-site-panel.png", w: 1.2, h: 0.41, x: 0.42, y: 0.31, z: 1.40, taper: 0.127 },
       // Fin, mid-height: chord ~0.97 m, faces ~0.045 m off the centre plane.
-      { file: "livery-mark.png", w: 0.52, h: 0.52, x: 0.062, y: 1.20, z: 3.71 },
+      { file: "livery-site-mark.png", w: 0.50, h: 0.50, x: 0.062, y: 1.20, z: 3.71 },
     ]);
     group.userData.propMat = mats.prop;
     return group;
@@ -2095,9 +2107,9 @@
     attachBaked(group, loadBakedGeometry("heli", Object.keys(mats), "/assets/aircraft"), mats, 1);
     addLivery(group, [
       // Aft cabin z -0.70..0.60, under the engine fairing: half-width 0.75 -> 0.62.
-      { file: "livery-logo.png", w: 1.25, h: 0.38, x: 0.725, y: 0.86, z: -0.05, taper: 0.10 },
+      { file: "livery-site.png", w: 1.25, h: 0.37, x: 0.725, y: 0.86, z: -0.05, taper: 0.10 },
       // Upper fin, mid-height: chord ~0.6 m, faces ~0.03 m off the centre plane.
-      { file: "livery-mark.png", w: 0.36, h: 0.36, x: 0.045, y: 1.75, z: 5.99 },
+      { file: "livery-site-mark.png", w: 0.34, h: 0.34, x: 0.045, y: 1.75, z: 5.99 },
     ]);
     group.userData.rotorMat = mats.rotor;
     group.userData.tailRotorMat = mats.tailrotor;

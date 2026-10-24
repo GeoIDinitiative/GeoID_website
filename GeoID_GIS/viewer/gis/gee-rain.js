@@ -24,7 +24,7 @@
  *   ERA5-Land   0.1°, daily aggregate, 1950 → ~a week ago, land, global
  */
 
-import { paletteRamp, valueFromColour } from "./gee-sample.js?v=20261024-82d530c";
+import { paletteRamp, valueFromColour } from "./gee-sample.js?v=20261024-b351b46";
 
 const search = new URL(import.meta.url).search;
 
