@@ -36,9 +36,9 @@
 // transparent pass in a group sorted at 190 (see GROUP_ORDER), still
 // depth-tested and depth-writing against the globe and each other.
 
-import { isEarth } from "./bodies.js?v=20261024-050a56f";
+import { isEarth } from "./bodies.js?v=20261024-7ee18fc";
 import { facade, roof } from "../../../flight_sim/earth/game/facade.js?v=1";
-import { NIGHT } from "./night-lights.js?v=20261024-050a56f";
+import { NIGHT } from "./night-lights.js?v=20261024-7ee18fc";
 
 const BUILDINGS_TILEJSON = "https://tiles.openfreemap.org/planet";
 // blankTile=false: a tile with no imagery is a 404, not Esri's grey "Map data
@@ -295,7 +295,7 @@ function heightAboveGround(viewer, eye) {
 
 function ensureWorker() {
   if (worker) return;
-  worker = new Worker(new URL("../../../flight_sim/earth/game/buildings-worker.js?v=3", import.meta.url), { type: "module" });
+  worker = new Worker(new URL("../../../flight_sim/earth/game/buildings-worker.js?v=4", import.meta.url), { type: "module" });
   worker.onmessage = (e) => {
     const job = jobs.get(e.data.id);
     if (!job) return;
@@ -312,6 +312,70 @@ function pump(viewer) {
     fetching++;
     loadTile(viewer, t).finally(() => { fetching--; pump(viewer); });
   }
+}
+
+/* ── Vegetation relief, from the photograph (flight) ────────────────────────
+   The woods rise out of the ground imagery itself rather than being modelled
+   (owner, 2026-10-24: "I just wanted the vegetated cover to be UV mapped to
+   make them protrude from the surface a bit"). The tile's sharp ground drape
+   becomes a fine grid, and its vertex shader reads the tile's OWN photo,
+   blurred, for a tree mask -- dark and green-dominant: tree crowns; bright
+   grass, water (blue-dominant) and shadows (neutral) stay flat -- and lifts
+   each vertex by up to VEG_HEIGHT_M. The bumps are shaded against the real sun
+   RELATIVE to flat ground, so open ground keeps its exact colour and still
+   matches the imagery bands beyond. Where the photo has trees, the ground
+   rises; nothing is drawn from the OSM outlines. */
+const VEG_SEGMENTS = 160;            // ~9 m on a 1.5 km tile
+const VEG_HEIGHT_M = 7;            // "a bit": crowns proud of the fields, not hills
+const VEG = { uSunW: { value: null } };
+function vegetationRelief(material, sizeM) {
+  const prev = material.onBeforeCompile;
+  material.onBeforeCompile = (shader, renderer) => {
+    prev?.call(material, shader, renderer);
+    if (!VEG.uSunW.value) VEG.uSunW.value = new THREE.Vector3(0, 1, 0);
+    shader.uniforms.uSunW = VEG.uSunW;
+    shader.uniforms.uVegH = { value: VEG_HEIGHT_M };
+    shader.uniforms.uTileM = { value: sizeM };
+    shader.vertexShader = shader.vertexShader
+      .replace("#include <common>", `#include <common>
+uniform sampler2D map;
+uniform vec3 uSunW;
+uniform float uVegH;
+uniform float uTileM;
+varying float vVegShade;
+float vegAt(vec2 st) {
+  // A ~25 m blur (mip ~5 of a 1-2k tile over 1.5 km): stands of trees read as
+  // soft mounds, not a spike per crown -- measured at mip 2.5 it was jagged.
+  vec3 c = sqrt(max(textureLod(map, st, 5.0).rgb, 0.0));          // ~sRGB
+  float lum = dot(c, vec3(0.299, 0.587, 0.114));
+  float dark = smoothstep(0.50, 0.22, lum);
+  float green = smoothstep(-0.01, 0.08, c.g - c.b) * smoothstep(-0.04, 0.03, c.g - c.r);
+  return dark * green;
+}`)
+      .replace("#include <begin_vertex>", `#include <begin_vertex>
+  float vegE = 1.0 / ${VEG_SEGMENTS.toFixed(1)};
+  float vegH0 = vegAt(uv);
+  transformed.y += vegH0 * uVegH;
+  {
+    // Slope of the vegetation surface: x east along uv.x; the plane's uv.y
+    // runs north, i.e. along -z.
+    float dx = (vegAt(uv + vec2(vegE, 0.0)) - vegAt(uv - vec2(vegE, 0.0))) * uVegH / (2.0 * vegE * uTileM);
+    float dn = (vegAt(uv + vec2(0.0, vegE)) - vegAt(uv - vec2(0.0, vegE))) * uVegH / (2.0 * vegE * uTileM);
+    vec3 n = normalize(vec3(-dx, 1.0, dn));
+    vec3 nW = normalize(mat3(modelMatrix) * n);
+    vec3 upW = normalize(mat3(modelMatrix) * vec3(0.0, 1.0, 0.0));
+    float sunUp = dot(upW, uSunW);
+    // Relative to flat ground, so open ground is untouched; only by day.
+    vVegShade = clamp(1.0 + 1.6 * (dot(nW, uSunW) - sunUp) * step(0.0, sunUp), 0.72, 1.22)
+      * (1.0 - 0.10 * vegH0);                                            // a little depth in the canopy
+  }`);
+    shader.fragmentShader = shader.fragmentShader
+      .replace("#include <common>", "#include <common>\nvarying float vVegShade;")
+      .replace("#include <map_fragment>", "#include <map_fragment>\n  diffuseColor.rgb *= vVegShade;");
+  };
+  const key = material.customProgramCacheKey?.bind(material);
+  material.customProgramCacheKey = () => (key ? key() : "") + "|veg";
+  return material;
 }
 
 const DEM_N = 65;
@@ -347,8 +411,8 @@ function demAt(t, sizeM, x, z) {
     + (dem[y1 * DEM_N + x0] * (1 - tx) + dem[y1 * DEM_N + x1] * tx) * ty;
 }
 /** A ground plane for the tile, lifted to its height grid when it has one. */
-function groundPlane(t, sizeM, y) {
-  const seg = t.dem ? 32 : 1;
+function groundPlane(t, sizeM, y, fine = false) {
+  const seg = fine ? VEG_SEGMENTS : t.dem ? 32 : 1;
   const g = new THREE.PlaneGeometry(sizeM, sizeM, seg, seg).rotateX(-Math.PI / 2).translate(sizeM / 2, y, sizeM / 2);
   if (t.dem) {
     const p = g.attributes.position;
@@ -558,12 +622,16 @@ function build(viewer, t, m, count, lat, sizeM) {
   // (50+), refusing the depth test like every other drape.
   // On the flight terrain the drape is real ground too: lifted to the tile's
   // heights and depth-tested, just over the terrain patches under it.
+  // In flight the drape also carries the vegetation relief (a fine grid that
+  // rises where the photo has trees), so it is depth-tested and writes depth.
+  const flying = Boolean(window.__flightSim?.active);
+  const groundMat = edgeFaded(new THREE.MeshBasicMaterial({
+    map: t.roof, transparent: true, depthTest: onTerrain || flying, depthWrite: flying,
+    polygonOffset: onTerrain || flying, polygonOffsetFactor: -1, polygonOffsetUnits: -24,
+  }), "alpha");
   const ground = noPick(new THREE.Mesh(
-    groundPlane(t, sizeM, 0),
-    edgeFaded(new THREE.MeshBasicMaterial({
-      map: t.roof, transparent: true, depthTest: onTerrain, depthWrite: false,
-      polygonOffset: onTerrain, polygonOffsetFactor: -1, polygonOffsetUnits: -24,
-    }), "alpha")));
+    groundPlane(t, sizeM, 0, flying),
+    flying ? vegetationRelief(groundMat, sizeM) : groundMat));
   ground.matrixAutoUpdate = false;
   catcher.receiveShadow = true;
   catcher.matrixAutoUpdate = false;
@@ -649,7 +717,7 @@ function build(viewer, t, m, count, lat, sizeM) {
 const LAYER_NAME = "3D buildings & trees (OpenStreetMap)";
 const LAYER_INFO = {
   source: "OpenStreetMap via OpenFreeMap vector tiles (OpenMapTiles schema, z14): building, transportation, water, landcover; roof and ground imagery Esri World Imagery z16-z17",
-  citation: "Buildings, bridges, trees: © OpenStreetMap contributors, ODbL 1.0 (openstreetmap.org/copyright); tiles: OpenFreeMap (openfreemap.org), OpenMapTiles schema © OpenMapTiles. Imagery: Esri World Imagery — Source: Esri, Vantor, Earthstar Geographics, and the GIS User Community. Woods are drawn as a canopy at modelled crown heights (15-23 m) under the same imagery; facades, pitched roofs and canopy relief are procedural.",
+  citation: "Buildings, bridges, trees: © OpenStreetMap contributors, ODbL 1.0 (openstreetmap.org/copyright); tiles: OpenFreeMap (openfreemap.org), OpenMapTiles schema © OpenMapTiles. Imagery: Esri World Imagery — Source: Esri, Vantor, Earthstar Geographics, and the GIS User Community. In flight the vegetation rises up to 7 m out of the same imagery, from its colour; facades, pitched roofs and that relief are procedural.",
   crs: "EPSG:3857 tiles, drawn on the globe",
   licence: "ODbL 1.0 (OpenStreetMap data); Esri terms of use (imagery)",
 };
@@ -831,6 +899,8 @@ function frame(now) {
   for (const t of tiles.values()) if (t.mesh) place(viewer, t);
   updateShadows(viewer, alt, eye);
   updateFade(viewer, flightCover(viewer, alt));
+  const sunW = viewer.getSunDirection?.();
+  if (sunW) { if (!VEG.uSunW.value) VEG.uSunW.value = new THREE.Vector3(); VEG.uSunW.value.copy(sunW).normalize(); }
 
   if (now - lastDecision < 300) return;
   lastDecision = now;
@@ -900,10 +970,12 @@ async function boot() {
   }
   // Rebuild every tile when the flight terrain's scale changes or it comes on
   // or off -- not on every new DEM tile, which would thrash.
-  let terrainKey = "off";
+  let terrainKey = "orbit:flat";
   const terrainCheck = () => {
     const T = window.GeoIDFlightTerrain;
-    const key = T?.active?.() ? `on:${T.getVex()}` : "off";
+    // Flight itself is part of the key: the ground drape carries the
+    // vegetation relief only in flight.
+    const key = `${window.__flightSim?.active ? "flight" : "orbit"}:${T?.active?.() ? T.getVex() : "flat"}`;
     if (key !== terrainKey) { terrainKey = key; dropAll(); }
   };
   window.addEventListener("geoid:flight-terrain-changed", terrainCheck);

@@ -94,6 +94,31 @@ async function ensureAround() {
   }
 }
 
+/**
+ * PRE-FLIGHT: fine elevation round the launch site before Launch is pressed.
+ * The launch altitude is measured above the ground (the sim reads this
+ * terrain at spawn), and with only the coarse view tiles loaded a "300 m"
+ * launch came out ~140 m above the real ground. The site is where the
+ * pre-flight camera looks straight down.
+ */
+let primeTimer = null;
+function primeSite() {
+  const viewer = window.GeoIDViewer, dem = window.GeoIDDem;
+  if (!document.body.classList.contains("fs-preflight")) { clearInterval(primeTimer); primeTimer = null; return; }
+  if (!viewer?.camera || !viewer.globe || !dem?.ensure) return;
+  const local = viewer.globe.worldToLocal(viewer.camera.position.clone());
+  local.set(-local.x, local.y, -local.z);
+  const r = local.length() || 1;
+  const lat = Math.asin(Math.max(-1, Math.min(1, local.y / r))) * 180 / Math.PI;
+  const lon = Math.atan2(local.z, -local.x) * 180 / Math.PI;
+  dem.ensure(box(lat, lon, 4), { maxTiles: 6 }).catch(() => {});
+}
+export function primeLaunchSite() {
+  if (primeTimer) return;
+  primeSite();
+  primeTimer = setInterval(primeSite, 1200);
+}
+
 /** Start keeping the terrain current (idempotent). */
 export function startFlightTerrain() {
   if (timer) return;
@@ -111,5 +136,5 @@ export function stopFlightTerrain() {
 }
 
 if (typeof window !== "undefined") {
-  window.GeoIDFlightTerrain = { active, groundMetres, heightUnits, getVex, setVex, getVersion };
+  window.GeoIDFlightTerrain = { active, groundMetres, heightUnits, getVex, setVex, getVersion, primeLaunchSite };
 }

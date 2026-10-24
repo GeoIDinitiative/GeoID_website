@@ -1,8 +1,8 @@
-import * as store from "./research/project-store.js?v=20261024-050a56f";
-import { currentBodyId, currentBody } from "./bodies.js?v=20261024-050a56f";
-import { ready as shellReady } from "./shell.js?v=20261024-050a56f";
-import { may, refusal } from "./membership.js?v=20261024-050a56f";
-import { lockCard, lockMark } from "./feature-locks.js?v=20261024-050a56f";
+import * as store from "./research/project-store.js?v=20261024-7ee18fc";
+import { currentBodyId, currentBody } from "./bodies.js?v=20261024-7ee18fc";
+import { ready as shellReady } from "./shell.js?v=20261024-7ee18fc";
+import { may, refusal } from "./membership.js?v=20261024-7ee18fc";
+import { lockCard, lockMark } from "./feature-locks.js?v=20261024-7ee18fc";
 
 /**
  * The folder button in the sidebar header.

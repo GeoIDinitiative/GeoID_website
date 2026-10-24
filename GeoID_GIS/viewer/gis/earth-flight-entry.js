@@ -21,11 +21,11 @@
 //      frame): aim the globe there, then open pre-flight, whose centre
 //      crosshair takes the site from wherever the globe is aimed.
 
-import { startFlightTerrain, stopFlightTerrain, setVex } from "./flight-terrain.js?v=20261024-050a56f";
-import { startFlightLabels, stopFlightLabels } from "./flight-labels.js?v=20261024-050a56f";
-import { showFlightMap, hideFlightMap } from "./flight-map.js?v=20261024-050a56f";
-import { showFlightSky, hideFlightSky } from "./flight-sky.js?v=20261024-050a56f";
-import { isEarth } from "./bodies.js?v=20261024-050a56f";
+import { startFlightTerrain, stopFlightTerrain, setVex, primeLaunchSite } from "./flight-terrain.js?v=20261024-7ee18fc";
+import { startFlightLabels, stopFlightLabels } from "./flight-labels.js?v=20261024-7ee18fc";
+import { showFlightMap, hideFlightMap } from "./flight-map.js?v=20261024-7ee18fc";
+import { showFlightSky, hideFlightSky } from "./flight-sky.js?v=20261024-7ee18fc";
+import { isEarth } from "./bodies.js?v=20261024-7ee18fc";
 
 /** `?flight=earth&lat=..&lon=..` -> { lat, lon } or { lat: null } or null. */
 export function parseFlightLink(search) {
@@ -273,6 +273,7 @@ function wire() {
   // A sky over the aircraft -- day, dusk or night from the real sun -- in
   // place of the viewer's space backdrop, while flying (flight-sky.js).
   window.addEventListener("flightsim:engaged", () => setTimeout(() => {
+    if (!window.__flightSim?.active && document.body.classList.contains("fs-preflight")) primeLaunchSite();
     if (window.__flightSim?.active) {
       setVex(document.getElementById("fs-vex")?.value || 1);
       startFlightTerrain(); showFlightSky(); showFlightMap(); startFlightLabels();

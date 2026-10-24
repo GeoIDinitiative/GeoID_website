@@ -21,7 +21,6 @@
  */
 
 import { rings, polygons, clipRing } from "./mvt.js?v=1";
-import { extrudeCanopy } from "./canopy.js?v=2";
 import { bridgeOutlines, drawBridges, latticeClusters, drawWheel, inPolys } from "./structures.js?v=2";
 
 const SINK = 4;
@@ -310,10 +309,14 @@ export function extrudeTile(layer, dem, demSize, sizeLocal, triangulate, extra =
     drawWheel(api, { ...w, cy: w.cy + g });
   }
 
-  // Woods and scrub as a raised canopy (canopy.js). No single tree models:
-  // the scattered cones in parks read as cookie-cutter glyphs and were
-  // removed (owner, 2026-10-24); scatterTrees stays in structures.js, unused.
-  const canopy = extrudeCanopy(api, extra.landcover, extra.origin);
+  // No woods geometry. The extruded canopy (canopy.js) -- 15-23 m slabs on the
+  // OSM wood outlines -- did not match the trees in the photograph and read as
+  // blocks (owner, 2026-10-24: "a disaster"); the cones before it as glyphs.
+  // The vegetation now rises out of the ground imagery itself, from the photo
+  // (osm-buildings.js, vegetationRelief). canopy.js and scatterTrees stay,
+  // tested and unused.
+  const canopy = { position: new Float32Array(0), normal: new Float32Array(0), uv: new Float32Array(0),
+    index: new Uint32Array(0), topCount: 0, polygons: 0 };
   const trees = new Float32Array(0);
 
   const index = new Uint32Array(roofIdx.length + wallIdx.length);
