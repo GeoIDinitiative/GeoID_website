@@ -16,6 +16,7 @@ import {
   sourcesOff, restoreActive, stormCategory, stormScale, stormLabel, STORM_BASE_CAP,
   SAFFIR_SIMPSON_KTS,
   MARKER_LIFT_MAX, MARKER_LIFT_M, DOT_CAP_FAR, DOT_CAP_NEAR, zoomGain, MARKER_MAX_PX,
+  flightMarkerPx, FLIGHT_MARKER_MAX_PX,
 }  from "./event-sources.js";
 import { readFileSync } from "node:fs";
 
@@ -169,6 +170,13 @@ check("and the old key is read once and retired",
 ok("the cloud keeps the size it would be WITHOUT the breath",
   /points\.userData\.steadySize = steady;/.test(eventsSrc)
   && /const want = Math\.min\(MARKER_MAX_PX, steady \* \(pulsing \? 1 \+ PULSE_SIZE \* phase : 1\)\);/.test(eventsSrc));
+// Earth Flight looks ACROSS the ground: a storm at the 240 px ceiling, centred
+// just under a horizon 60 km off, stood up into the sky.
+ok("in flight a storm at the ceiling is drawn at 40 px, not 240", flightMarkerPx(MARKER_MAX_PX) === FLIGHT_MARKER_MAX_PX);
+ok("and smaller symbols keep their proportions", Math.abs(flightMarkerPx(44) - 13.2) < 1e-9 && flightMarkerPx(44) < flightMarkerPx(100));
+ok("the frame step applies it only while flying, before the ring reads the size",
+  /if \(flying\) steady = flightMarkerPx\(steady\);\s*points\.userData\.steadySize = steady;/.test(eventsSrc)
+  && /const flying = !!window\.__flightSim\?\.active;/.test(eventsSrc));
 ok("and anything measuring a marker reads that, never the drawn size",
   /found = node\.userData\.steadySize \|\| node\.material\?\.size \|\| 0;/.test(eventsSrc));
 ok("the tracker writes whole pixels, and only when they change",

@@ -14,11 +14,11 @@ import {
   SOURCES, sourceById, usgsPoints, magnitudeSize, recencyOpacity, magnitudeColour,
   activeGroups, sourcesInGroup, groupState, defaultEnabled, restoreSources, sourcesOff,
   gdacsPoints, resolveColour,
-  MARKER_LIFT_MAX, liftForAltitude, dotSizePx, zoomGain, MARKER_MAX_PX, isQuake, publisherOf, restoreActive,
+  MARKER_LIFT_MAX, liftForAltitude, dotSizePx, zoomGain, MARKER_MAX_PX, flightMarkerPx, isQuake, publisherOf, restoreActive,
   stormCategory, stormScale, stormLabel, STORM_BASE_CAP, markerHitGeometry, nearestHit,
-} from "./event-sources.js?v=20261024-16ef562";
-import { escapeHtml, safeUrl } from "./escape-html.js?v=20261024-16ef562";
-import { holdLaunch } from "./launch-ready.js?v=20261024-16ef562";
+} from "./event-sources.js?v=20261024-5d792bf";
+import { escapeHtml, safeUrl } from "./escape-html.js?v=20261024-5d792bf";
+import { holdLaunch } from "./launch-ready.js?v=20261024-5d792bf";
 
 const API = "https://eonet.gsfc.nasa.gov/api/v3/events";
 
@@ -1330,6 +1330,7 @@ function trackScale() {
       // One phase for every marker, so a field of earthquakes pulses together
       // rather than shimmering: per-marker phases read as noise on the screen.
       const phase = (Math.sin((performance.now() / PULSE_PERIOD_MS) * Math.PI * 2) + 1) / 2;
+      const flying = !!window.__flightSim?.active;
       markers.children.forEach((points) => {
         const pulsing = points.userData.pulse;
         /**
@@ -1357,7 +1358,11 @@ function trackScale() {
          * stay on the dot's circumference if it stays that size, and the card
          * is placed a ring's radius clear of the dot.
          */
-        const steady = Math.min(MARKER_MAX_PX, from * (points.userData.sizeScale || 1));
+        let steady = Math.min(MARKER_MAX_PX, from * (points.userData.sizeScale || 1));
+        // Seen across the ground from a few hundred metres, not down onto it
+        // (event-sources.js, flightMarkerPx). The ring reads `steadySize`, so
+        // it shrinks with the marker it surrounds.
+        if (flying) steady = flightMarkerPx(steady);
         points.userData.steadySize = steady;
         const want = Math.min(MARKER_MAX_PX, steady * (pulsing ? 1 + PULSE_SIZE * phase : 1));
         if (points.material.size !== want) points.material.size = want;
@@ -2728,8 +2733,8 @@ async function showTrace(event) {
   }
 
   const [plot, { spectrogram }] = await Promise.all([
-    import("./seismogram-plot.js?v=20261024-16ef562"),
-    import("./research/dsp.js?v=20261024-16ef562"),
+    import("./seismogram-plot.js?v=20261024-5d792bf"),
+    import("./research/dsp.js?v=20261024-5d792bf"),
   ]);
   if (stale()) return;
 

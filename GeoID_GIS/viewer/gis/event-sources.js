@@ -724,6 +724,25 @@ export function zoomGain(dotPx) {
  */
 export const MARKER_MAX_PX = 240;
 
+/**
+ * IN FLIGHT A MARKER IS SEEN ACROSS THE GROUND, NOT DOWN ONTO IT.
+ *
+ * The zoom curve above grows the symbols as the camera comes down, so that
+ * from a few kilometres up they keep pace with the magnifying ground. Earth
+ * Flight flies at a few hundred metres and looks along the ground to a
+ * horizon 60 km away, and by that curve a storm is drawn at the 240 px
+ * ceiling and a large earthquake at 170: a symbol on the sea 50 km off,
+ * centred on a point just under the horizon, stood twice its own height up
+ * into the sky (reported: "the mapping of events may be wrong"). So in flight
+ * every symbol is drawn at a fraction of its curve size and capped, keeping
+ * the categories' proportions (a storm still outsizes a dot).
+ */
+export const FLIGHT_MARKER_SCALE = 0.3;
+export const FLIGHT_MARKER_MAX_PX = 40;
+export function flightMarkerPx(px) {
+  return Math.min(FLIGHT_MARKER_MAX_PX, (Number(px) || 0) * FLIGHT_MARKER_SCALE);
+}
+
 
 /* ── picking a marker ─────────────────────────────────────────────────────── */
 
