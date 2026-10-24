@@ -26,7 +26,7 @@
 // Esri World Imagery (blankTile=false: a missing tile is a 404 and the
 // ancestor stays). Flight only.
 
-import { NIGHT } from "./night-lights.js?v=20261024-596d060";
+import { NIGHT } from "./night-lights.js?v=20261024-dfaa065";
 
 const URL_TEMPLATE = "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}?blankTile=false";
 const ROOT_Z = 7;
@@ -319,8 +319,10 @@ const NIGHT_FRAGMENT = /* glsl */`
     if (near > 0.0 && paved * rad > 0.0) {
       float h = nHash(floor(cell));
       vec2 f = fract(cell) - 0.5;
-      float lamp = step(0.72, h) * smoothstep(0.30, 0.05, length(f));
-      lit = mix(0.055, 0.015 + 3.0 * lamp, near);
+      float r = length(f);
+      // A small hot core and a faint pool on the road round it.
+      float lamp = step(0.78, h) * (smoothstep(0.12, 0.02, r) * 1.6 + smoothstep(0.48, 0.08, r) * 0.22);
+      lit = mix(0.055, 0.02 + 2.2 * lamp, near);
       warm = mix(vec3(1.0, 0.62, 0.28), vec3(1.0, 0.90, 0.75), fract(h * 7.0));   // sodium and LED
     }
     float glow = rad * (0.012 + paved * lit);

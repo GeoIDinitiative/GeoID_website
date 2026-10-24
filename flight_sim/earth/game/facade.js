@@ -61,7 +61,7 @@ const WALL_COLOUR = /* glsl */`
       vec3 near = mix(wall, pane, win);
       vec3 far = mix(diffuseColor.rgb, glass, 0.20 * above);
       diffuseColor.rgb = mix(far, near, fade);
-      vWinLit = win * step(r, 0.55) * fade + 0.18 * (1.0 - fade) * above;
+      vWinLit = win * step(r, 0.55) * fade + 0.07 * (1.0 - fade) * above;
     } else {
       // Curtain wall: two glass panels per bay (~1.5 m), mullions, a
       // spandrel at each floor.
@@ -77,7 +77,7 @@ const WALL_COLOUR = /* glsl */`
       vec3 far = mix(diffuseColor.rgb, pane, 0.75);
       diffuseColor.rgb = mix(far, near, fade);
       glassDark = mix(0.75, glassMask, fade);
-      vWinLit = (glassMask * step(r, 0.5) * fade + 0.25 * (1.0 - fade)) * 0.8;
+      vWinLit = (glassMask * step(r, 0.5) * fade + 0.09 * (1.0 - fade)) * 0.8;
     }
     // Contact occlusion: the street darkens the foot of every wall.
     diffuseColor.rgb *= mix(0.6, 1.0, smoothstep(-0.3, 1.2, vFacade.y));
