@@ -21,14 +21,15 @@
 //      frame): aim the globe there, then open pre-flight, whose centre
 //      crosshair takes the site from wherever the globe is aimed.
 
-import { startFlightTerrain, stopFlightTerrain, setVex, primeLaunchSite } from "./flight-terrain.js?v=20261024-691ac00";
-import { startFlightLabels, stopFlightLabels } from "./flight-labels.js?v=20261024-691ac00";
-import { showFlightMap, hideFlightMap } from "./flight-map.js?v=20261024-691ac00";
-import { showFlightSky, hideFlightSky } from "./flight-sky.js?v=20261024-691ac00";
-import { startFlightTiles, stopFlightTiles } from "./flight-tiles.js?v=20261024-691ac00";
-import { startFlightClouds, stopFlightClouds } from "./flight-clouds.js?v=20261024-691ac00";
-import "./flight-place.js?v=20261024-691ac00";
-import { isEarth } from "./bodies.js?v=20261024-691ac00";
+import { startFlightTerrain, stopFlightTerrain, setVex, primeLaunchSite } from "./flight-terrain.js?v=20261024-0be119a";
+import { startFlightLabels, stopFlightLabels } from "./flight-labels.js?v=20261024-0be119a";
+import { showFlightMap, hideFlightMap } from "./flight-map.js?v=20261024-0be119a";
+import { showFlightSky, hideFlightSky } from "./flight-sky.js?v=20261024-0be119a";
+import { startFlightTiles, stopFlightTiles } from "./flight-tiles.js?v=20261024-0be119a";
+import { startFlightClouds, stopFlightClouds } from "./flight-clouds.js?v=20261024-0be119a";
+import { startFlightLights, stopFlightLights } from "./flight-lights.js?v=20261024-0be119a";
+import "./flight-place.js?v=20261024-0be119a";
+import { isEarth } from "./bodies.js?v=20261024-0be119a";
 
 /** `?flight=earth&lat=..&lon=..` -> { lat, lon } or { lat: null } or null. */
 export function parseFlightLink(search) {
@@ -279,10 +280,10 @@ function wire() {
     if (!window.__flightSim?.active && document.body.classList.contains("fs-preflight")) primeLaunchSite();
     if (window.__flightSim?.active) {
       setVex(document.getElementById("fs-vex")?.value || 1);
-      startFlightTerrain(); startFlightTiles(); startFlightClouds(); showFlightSky(); showFlightMap(); startFlightLabels();
+      startFlightTerrain(); startFlightTiles(); startFlightClouds(); startFlightLights(); showFlightSky(); showFlightMap(); startFlightLabels();
     }
   }, 60));
-  window.addEventListener("flightsim:disengaged", () => { stopFlightTerrain(); stopFlightTiles(); stopFlightClouds(); hideFlightSky(); hideFlightMap(); stopFlightLabels(); });
+  window.addEventListener("flightsim:disengaged", () => { stopFlightTerrain(); stopFlightTiles(); stopFlightClouds(); stopFlightLights(); hideFlightSky(); hideFlightMap(); stopFlightLabels(); });
   // The Vertical scale slider exaggerates the flight terrain (1 = true scale).
   document.addEventListener("input", (e) => { if (e.target?.id === "fs-vex") setVex(e.target.value); });
 

@@ -26,7 +26,7 @@
 // Esri World Imagery (blankTile=false: a missing tile is a 404 and the
 // ancestor stays). Flight only.
 
-import { NIGHT } from "./night-lights.js?v=20261024-691ac00";
+import { NIGHT } from "./night-lights.js?v=20261024-0be119a";
 
 const URL_TEMPLATE = "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}?blankTile=false";
 const ROOT_Z = 7;
@@ -116,6 +116,8 @@ const tiles = new Map();           // "z/x/y" -> { z, x, y, mesh, image: Texture
 const queue = [];
 let inflight = 0;
 const SUN = { value: null };
+// The ground's share of the night light (skyglow), by the aircraft's height.
+const SKYGLOW = { value: 0.05 };
 
 const key = (z, x, y) => `${z}/${x}/${y}`;
 
@@ -245,7 +247,8 @@ function material(t) {
     uLights: { value: null },
     uLightsXf: { value: new THREE.Vector3(0, 0, 1) },      // offset u, v, scale into the Black Marble tile
     uLightsOn: { value: 0 },
-    uLampCells: { value: sizeM / 9 },                      // a street lamp every ~9 m, at most
+    uLampCells: { value: sizeM / 9 },
+    uSkyglow: SKYGLOW,
   };
   const sampled = veg || rocks;
   m.onBeforeCompile = (shader) => {
@@ -373,17 +376,15 @@ const BUMP_FRAGMENT = /* glsl */`
  *
  *   * WHERE there is light, and how much: NASA's VIIRS Black Marble
  *     radiance (z8, ~0.4-0.6 km/px), cropped to the tile;
- *   * WHAT is lit inside that: at any distance the radiance itself, a
- *     little brighter over the photo's paved (grey, asphalt-dark) pixels --
- *     a city seen from altitude is a carpet of light; close in, where a lamp
- *     is bigger than a pixel, point lamps along those streets (a hash per
- *     ~9 m cell) take over and the fields between them go dark.
+ *   * WHAT is lit: nothing here -- the lamps are real points on real roads
+ *     (flight-lights.js). The ground keeps only the skyglow over towns,
+ *     from the radiance: faint near the ground, growing with height.
  *
  * uNight is per tile, from the sun's elevation over it (twilight sweeps
  * across the ground as it does), 0 by day: nothing here costs anything then.
  */
 const NIGHT_PARS = /* glsl */`
-uniform float uNight, uLightsOn, uLampCells;
+uniform float uNight, uLightsOn, uLampCells, uSkyglow;
 uniform sampler2D uLights;
 uniform vec3 uLightsXf;
 // Arithmetic hash (no sin): this runs per ground pixel at night.
@@ -401,39 +402,12 @@ const NIGHT_FRAGMENT = /* glsl */`
       vec3 bm = texture2D(uLights, uLightsXf.xy + vTileUv * uLightsXf.z).rgb;
       rad = clamp(dot(bm, vec3(0.35, 0.45, 0.20)) * 1.8, 0.0, 1.0);
     }
-    vec2 cell = vTileUv * uLampCells;
-    float px = max(fwidth(cell.x), fwidth(cell.y));
-    float near = clamp(1.0 - px * 1.2, 0.0, 1.0);
-    // The BASE light is the Black Marble radiance itself, at every scale:
-    // from altitude or toward the horizon a city is a carpet of light, a
-    // little brighter over its paved surfaces. (Lighting only the paved
-    // pixels, as first tuned for close range, left the distant tiles and the
-    // whole view from the stratosphere nearly black, and tiles of different
-    // zoom disagreed.) Close in, where a lamp is bigger than a pixel, the
-    // carpet gives way to lamps along the streets.
-    // Mostly the radiance: the photo's "paved" test only shades it. A hazy,
-    // grey capture in Esri's mosaic reads as paved from edge to edge, and
-    // with the photo in charge it lit up as a bright rectangle (seen at 7 km
-    // over Shropshire); Black Marble is one consistent picture of the lights.
-    // Contrast on the radiance, so a town's dim fringe falls away and its
-    // centre stays bright (linear, a conurbation read as one tan wash).
-    float carpet = pow(rad, 1.6) * (0.26 + 0.08 * paved);
-    vec3 warm = vec3(1.0, 0.72, 0.40);
-    float glow = carpet;
-    if (near > 0.0 && paved * rad > 0.0) {
-      float h = nHash(floor(cell));
-      vec2 f = fract(cell) - 0.5;
-      float r = length(f);
-      // A small hot core and a faint pool on the road round it.
-      float lamp = step(0.78, h) * (smoothstep(0.12, 0.02, r) * 1.6 + smoothstep(0.48, 0.08, r) * 0.22);
-      // The lamps REDISTRIBUTE the carpet's light rather than replacing it:
-      // the pattern above averages ~0.02 a cell, so lamp / 0.02 averages 1
-      // and the street keeps the brightness it had from further off. (As a
-      // replacement it averaged a fraction of the carpet, and the ground went
-      // dark exactly where the lamps began -- a hard line across the view.)
-      glow = carpet * mix(1.0, 0.12 + 0.88 * min(lamp / 0.02, 40.0), near);
-      warm = mix(warm, mix(vec3(1.0, 0.62, 0.28), vec3(1.0, 0.90, 0.75), fract(h * 7.0)), near);   // sodium and LED
-    }
+    // The lamps themselves are real points on real roads (flight-lights.js);
+    // the ground carries only their SKYGLOW -- the scattered light over a
+    // town, from Black Marble, faint close to the ground and growing with
+    // height, where it is what a city is from the stratosphere.
+    float glow = pow(rad, 1.6) * uSkyglow * (0.85 + 0.3 * paved);
+    vec3 warm = vec3(1.0, 0.72, 0.42);
     vec3 moon = day * vec3(0.035, 0.045, 0.07);
     diffuseColor.rgb = mix(day, moon + warm * glow, uNight);
   }`;
@@ -653,6 +627,7 @@ function tick() {
     const old = [...tiles.values()].filter((t) => !t.want && !t.ancestorWanted).sort((a, b) => a.used - b.used);
     for (const t of old.slice(0, tiles.size - MAX_TILES_KEPT)) dispose(t);
   }
+  SKYGLOW.value = 0.05 + 0.20 * Math.min(1, Math.max(0, (altM - 6000) / 24000));
   // The buildings' night (lit windows, dimmed walls) is the ship's.
   if (sunL) {
     const p = viewer.surfacePoint(f.shipLatLon.lat, f.shipLatLon.lon, 0);
