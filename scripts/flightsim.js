@@ -2,7 +2,8 @@
    GeoID flight simulator — shared across every viewer that flies.
 
    Loaded by:
-     planet_explorer/{mars,mercury,venus,moon}/viewer/
+     planet_explorer/{mars,mercury,venus,moon,...}/viewer/, and the GeoHUB
+     Earth viewer (GeoID_GIS/viewer/), where Earth Flight is this same mode.
 
    This file was the Mars viewer's flightsim.js. It is now body-agnostic:
    everything that differs between worlds comes from BODY_PROFILES below or
@@ -44,6 +45,10 @@
             <label for="fs-ship-model">Ship model</label>
             <select id="fs-ship-model" class="select">
               <option value="shuttle" selected>Space Shuttle</option>
+              <!-- Earth Flight's default (gis/earth-flight-entry.js selects it
+                   there): a light aircraft from assets/aircraft/, built by
+                   scripts/make-aircraft-stl.py. -->
+              <option value="aircraft">Light Aircraft</option>
               <option value="saucer">Flying Saucer</option>
               <!-- Reinstated 2026-08-01 at Owen's request. Labels stay
                    generic on purpose — these are fan-made models of
@@ -579,6 +584,21 @@
     if (rockyLaunchHtml === null) rockyLaunchHtml = startAltSelect.innerHTML;
     const moon = moonNow();
     const gas = !moon && bodyProfile().gas;
+    const own = !moon && bodyProfile().launchOptions;
+    if (own) {
+      // A world with its own list (Earth): rebuilt once, kept if already there.
+      if (startAltSelect.dataset.body !== hooks.bodyId) {
+        startAltSelect.textContent = "";
+        for (const [m, label, def] of own) {
+          const opt = document.createElement("option");
+          opt.value = String(m); opt.textContent = label;
+          if (def) opt.selected = true;
+          startAltSelect.appendChild(opt);
+        }
+        startAltSelect.dataset.body = hooks.bodyId;
+      }
+      return;
+    }
     if (!moon && !gas) {
       if (startAltSelect.innerHTML !== rockyLaunchHtml) startAltSelect.innerHTML = rockyLaunchHtml;
       return;
@@ -1883,7 +1903,7 @@
   // each geometry in as it arrives, calling `onReady` so the builder can attach
   // late parts — builders stay synchronous and the ship appears at once.
   const _bakedGeo = {};
-  function loadBakedGeometry(ship, keys) {
+  function loadBakedGeometry(ship, keys, dir = "/assets/ships") {
     if (_bakedGeo[ship]) return _bakedGeo[ship];
     const rec = _bakedGeo[ship] = {};
     for (const k of keys) rec[k] = null;
@@ -1896,7 +1916,7 @@
     import(new URL("vendor/STLLoader.js", document.baseURI).href).then((mod) => {
       const loader = new mod.STLLoader();
       for (const key of keys) {
-        loader.load(`/assets/ships/${ship}_${key}.stl`, (geo) => {
+        loader.load(`${dir}/${ship}_${key}.stl`, (geo) => {
           geo.computeVertexNormals();
           geo.userData.shared = true;   // cached per ship; disposeGroup must skip it
           rec[key] = geo;
@@ -1978,6 +1998,26 @@
     };
     for (const key of Object.keys(mats)) put(key);
     rec.onReady = put;
+  }
+
+  // LIGHT AIRCRAFT -- Earth Flight's default. A Cessna 172-class high-wing
+  // monoplane, built as STLs by scripts/make-aircraft-stl.py (original geometry,
+  // see assets/aircraft/README.md): metres, nose toward -Z, so it attaches at
+  // scale 1. realLength is its true length, which worlds that draw ships at
+  // real size (Earth's profile, realShipScale) use instead of the cinematic one.
+  function buildAircraft() {
+    const group = new THREE.Group();
+    group.userData.nominalLength = 8.75;
+    group.userData.realLength = 8.75;
+    const mats = {
+      hull: new THREE.MeshStandardMaterial({ color: 0xf3f4f2, metalness: 0.15, roughness: 0.5 }),
+      trim: new THREE.MeshStandardMaterial({ color: 0x3b4148, metalness: 0.3, roughness: 0.55 }),
+      glass: new THREE.MeshStandardMaterial({ color: 0x3e5a72, metalness: 0.4, roughness: 0.15 }),
+      prop: new THREE.MeshStandardMaterial({ color: 0x24282c, metalness: 0.35, roughness: 0.5 }),
+    };
+    attachBaked(group, loadBakedGeometry("cessna", Object.keys(mats), "/assets/aircraft"), mats, 1);
+    group.userData.propMat = mats.prop;
+    return group;
   }
 
   function buildTardis() {
@@ -2249,6 +2289,7 @@
   const SHIP_BUILDERS = {
     shuttle: buildShuttle, tardis: buildTardis, starship: buildStarship,
     xfighter: buildXFighter, falcon: buildFalcon, saucer: buildSaucer,
+    aircraft: buildAircraft,
   };
 
   function buildShip() {
@@ -2332,7 +2373,11 @@
   function shipDisplayLengthUnits() {
     // Ship display size is fixed at cinematic — the selector was removed, and
     // this was already its fallback, so the value is unchanged.
-    const meters = SHIP_SIZES_M.cinematic;
+    // Earth draws ships at their real size: over a city the cinematic 600 m
+    // shuttle was larger than the buildings it flew between.
+    const meters = bodyProfile().realShipScale
+      ? (ship?.userData.realLength || SHIP_SIZES_M.realistic)
+      : SHIP_SIZES_M.cinematic;
     return meters / METERS_PER_UNIT;
   }
 
@@ -2661,7 +2706,9 @@
     // flight-filtered layer stack (Locations, Basemap and Relief, Geology, Sea
     // Level, Legend, Regions), so layers stay controllable in the air. Pre-flight
     // deliberately leaves it open, since that is where the site is chosen.
-    document.getElementById("nav-collapse-btn")?.click();
+    // Not on a world that flies with its chrome open (Earth): there the nav,
+    // the Workspace and the GIS tools stay exactly as the user left them.
+    if (!bodyProfile().openChrome) document.getElementById("nav-collapse-btn")?.click();
 
     // 1. Default to the streamed basemap, per the sim's design. The value has
     // to come from THIS viewer's option list: assigning Mars's "ctx-mosaic-color"
@@ -2698,7 +2745,17 @@
       ? { lat: spec.lat, lon: spec.lon }
       : worldToLatLon(cam.position);
     const startAltM = Number(startAltSelect?.value || 30000);
-    const radius = surfaceRadiusAt(here.lat, here.lon) + startAltM / METERS_PER_UNIT;
+    // The ground is read where the camera WILL be, not where pre-flight left
+    // it: on Earth the drawn relief tapers with camera height
+    // (getEffectiveTerrainRelief), so a radius computed from the pre-flight
+    // orbit put a "1 km" launch 2 km up once the camera came down with the
+    // ship and the ground sank under it. Two passes settle it; on worlds whose
+    // relief does not follow the camera both passes give the same number.
+    let radius = surfaceRadiusAt(here.lat, here.lon) + startAltM / METERS_PER_UNIT;
+    for (let pass = 0; pass < 2; pass++) {
+      cam.position.copy(latLonToWorld(here.lat, here.lon, radius));
+      radius = surfaceRadiusAt(here.lat, here.lon) + startAltM / METERS_PER_UNIT;
+    }
     if (!ship) ship = buildShip();
     applyShipScale();
     state.pos = latLonToWorld(here.lat, here.lon, radius);
@@ -2709,12 +2766,13 @@
     // the 1000 km default a level horizon is mostly black sky — facing the
     // planet puts terrain in frame from the first frame. Same local-X
     // convention as the ArrowDown pitch input, so the HUD reads -45°.
+    const launchPitch = (bodyProfile().launchPitchDeg ?? -45) * Math.PI / 180;
     state.quat.multiply(
-      new THREE.Quaternion().setFromEuler(new THREE.Euler(-Math.PI / 4, 0, 0, "XYZ")),
+      new THREE.Quaternion().setFromEuler(new THREE.Euler(launchPitch, 0, 0, "XYZ")),
     ).normalize();
     state.vel = new THREE.Vector3();
     state.speed = 0;
-    state.throttle = LAUNCH_THROTTLE;
+    state.throttle = bodyProfile().launchThrottle ?? LAUNCH_THROTTLE;
     // Boost is now a RAMP position, not an energy reserve: start at 0 (cruise)
     // so the ship does not launch already at the top of the range.
     state.boost = 0;
@@ -2724,6 +2782,7 @@
     state._camOff = null;
     state.cam = cameraModeSelect?.value || "chase";
     state.lastT = 0;
+    state.spinRef = NaN;     // co-rotation starts from this frame's spin
     state.dtSmooth = 0;      // don't inherit the previous flight's frame pacing
     state.distM = 0;
     state.prevDir = null;    // odometer restarts with each flight
@@ -2769,7 +2828,7 @@
     document.body.classList.remove("fs-paused");
     fs.active = false;
     document.body.classList.remove("fs-flying");
-    document.getElementById("nav-tab")?.click(); // reopen the nav panel on exit
+    if (!bodyProfile().openChrome) document.getElementById("nav-tab")?.click(); // reopen the nav panel on exit
     fs.forceRelief = false;
     fs.focusLatLon = null;
     fs._releaseTouchKeys?.();   // a held pad button must not survive the flight
@@ -3017,6 +3076,26 @@
     };
   }
 
+  // Earth: the 1976 US Standard Atmosphere, in its two lowest layers and an
+  // exponential tail -- troposphere to 11 km at -6.5 K/km from 15 C, the
+  // isothermal tropopause to 20 km at -56.5 C, then a slow warming. Pressure
+  // from the barometric formula in each layer.
+  function earthAtmosphere(hMeters) {
+    const h = Math.max(0, hMeters);
+    let tempC, pressurePa;
+    if (h <= 11000) {
+      tempC = 15 - 0.0065 * h;
+      pressurePa = 101325 * Math.pow(1 - 2.25577e-5 * h, 5.25588);
+    } else if (h <= 20000) {
+      tempC = -56.5;
+      pressurePa = 22632 * Math.exp(-(h - 11000) / 6341.6);
+    } else {
+      tempC = Math.min(-2.5, -56.5 + 0.001 * (h - 20000));
+      pressurePa = Math.max(SPACE_FLOOR_PA, 5474.9 * Math.exp(-(h - 20000) / 6800));
+    }
+    return { tempC, pressurePa };
+  }
+
   function marsAtmosphere(hMeters) {
     const h = Math.max(0, hMeters);
     // The Glenn fit is only quoted to ~30 km, and its LINEAR upper-layer term
@@ -3043,6 +3122,20 @@
     // them the streamer has nothing finer to fetch, so the sim leaves it
     // alone and the globe simply keeps its mapped basemap.
     mars:    { gravity: 3.71, atmosphere: marsAtmosphere,  domain: "Mars atmosphere", streamedTiles: true },
+    // Earth flies over the GeoHUB globe's own close-range imagery and its
+    // streamed OSM buildings (GeoID_GIS/viewer/gis/osm-buildings.js), so there
+    // is no tile stream or detail patch for the sim to drive. What differs is
+    // the scale of what is worth flying: cities, from a few hundred metres,
+    // at aircraft speed -- so its own launch list, a low launch throttle
+    // (about 120 m/s) and a 5-degree launch descent instead of Mars's 45.
+    // `openChrome`: flight on Earth is one more way of exploring the GeoHUB
+    // globe, so the nav, Workspace and GIS tools stay open in the air (see
+    // styles/flightsim.css, `fs-open-chrome`).
+    earth:   { gravity: 9.81, atmosphere: earthAtmosphere, domain: "Earth atmosphere",
+               openChrome: true, coRotate: true, realShipScale: true, launchThrottle: 0.1, launchPitchDeg: -5,
+               launchOptions: [[300, "300 m — rooftops"], [1000, "1 km — city", true], [3000, "3 km — region"],
+                               [8000, "8 km — cruise"], [30000, "30 km — stratosphere"],
+                               [120000, "120 km — edge of space"], [1000000, "1000 km — global"]] },
     mercury: { gravity: 3.70, atmosphere: exosphere(430, 164, 1.0e-10, 550000), domain: "Mercury exosphere",
                detail: { map: "mercury/mercury_simp_cyl", layer: "MESSENGER", westPositive: true,
                          credit: "MESSENGER MDIS global mosaic — NASA/JHUAPL/CIW, served by USGS Astrogeology" } },
@@ -3325,6 +3418,28 @@
       if (liveName !== (flightMoon ? flightMoon.name : null)) { disengage(); return; }
     }
     stepMoonFrame();
+    // CO-ROTATION (Earth). In flight the world turns at its real rate (see
+    // startRealSpin), and the ship flies in inertial space -- so on Earth,
+    // whose ground moves at 290 m/s at London's latitude, an aircraft at
+    // 120 m/s heading east drifted WEST over the ground (measured: launched
+    // east from Westminster, 0.12 degrees west after a minute). An aircraft
+    // flies in air that turns with the planet, so the ship is carried round
+    // the axis by exactly the angle the globe turned this frame. Profile-
+    // gated: the other worlds fly as they always have.
+    {
+      const spinNow = spinDelta();
+      if (bodyProfile().coRotate && state.pos && Number.isFinite(state.spinRef)) {
+        const ds = spinNow - state.spinRef;
+        if (ds && Math.abs(ds) < 0.5) {
+          const turn = new THREE.Quaternion().setFromAxisAngle(planetAxis(), ds);
+          state.pos.applyQuaternion(turn);
+          state.vel?.applyQuaternion(turn);
+          state.quat.premultiply(turn);
+          if (state._camOff) state._camOff.applyQuaternion(turn);
+        }
+      }
+      state.spinRef = spinNow;
+    }
     // PAUSED: hold everything where it is. Zeroing lastT makes the first frame
     // after resuming a zero-length step instead of one long catch-up.
     if (fs.paused) { state.lastT = 0; return; }
@@ -3597,6 +3712,17 @@
     ship.quaternion.copy(s.quat);
     // TARDIS tumbles around its vertical axis as it travels — faster with speed,
     // with a steady idle spin so it turns even at a hover.
+    // The aircraft's propeller turns with the throttle, about its own hub
+    // (on the nose axis, 5 cm above the model origin).
+    if (ship.userData.propMat) {
+      const propMesh = ship.children.find((c) => c.material === ship.userData.propMat);
+      if (propMesh) {
+        ship.userData.propAngle = ((ship.userData.propAngle || 0) + dt * (25 + 45 * state.throttle)) % (Math.PI * 2);
+        const a = ship.userData.propAngle;
+        propMesh.rotation.z = a;
+        propMesh.position.set(0.05 * Math.sin(a), 0.05 - 0.05 * Math.cos(a), 0);
+      }
+    }
     if (ship.userData.spins) {
       // Rate comes off airspeed in m/s. The speed term used to read s.speed
       // directly, which is in WORLD UNITS — at ~1,061 km per unit, cruise is
@@ -4517,6 +4643,12 @@
   fs.update = update;
   fs.engage = engage;
   fs.disengage = disengage;
+  // Opening pre-flight from outside the panel: a deep link into a world
+  // (/?flight=earth&lat=..&lon=..) aims the globe, then calls this.
+  fs.enterPreflight = () => enterPreflight();
+  // The ship being flown (rebuilt when the model changes) -- for hosts that
+  // list it, as Earth's Workspace does with its credit.
+  Object.defineProperty(fs, "ship", { get: () => ship, enumerable: false });
 
   // ---- global CTX base-tile cache warmer ----
   // Fetches every CTX tile for levels 0–5 (2 730 tiles ≈ 30–40 MB, one time

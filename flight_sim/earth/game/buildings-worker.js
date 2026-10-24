@@ -20,11 +20,12 @@ self.onmessage = (e) => {
     // Bridges and the water they cross come from the same tile (structures.js).
     const transport = decodeLayer(buf, "transportation");
     const water = decodeLayer(buf, "water");
-    if (!layer.features.length && !transport) { self.postMessage({ id, empty: true }); return; }
-    const m = extrudeTile(layer, dem, demSize, sizeLocal, triangulate, { transport, water });
-    if (!m.index.length) { self.postMessage({ id, empty: true }); return; }
+    const landcover = decodeLayer(buf, "landcover");
+    if (!layer.features.length && !transport && !landcover) { self.postMessage({ id, empty: true }); return; }
+    const m = extrudeTile(layer, dem, demSize, sizeLocal, triangulate, { transport, water, landcover });
+    if (!m.index.length && !m.trees.length) { self.postMessage({ id, empty: true }); return; }
     self.postMessage({ id, mesh: m, buildings: m.polygons },
-      [m.position.buffer, m.normal.buffer, m.uv.buffer, m.color.buffer, m.style.buffer, m.index.buffer]);
+      [m.position.buffer, m.normal.buffer, m.uv.buffer, m.color.buffer, m.style.buffer, m.index.buffer, m.trees.buffer]);
   } catch (err) {
     self.postMessage({ id, error: String(err && err.message || err) });
   }

@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; script-src 'self' https://static.cloudflareinsights.com 'sha256-yPXcJC6xz5zk+kdwYEZ9cpEoKH6naZ9e7jqZMfgxuM4=' 'sha256-Mkko0pn4e0P2d6royTo0QRnyLQsuvZpD81Q+vsflrV4=' 'sha256-FJogLqb/R5G3WTP2N+x64N3EVz/CDCVxxW13b5UWSvc=' 'sha256-t2kbwG31Qy1eDSOLvu6JRAZ5/f+FBDiszAy7NLs2nkk=' 'sha256-XW0ed2zjfK36eMKRU36H1A4VAkWGmo5YiK5ER2hrp3U=' 'sha256-Uky8coMigjWSZXzY2Q1IRtb6LeN4hBkzzaxZsi9urJ0=' 'sha256-HiVohRX9XRx7XlG+uGLN87ZCK6f+N99QWTlTY0ceRmU='; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https: http://localhost:* http://127.0.0.1:*; media-src 'self' data: blob: https:; connect-src 'self' data: blob: https: http://localhost:* http://127.0.0.1:*; frame-src 'self' blob: https://docs.google.com https://drive.google.com; form-action 'self' https://formspree.io https://buy.stripe.com https://docs.google.com; worker-src 'self' blob:; child-src 'self' blob:; upgrade-insecure-requests">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; script-src 'self' https://static.cloudflareinsights.com 'sha256-yPXcJC6xz5zk+kdwYEZ9cpEoKH6naZ9e7jqZMfgxuM4=' 'sha256-Mkko0pn4e0P2d6royTo0QRnyLQsuvZpD81Q+vsflrV4=' 'sha256-Abewjsa7X1DFpizm5Jmlepq02QDnZECG66sTJVPzD/Y=' 'sha256-t2kbwG31Qy1eDSOLvu6JRAZ5/f+FBDiszAy7NLs2nkk=' 'sha256-XW0ed2zjfK36eMKRU36H1A4VAkWGmo5YiK5ER2hrp3U=' 'sha256-Uky8coMigjWSZXzY2Q1IRtb6LeN4hBkzzaxZsi9urJ0=' 'sha256-HiVohRX9XRx7XlG+uGLN87ZCK6f+N99QWTlTY0ceRmU='; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https: http://localhost:* http://127.0.0.1:*; media-src 'self' data: blob: https:; connect-src 'self' data: blob: https: http://localhost:* http://127.0.0.1:*; frame-src 'self' blob: https://docs.google.com https://drive.google.com; form-action 'self' https://formspree.io https://buy.stripe.com https://docs.google.com; worker-src 'self' blob:; child-src 'self' blob:; upgrade-insecure-requests">
   <!-- The stamped modules/CSS bust their own cache, but this shell HTML has
        no stamp on its own URL, so a browser was serving a cached tab with an
        old iframe stamp -- which read as "nothing changed" after every edit.
@@ -178,12 +178,12 @@
   </style>
   <!-- Themes: the stylesheet hangs off data-skin, and theme.js stamps it
        in <head> so the first paint is already in the chosen theme. -->
-  <link rel="stylesheet" href="/styles/viewer-themes.css?v=20261024-b7a524b">
-  <script src="/scripts/theme.js?v=20261024-b7a524b"></script>
+  <link rel="stylesheet" href="/styles/viewer-themes.css?v=20261024-9f9b1b9">
+  <script src="/scripts/theme.js?v=20261024-9f9b1b9"></script>
   <!-- Controller support. NOT deferred, and in <head>, on purpose: this page
        is the outermost document, so its copy must be running before the
        viewer iframe's copy looks for it (see scripts/gamepad.js). -->
-  <script src="/scripts/gamepad.js?v=20261024-b7a524b"></script>
+  <script src="/scripts/gamepad.js?v=20261024-9f9b1b9"></script>
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="GeoID Initiative">
   <meta property="og:url" content="https://geoidinitiative.com/">
@@ -202,7 +202,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@500;600;700;800&family=Public+Sans:wght@400;500;600;700;800&family=Source+Sans+3:wght@300;400;500;600;700&family=Archivo:wght@700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/styles/shared.css?v=20261024-b7a524b">
+  <link rel="stylesheet" href="/styles/shared.css?v=20261024-9f9b1b9">
   <style>
     /* Scrollable interface shell: globe first, analysis hub below */
     html {
@@ -1428,9 +1428,9 @@
     .demo-disclaimer-backdrop[hidden] { display: none !important; }
   </style>
   <!-- Site header only — the app UI below keeps its own styling -->
-  <link rel="stylesheet" href="/styles/site-nav.css?v=20261024-b7a524b">
-  <link rel="stylesheet" href="/styles/geohub-shell.css?v=20261024-b7a524b">
-  <link rel="stylesheet" href="/styles/v2-viewer.css?v=20261024-b7a524b">
+  <link rel="stylesheet" href="/styles/site-nav.css?v=20261024-9f9b1b9">
+  <link rel="stylesheet" href="/styles/geohub-shell.css?v=20261024-9f9b1b9">
+  <link rel="stylesheet" href="/styles/v2-viewer.css?v=20261024-9f9b1b9">
 </head>
 <body>
 
@@ -1980,7 +1980,7 @@
       <iframe
         id="globe-iframe"
         class="globe-iframe"
-        src="/GeoID_GIS/viewer/?v=gis-20261024-b7a524b"
+        src="/GeoID_GIS/viewer/?v=gis-20261024-9f9b1b9"
         title="GeoHUB — interactive 3D globe with surface condition modelling"
         allow="fullscreen"
       ></iframe>
@@ -2013,6 +2013,17 @@
           var value = params.get(key);
           if (value && /^[A-Za-z0-9_-]{1,64}$/.test(value)) carry += "&" + key + "=" + encodeURIComponent(value);
         });
+        // `?flight=earth[&lat=..&lon=..]` opens Earth Flight (the shared
+        // flight mode, Explorer > Earth Flight) in the Earth viewer, aimed at
+        // the place if one is given -- what the old /flight_sim/earth/ address
+        // bounces to. Numbers only.
+        if ((params.get("flight") || "").toLowerCase() === "earth") {
+          carry += "&flight=earth";
+          ["lat", "lon"].forEach(function (key) {
+            var value = params.get(key);
+            if (value && /^-?[0-9]{1,3}(\.[0-9]{1,7})?$/.test(value)) carry += "&" + key + "=" + value;
+          });
+        }
         var frame = document.getElementById("globe-iframe");
         if (!frame) return;
         if (world && WORLDS.indexOf(world) !== -1) {
@@ -3090,12 +3101,12 @@
     })();
   </script>
 
-<script src="/scripts/site.js?v=20261024-b7a524b"></script>
-<script type="module" src="/GeoID_GIS/viewer/gis/hazard-models.js?v=20261024-b7a524b"></script>
+<script src="/scripts/site.js?v=20261024-9f9b1b9"></script>
+<script type="module" src="/GeoID_GIS/viewer/gis/hazard-models.js?v=20261024-9f9b1b9"></script>
 <!-- The header's own controls tick and click too: the mode bar, the player
      and Settings moved up here from the viewer, which has always had them. -->
-<script src="/scripts/ui-sound.js?v=20261024-b7a524b" defer></script>
-<script src="/styles/nav.js?v=20261024-b7a524b" defer></script>
+<script src="/scripts/ui-sound.js?v=20261024-9f9b1b9" defer></script>
+<script src="/styles/nav.js?v=20261024-9f9b1b9" defer></script>
 
   <!-- ── Forecast panel ────────────────────────────────────────────────────
        Mapping first, then the location, then the time series. The pin says
@@ -3561,6 +3572,6 @@
       });
     })();
   </script>
-  <script type="module" src="/scripts/nav-membership.js?v=20261024-b7a524b"></script>
+  <script type="module" src="/scripts/nav-membership.js?v=20261024-9f9b1b9"></script>
 </body>
 </html>

@@ -28,6 +28,7 @@
 const WALL_PARS = /* glsl */`
 varying vec2 vFacade;
 varying float vStyle;
+uniform float uNight;
 float fHash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
 `;
 
@@ -54,6 +55,7 @@ const WALL_COLOUR = /* glsl */`
       vec3 near = mix(wall, pane, win);
       vec3 far = mix(diffuseColor.rgb, glass, 0.20 * step(0.6, vFacade.y));
       diffuseColor.rgb = mix(far, near, fade);
+      vWinLit = win * step(r, 0.55) * fade + 0.18 * (1.0 - fade) * step(0.6, vFacade.y);
     } else {
       // Curtain wall: 1.5 m glass bays, mullions, a spandrel per floor.
       vec2 cell = vec2(vFacade.x / 1.5, vFacade.y / 3.6);
@@ -68,6 +70,7 @@ const WALL_COLOUR = /* glsl */`
       vec3 far = mix(diffuseColor.rgb, pane, 0.75);
       diffuseColor.rgb = mix(far, near, fade);
       glassDark = mix(0.75, glassMask, fade);
+      vWinLit = (glassMask * step(r, 0.5) * fade + 0.25 * (1.0 - fade)) * 0.8;
     }
     // Contact occlusion: the street darkens the foot of every wall.
     diffuseColor.rgb *= mix(0.55, 1.0, smoothstep(-1.0, 5.0, vFacade.y));
@@ -92,9 +95,13 @@ export function facade(material) {
       .replace("#include <common>", "#include <common>\nattribute float aStyle;\nvarying vec2 vFacade;\nvarying float vStyle;")
       .replace("#include <uv_vertex>", "#include <uv_vertex>\n  vFacade = uv;\n  vStyle = aStyle;");
     shader.fragmentShader = shader.fragmentShader
-      .replace("#include <common>", "#include <common>\n" + WALL_PARS + "float vGlass = 0.0;")
+      .replace("#include <common>", "#include <common>\n" + WALL_PARS + "float vGlass = 0.0;\nfloat vWinLit = 0.0;")
       .replace("#include <color_fragment>", "#include <color_fragment>\n" + WALL_COLOUR)
-      .replace("#include <lights_lambert_fragment>", WALL_SHEEN + "\n#include <lights_lambert_fragment>");
+      .replace("#include <lights_lambert_fragment>", WALL_SHEEN + "\n#include <lights_lambert_fragment>")
+      // At night about half the windows are lit (uNight, 0 day .. 1 night,
+      // from the host: osm-buildings.js passes night-lights.js's value).
+      .replace("#include <dithering_fragment>", "#include <dithering_fragment>\n  gl_FragColor.rgb += vec3(1.0, 0.78, 0.48) * vWinLit * uNight;");
+    shader.uniforms.uNight = material.userData.night || { value: 0 };
   };
   const key = material.customProgramCacheKey?.bind(material);
   material.customProgramCacheKey = () => (key ? key() : "") + "|facade2";

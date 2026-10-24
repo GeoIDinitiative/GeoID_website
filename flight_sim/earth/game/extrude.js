@@ -21,7 +21,7 @@
  */
 
 import { rings, polygons, clipRing } from "./mvt.js?v=1";
-import { bridgeOutlines, drawBridges, latticeClusters, drawWheel, inPolys } from "./structures.js?v=1";
+import { bridgeOutlines, drawBridges, latticeClusters, drawWheel, inPolys, scatterTrees } from "./structures.js?v=1";
 
 const SINK = 4;
 
@@ -78,8 +78,9 @@ function parseColour(c) {
  * @param dem         Float32Array of heights, demSize² row-major, north row first
  * @param sizeLocal   tile edge length in local metres
  * @param triangulate (contour[{x,y}], holes[[{x,y}]]) => [[a,b,c], ...]
- * @param extra       { transport, water }: the same tile's decoded layers, for
- *                    bridges and for keeping bridge outlines out (structures.js)
+ * @param extra       { transport, water, landcover }: the same tile's decoded
+ *                    layers, for bridges, keeping bridge outlines out, and trees
+ *                    (structures.js)
  */
 export function extrudeTile(layer, dem, demSize, sizeLocal, triangulate, extra = {}) {
   const ext = layer.extent || 4096;
@@ -308,6 +309,9 @@ export function extrudeTile(layer, dem, demSize, sizeLocal, triangulate, extra =
     drawWheel(api, { ...w, cy: w.cy + g });
   }
 
+  // Trees in the tile's woods and parks (structures.js), kept off bridges.
+  const trees = scatterTrees(api, extra.landcover, outlines);
+
   const index = new Uint32Array(roofIdx.length + wallIdx.length);
   index.set(roofIdx, 0);
   index.set(wallIdx, roofIdx.length);
@@ -320,6 +324,7 @@ export function extrudeTile(layer, dem, demSize, sizeLocal, triangulate, extra =
     index,
     polygons: nPoly,
     bridges,
+    trees,
     wheels: lattice.wheels.length,
     latticeParts: lattice.skip.size,
     roofCount: roofIdx.length,

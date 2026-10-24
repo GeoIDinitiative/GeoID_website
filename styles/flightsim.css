@@ -16,28 +16,34 @@
   transition: opacity 0.42s ease;
 }
 #fs-fade.show { opacity: 1; }
+/* OPEN CHROME (Earth). On Earth, flight is one more way of exploring the
+   GeoHUB globe and its data, not a separate mode: the nav, the Workspace, the
+   tool rail and every GIS tool stay available in the air (asked for,
+   2026-10-24). The viewer marks that with `body.fs-open-chrome`, and every
+   "flight hides this" rule below is scoped to bodies WITHOUT it, so the other
+   worlds keep their cockpit-only takeover unchanged. */
 /* Flight-only UI: hide orbit-mode chrome for an uncluttered cockpit view —
    brand wordmark, GIS measure toolbar (Distance/Area/Profile + its TOOLS tab),
    and the spin/freeze view controls (meaningless while piloting). */
-body.fs-flying #toolbar,
-body.fs-flying #toolbar-tab,
-body.fs-flying #tool-rail { display: none !important; }
+body.fs-flying:not(.fs-open-chrome) #toolbar,
+body.fs-flying:not(.fs-open-chrome) #toolbar-tab,
+body.fs-flying:not(.fs-open-chrome) #tool-rail { display: none !important; }
 /* FLIGHT MODE NAV — full takeover, but the panel STAYS so layers remain
    controllable in the air. Orbit-only sections are dropped: they either
    hijack the camera (Tour Mode, Search), swap the whole scene (Core View,
    Moon Viewer) or are reference material with no in-flight use (Sources).
    What remains is exactly the layer stack: Locations, Basemap and Relief,
    Geology, Sea Level, Legend, Regions — plus the flight panel itself. */
-body.fs-flying #tour-mode-section,
-body.fs-flying #search-section,
-body.fs-flying #core-view-section,
-body.fs-flying #moon-viewer-section,
-body.fs-flying #sources-section { display: none !important; }
+body.fs-flying:not(.fs-open-chrome) #tour-mode-section,
+body.fs-flying:not(.fs-open-chrome) #search-section,
+body.fs-flying:not(.fs-open-chrome) #core-view-section,
+body.fs-flying:not(.fs-open-chrome) #moon-viewer-section,
+body.fs-flying:not(.fs-open-chrome) #sources-section { display: none !important; }
 /* The Planet Explorer mark stays visible in the cockpit view (user request).
    It lives INSIDE #top-right-controls, so hiding that container hid the logo
    too — keep the container and drop only the orbit-only buttons within it. */
-body.fs-flying #spin-toggle,
-body.fs-flying #freeze-view-toggle { display: none !important; }
+body.fs-flying:not(.fs-open-chrome) #spin-toggle,
+body.fs-flying:not(.fs-open-chrome) #freeze-view-toggle { display: none !important; }
 /* THE PLANET STRIP GOES TOO, in both flight states. It is pinned bottom-centre
    and the flight HUD is a full-width bar across the same edge, so the planet
    icons showed THROUGH the readouts — a row of little globes interleaved with
@@ -49,13 +55,13 @@ body.fs-flying #freeze-view-toggle { display: none !important; }
    because this is the flight sim's list of what flight hides and every sibling
    above is already on it. It reaches the five viewers that load this sheet,
    which is exactly the set that has a flight sim: the rocky worlds. */
-body.fs-flying .gis-planet-dock,
-body.fs-preflight .gis-planet-dock { display: none !important; }
+body.fs-flying:not(.fs-open-chrome) .gis-planet-dock,
+body.fs-preflight:not(.fs-open-chrome) .gis-planet-dock { display: none !important; }
 /* The legend goes with it. It is a key to the map layers, and in the cockpit
    the map is ground going past at a kilometre a second — the readouts along
    the bottom are the instrumentation that matters here. */
-body.fs-flying #map-legend,
-body.fs-preflight #map-legend { display: none !important; }
+body.fs-flying:not(.fs-open-chrome) #map-legend,
+body.fs-preflight:not(.fs-open-chrome) #map-legend { display: none !important; }
 /* THE WORKSPACE BOX, the Draw bar, the zoom pill and any open workbench go
    too. The Workspace is fixed to the bottom-left corner, which is exactly
    where the throttle and boost bars are: reopening the control centre in the
@@ -66,14 +72,14 @@ body.fs-preflight #map-legend { display: none !important; }
    rail this sheet already stands down, so one left open before launch would
    otherwise float over the heading tape with no way to reach its own controls;
    and the zoom pill drives an orbit camera the pilot is not flying. */
-body.fs-flying #layer-dock,
-body.fs-preflight #layer-dock,
-body.fs-flying #gis-draw-hud,
-body.fs-preflight #gis-draw-hud,
-body.fs-flying #geoid-zoom-step,
-body.fs-preflight #geoid-zoom-step,
-body.fs-flying .gis-side-panel,
-body.fs-preflight .gis-side-panel { display: none !important; }
+body.fs-flying:not(.fs-open-chrome) #layer-dock,
+body.fs-preflight:not(.fs-open-chrome) #layer-dock,
+body.fs-flying:not(.fs-open-chrome) #gis-draw-hud,
+body.fs-preflight:not(.fs-open-chrome) #gis-draw-hud,
+body.fs-flying:not(.fs-open-chrome) #geoid-zoom-step,
+body.fs-preflight:not(.fs-open-chrome) #geoid-zoom-step,
+body.fs-flying:not(.fs-open-chrome) .gis-side-panel,
+body.fs-preflight:not(.fs-open-chrome) .gis-side-panel { display: none !important; }
 /* MUSIC GOES UP INTO THE CORNER — again only when the viewer is framed. Its
    3.6rem top is clearance for Return Home, which sits at y=20 directly above
    it; standalone that link is still there in flight and moving the button up
@@ -84,8 +90,8 @@ body.fs-preflight .gis-side-panel { display: none !important; }
    button beside the panel with one, and that layout should keep its own
    answer. Plain specificity beats the base rule everywhere else and yields
    there, which is the behaviour wanted at both ends. */
-body.is-embedded.fs-flying #music-btn,
-body.is-embedded.fs-preflight #music-btn { top: 1rem; }
+body.is-embedded.fs-flying:not(.fs-open-chrome) #music-btn,
+body.is-embedded.fs-preflight:not(.fs-open-chrome) #music-btn { top: 1rem; }
 /* ENTER — the flight mode entry. A glowing action button, not a tickbox:
    entering flight is a mode change, not a layer you switch on. */
 /* The flight section sits OUTSIDE the wrapper that gives the other sections
@@ -263,9 +269,9 @@ body.fs-target-invalid .fs-ret-dot { fill: rgba(255, 168, 92, 0.9); }
 .fs-launch:disabled { opacity: 0.45; cursor: default; border-color: rgba(var(--nav-accent-rgb), 0.2); }
 /* While picking a site the globe is the target — keep the cockpit chrome out
    of the way but leave the panel fully usable. */
-body.fs-preflight #toolbar,
-body.fs-preflight #toolbar-tab,
-body.fs-preflight #tool-rail { display: none !important; }
+body.fs-preflight:not(.fs-open-chrome) #toolbar,
+body.fs-preflight:not(.fs-open-chrome) #toolbar-tab,
+body.fs-preflight:not(.fs-open-chrome) #tool-rail { display: none !important; }
 body.fs-preflight #fs-preflight { display: block; }
 /* Once airborne the pre-flight block is meaningless — the site is chosen. */
 body.fs-flying #fs-preflight { display: none; }
@@ -379,6 +385,12 @@ body.fs-flying #fs-preflight { display: none; }
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.85);
 }
 #fs-meters .fs-meter { width: 13rem; text-align: left; }
+/* Open chrome (Earth): the Workspace box keeps the bottom-left corner, so the
+   meters step out to its right and up above the HUD's bottom bar. */
+body.fs-open-chrome #fs-meters {
+  left: calc(min(24rem, 100vw - 2rem) + 2rem);
+  bottom: 4.8rem;
+}
 .fs-throttle-row { display: flex; align-items: center; gap: 0.3rem; }
 .fs-throttle-row .fs-meter-track { flex: 1; }
 /* Steppers: the meters live inside #fs-hud, which is pointer-events:none. */
@@ -681,9 +693,9 @@ body.fs-flying #cursor-readout-bar { bottom: max(0.45rem, env(safe-area-inset-bo
 @media (max-width: 1150px) {
   body.fs-flying #cursor-readout-bar { bottom: 4.6rem; }
 }
-body.fs-flying #surface-conditions,
-body.fs-flying #hemisphere-locator,
-body.fs-flying #cursor-readout { display: none !important; }
+body.fs-flying:not(.fs-open-chrome) #surface-conditions,
+body.fs-flying:not(.fs-open-chrome) #hemisphere-locator,
+body.fs-flying:not(.fs-open-chrome) #cursor-readout { display: none !important; }
 .fs-cell { text-align: center; min-width: 5.1rem; }
 .fs-cell .fs-k {
   display: block;

@@ -1,106 +1,165 @@
-// The Earth Flight entry in Explorer, and the switches for the globe's own
-// streamed 3D buildings (osm-buildings.js).
+// Earth Flight in Explorer: the shared flight sim's own panel, plus Earth's
+// switches for the globe's streamed 3D buildings (osm-buildings.js), plus the
+// deep link that opens it.
 //
-// The other worlds fly in place: scripts/flightsim.js injects a
-// `#flightsim-section` into the sidebar and the toolbox folds it into
-// Explorer with every other control-section. Earth's flight is its own page
-// (flight_sim/earth/, photoreal imagery on real terrain with OSM buildings),
-// so the section is written in Earth's markup instead -- same place, same
-// Enter button -- and Enter carries the view across: the point the camera is
-// centred on, the way it is facing, and its height, clamped to something
-// flyable. The viewer runs inside GeoHUB's iframe, so the page that changes
-// is the top one; the flight page's back link returns to GeoHUB.
+// Earth Flight used to be its own page (flight_sim/earth/) with its own
+// toolbar and HUD. It is now the SAME mode every other world flies --
+// scripts/flightsim.js, its pre-flight crosshair and Launch, its HUD, meters
+// and keys -- running on this globe through the hooks earth-viewer.js
+// publishes. This module only does the three Earth-specific things the
+// shared sim does not:
+//
+//   1. puts the sim's injected `#flightsim-section` at the top of Explorer
+//      and names it Earth Flight. The sim inserts it before the first
+//      control-section on DOMContentLoaded, which on this page can run after
+//      the toolbox has already folded the panels into Explorer, leaving it
+//      loose; placing it here makes the order not matter;
+//   2. adds the buildings and shadows switches and a one-line status to that
+//      panel, so the controls that belong to Earth sit with its flight;
+//   3. answers `?flight=earth&lat=..&lon=..` (the old flight_sim/earth/ URL
+//      bounces to /?flight=earth..., and the shell carries it into this
+//      frame): aim the globe there, then open pre-flight, whose centre
+//      crosshair takes the site from wherever the globe is aimed.
 
-import { isEarth } from "./bodies.js?v=20261024-b7a524b";
+import { isEarth } from "./bodies.js?v=20261024-9f9b1b9";
 
-const FLIGHT_URL = "/flight_sim/earth/";
-const DEG = 180 / Math.PI;
-
-/** Lat/lon where a screen ray (NDC) meets the globe, in the baseline frame. */
-function rayLatLon(viewer, THREE, ndcX, ndcY) {
-  const ray = new THREE.Raycaster();
-  ray.setFromCamera(new THREE.Vector2(ndcX, ndcY), viewer.camera);
-  const hit = new THREE.Vector3();
-  if (!ray.ray.intersectSphere(new THREE.Sphere(new THREE.Vector3(), viewer.GLOBE_RADIUS || 3.2), hit)) return null;
-  viewer.globe.updateMatrixWorld(true);
-  const local = hit.applyMatrix4(new THREE.Matrix4().copy(viewer.globe.matrixWorld).invert());
-  local.set(-local.x, local.y, -local.z);
-  const r = local.length() || 1;
-  return { lat: Math.asin(Math.max(-1, Math.min(1, local.y / r))) * DEG, lon: Math.atan2(local.z, -local.x) * DEG };
+/** `?flight=earth&lat=..&lon=..` -> { lat, lon } or { lat: null } or null. */
+export function parseFlightLink(search) {
+  let q;
+  try { q = new URLSearchParams(search || ""); } catch (e) { return null; }
+  const f = (q.get("flight") || "").toLowerCase();
+  if (f !== "earth" && f !== "1") return null;
+  const lat = Number(q.get("lat")), lon = Number(q.get("lon"));
+  if (q.has("lat") && q.has("lon") && Number.isFinite(lat) && Number.isFinite(lon)
+      && Math.abs(lat) <= 85 && Math.abs(lon) <= 180) return { lat, lon };
+  return { lat: null, lon: null };
 }
 
-/** Initial bearing from a to b, degrees clockwise from north. */
-export function bearing(a, b) {
-  const p1 = a.lat / DEG, p2 = b.lat / DEG, dl = (b.lon - a.lon) / DEG;
-  const y = Math.sin(dl) * Math.cos(p2);
-  const x = Math.cos(p1) * Math.sin(p2) - Math.sin(p1) * Math.cos(p2) * Math.cos(dl);
-  return ((Math.atan2(y, x) * DEG) + 360) % 360;
+function placePanel(section) {
+  const host = document.getElementById("geoid-controls-host");
+  if (host && host.firstChild !== section) host.insertBefore(section, host.firstChild);
+  const title = section.querySelector(".section-title-row span:last-child");
+  if (title) title.textContent = "Earth Flight";
 }
 
-/** The flight page URL for a view: centre, heading, and a flyable height. */
-export function flightUrl({ lat, lon, heading = 0, altitude = 400, choice = "view" }) {
-  const alt = choice === "view"
-    ? Math.round(Math.min(3000, Math.max(150, Number(altitude) || 400)))
-    : Number(choice);
-  const q = new URLSearchParams({
-    lat: lat.toFixed(5), lon: lon.toFixed(5), hdg: String(Math.round(heading)),
-    alt: String(alt), pitch: "-8", from: "geohub",
-  });
-  return `${FLIGHT_URL}?${q}`;
-}
-
-async function enterFlight() {
-  const viewer = window.GeoIDViewer;
-  if (!viewer?.camera || !viewer.globe) return;
-  const THREE = await import("../vendor/three.module.js");
-  const centre = rayLatLon(viewer, THREE, 0, 0) || rayLatLon(viewer, THREE, 0, -0.5);
-  if (!centre) return;
-  // Facing: from the view's centre toward a point higher up the screen,
-  // which is "ahead" for any tilted view. Straight down, there is no ahead:
-  // the two points nearly coincide and north is as good as any.
-  const ahead = rayLatLon(viewer, THREE, 0, 0.35);
-  const heading = ahead && Math.hypot(ahead.lat - centre.lat, ahead.lon - centre.lon) > 1e-6
-    ? bearing(centre, ahead) : 0;
-  const altitude = viewer.getZoomAltitudeMetres?.()?.metres;
-  const choice = document.getElementById("earth-flight-alt")?.value || "view";
-  const url = flightUrl({ ...centre, heading, altitude, choice });
-  try { window.top.location.assign(url); } catch (e) { window.location.assign(url); }
-}
-
-function wire() {
-  if (!isEarth()) return;
-  const enter = document.getElementById("earth-flight-enter");
-  if (!enter || enter.dataset.wired) return;
-  enter.dataset.wired = "1";
-  // The button sits in the <summary>; without this the click also folds the section.
-  enter.addEventListener("click", (e) => { e.preventDefault(); e.stopPropagation(); enterFlight(); });
-
-  const bldg = document.getElementById("earth-buildings-toggle");
-  const shadows = document.getElementById("earth-buildings-shadows");
-  const status = document.getElementById("earth-buildings-status");
+function addEarthRows(section) {
+  if (section.querySelector("#earth-buildings-toggle")) return;
+  const stack = section.querySelector(".control-stack");
+  if (!stack) return;
+  const rows = document.createElement("div");
+  rows.className = "earth-flight-rows";
+  rows.innerHTML = `
+    <div class="row"><label for="earth-buildings-toggle">3D buildings on the globe</label>
+      <input id="earth-buildings-toggle" type="checkbox" checked></div>
+    <div class="row"><label for="earth-buildings-shadows">Building shadows</label>
+      <input id="earth-buildings-shadows" type="checkbox" checked></div>
+    <p class="compact-copy" id="earth-buildings-status"></p>`;
+  stack.appendChild(rows);
+  const bldg = rows.querySelector("#earth-buildings-toggle");
+  const shadows = rows.querySelector("#earth-buildings-shadows");
+  const status = rows.querySelector("#earth-buildings-status");
   const sync = () => {
     const b = window.GeoIDBuildings;
     if (!b) return;
     bldg.checked = b.isEnabled();
     shadows.checked = b.shadowsOn();
   };
-  bldg?.addEventListener("change", () => window.GeoIDBuildings?.setEnabled(bldg.checked));
-  shadows?.addEventListener("change", () => window.GeoIDBuildings?.setShadows(shadows.checked));
+  bldg.addEventListener("change", () => window.GeoIDBuildings?.setEnabled(bldg.checked));
+  shadows.addEventListener("change", () => window.GeoIDBuildings?.setShadows(shadows.checked));
   document.addEventListener("geoid:buildings-ready", sync);
   sync();
-  // A one-line readout of what the globe is holding, so "why are there no
-  // buildings" has an answer on screen: too high, or how many are loaded.
+  // What the globe is holding, so "why are there no buildings" has an answer.
   setInterval(() => {
     const b = window.GeoIDBuildings;
-    if (!b || !status) return;
+    if (!b) return;
     const s = b.stats, km = (m) => (m / 1000).toFixed(m < 10000 ? 1 : 0);
-    if (!b.isEnabled()) status.textContent = "Off.";
+    if (!b.isEnabled()) status.textContent = "Buildings off.";
     else if (s.altitude == null) status.textContent = "";
     else if (s.altitude > b.thresholds.SHOW_BELOW_M && !s.tiles)
-      status.textContent = `Appear below ${km(b.thresholds.SHOW_BELOW_M)} km — now ${km(s.altitude)} km up.`;
-    else status.textContent = `${s.buildings.toLocaleString()} buildings in ${s.tiles} tiles`
+      status.textContent = `Buildings appear below ${km(b.thresholds.SHOW_BELOW_M)} km — now ${km(s.altitude)} km up.`;
+    else status.textContent = `${s.buildings.toLocaleString()} buildings, ${(s.trees || 0).toLocaleString()} trees in ${s.tiles} tiles`
       + (s.shadows ? " · sun shadows" : "") + (b.pending() ? " · loading…" : "");
   }, 1000);
+}
+
+/** Point the orbit camera straight down at a place, from `heightUnits` up. */
+async function aimAt(lat, lon, heightUnits = 0.02) {
+  const viewer = window.GeoIDViewer;
+  const THREE = await import("../vendor/three.module.js");
+  const v = viewer.latLonToVector3(lat, lon, 1);
+  const world = viewer.globe.localToWorld(new THREE.Vector3(-v.x, v.y, -v.z)).normalize();
+  const centre = viewer.globe.localToWorld(new THREE.Vector3());
+  viewer.clearZoomTarget?.();
+  viewer.camera.position.copy(centre).addScaledVector(world, 3.2 + heightUnits);
+  viewer.camera.lookAt(centre);
+  viewer.controls?.update?.();
+}
+
+const AIRCRAFT_LAYER = "Earth Flight aircraft";
+function publishAircraft() {
+  const manager = window.GeoIDImportManager, ship = window.__flightSim?.ship;
+  if (!manager?.adoptLayer || !ship || !window.__flightSim?.active) return;
+  const own = ship.userData?.model === "aircraft";
+  // A PROXY object, not the ship: the stack stamps an adopted root's draw
+  // order into the 50s, and the ship draws at 400 so labels cannot paint over
+  // it (scripts/flightsim.js, buildShip). The row is the credit.
+  const proxy = new ship.constructor();
+  proxy.name = "GeoID-EarthFlightAircraftCredit";
+  const layer = manager.adoptLayer(AIRCRAFT_LAYER, proxy, {
+    ext: "stl", role: "aircraft",
+    info: own
+      ? { source: "assets/aircraft/cessna_*.stl, generated by scripts/make-aircraft-stl.py", format: "STL",
+          citation: "Light aircraft (Cessna 172-class), original geometry by GeoID; this repository's licence. See assets/aircraft/README.md.", crs: "model metres" }
+      : { source: `assets/ships/ (${ship.userData?.model || "ship"})`, format: "STL",
+          citation: "Flight-sim ship models shared with the Planet Explorer worlds; see assets/ships/.", crs: "model metres" },
+    onRemove: () => window.__flightSim?.disengage?.(),
+  });
+  if (layer) layer.legendHidden = true;
+}
+
+function whenReady(test, fn, tries = 600) {
+  if (test()) { fn(); return; }
+  if (tries <= 0) return;
+  setTimeout(() => whenReady(test, fn, tries - 1), 100);
+}
+
+function wire() {
+  if (!isEarth()) return;
+  // Flight on Earth keeps the whole GeoHUB around it: nav, Workspace, rail and
+  // tools stay open in the air (styles/flightsim.css scopes every "flight
+  // hides this" rule to bodies without this class).
+  document.body.classList.add("fs-open-chrome");
+  whenReady(() => document.getElementById("flightsim-section"), () => {
+    const section = document.getElementById("flightsim-section");
+    placePanel(section);
+    addEarthRows(section);
+    // Earth Flight flies the light aircraft by default; the other worlds'
+    // ships stay in the same picker.
+    const pick = document.getElementById("fs-ship-model");
+    if (pick && !pick.dataset.earthDefault && [...pick.options].some((o) => o.value === "aircraft")) {
+      pick.value = "aircraft";
+      pick.dataset.earthDefault = "1";
+    }
+    // The toolbox re-lays the sidebar on every mode change; keep the panel first.
+    const host = document.getElementById("geoid-controls-host");
+    if (host) new MutationObserver(() => { if (host.firstChild !== section) placePanel(section); })
+      .observe(host, { childList: true });
+  });
+
+  // The aircraft is listed in the Workspace while it flies, so its credit is
+  // in the Metadata tab with every other source on screen.
+  window.addEventListener("flightsim:engaged", () => setTimeout(publishAircraft, 500));
+  window.addEventListener("flightsim:disengaged", () => window.GeoIDImportManager?.releaseLayer?.(AIRCRAFT_LAYER));
+
+  let link = parseFlightLink(window.location.search);
+  try { link = link || parseFlightLink(window.top.location.search); } catch (e) { /* cross-origin top */ }
+  if (!link) return;
+  whenReady(() => window.GeoIDViewer?.globe && window.__flightSimHooks && window.__flightSim?.enterPreflight,
+    async () => {
+      window.GeoIDViewer.setSpinPaused?.(true);
+      if (link.lat != null) await aimAt(link.lat, link.lon);
+      setTimeout(() => window.__flightSim.enterPreflight(), 300);
+    });
 }
 
 if (typeof document !== "undefined") {

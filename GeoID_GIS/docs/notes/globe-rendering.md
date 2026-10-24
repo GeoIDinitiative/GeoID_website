@@ -1464,10 +1464,8 @@ off like every drape. The canvas starts transparent so unloaded parts show the
 globe; the roof shader paints grey where alpha is still zero. z18 would be
 4096 px and 256 requests per tile, which sixteen tiles cannot carry.
 
-The Explorer entry (`#earth-flight-section`, wired by `gis/earth-flight-entry.js`)
-holds the buildings/shadows switches and an Enter button that opens
-`/flight_sim/earth/` at the view centre, heading and (clamped) height, in the
-TOP window — the viewer is GeoHUB's iframe.
+The Explorer entry is the shared flight sim's own panel, titled Earth Flight
+(see the next section); the buildings/shadows switches sit in it.
 
 ### Bridges and the London Eye on the globe
 
@@ -1477,3 +1475,50 @@ layer, with piers and an under-deck water patch) and the same wheel for the
 London Eye in place of its ~150 floating parts. On the globe there is no DEM
 under a tile (the ground is drawn at the tapered relief), so decks stand at
 4–6 m above the tile plane. See `flight_sim/earth/game/structures.js`.
+
+## Earth Flight is the shared flight sim, flown inside GeoHUB
+
+Earth Flight used to be its own page. It is now `scripts/flightsim.js` -- the
+mode Mars and every rocky world fly -- running on this globe:
+`earth-viewer.js` publishes `window.__flightSimHooks` (this viewer descends
+from Mars's, so the hooks are its own internals under the same names), calls
+`__flightSim.update(camera)` after the orbit-camera rules in `render()`, and
+skips the zoom easing while flying. `gis/earth-flight-entry.js` places the
+sim's injected `#flightsim-section` first in Explorer as "Earth Flight", adds
+the buildings/shadows/trees status, and answers `?flight=earth&lat=&lon=`
+(which the shell carries into the frame; `/flight_sim/earth/` bounces there).
+
+Unlike the other worlds it flies with the **chrome open** (asked for,
+2026-10-24): `body.fs-open-chrome` exempts it from every "flight hides this"
+rule in `styles/flightsim.css` and from the nav collapse, and the draw HUD
+does not put its tools away. The nav, Workspace, rail and every GIS tool work
+in the air; the throttle/boost meters step right of the Workspace box.
+
+Things that bit, each measured:
+
+- **The planet turned under the aircraft.** The sim spins the world at its
+  real sidereal rate in flight; Earth's ground moves 290 m/s at London's
+  latitude, so a ship at 120 m/s launched east drifted west. Earth's profile
+  sets `coRotate`: the ship is carried round the axis each frame by the angle
+  the globe turned.
+- **A "1 km" launch came out at 2 km.** The drawn relief tapers with CAMERA
+  height (`getEffectiveTerrainRelief`), and the spawn radius was read with the
+  camera still up in pre-flight. `engage` now reads the ground with the camera
+  placed at the provisional spawn (two passes).
+- **Layers never refined in flight, then refined to the horizon.**
+  `onViewSettled` never fires for a camera that never stops, and a cockpit
+  frustum box runs to the horizon. `view-extent.js` now fires settled every
+  2.5 s while flying and clips `visibleBounds` to `nearFieldBounds` -- a square
+  1.2 x the horizon distance round the ship (25-600 km). Shorter than the
+  horizon was tried: the base sphere's facets sag below the line of sight from
+  a few hundred metres, so past the refined patch there was black space.
+- **Trees** come from the same building tiles: OpenMapTiles `landcover`
+  (`wood`, `grass/park`, `scrub`) scattered on a hashed jittered grid
+  (`structures.js` `scatterTrees`, max 7,000 per tile), drawn as one
+  InstancedMesh per tile with the buildings' matrix.
+
+**Verifying from a worktree.** The viewer loads `/scripts/flightsim.js` and
+`/styles/flightsim.css` by ABSOLUTE path, so through the shared 8125 server
+they come from the main checkout, not the worktree. Rewrite them with CDP
+`Fetch` -- and set `Network.setBypassServiceWorker`, because the root service
+worker fetches on the page's behalf and the page's Fetch never sees it.

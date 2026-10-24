@@ -6,7 +6,7 @@
  * Run: node GeoID_GIS/viewer/gis/dem-tiles.test.mjs
  */
 
-import { decodeTerrarium, despike, sampleGrid, chooseZoom, groundMetresPerPixel,
+import { decodeTerrarium, despike, despikePoints, POINT_SPIKE_M, sampleGrid, chooseZoom, groundMetresPerPixel,
   normaliseBounds, INFO_ZOOM, DESPIKE_M, TERRARIUM, coverFor, COVER_CEILING, planCover
 } from "./dem-tiles.js";
 import { tilesForBounds, mercatorTile } from "./mvt.js";
@@ -278,6 +278,53 @@ check("the ceiling is checked on the PADDED list", () => {
 check("ensure reports what is still HELD, not only what arrived", () => {
   const src = readFileSync(new URL("./dem-tiles.js", import.meta.url), "utf-8");
   ok(/held: kept/.test(src) && /coverFor\(bounds, options\)/.test(src), "ensure must go through coverFor and count held tiles");
+});
+
+/* ── isolated spikes and voids (despikePoints) ───────────────────────────── */
+
+// Real relief: El Capitan, 1,284 to 2,296 m across a 64-post crop, with
+// post-to-post steps up to 213 m -- steeper than the 150 m floor, so it is the
+// neighbours' own spread that must keep it.
+const elcap = JSON.parse(readFileSync(new URL("./dem-tiles.fixture-elcap.json", import.meta.url), "utf8"));
+check("a real granite face survives untouched", () => {
+  const h = Float32Array.from(elcap.heights);
+  const r = despikePoints(h, elcap.size, elcap.size);
+  eq(r.repaired, 0, "posts repaired on El Capitan");
+  ok(h.every((v, i) => v === elcap.heights[i]), "a real height changed");
+});
+check("a single spike planted on the same ground is removed, and only it", () => {
+  const h = Float32Array.from(elcap.heights);
+  const i = (20 * elcap.size) + 30;
+  const truth = h[i];
+  h[i] += 512;                                   // two red-byte steps of 256 m
+  const r = despikePoints(h, elcap.size, elcap.size);
+  eq(r.repaired, 1, "posts repaired");
+  near(h[i], truth, 60, "the spike post back near the ground");
+  ok(h.every((v, k) => k === i || v === elcap.heights[k]), "a neighbour was changed");
+});
+check("a pit is removed the same way", () => {
+  const h = Float32Array.from(elcap.heights);
+  const i = (40 * elcap.size) + 12;
+  h[i] -= 400;
+  eq(despikePoints(h, elcap.size, elcap.size).repaired, 1, "posts repaired");
+});
+check("a summit a few tens of metres above its shoulders is kept", () => {
+  const h = new Float32Array(25).fill(1000);
+  h[12] = 1000 + POINT_SPIKE_M - 10;
+  eq(despikePoints(h, 5, 5).repaired, 0, "summit repaired");
+});
+check("a synthetic 900 m cliff keeps every post", () => {
+  const w = 16, h = new Float32Array(w * w);
+  for (let y = 0; y < w; y++) for (let x = 0; x < w; x++) h[y * w + x] = x < 8 ? 100 : 1000;
+  eq(despikePoints(h, w, w).repaired, 0, "cliff posts repaired");
+});
+check("no-data posts are filled from their neighbours", () => {
+  const h = Float32Array.from(elcap.heights);
+  const i = (10 * elcap.size) + 10, j = i + 1;
+  h[i] = h[j] = -32768;
+  const r = despikePoints(h, elcap.size, elcap.size);
+  ok(r.filled >= 2, `filled ${r.filled}`);
+  ok(h[i] > 1000 && h[j] > 1000, "hole still deep");
 });
 
 if (failures.length) {

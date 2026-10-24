@@ -5,7 +5,7 @@
   const VALID_MODES = ["geoid", "model", "gis", "research"];
 
   const EARTH_PANEL_IDS = [
-    "earth-flight-section",
+    "flightsim-section",
     "tour-mode-section",
     "search-section",
     "locations-section",

@@ -9,7 +9,7 @@
 
 import { decodeLayer, rings, polygons, clipRing, ringArea } from "../game/mvt.js?v=1";
 import { extrudeTile, pitched } from "../game/extrude.js?v=1";
-import { clipLine, pointInRing, fitWheel } from "../game/structures.js?v=1";
+import { clipLine, pointInRing, fitWheel, scatterTrees } from "../game/structures.js?v=1";
 import { ShapeUtils, Vector2 } from "../../../everest/vendor/three.module.js";
 
 let failed = 0;
@@ -199,5 +199,26 @@ let piers = 0, patch = 0;
 for (let k = 0; k < bm.position.length; k += 3) { if (bm.position[k + 1] < -1.9) piers++; if (Math.abs(bm.position[k + 1] - 0.15) < 1e-4) patch++; }
 check("piers reach down into the river", piers > 0, String(piers));
 check("a water patch hides the photo's bridge under the deck", patch > 0, String(patch));
+
+/* ── Trees ──────────────────────────────────────────────────────────────── */
+// A 200 x 200 m wood in a 1 km tile: ~40,000 m^2 / 80 = ~500 trees, all inside.
+const woodRing = [[1000, 1000], [1000 + 819, 1000], [1000 + 819, 1000 + 819], [1000, 1000 + 819]];
+const lc = { extent: 4096, features: [{ id: 5, type: 3, props: { class: "wood", subclass: "wood" }, geometry: geom([woodRing]) }] };
+const treeApi = { s: 1000 / 4096, ext: 4096, ground: () => 7,
+  polygonsOf: (f) => polygons(rings(f.geometry)) };
+const T1 = scatterTrees(treeApi, lc);
+const n1 = T1.length / 5;
+check("a 4 ha wood gets ~500 trees", n1 > 420 && n1 < 580, String(n1));
+let inside = true, onGround = true;
+for (let k = 0; k < T1.length; k += 5) {
+  const u = T1[k] / treeApi.s, v = T1[k + 2] / treeApi.s;
+  if (!pointInRing([u, v], woodRing)) inside = false;
+  if (T1[k + 1] !== 7) onGround = false;
+}
+check("every tree is inside the wood, on the ground", inside && onGround);
+check("the same wood grows the same trees", JSON.stringify(Array.from(scatterTrees(treeApi, lc))) === JSON.stringify(Array.from(T1)));
+check("no trees on a bridge", scatterTrees(treeApi, lc, [{ outer: woodRing, holes: [] }]).length === 0);
+const bigWood = { extent: 4096, features: [{ id: 6, type: 3, props: { class: "wood" }, geometry: geom([[[0, 0], [4096, 0], [4096, 4096], [0, 4096]]]) }] };
+check("a tile of forest is capped at 7,000 trees", scatterTrees({ ...treeApi, s: 4000 / 4096 }, bigWood).length / 5 <= 7000);
 
 process.exit(failed ? 1 : 0);

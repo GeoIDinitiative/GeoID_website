@@ -44,7 +44,10 @@ while ((m = tag.exec(html))) {
 let pass = 0, fail = 0;
 const check = (label, ok) => { if (ok) pass += 1; else { fail += 1; console.log("FAIL", label); } };
 
-for (const id of ["earth-flight-section", "tour-mode-section"]) {
+// Earth Flight's panel is not in the markup: it is the shared flight sim's
+// `#flightsim-section`, injected at runtime and placed first in Explorer by
+// gis/earth-flight-entry.js.
+for (const id of ["tour-mode-section"]) {
   check(`${id} is inside the sidebar's scroll body`, where[id]?.scroll);
 }
 for (const id of ["search-section", "locations-section", "core-view-section", "explorer-models-section",

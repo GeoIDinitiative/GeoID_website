@@ -4,7 +4,8 @@ import {
   lonToTileX, latToTileY, tileXToLon, tileYToLat, tileDistanceM, wantedTiles,
   SHOW_BELOW_M, HIDE_ABOVE_M, SHADOW_BELOW_M,
 } from "./osm-buildings.js?v=20261023-3c2cf02";
-import { bearing, flightUrl } from "./earth-flight-entry.js?v=20261023-3c2cf02";
+import { parseFlightLink } from "./earth-flight-entry.js?v=20261024-1786912";
+import { nearFieldBounds } from "./view-extent.js?v=20261024-1786912";
 
 let failed = 0, passed = 0;
 const check = (name, ok, detail = "") => {
@@ -39,14 +40,23 @@ check("a far view centre adds the tiles round it",
 
 check("thresholds: shadows < show < hide", SHADOW_BELOW_M < SHOW_BELOW_M && SHOW_BELOW_M < HIDE_ABOVE_M);
 
-check("bearing north", near(bearing({ lat: 0, lon: 0 }, { lat: 1, lon: 0 }), 0, 1e-9));
-check("bearing east", near(bearing({ lat: 0, lon: 0 }, { lat: 0, lon: 1 }), 90, 1e-9));
-check("bearing south-west", near(bearing({ lat: 0, lon: 0 }, { lat: -1, lon: -1 }), 225, 0.01));
-const url = new URL(flightUrl({ lat: 51.5, lon: -0.12, heading: 271.6, altitude: 12000 }), "https://x");
-check("flight URL carries the view", url.pathname === "/flight_sim/earth/" && url.searchParams.get("lat") === "51.50000"
-  && url.searchParams.get("hdg") === "272" && url.searchParams.get("from") === "geohub");
-check("a high view starts at a flyable 3 km", url.searchParams.get("alt") === "3000");
-check("a chosen height wins", new URL(flightUrl({ lat: 1, lon: 2, choice: "250" }), "https://x").searchParams.get("alt") === "250");
+check("flight link with a place", JSON.stringify(parseFlightLink("?flight=earth&lat=51.5&lon=-0.12")) === JSON.stringify({ lat: 51.5, lon: -0.12 }));
+check("flight link without a place opens pre-flight where the globe is", parseFlightLink("?flight=earth")?.lat === null);
+check("no flight link, no flight", parseFlightLink("?world=mars") === null && parseFlightLink("") === null);
+check("an out-of-range place is not trusted", parseFlightLink("?flight=earth&lat=95&lon=0")?.lat === null);
+
+// In flight, the "visible" box every refiner reads is the near field.
+const ship = { lat: 51.5, lon: -0.12 };
+const low = nearFieldBounds(ship, 0.5);                       // 500 m up: horizon ~80 km
+check("near field at 500 m reaches past the ~80 km horizon", near((low.maxLat - low.minLat) / 2 * 111.32, 1.2 * Math.sqrt(2 * 6371 * 0.5), 0.01));
+check("never under 25 km", near((nearFieldBounds(ship, 0).maxLat - nearFieldBounds(ship, 0).minLat) / 2 * 111.32, 25, 0.01));
+const high = nearFieldBounds(ship, 400);
+check("near field is capped at 600 km", near((high.maxLat - high.minLat) / 2 * 111.32, 600, 0.01));
+const horizon = { minLat: 50, maxLat: 60, minLon: -3, maxLon: 3 };   // a frustum box out to the horizon
+const cut = nearFieldBounds(ship, 0.5, horizon);
+check("the horizon box is clipped to the near field", cut.maxLat < 52.4 && cut.minLat >= 50 && cut.minLon > -2);
+check("no overlap falls back to the ship's square",
+  JSON.stringify(nearFieldBounds(ship, 0.5, { minLat: 10, maxLat: 11, minLon: 10, maxLon: 11 })) === JSON.stringify(nearFieldBounds(ship, 0.5)));
 
 console.log(`\n${passed} passed, ${failed} failed`);
 process.exit(failed ? 1 : 0);

@@ -21,7 +21,7 @@
  * feeds is `sampleElevationMeters`, never `sampleElevationNormalized`.
  */
 
-import { tilesForBounds, tileCountForBounds, mercatorTile } from "./mvt.js?v=20261024-b7a524b";
+import { tilesForBounds, tileCountForBounds, mercatorTile } from "./mvt.js?v=20261024-9f9b1b9";
 
 /**
  * Terrarium: height packed into RGB, EGM96 metres.
@@ -110,6 +110,94 @@ export function despike(heights, width, height, threshold = DESPIKE_M) {
     }
   }
   return repaired;
+}
+
+/**
+ * Pure: repair ISOLATED bad posts, and fill no-data, in place.
+ *
+ * Reported from Earth Flight as needle-thin cones rising hundreds of metres off
+ * a ridge (63.6457 N, 19.4327 W): one vertex wrong, its neighbours right. The
+ * source tiles there measure clean at z13-z15 -- no post anywhere near its
+ * neighbours' median by that much -- so the spike was made on the way in, and
+ * the way Terrarium makes one is a single altered byte: R carries 256 m a
+ * step, and a canvas that colour-manages or premultiplies the image on
+ * drawImage nudges R. `loadTile` now decodes the exact bytes; this is the
+ * safety net for what still gets through, and for real voids.
+ *
+ * A post is replaced by the median of its 8 neighbours when it is further from
+ * it than BOTH 150 m and three times the neighbours' own spread. The second
+ * test is what keeps real relief: on a cliff the neighbours themselves span
+ * the drop, so the threshold rises with it, and a summit a few tens of metres
+ * above its shoulders is under 150 m. No-data (Terrarium's -32768, anything
+ * below the deepest trench) takes the median of the valid neighbours, two
+ * passes so a two-post hole closes. Reads a snapshot per pass.
+ */
+export const POINT_SPIKE_M = 150;
+const NO_DATA_BELOW = -12000;
+export function despikePoints(heights, width, height, floor = POINT_SPIKE_M) {
+  let repaired = 0, filled = 0;
+  for (let pass = 0; pass < 2; pass += 1) {
+    const src = Float32Array.from(heights);
+    const nb = [];
+    for (let y = 0; y < height; y += 1) {
+      for (let x = 0; x < width; x += 1) {
+        const i = (y * width) + x;
+        nb.length = 0;
+        for (let dy = -1; dy <= 1; dy += 1) {
+          for (let dx = -1; dx <= 1; dx += 1) {
+            if (!dx && !dy) continue;
+            const xx = x + dx, yy = y + dy;
+            if (xx < 0 || yy < 0 || xx >= width || yy >= height) continue;
+            const v = src[(yy * width) + xx];
+            if (v >= NO_DATA_BELOW) nb.push(v);
+          }
+        }
+        if (nb.length < 3) continue;
+        nb.sort((a, b) => a - b);
+        const mid = nb.length >> 1;
+        const median = nb.length % 2 ? nb[mid] : (nb[mid - 1] + nb[mid]) / 2;
+        const v = src[i];
+        if (!(v >= NO_DATA_BELOW)) { heights[i] = median; filled += 1; continue; }
+        if (pass) continue;
+        const spread = nb[nb.length - 1] - nb[0];
+        if (Math.abs(v - median) > Math.max(floor, 3 * spread)) { heights[i] = median; repaired += 1; }
+      }
+    }
+  }
+  return { repaired, filled };
+}
+
+/**
+ * The exact bytes of a tile image, or null where the browser cannot say.
+ *
+ * `createImageBitmap` with colour conversion and premultiplication OFF is the
+ * only route that guarantees getImageData returns what the PNG holds; drawing
+ * an <img> leaves both to the browser.
+ */
+async function exactPixels(url, size) {
+  if (typeof createImageBitmap !== "function" || typeof fetch !== "function") return null;
+  const response = await fetch(url, { mode: "cors" });
+  if (!response.ok) return { missing: true };
+  const bitmap = await createImageBitmap(await response.blob(),
+    { colorSpaceConversion: "none", premultiplyAlpha: "none" });
+  const canvas = typeof OffscreenCanvas === "function"
+    ? new OffscreenCanvas(size, size)
+    : Object.assign(document.createElement("canvas"), { width: size, height: size });
+  const ctx = canvas.getContext("2d", { willReadFrequently: true });
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(bitmap, 0, 0);
+  bitmap.close?.();
+  return ctx.getImageData(0, 0, size, size).data;
+}
+
+function heightsFrom(data, size) {
+  const heights = new Float32Array(size * size);
+  for (let i = 0; i < heights.length; i += 1) {
+    heights[i] = decodeTerrarium(data[i * 4], data[i * 4 + 1], data[i * 4 + 2]);
+  }
+  despike(heights, size, size);
+  despikePoints(heights, size, size);
+  return heights;
 }
 
 /** Pure: bilinear read of a square grid at fractional pixel coordinates. */
@@ -310,26 +398,25 @@ function loadTile(tile, pin = false) {
   const already = held(key);
   if (already) return Promise.resolve(already);
   if (INFLIGHT.has(key)) return INFLIGHT.get(key);
-  const pending = new Promise((resolve) => {
+  const size = TERRARIUM.size;
+  const keep = (heights) => {
+    const record = { ...tile, size, heights };
+    remember(key, record, pin);
+    return record;
+  };
+  // Through an <img>, as before, where the exact route is unavailable or fails.
+  const viaImage = () => new Promise((resolve) => {
     const image = new Image();
     image.crossOrigin = "anonymous";
     image.onload = () => {
       try {
-        const size = TERRARIUM.size;
         const canvas = document.createElement("canvas");
         canvas.width = size;
         canvas.height = size;
         const ctx = canvas.getContext("2d", { willReadFrequently: true });
+        ctx.imageSmoothingEnabled = false;
         ctx.drawImage(image, 0, 0, size, size);
-        const { data } = ctx.getImageData(0, 0, size, size);
-        const heights = new Float32Array(size * size);
-        for (let i = 0; i < heights.length; i += 1) {
-          heights[i] = decodeTerrarium(data[i * 4], data[i * 4 + 1], data[i * 4 + 2]);
-        }
-        despike(heights, size, size);
-        const record = { ...tile, size, heights };
-        remember(key, record, pin);
-        resolve(record);
+        resolve(keep(heightsFrom(ctx.getImageData(0, 0, size, size).data, size)));
       } catch (error) {
         // A tainted canvas or a decode failure is a MISS, never a wrong height.
         resolve(null);
@@ -338,7 +425,14 @@ function loadTile(tile, pin = false) {
     // A 404 past the pyramid's edge is an ordinary answer, not a fault.
     image.onerror = () => resolve(null);
     image.src = urlFor(tile);
-  }).finally(() => INFLIGHT.delete(key));
+  });
+  const pending = exactPixels(urlFor(tile), size)
+    .then((data) => {
+      if (data?.missing) return null;
+      return data ? keep(heightsFrom(data, size)) : viaImage();
+    })
+    .catch(() => viaImage())
+    .finally(() => INFLIGHT.delete(key));
   INFLIGHT.set(key, pending);
   return pending;
 }

@@ -5,68 +5,12 @@
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; script-src 'self' https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https: http://localhost:* http://127.0.0.1:*; media-src 'self' data: blob: https:; connect-src 'self' data: blob: https: http://localhost:* http://127.0.0.1:*; frame-src 'self' blob: https://docs.google.com https://drive.google.com; form-action 'self' https://formspree.io https://buy.stripe.com https://docs.google.com; worker-src 'self' blob:; child-src 'self' blob:; upgrade-insecure-requests">
 <meta http-equiv="Cache-Control" content="no-cache, must-revalidate">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Earth Flight | Photoreal 3D Flight Simulator | GeoID</title>
-<meta name="description" content="Fly low over real cities: Esri satellite imagery draped on real elevation, OpenStreetMap buildings in 3D, and real-time sun shadows for any hour of the day.">
-<link rel="canonical" href="https://geoidinitiative.com/flight_sim/earth/">
-<link rel="icon" type="image/png" href="/assets/logo.png?v=geoid-2026">
-<link rel="preconnect" href="https://server.arcgisonline.com">
-<link rel="preconnect" href="https://s3.amazonaws.com">
-<link rel="preconnect" href="https://tiles.openfreemap.org">
-<link rel="stylesheet" href="earth.css?v=1">
+<title>Earth Flight | GeoHUB | GeoID</title>
+<meta name="robots" content="noindex">
+<link rel="canonical" href="https://geoidinitiative.com/?flight=earth">
+<script src="redirect.js?v=1"></script>
 </head>
 <body>
-<canvas id="view" aria-label="3D view"></canvas>
-
-<header class="ef-bar">
-  <a class="ef-brand" href="/">GeoID</a>
-  <a class="ef-back" id="back-geohub" href="/" hidden>&larr; GeoHUB</a>
-  <span class="ef-title">Earth Flight</span>
-  <label class="ef-field"><span>City</span><select id="city"></select></label>
-  <label class="ef-field ef-hour"><span>Sun</span><input id="hour" type="range" min="0" max="24" step="0.05" value="15.5"></label>
-  <label class="ef-field"><span>Camera</span>
-    <select id="cam"><option value="chase">Chase</option><option value="cockpit">Cockpit</option></select></label>
-  <label class="ef-field"><span>Detail</span>
-    <select id="detail"><option value="1.8">Light</option><option value="2.4" selected>Normal</option><option value="3.2">Sharp</option></select></label>
-  <label class="ef-check"><input id="bldg" type="checkbox" checked> Buildings</label>
-  <label class="ef-check"><input id="shadows" type="checkbox" checked> Shadows</label>
-  <button id="help-btn" type="button" class="ef-btn" aria-label="Controls">?</button>
-</header>
-
-<section class="ef-hud" aria-live="off">
-  <div class="ef-row"><span>ALT</span><b id="h-alt">–</b></div>
-  <div class="ef-row"><span>AGL</span><b id="h-agl">–</b></div>
-  <div class="ef-row"><span>SPD</span><b id="h-spd">–</b></div>
-  <div class="ef-row"><span>HDG</span><b id="h-hdg">–</b></div>
-  <div class="ef-row ef-thr"><span>THR</span><i><em id="h-thr"></em></i></div>
-  <div class="ef-sub" id="h-pos">–</div>
-  <div class="ef-sub" id="h-time">–</div>
-  <div class="ef-paused" id="h-paused" hidden>PAUSED — P to fly</div>
-</section>
-
-<section class="ef-help" role="dialog" aria-label="Controls">
-  <h2>Controls</h2>
-  <dl>
-    <dt>W / S</dt><dd>Throttle</dd>
-    <dt>↑ / ↓</dt><dd>Nose down / up</dd>
-    <dt>← / →</dt><dd>Roll — bank to turn</dd>
-    <dt>A / D</dt><dd>Rudder</dd>
-    <dt>Shift</dt><dd>Boost (≈ 2,700 kt, for crossing a country)</dd>
-    <dt>Space</dt><dd>Slow</dd>
-    <dt>C</dt><dd>Chase / cockpit</dd>
-    <dt>Drag · Wheel</dt><dd>Orbit · zoom the chase camera</dd>
-    <dt>[ / ]</dt><dd>Sun earlier / later</dd>
-    <dt>R</dt><dd>Level off</dd>
-    <dt>P</dt><dd>Pause</dd>
-    <dt>H</dt><dd>Hide the HUD</dd>
-  </dl>
-  <p>Imagery and buildings stream as you fly; the first pass over a city takes a few seconds to sharpen.</p>
-</section>
-
-<footer class="ef-foot">
-  <div id="h-stats" class="ef-stats"></div>
-  <div id="credits" class="ef-credits"></div>
-</footer>
-
-<script type="module" src="game/main.js?v=1"></script>
+<p>Earth Flight is now part of GeoHUB. <a href="/?flight=earth">Open it there</a>.</p>
 </body>
 </html>

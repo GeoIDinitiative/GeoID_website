@@ -804,6 +804,9 @@ if (typeof document !== "undefined") {
  */
 if (typeof window !== "undefined" && typeof window.addEventListener === "function") {
   window.addEventListener("flightsim:engaged", () => {
+    // Earth flies with its chrome open: the tools stay armed and usable in
+    // the air, so there is nothing to put away (styles/flightsim.css).
+    if (document.body.classList.contains("fs-open-chrome")) return;
     if (areaArmed() || lineArmed()) cancel();
     // Cancel is the shapes' and the line's; the other two pointer tools are
     // put away the way their own rail buttons put them away.

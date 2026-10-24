@@ -35,7 +35,62 @@ const DEG = 180 / Math.PI;
  */
 const GRAZING = 0.12;
 
-export function visibleBounds(viewer, THREE, { steps = 8, padFraction = 0.05 } = {}) {
+/**
+ * IN FLIGHT, THE VIEW IS THE NEAR FIELD.
+ *
+ * Earth Flight (the shared flight sim on this globe) keeps every layer live in
+ * the air, and everything that refines with the view reads this module. A
+ * cockpit or chase camera looks along the ground to the horizon, so the raw
+ * frustum box runs hundreds of kilometres out and every refiner would fall
+ * back to its coarsest zoom for a strip of horizon nobody can read -- while
+ * the ground going past underneath stayed coarse. So while flying, the box is
+ * the frustum box clipped to a square round the ship whose half-size reaches
+ * a little past the horizon (1.2 x sqrt(2Rh), between 25 and 600 km): low
+ * over a city that is a few tens of kilometres, from orbit a region. Pure,
+ * so it can be tested without a camera.
+ */
+export function nearFieldBounds(ship, altKm, raw = null) {
+  if (!ship || !Number.isFinite(ship.lat) || !Number.isFinite(ship.lon)) return raw;
+  // To the horizon, not short of it: sqrt(2Rh) is 39 km from 120 m and 113 km
+  // from 1 km. A box that stopped at ten kilometres showed its edge as a wall
+  // of black space: the globe's base sphere is tessellated, its facets sag
+  // hundreds of metres under the true surface, and from a few hundred metres
+  // up they sink below the line of sight -- so beyond the refined patch there
+  // was nothing to see at all. Refiners trade resolution for reach out there,
+  // and the sharp ground near the ship comes from the building tiles' own
+  // z17 drapes (osm-buildings.js).
+  const horizonKm = Math.sqrt(2 * 6371 * Math.max(0, altKm));
+  const halfKm = Math.max(25, Math.min(600, horizonKm * 1.2));
+  const dLat = halfKm / 111.32;
+  const dLon = halfKm / (111.32 * Math.max(0.05, Math.cos(ship.lat * RAD)));
+  const near = {
+    minLat: Math.max(-85, ship.lat - dLat), maxLat: Math.min(85, ship.lat + dLat),
+    minLon: ship.lon - dLon, maxLon: ship.lon + dLon,
+  };
+  if (!raw) return near;
+  const cut = {
+    minLat: Math.max(near.minLat, raw.minLat), maxLat: Math.min(near.maxLat, raw.maxLat),
+    minLon: Math.max(near.minLon, raw.minLon), maxLon: Math.min(near.maxLon, raw.maxLon),
+  };
+  // No overlap (the camera looking away from the ship's ground): the ship's
+  // own square, which is where the pilot is and will be.
+  return (cut.minLat < cut.maxLat && cut.minLon < cut.maxLon) ? cut : near;
+}
+
+function flightState() {
+  const f = globalThis.window?.__flightSim;
+  return f?.active ? f : null;
+}
+
+export function visibleBounds(viewer, THREE, opts = {}) {
+  const raw = frustumBounds(viewer, THREE, opts);
+  const f = flightState();
+  if (!f || !f.shipLatLon) return raw;
+  const kmPerUnit = (viewer?.bodyRadiusKm || 6371) / (viewer?.GLOBE_RADIUS || 3.2);
+  return nearFieldBounds(f.shipLatLon, (Number(f.shipAltUnits) || 0) * kmPerUnit, raw);
+}
+
+function frustumBounds(viewer, THREE, { steps = 8, padFraction = 0.05 } = {}) {
   const camera = viewer?.camera;
   if (!camera || !THREE) return null;
   const radius = viewer.GLOBE_RADIUS || 3.2;
@@ -310,8 +365,21 @@ export function onViewSettled(viewer, fn, { settleMs = 500, pollMs = 150 } = {})
     return p ? `${p.x.toFixed(4)},${p.y.toFixed(4)},${p.z.toFixed(4)}` : "";
   };
 
+  // In flight the camera never comes to rest, so "settled" would never fire
+  // and nothing would refine for the whole flight. While flying it also fires
+  // every FLIGHT_MS if the camera has moved since -- one round of tiles per
+  // few seconds of flying, the same restraint the settle exists for.
+  const FLIGHT_MS = 2500;
+  let flightFiredAt = 0;
   const tick = () => {
     const now = key();
+    if (flightState() && !fired && Date.now() - flightFiredAt >= FLIGHT_MS) {
+      flightFiredAt = Date.now();
+      last = now;
+      fired = true;
+      try { fn(); } catch (error) { /* a bad listener must not stop the poll */ }
+      return;
+    }
     if (now !== last) {
       last = now;
       stillSince = 0;

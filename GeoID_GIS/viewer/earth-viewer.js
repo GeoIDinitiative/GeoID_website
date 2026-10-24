@@ -2,15 +2,15 @@ import * as THREE from "./vendor/three.module.js";
 // The polygon-area rule lives in one place, with a test. Stamped by hand
 // once: stamp.py only rewrites a ?v= that already exists.
 import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
-  from "./gis/geo-utils.js?v=20261024-b7a524b";
+  from "./gis/geo-utils.js?v=20261024-9f9b1b9";
 import { attachReliefAttributes, followRelief }
-  from "./gis/vector-render.js?v=20261024-b7a524b";
+  from "./gis/vector-render.js?v=20261024-9f9b1b9";
 import { rockClass, crustalSetting, rockClassLabel, classificationBasis }
-  from "./gis/rock-class.js?v=20261024-b7a524b";
+  from "./gis/rock-class.js?v=20261024-9f9b1b9";
 import { lithologyLabel }
-  from "./gis/lithology-label.js?v=20261024-b7a524b";
+  from "./gis/lithology-label.js?v=20261024-9f9b1b9";
 import { formatLatLon }
-  from "./gis/coord-format.js?v=20261024-b7a524b";
+  from "./gis/coord-format.js?v=20261024-9f9b1b9";
 
 /**
  * This module's own cache stamp, read off its own URL.
@@ -23715,6 +23715,78 @@ ${error && error.message ? error.message : error}`;
         lastFrameAt: 0,
       };
 
+      /**
+       * EARTH FLIGHT IS THE SHARED FLIGHT SIM (scripts/flightsim.js), the same
+       * mode Mars and every other world fly, running on this globe.
+       *
+       * Earth had its own flight page (flight_sim/earth/) with its own chrome;
+       * asked for instead (2026-10-24): the Mars implementation, inside the
+       * GeoHUB shell. This viewer descends from Mars's, so every internal the
+       * sim reads is still here under the same name -- what this block adds is
+       * only the publishing, the body identity, and Earth's scale. The flight
+       * then flies over everything this globe already draws close in: the
+       * imagery refine, the streamed OSM buildings with their bridges and
+       * shadows (gis/osm-buildings.js keys off the camera, so it streams under
+       * the ship exactly as under the orbit camera).
+       *
+       * TRUE_SCALE_TERRAIN_RELIEF: the elevation texture spans 19,557 m
+       * (GEBCO, -10,930 to 8,627) over a 0..1 normalised range, so true scale
+       * is that span in globe units. The sim sets the relief slider to it on
+       * engage (times its own exaggeration slider); the close-range taper in
+       * getEffectiveTerrainRelief still applies, and the sim reads the ground
+       * through that same function, so the ship and the drawn surface agree.
+       */
+      window.__flightSimHooks = {
+        THREE,
+        scene,
+        camera,
+        renderer,
+        controls,
+        bodyId: "earth",
+        bodyGroup: marsGroup,
+        bodyRadiusMeters: EARTH_MEAN_RADIUS_KM * 1000,
+        marsGroup,
+        globe,
+        getFlightMoon: () => null,
+        // Screen point -> lat/lon, through the same pick the cursor readout
+        // uses (surfaceLatLonAt below), so a launch site is where the
+        // coordinate box says it is. Nothing off the planet.
+        pickSurfaceLatLon: (clientX, clientY) => {
+          const ll = window.GeoIDViewer?.surfaceLatLonAt?.(clientX, clientY);
+          return ll && Number.isFinite(ll.lat) ? { lat: ll.lat, lon: ((ll.lon % 360) + 360) % 360 } : null;
+        },
+        elevationSampler,
+        sampleElevationNormalized,
+        latLonToVector3,
+        marsLonToSceneLon,
+        getRequestedTerrainRelief,
+        getEffectiveTerrainRelief,
+        syncTerrainReliefState,
+        baseLayerSelect,
+        // Whatever basemap is showing IS the flight basemap: the sim would
+        // otherwise switch to the first option in the list.
+        get streamedLayer() { return baseLayerSelect?.value || null; },
+        terrainScale,
+        pauseSpin,
+        resumeSpin,
+        isSpinPaused: () => spinPaused,
+        getSpinTime,
+        setStatus,
+        manifest,
+        MARS_RADIUS_METERS: EARTH_MEAN_RADIUS_KM * 1000,
+        TRUE_SCALE_TERRAIN_RELIEF: Number(manifest.elevation?.relief_m ?? 19557)
+          / (EARTH_MEAN_RADIUS_KM * 1000 / 3.2),
+        layerTextures,
+        // No CTX pyramid on Earth: the sim's Mars streaming paths stay idle.
+        ctxDetailStreamer: null,
+        getSpinDelta: () => globe.rotation.y - Math.PI,
+        isMoonViewerActive: () => Boolean(activeMoonViewerFeature),
+        renderFrame: () => render(),
+        get labelLayer() { return labelLayer; },
+        get baseSiteLayer() { return baseSiteLayer; },
+      };
+      window.dispatchEvent(new CustomEvent("flightsim:hooks-ready"));
+
       function render() {
         {
           const now = performance.now();
@@ -23773,7 +23845,8 @@ ${error && error.message ? error.message : error}`;
          * 8 fps and a per-frame constant would make it crawl there and race on a
          * 144 Hz display.
          */
-        if (zoomTargetSurfaceDistance !== null) {
+        // In flight the ship owns the camera (scripts/flightsim.js).
+        if (zoomTargetSurfaceDistance !== null && !window.__flightSim?.active) {
           const zc = getActiveZoomContext();
           if (!zc) {
             zoomTargetSurfaceDistance = null;
@@ -23957,6 +24030,15 @@ ${error && error.message ? error.message : error}`;
         // Backstop: clamp again after OrbitControls in case damping still overshot
         if (liftToBarrier(camera.position, _safeMin, _rs.lastFrameMs)) {
           controls.object.position.copy(camera.position);
+        }
+        // EARTH FLIGHT: the shared sim's physics and camera for this frame,
+        // after every orbit-camera rule above so the ship has the last word,
+        // and the camera's matrices recomposed for the passes below (the
+        // Venus fork found its labels all "off-screen" without this).
+        if (window.__flightSim?.active) {
+          window.__flightSim.update(camera);
+          camera.updateMatrixWorld(true);
+          camera.matrixWorldInverse.copy(camera.matrixWorld).invert();
         }
         if (!activeMoonViewerFeature) {
           const _ctxMode = baseLayerSelect.value === "ctx-mosaic" || baseLayerSelect.value === "ctx-mosaic-color";

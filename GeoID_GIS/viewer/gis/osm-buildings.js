@@ -36,8 +36,9 @@
 // transparent pass in a group sorted at 190 (see GROUP_ORDER), still
 // depth-tested and depth-writing against the globe and each other.
 
-import { isEarth } from "./bodies.js?v=20261024-b7a524b";
+import { isEarth } from "./bodies.js?v=20261024-9f9b1b9";
 import { facade, roof } from "../../../flight_sim/earth/game/facade.js?v=1";
+import { NIGHT } from "./night-lights.js?v=20261024-9f9b1b9";
 
 const BUILDINGS_TILEJSON = "https://tiles.openfreemap.org/planet";
 const IMAGERY_URL = "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}";
@@ -77,12 +78,40 @@ const tiles = new Map();      // "x/y" -> tile record
 let fetching = 0;
 const fetchQueue = [];
 let wallMat = null;
+let treeGeo = null, treeMat = null;
+
+/**
+ * One tree, unit-sized, for instancing: a seven-sided crown on a short trunk,
+ * coloured by vertex (trunk brown, crown green) and tinted per tree. Low-poly
+ * on purpose -- a few thousand per tile, all in one draw.
+ */
+function treeAssets() {
+  if (treeGeo) return;
+  const crown = new THREE.ConeGeometry(1, 0.8, 7, 1).translate(0, 0.6, 0);
+  const trunk = new THREE.CylinderGeometry(0.07, 0.1, 0.3, 5, 1).translate(0, 0.15, 0);
+  const paint = (g, c) => {
+    const n = g.attributes.position.count, col = new Float32Array(n * 3);
+    for (let i = 0; i < n; i++) col.set(c, i * 3);
+    g.setAttribute("color", new THREE.BufferAttribute(col, 3));
+    return g.index ? g.toNonIndexed() : g;
+  };
+  const parts = [paint(trunk, [0.36, 0.27, 0.19]), paint(crown, [0.24, 0.38, 0.20])];
+  const merged = new THREE.BufferGeometry();
+  for (const name of ["position", "normal", "color"]) {
+    const arrays = parts.map((g) => g.attributes[name].array);
+    const out = new Float32Array(arrays.reduce((n, a) => n + a.length, 0));
+    let o = 0; for (const a of arrays) { out.set(a, o); o += a.length; }
+    merged.setAttribute(name, new THREE.BufferAttribute(out, 3));
+  }
+  treeGeo = merged;
+  treeMat = shadowed(new THREE.MeshLambertMaterial({ vertexColors: true, transparent: true }));
+}
 let sun = null;
 let keyLight = null;
 let enabled = true;
 let shadowsWanted = true;
 let lastDecision = 0;
-export const stats = { tiles: 0, buildings: 0, verts: 0, altitude: null, active: false, shadows: false };
+export const stats = { tiles: 0, buildings: 0, trees: 0, verts: 0, altitude: null, active: false, shadows: false };
 
 /* ── Pure helpers (tested) ───────────────────────────────────────────────── */
 
@@ -290,12 +319,21 @@ function roofTexture(t) {
    in it -- so its shadow would otherwise darken nothing. */
 function shadowed(material) {
   const prev = material.onBeforeCompile;
+  material.userData.night = NIGHT;
   material.onBeforeCompile = (shader) => {
     prev(shader);
+    // Night (night-lights.js): the scene's ambient keeps lit materials bright
+    // at midnight, so the buildings are dimmed to a fifth with the ground.
+    if (!shader.fragmentShader.includes("uniform float uNight;")) {
+      shader.fragmentShader = shader.fragmentShader.replace("#include <common>", "#include <common>\nuniform float uNight;");
+    }
+    shader.uniforms.uNight = NIGHT;
     shader.fragmentShader = shader.fragmentShader
       .replace("#include <shadowmap_pars_fragment>", "#include <shadowmap_pars_fragment>\n#include <shadowmask_pars_fragment>")
-      .replace("#include <dithering_fragment>", "#include <dithering_fragment>\n  gl_FragColor.rgb *= mix(0.55, 1.0, getShadowMask());");
+      .replace("#include <dithering_fragment>", "#include <dithering_fragment>\n  gl_FragColor.rgb *= mix(0.55, 1.0, getShadowMask()) * mix(1.0, 0.2, uNight);");
   };
+  const key = material.customProgramCacheKey?.bind(material);
+  material.customProgramCacheKey = () => (key ? key() : "") + "|night";
   return material;
 }
 
@@ -352,23 +390,92 @@ function build(viewer, t, m, count, lat, sizeM) {
   east.addScaledVector(up, -east.dot(up)).normalize();
   south.crossVectors(east, up).normalize();     // x east, y up -> z south (right-handed)
   t.frame = { clat, clon, up, east, south, half: sizeM / 2 };
-  t.mesh = mesh; t.catcher = catcher; t.ground = ground;
+  // Trees scattered in the tile's woods and parks (structures.js), one draw.
+  let trees = null;
+  const T = m.trees;
+  if (T && T.length) {
+    treeAssets();
+    const count = T.length / 5;
+    trees = noPick(new THREE.InstancedMesh(treeGeo, treeMat, count));
+    const mat = new THREE.Matrix4(), q = new THREE.Quaternion(), sc = new THREE.Vector3(), p = new THREE.Vector3();
+    const tint = new THREE.Color();
+    for (let i = 0; i < count; i++) {
+      const k = i * 5, r = T[k + 4], h = T[k + 3];
+      p.set(T[k], T[k + 1] - 0.5, T[k + 2]);
+      sc.set(r, h, r);
+      q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), (i * 2.39996) % (Math.PI * 2));
+      trees.setMatrixAt(i, mat.compose(p, q, sc));
+      const v = 0.75 + 0.5 * ((i * 0.618034) % 1);
+      trees.setColorAt(i, tint.setRGB(v * 0.95, v, v * 0.9));
+    }
+    trees.instanceMatrix.needsUpdate = true;
+    if (trees.instanceColor) trees.instanceColor.needsUpdate = true;
+    trees.computeBoundingSphere();
+    trees.renderOrder = ORDER_BUILDINGS;
+    trees.castShadow = true;
+    trees.receiveShadow = true;
+    trees.matrixAutoUpdate = false;
+    stats.trees = (stats.trees || 0) + count;
+  }
+  t.mesh = mesh; t.catcher = catcher; t.ground = ground; t.trees = trees;
   t.count = count; t.verts = m.position.length / 3;
   place(viewer, t);
-  holder(viewer).add(mesh, catcher);
-  groundHolder(viewer).add(ground);
+  holder(viewer).add(keep(mesh), keep(catcher));
+  if (trees) holder(viewer).add(keep(trees));
+  groundHolder(viewer).add(keep(ground));
   stats.tiles++; stats.buildings += count; stats.verts += t.verts;
+}
+
+/* ── The Workspace layer ──────────────────────────────────────────────────
+   The buildings, trees, bridges and their ground imagery are ONE Workspace
+   layer, adopted into the import manager like the events feed: a row with
+   visibility and removal, and provenance the Metadata tab and the row's (i)
+   read like any other layer's -- OpenStreetMap under the ODbL through
+   OpenFreeMap, and Esri World Imagery for the roofs and the ground under
+   them. That replaced Earth Flight's on-screen credit line.
+   Every node keeps its own draw order (`keepRenderOrder`): the ground drape is
+   imagery (41) and the buildings are depth-tested solids drawn after every
+   ground layer (190), bands the stack's 50+ would flatten. */
+const LAYER_NAME = "3D buildings & trees (OpenStreetMap)";
+const LAYER_INFO = {
+  source: "OpenStreetMap via OpenFreeMap vector tiles (OpenMapTiles schema, z14): building, transportation, water, landcover; roof and ground imagery Esri World Imagery z16-z17",
+  citation: "Buildings, bridges, trees: © OpenStreetMap contributors, ODbL 1.0 (openstreetmap.org/copyright); tiles: OpenFreeMap (openfreemap.org), OpenMapTiles schema © OpenMapTiles. Imagery: Esri World Imagery — Source: Esri, Vantor, Earthstar Geographics, and the GIS User Community. Facades, pitched roofs and tree placement are procedural.",
+  crs: "EPSG:3857 tiles, drawn on the globe",
+  licence: "ODbL 1.0 (OpenStreetMap data); Esri terms of use (imagery)",
+};
+let layerRoot = null;
+function keep(obj) { obj.traverse((n) => { n.userData.keepRenderOrder = true; }); return obj; }
+function root(viewer) {
+  if (!layerRoot || layerRoot.parent !== viewer.globe) {
+    layerRoot = new THREE.Group();
+    layerRoot.name = "GeoID-OSMBuildingsLayer";
+    layerRoot.userData.keepRenderOrder = true;
+    viewer.globe.add(layerRoot);
+  }
+  return layerRoot;
+}
+function publishLayer() {
+  const manager = window.GeoIDImportManager;
+  if (!manager?.adoptLayer || !layerRoot) return;
+  if (!enabled) { manager.releaseLayer?.(LAYER_NAME); return; }
+  const layer = manager.adoptLayer(LAYER_NAME, layerRoot, {
+    ext: "osm-3d", role: "buildings", info: { ...LAYER_INFO, tiles: stats.tiles, buildings: stats.buildings, trees: stats.trees },
+    onRemove: () => { setEnabled(false); const t = document.getElementById("earth-buildings-toggle"); if (t) t.checked = false; },
+  });
+  if (layer) layer.legendHidden = true;
 }
 
 let group = null;
 /** The group every tile hangs in: on the globe mesh (so it carries the spin
  *  and the half turn), sorted as one block at GROUP_ORDER. */
 function holder(viewer) {
-  if (!group || group.parent !== viewer.globe) {
+  if (!group || group.parent !== root(viewer)) {
     group = new THREE.Group();
     group.name = "GeoID-OSMBuildingsGroup";
     group.renderOrder = GROUP_ORDER;
-    viewer.globe.add(group);
+    group.userData.keepRenderOrder = true;
+    root(viewer).add(group);
+    publishLayer();
   }
   return group;
 }
@@ -376,11 +483,12 @@ function holder(viewer) {
 let groundGroup = null;
 const GROUND_ORDER = 41;
 function groundHolder(viewer) {
-  if (!groundGroup || groundGroup.parent !== viewer.globe) {
+  if (!groundGroup || groundGroup.parent !== root(viewer)) {
     groundGroup = new THREE.Group();
     groundGroup.name = "GeoID-OSMBuildingsGround";
     groundGroup.renderOrder = GROUND_ORDER;
-    viewer.globe.add(groundGroup);
+    groundGroup.userData.keepRenderOrder = true;
+    root(viewer).add(groundGroup);
   }
   return groundGroup;
 }
@@ -399,6 +507,7 @@ function place(viewer, t) {
   t.mesh.matrix.copy(mat); t.mesh.matrixWorldNeedsUpdate = true;
   t.catcher.matrix.copy(mat); t.catcher.matrixWorldNeedsUpdate = true;
   t.ground.matrix.copy(mat); t.ground.matrixWorldNeedsUpdate = true;
+  if (t.trees) { t.trees.matrix.copy(mat); t.trees.matrixWorldNeedsUpdate = true; }
 }
 
 function drop(key) {
@@ -409,6 +518,7 @@ function drop(key) {
     t.mesh.parent?.remove(t.mesh);
     t.catcher.parent?.remove(t.catcher);
     t.ground.parent?.remove(t.ground);
+    if (t.trees) { t.trees.parent?.remove(t.trees); t.trees.dispose(); stats.trees -= t.trees.count; }
     t.ground.geometry.dispose();
     t.ground.material.dispose();
     t.mesh.geometry.dispose();
@@ -526,6 +636,7 @@ function tileDistanceKm(a, b) {
 
 export function setEnabled(on) {
   enabled = Boolean(on);
+  publishLayer();
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ enabled, shadows: shadowsWanted })); } catch (e) { /* private mode */ }
 }
 export function setShadows(on) {

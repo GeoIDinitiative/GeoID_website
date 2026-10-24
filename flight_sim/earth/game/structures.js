@@ -358,3 +358,68 @@ export function drawWheel(api, w) {
     box(c, ax, [0.9 * dx, 0, 0.9 * dz], [-dz * 0.9, 0.0, dx * 0.9], WHITE);
   }
 }
+
+/* ── Trees ────────────────────────────────────────────────────────────────
+ * The photo has every wood in it, flat. OpenMapTiles' `landcover` layer has
+ * the outlines (`class=wood` -- OSM forest and wood; `grass/park`; `scrub`),
+ * but no single trees, so trees are SCATTERED inside them: a jittered grid,
+ * each tree's offset, height and crown from a hash of its cell so a wood looks
+ * the same every time it loads. Densities are what those places are like:
+ * woods one tree per ~80 m^2 at 10-22 m, parks one per ~700 m^2 at 8-18 m,
+ * scrub one per ~250 m^2 at 2-4 m. Capped per tile (MAX_TREES); a tile that
+ * is all forest spreads its budget over the whole wood rather than filling one
+ * corner. Returned as a flat Float32Array, five numbers a tree: x, y(ground),
+ * z, height, crown radius -- the renderer instances one mesh over them.
+ */
+const MAX_TREES = 7000;
+const TREE_KINDS = {
+  wood: { per: 80, h0: 10, h1: 22 },
+  park: { per: 700, h0: 8, h1: 18 },
+  scrub: { per: 250, h0: 2, h1: 4 },
+};
+function treeKind(props) {
+  if (props.class === "wood") return TREE_KINDS.wood;
+  if (props.subclass === "park") return TREE_KINDS.park;
+  if (props.subclass === "scrub") return TREE_KINDS.scrub;
+  return null;
+}
+function frac(n) { const x = Math.sin(n) * 43758.5453; return x - Math.floor(x); }
+
+export function scatterTrees(api, landcover, buildingsOutlines = []) {
+  if (!landcover) return new Float32Array(0);
+  const { s, ext, ground } = api;
+  const areas = [];
+  for (const f of landcover.features) {
+    if (f.type !== 3) continue;
+    const kind = treeKind(f.props);
+    if (!kind) continue;
+    for (const poly of api.polygonsOf(f)) {
+      let a2 = 0;
+      const r = poly.outer;
+      for (let i = 0, j = r.length - 1; i < r.length; j = i++) a2 += r[j][0] * r[i][1] - r[i][0] * r[j][1];
+      areas.push({ poly, kind, m2: Math.abs(a2 / 2) * s * s });
+    }
+  }
+  // Wanted count at natural density; thin uniformly if over the cap.
+  const wanted = areas.reduce((n, a) => n + a.m2 / a.kind.per, 0);
+  const thin = wanted > MAX_TREES ? wanted / MAX_TREES : 1;
+  const out = [];
+  for (const { poly, kind } of areas) {
+    const step = Math.sqrt(kind.per * thin) / s;          // grid spacing, tile units
+    let minU = Infinity, minV = Infinity, maxU = -Infinity, maxV = -Infinity;
+    for (const [u, v] of poly.outer) { minU = Math.min(minU, u); maxU = Math.max(maxU, u); minV = Math.min(minV, v); maxV = Math.max(maxV, v); }
+    for (let gv = Math.floor(minV / step); gv * step <= maxV; gv++) {
+      for (let gu = Math.floor(minU / step); gu * step <= maxU; gu++) {
+        if (out.length / 5 >= MAX_TREES) break;
+        const seed = gu * 92821 + gv * 68917;
+        const u = (gu + frac(seed)) * step, v = (gv + frac(seed + 1.7)) * step;
+        if (u < 0 || v < 0 || u > ext || v > ext) continue;
+        if (!inPolys([u, v], [poly])) continue;
+        if (buildingsOutlines.length && inPolys([u, v], buildingsOutlines)) continue;
+        const h = kind.h0 + (kind.h1 - kind.h0) * frac(seed + 3.1);
+        out.push(u * s, ground(u, v), v * s, h, h * (0.22 + 0.1 * frac(seed + 5.3)));
+      }
+    }
+  }
+  return new Float32Array(out);
+}
