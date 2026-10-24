@@ -33,7 +33,7 @@
  */
 
 import * as THREE from "/GeoID_GIS/viewer/vendor/three.module.js";
-import { currentBodyId } from "./bodies.js?v=20261024-042ab26";
+import { currentBodyId } from "./bodies.js?v=20261024-1b7de02";
 
 /*
  * dusk -- TWILIGHT at the terminator, as Earth now has (earth-viewer.js):

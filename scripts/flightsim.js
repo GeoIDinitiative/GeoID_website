@@ -2056,8 +2056,8 @@
     };
     attachBaked(group, loadBakedGeometry("cessna", Object.keys(mats), "/assets/aircraft"), mats, 1);
     addLivery(group, [
-      // Rear fuselage z 0.75..2.05: half-width 0.48 -> 0.32 there, ~7 deg of taper.
-      { file: "livery-logo-light.png", w: 1.3, h: 0.40, x: 0.415, y: 0.31, z: 1.40, taper: 0.127 },
+      // Rear fuselage z 0.70..2.20: half-width 0.49 -> 0.30 there, ~7 deg of taper.
+      { file: "livery-logo-light.png", w: 1.5, h: 0.46, x: 0.425, y: 0.31, z: 1.45, taper: 0.127 },
       // Fin, mid-height: chord ~0.97 m, faces ~0.045 m off the centre plane.
       { file: "livery-mark.png", w: 0.52, h: 0.52, x: 0.062, y: 1.20, z: 3.71 },
     ]);
@@ -2095,7 +2095,7 @@
     attachBaked(group, loadBakedGeometry("heli", Object.keys(mats), "/assets/aircraft"), mats, 1);
     addLivery(group, [
       // Aft cabin z -0.70..0.60, under the engine fairing: half-width 0.75 -> 0.62.
-      { file: "livery-logo.png", w: 1.25, h: 0.38, x: 0.71, y: 0.86, z: -0.05, taper: 0.10 },
+      { file: "livery-logo.png", w: 1.25, h: 0.38, x: 0.725, y: 0.86, z: -0.05, taper: 0.10 },
       // Upper fin, mid-height: chord ~0.6 m, faces ~0.03 m off the centre plane.
       { file: "livery-mark.png", w: 0.36, h: 0.36, x: 0.045, y: 1.75, z: 5.99 },
     ]);

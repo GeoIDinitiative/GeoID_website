@@ -9,7 +9,7 @@
  *
  * The parsing is pure (no DOM) so node tests it: embed.test.mjs.
  */
-import { h } from "./dom.js?v=20261024-042ab26";
+import { h } from "./dom.js?v=20261024-1b7de02";
 
 const YT_ID = /^[A-Za-z0-9_-]{11}$/;
 
