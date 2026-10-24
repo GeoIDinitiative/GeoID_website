@@ -332,6 +332,7 @@ export function fullUser(env, row) {
     job_status: row.job_status,
     contact_pref: row.contact_pref,
     match_opt_in: !!row.match_opt_in,
+    public_profile: !!row.public_profile,
     mentoring_topics: parse(row.mentoring_topics_json, []),
     joined: row.created_at,
   };

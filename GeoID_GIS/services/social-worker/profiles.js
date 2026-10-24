@@ -142,6 +142,8 @@ async function patchMe(ctx) {
   if (has("availability")) set.availability = enumOf(body.availability, AVAILABILITY, "availability");
   if (has("job_status")) set.job_status = enumOf(body.job_status ?? "", JOB_STATUS, "job_status");
   if (has("contact_pref")) set.contact_pref = enumOf(body.contact_pref, CONTACT, "contact_pref");
+  // Opt-in: show this profile on the open web (a share page search engines may index).
+  if (has("public_profile")) set.public_profile = body.public_profile ? 1 : 0;
   if (has("match_opt_in")) set.match_opt_in = body.match_opt_in ? 1 : 0;
   if (has("linkedin")) {
     // Optional. Only a linkedin.com address is accepted, so the "LinkedIn"
