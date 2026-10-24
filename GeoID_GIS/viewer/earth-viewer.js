@@ -2,15 +2,15 @@ import * as THREE from "./vendor/three.module.js";
 // The polygon-area rule lives in one place, with a test. Stamped by hand
 // once: stamp.py only rewrites a ?v= that already exists.
 import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
-  from "./gis/geo-utils.js?v=20261024-a2c2aed";
+  from "./gis/geo-utils.js?v=20261024-30383a4";
 import { attachReliefAttributes, followRelief }
-  from "./gis/vector-render.js?v=20261024-a2c2aed";
+  from "./gis/vector-render.js?v=20261024-30383a4";
 import { rockClass, crustalSetting, rockClassLabel, classificationBasis }
-  from "./gis/rock-class.js?v=20261024-a2c2aed";
+  from "./gis/rock-class.js?v=20261024-30383a4";
 import { lithologyLabel }
-  from "./gis/lithology-label.js?v=20261024-a2c2aed";
+  from "./gis/lithology-label.js?v=20261024-30383a4";
 import { formatLatLon }
-  from "./gis/coord-format.js?v=20261024-a2c2aed";
+  from "./gis/coord-format.js?v=20261024-30383a4";
 
 /**
  * This module's own cache stamp, read off its own URL.
@@ -5542,7 +5542,12 @@ function fmtProp(value) {
 
     function getReliefPoint(radius, elevationSampler, elevationCache, getTerrainRelief, latDegrees, lonDegrees, lift = 0) {
       const displacement = getCachedElevationNormalized(elevationCache, elevationSampler, latDegrees, lonDegrees) * getTerrainRelief();
-      return latLonToVector3(latDegrees, lonDegrees, radius + displacement + lift);
+      // In Earth Flight the ground is the flight terrain: labels, markers and
+      // the cards pinned to a place stand on its hills (0 outside flight).
+      // Not added to `surfacePoint`: vector layers derive their displacement
+      // from it and get the flight terrain on the GPU instead (vector-render).
+      const flight = window.GeoIDFlightTerrain?.heightUnits?.(latDegrees, lonDegrees) || 0;
+      return latLonToVector3(latDegrees, lonDegrees, radius + displacement + flight + lift);
     }
 
     function isGeologyFeature(feature) {
@@ -19159,8 +19164,46 @@ uniform float uViewportWidth;`,
        * it as the next radius. It converges in a couple of rounds because the
        * ground moves far less than the ray does.
        */
+      /**
+       * IN EARTH FLIGHT THE GROUND IS THE FLIGHT TERRAIN (flight-terrain.js),
+       * real hills a ray can graze past. March the click's ray from the eye
+       * against it -- steps proportional to the height above the ground, then
+       * bisection at the first crossing -- so a click lands on the hill it
+       * was aimed at and every card, the geology's included, describes what
+       * is under the pointer, as on the globe.
+       */
+      function refineHitToFlightTerrain(hit, T) {
+        const inverse = new THREE.Matrix4().copy(marsGroup.matrixWorld).invert();
+        const origin = raycaster.ray.origin.clone().applyMatrix4(inverse);
+        const direction = raycaster.ray.direction.clone().transformDirection(inverse).normalize();
+        const unspin = new THREE.Euler(0, -(globe.rotation.y - Math.PI), 0);
+        const p = new THREE.Vector3();
+        const above = (t) => {
+          p.copy(origin).addScaledVector(direction, t);
+          const ll = vectorToLatLon(p.clone().applyEuler(unspin));
+          if (!Number.isFinite(ll.lat)) return Infinity;
+          return p.length() - (3.2 + (T.heightUnits(ll.lat, ll.lon) || 0));
+        };
+        let t = 0, prev = 0;
+        for (let i = 0; i < 600 && t < 1.2; i += 1) {
+          const h = above(t);
+          if (h <= 0) {
+            let lo = prev, hi = t;
+            for (let k = 0; k < 24; k += 1) { const mid = (lo + hi) / 2; if (above(mid) > 0) lo = mid; else hi = mid; }
+            p.copy(origin).addScaledVector(direction, hi);
+            return { ...hit, point: marsGroup.localToWorld(p.clone()), distance: hi };
+          }
+          prev = t;
+          t += Math.max(h * 0.6, 2e-6);
+        }
+        return hit;
+      }
+
       function refineGlobeHitToTerrain(hit) {
-        if (!hit || hit.context || !elevationMap) return hit;
+        if (!hit || hit.context) return hit;
+        const flightTerrain = window.GeoIDFlightTerrain;
+        if (flightTerrain?.active?.()) return refineHitToFlightTerrain(hit, flightTerrain);
+        if (!elevationMap) return hit;
         const relief = getEffectiveTerrainRelief();
         if (!(relief > 0)) return hit;
         const inverse = new THREE.Matrix4().copy(marsGroup.matrixWorld).invert();
