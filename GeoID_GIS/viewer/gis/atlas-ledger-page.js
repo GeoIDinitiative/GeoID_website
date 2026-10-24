@@ -20,7 +20,7 @@
 import {
   VERIFY, recordFrom, addRecords, dueRecords, verifyEvent, verifyWeather,
   summarise, reportText, toCsv, eonetEvents, usgsEvents, weatherVars,
-} from "./atlas-ledger.js?v=20261024-c7b9c8d";
+} from "./atlas-ledger.js?v=20261024-7f51ec4";
 
 const KEY = "geoid-gis:atlas-ledger";
 const PROJECT_PATH = "metadata/atlas_ledger.json";
@@ -198,7 +198,7 @@ export async function report(hazard = null) {
 export async function exportCsv() {
   // Through the app's one download path: it files the CSV into an open
   // project and keeps the membership gate on saving.
-  const { downloadText } = await import("./extraction.js?v=20261024-c7b9c8d");
+  const { downloadText } = await import("./extraction.js?v=20261024-7f51ec4");
   return downloadText("atlas_verification_ledger.csv", toCsv(ledger), "text/csv");
 }
 

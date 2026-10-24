@@ -20,7 +20,7 @@
  * downstream can tell the difference, which is what makes a sign-in mid-session
  * work without a reload.
  */
-import { may, refusal, FEATURES, signInUrl, state, authService } from "./membership.js?v=20261024-c7b9c8d";
+import { may, refusal, FEATURES, signInUrl, state, authService } from "./membership.js?v=20261024-7f51ec4";
 
 /**
  * Which tab or section belongs to which feature.

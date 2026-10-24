@@ -29,8 +29,8 @@
  * bake gains it, the row appears with nothing changed here.
  */
 
-import { dataUrl } from "./data-base.js?v=20261024-c7b9c8d";
-import { gridLattice, gridBounds } from "./polar-stereo.js?v=20261024-c7b9c8d";
+import { dataUrl } from "./data-base.js?v=20261024-7f51ec4";
+import { gridLattice, gridBounds } from "./polar-stereo.js?v=20261024-7f51ec4";
 
 const MANIFEST = "/data/global/ice/cpom/manifest.json";
 const LAYER_PREFIX = "Land ice (CPOM)";

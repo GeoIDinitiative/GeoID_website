@@ -26,7 +26,7 @@
 // Esri World Imagery (blankTile=false: a missing tile is a 404 and the
 // ancestor stays). Flight only.
 
-import { NIGHT } from "./night-lights.js?v=20261024-c7b9c8d";
+import { NIGHT } from "./night-lights.js?v=20261024-7f51ec4";
 
 const URL_TEMPLATE = "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}?blankTile=false";
 const ROOT_Z = 7;
@@ -635,7 +635,9 @@ function tick() {
   }
   // Faint: the lamps (flight-lights.js) carry the light; this only fills
   // between them, a little more as the view widens.
-  SKYGLOW.value = 0.05 + 0.09 * Math.min(1, Math.max(0, (altM - 6000) / 24000));
+  // None below 12 km (the lamps are the light); from there towards 30 km it
+  // fills in where the street lamps are too far away to stream.
+  SKYGLOW.value = 0.12 * Math.min(1, Math.max(0, (altM - 12000) / 18000));
   // The buildings' night (lit windows, dimmed walls) is the ship's.
   if (sunL) {
     const p = viewer.surfacePoint(f.shipLatLon.lat, f.shipLatLon.lon, 0);

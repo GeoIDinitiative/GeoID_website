@@ -26,7 +26,7 @@
 //   * Depth-tested: hills and buildings hide what is behind them. Night only
 //     (the ship's NIGHT from flight-tiles.js); nothing runs by day.
 
-import { NIGHT } from "./night-lights.js?v=20261024-c7b9c8d";
+import { NIGHT } from "./night-lights.js?v=20261024-7f51ec4";
 import { litPower, radianceAboveBackground, CLASS_BY_CODE } from "../../../flight_sim/earth/game/lamps.js?v=1";
 
 const TILEJSON = "https://tiles.openfreemap.org/planet";
@@ -41,6 +41,9 @@ export const LEVELS = [
   { z: 14, reach: 4500, classes: ALL, fade: [0, 0, 3500, 4500], pools: true },
   { z: 11, reach: 32000, classes: ["motorway", "trunk", "primary", "secondary"], fade: [3500, 4500, 26000, 32000] },
   { z: 9, reach: 125000, classes: ["motorway", "trunk", "primary"], fade: [26000, 32000, 105000, 125000] },
+  // Every street again, coarser, once the aircraft is up: a town from 5-10 km
+  // is its whole street network glowing, not just its arterials.
+  { z: 13, reach: 0, classes: ALL, fade: [0, 0, 0, 0] },
 ];
 const FETCH_BUDGET = 6;
 const BUILD_MS = 6;
@@ -359,13 +362,19 @@ function tick() {
   // From ~2.5 km up the every-street ring hands over to the main-roads ring,
   // so a city does not glow as a bright disc under the aircraft with only
   // its arterials lit round it.
-  const hand = 1 - Math.min(1, Math.max(0, (altM - 2500) / 2500));
+  // From ~2.5 km up the close every-street ring (z14) hands over to a wider
+  // one (z13, out to 15 km by 5 km up), and the main roads start beyond it.
+  const high = Math.min(1, Math.max(0, (altM - 2500) / 2500)), hand = 1 - high;
+  const wide = high > 0 ? 4000 + 11000 * high : 0;
   LEVELS[0].fade[2] = 3500 * hand; LEVELS[0].fade[3] = 4500 * hand + 1;
-  LEVELS[1].fade[0] = 3500 * hand; LEVELS[1].fade[1] = 4500 * hand;
+  LEVELS[3].reach = wide;
+  LEVELS[3].fade[0] = 3500 * hand; LEVELS[3].fade[1] = 4500 * hand; LEVELS[3].fade[2] = wide * 0.8; LEVELS[3].fade[3] = wide + 1;
+  LEVELS[1].fade[0] = 3500 * hand + wide * 0.8 * high; LEVELS[1].fade[1] = 4500 * hand + wide * high;
   const now = performance.now();
   for (const t of tiles.values()) t.want = false;
   const tv = window.GeoIDFlightTerrain?.getVersion?.() ?? 0;
   LEVELS.forEach((level, li) => {
+    if (level.reach <= 0) return;
     for (const w of tilesFor(level, lat, lon)) {
       const key = `${li}/${w.z}/${w.x}/${w.y}`;
       let t = tiles.get(key);
