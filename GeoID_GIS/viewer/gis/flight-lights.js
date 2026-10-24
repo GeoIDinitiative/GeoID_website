@@ -16,7 +16,7 @@
 //     stable hash of the lamp's place, more LED on the main roads.
 //   * AT EVERY RANGE: every lit street within ~4 km (z14 tiles), the main
 //     roads to ~30 km (z11), motorways and trunk roads to ~120-220 km (z9),
-//     cross-fading between them. From ~3 km up the lamps turn from sharp
+//     cross-fading between them. From ~1.5 km up the lamps turn from sharp
 //     lanterns into a soft glow (their light spread over a few pixels, so the
 //     sum follows the roads), and the every-street ring hands over to the
 //     main roads. Each lamp is a hot point with a halo whose
@@ -26,7 +26,7 @@
 //   * Depth-tested: hills and buildings hide what is behind them. Night only
 //     (the ship's NIGHT from flight-tiles.js); nothing runs by day.
 
-import { NIGHT } from "./night-lights.js?v=20261024-ef0852d";
+import { NIGHT } from "./night-lights.js?v=20261024-2c666c2";
 import { litPower, radianceAboveBackground, CLASS_BY_CODE } from "../../../flight_sim/earth/game/lamps.js?v=1";
 
 const TILEJSON = "https://tiles.openfreemap.org/planet";
@@ -146,7 +146,11 @@ const LAMP_VERT = /* glsl */`
     // The lantern's glow (~12 m) in pixels; a lamp smaller than that still
     // draws two pixels and keeps its light, so far roads stay dotted.
     float px = 12.0 * upm * uPxScale / dCam;
-    float energy = clamp(px, 0.35, 1.0) * 4.0;            // light of a 2 px dot
+    // High up, a lamp's light falls off with the square of its distance, as
+    // a point source's does: the sum over a city is then a glow that follows
+    // its density, not a flat wash (a fixed minimum per lamp, right for the
+    // scattered far roads seen from 1 km, saturated 500k lamps at 8 km).
+    float energy = 4.0 * min(1.0, px * px) * 3.0;
     // HIGH UP the dots go soft: the glow widens to a few pixels whatever the
     // distance, the light SPREAD over it (energy / area), so thousands of
     // lamps add up to a diffuse glow that still follows the roads, rather
@@ -346,10 +350,10 @@ function tick() {
   shared.uShipW.value = viewer.globe.localToWorld(shipLocal.clone());
   const canvas = viewer.renderer?.domElement;
   shared.uPxScale.value = (canvas?.clientHeight || 800) / (2 * Math.tan((viewer.camera.fov * Math.PI / 180) / 2));
-  // Sharp lanterns low down, a diffuse glow from ~3 km up (fully by ~12 km);
+  // Sharp lanterns low down, a diffuse glow from ~1.5 km up (fully by 6 km);
   // the major-road ring reaches further as the view widens.
   const altM = (Number(f.shipAltUnits) || 0) / UNITS_PER_M;
-  shared.uDiffuse.value = Math.min(1, Math.max(0, (altM - 3000) / 9000));
+  shared.uDiffuse.value = Math.min(1, Math.max(0, (altM - 1500) / 4500));
   LEVELS[2].reach = Math.max(125000, Math.min(220000, 4 * altM));
   LEVELS[2].fade[3] = LEVELS[2].reach; LEVELS[2].fade[2] = LEVELS[2].reach * 0.85;
   // From ~2.5 km up the every-street ring hands over to the main-roads ring,
