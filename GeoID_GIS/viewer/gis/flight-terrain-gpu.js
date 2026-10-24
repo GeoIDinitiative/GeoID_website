@@ -31,11 +31,14 @@ const WORK_MS = 4;
 /** The shared uniforms every `followRelief` material reads (vector-render.js). */
 export function flightGpuUniforms() {
   const w = typeof window !== "undefined" ? window : globalThis;
+  // The boxes start as plain arrays, never null: three.js uploads a vec4
+  // uniform on every draw and a null one throws, which stopped the render
+  // loop of every page drawing an overlay -- the globe too, not just flight.
   w.__geoidFlightGPU = w.__geoidFlightGPU || {
     uFlightOn: { value: 0 },
-    uFlightNear: { value: null }, uFlightNearBox: { value: null },
-    uFlightMid: { value: null }, uFlightMidBox: { value: null },
-    uFlightFar: { value: null }, uFlightFarBox: { value: null },
+    uFlightNear: { value: null }, uFlightNearBox: { value: [0, 0, 1, 1] },
+    uFlightMid: { value: null }, uFlightMidBox: { value: [0, 0, 1, 1] },
+    uFlightFar: { value: null }, uFlightFarBox: { value: [0, 0, 1, 1] },
   };
   return w.__geoidFlightGPU;
 }
@@ -119,6 +122,7 @@ export function stopFlightTerrainGpu() {
   state.forEach((s, li) => {
     s.tex?.dispose(); s.tex = null; s.box = null; s.job = null; s.version = -1;
     U[`uFlight${LEVELS[li].key}`].value = null;
+    U[`uFlight${LEVELS[li].key}Box`].value = [0, 0, 1, 1];
   });
 }
 

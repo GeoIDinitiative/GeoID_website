@@ -23,6 +23,8 @@ for (const L of G.LEVELS) {
 const U = G.flightGpuUniforms();
 check("the shared uniforms start switched off", U.uFlightOn.value === 0 && U.uFlightNear.value === null);
 check("one shared object for every module", G.flightGpuUniforms() === U);
+check("no uniform starts null where three.js needs a value (a null vec4 stops the render loop)",
+  ["Near", "Mid", "Far"].every((k) => Array.isArray(U[`uFlight${k}Box`].value) && U[`uFlight${k}Box`].value.length === 4));
 
 console.log(`\n${passed} passed, ${failed} failed`);
 process.exit(failed ? 1 : 0);

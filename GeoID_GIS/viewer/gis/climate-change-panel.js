@@ -27,10 +27,10 @@ import {
   CLIMATE_VARS, WINDOWS, windowOf, yearsFor, rampMaxForDays, decodeScene, alignGrid, baselineMean,
   anomalies, symmetricRange, senMannKendall, pixelTrends, areaSeries, frameRGBA, signed, pixelOf,
   seriesCsv,
-} from "./climate-change.js?v=20261024-5fec71f";
-import { refreshPolygonOptions, resolvePolygonExtent, signedLon } from "./extent-picker.js?v=20261024-5fec71f";
-import { startPlayer, stopPlayer } from "./timelapse-player.js?v=20261024-5fec71f";
-import { downloadText } from "./extraction.js?v=20261024-5fec71f";
+} from "./climate-change.js?v=20261024-11165cf";
+import { refreshPolygonOptions, resolvePolygonExtent, signedLon } from "./extent-picker.js?v=20261024-11165cf";
+import { startPlayer, stopPlayer } from "./timelapse-player.js?v=20261024-11165cf";
+import { downloadText } from "./extraction.js?v=20261024-11165cf";
 
 const search = new URL(import.meta.url).search;
 const RENDER_BUDGET = 30;
