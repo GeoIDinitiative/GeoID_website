@@ -13,9 +13,10 @@
  *   - `brunnel=bridge` LINES with `class` and `layer`: every road, rail line
  *     and footway carried by a bridge. Those not already inside a polygon
  *     become ribbons, sized by class; rail gets a ballast-coloured deck.
- * Height: the highest ground within 150 m along the way (the banks), plus
- * 2 m, plus 2 m per `layer` -- which puts the Thames bridges at about 9 m
- * over the water, close to the real ~8-10 m. Piers every 35 m wherever the
+ * Height: straight from bank to bank at the ground there, rising to clear
+ * the water or ground under it by 2 m plus 2 m per `layer` (the Thames
+ * bridges ~6 m over the water), with ramps down at ends on land (see
+ * `deckProfile`). Piers every 35 m wherever the
  * span is over the `water` layer's polygons, and under each deck over water
  * a dark water-coloured patch hides the photo's flat copy of the bridge.
  * Buildings whose centroid lies inside a bridge outline are not extruded.
@@ -81,6 +82,7 @@ const WIDTH = {
 const RANK = { path: 0, track: 0, service: 1, minor: 2, tertiary: 3, secondary: 4,
   primary: 5, trunk: 6, motorway: 7, busway: 3, raceway: 2, rail: 2, transit: 2 };
 const DECK = 1.6;                     // deck thickness
+const CLEAR_M = 2;                    // a deck's least clearance, plus 2 m per OSM layer
 const CONCRETE = [0.58, 0.56, 0.53];
 const BALLAST = [0.36, 0.33, 0.30];
 const RIVER = [0.10, 0.15, 0.13];
@@ -111,16 +113,26 @@ export function drawBridges(api, transport, water, outlines) {
   const M = (u, v) => [u * s, v * s];                     // tile units -> metres (x, z)
   let n = 0;
 
-  /** Highest ground within `reach` metres of a point along a direction. */
-  const bankHeight = (u, v, du, dv, reach = 150) => {
-    let h = ground(u, v);
-    const L = Math.hypot(du, dv) || 1, ux = du / L, uy = dv / L;
-    for (let d = -reach; d <= reach; d += 15) {
-      const pu = u + ux * d / s, pv = v + uy * d / s;
-      if (pu < -ext * 0.5 || pv < -ext * 0.5 || pu > ext * 1.5 || pv > ext * 1.5) continue;
-      h = Math.max(h, ground(pu, pv));
-    }
-    return h;
+  // Deck heights (owner, 2026-10-24, a deck floating over a loch). On real
+  // terrain the deck used to stand on the highest ground within 150 m of each
+  // end -- a lochside or valley wall -- tens of metres up, and 4 m above the
+  // road it carried even on the flat. Now: it runs straight from bank to bank
+  // at the ground there, and rises to clear what is under it (CLEAR_M over
+  // water or ground, more per OSM `layer`); its ends come down in ramps only
+  // where they stand on land -- an end over water is the next stretch of the
+  // same bridge, so it keeps its height.
+  const RAMP_M = 25;
+  const deckProfile = (line, clear) => {
+    const d = [0];
+    for (let i = 1; i < line.length; i++) d.push(d[i - 1] + Math.hypot(line[i][0] - line[i - 1][0], line[i][1] - line[i - 1][1]) * s);
+    const L = d[d.length - 1] || 1;
+    const landStart = !overWater(line[0][0], line[0][1]), landEnd = !overWater(line[line.length - 1][0], line[line.length - 1][1]);
+    const g = line.map((p) => ground(p[0], p[1]));
+    const h0 = g[0] + (landStart ? 0.25 : clear), h1 = g[g.length - 1] + (landEnd ? 0.25 : clear);
+    return line.map((p, i) => {
+      const ramp = Math.min(1, landStart ? d[i] / RAMP_M : 1, landEnd ? (L - d[i]) / RAMP_M : 1);
+      return Math.max(h0 + (h1 - h0) * d[i] / L, g[i] + 0.25 + clear * ramp);
+    });
   };
 
   /** A box from a centre line segment: top at `top`, given width/thickness. */
@@ -170,7 +182,10 @@ export function drawBridges(api, transport, water, outlines) {
       }
     const A = ring[ia], B = ring[ib];
     const du = B[0] - A[0], dv = B[1] - A[1];
-    const top = Math.max(bankHeight(A[0], A[1], du, dv), bankHeight(B[0], B[1], du, dv)) + 4;
+    // A flat deck: level with the higher bank, clear of everything under it.
+    let under = -Infinity;
+    for (let k = 1; k < 10; k++) under = Math.max(under, ground(A[0] + du * k / 10, A[1] + dv * k / 10));
+    const top = Math.max(ground(A[0], A[1]), ground(B[0], B[1]), under + CLEAR_M) + 0.4;
     // Deck top (imagery) and soffit via earcut; sides along the outline.
     const contour = ring.map(([x, y]) => ({ x, y }));
     const holes = poly.holes.map((h) => h.map(([x, y]) => ({ x, y })));
@@ -216,10 +231,7 @@ export function drawBridges(api, transport, water, outlines) {
         const mid = line[Math.floor(line.length / 2)];
         const m2 = [(line[0][0] + line[line.length - 1][0]) / 2, (line[0][1] + line[line.length - 1][1]) / 2];
         if (inPolys(mid, outlines) || inPolys(m2, outlines)) continue;
-        const hs = line.map((p, i) => {
-          const q = line[Math.min(i + 1, line.length - 1)], o = line[Math.max(i - 1, 0)];
-          return bankHeight(p[0], p[1], q[0] - o[0], q[1] - o[1]) + 2 + 2 * layer;
-        });
+        const hs = deckProfile(line, CLEAR_M + 2 * layer);
         const lift = (RANK[cls] || 0) * 0.08;
         for (let i = 0; i + 1 < line.length; i++) {
           slabSegment(line[i], line[i + 1], hs[i], hs[i + 1], width, rail ? BALLAST : [1, 1, 1], !rail, lift);

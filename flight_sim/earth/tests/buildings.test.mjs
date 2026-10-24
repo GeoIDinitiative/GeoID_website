@@ -202,7 +202,7 @@ let deckTop = -Infinity;
 for (let k = 0; k < bm.position.length; k += 3) deckTop = Math.max(deckTop, bm.position[k + 1]);
 check("two bridges drawn (one line, one outline)", bm.bridges === 2, String(bm.bridges));
 check("the building inside the bridge outline is not extruded", bm.polygons === 0, String(bm.polygons));
-check("decks stand above the 6 m banks", deckTop >= 9.9 && deckTop < 12, String(deckTop));
+check("decks meet the 6 m banks, not float above them", deckTop >= 6 && deckTop < 7.5, String(deckTop));
 let piers = 0, patch = 0;
 for (let k = 0; k < bm.position.length; k += 3) { if (bm.position[k + 1] < -1.9) piers++; if (Math.abs(bm.position[k + 1] - 0.15) < 1e-4) patch++; }
 check("piers reach down into the river", piers > 0, String(piers));

@@ -21,7 +21,7 @@
  */
 
 import { rings, polygons, clipRing } from "./mvt.js?v=1";
-import { bridgeOutlines, drawBridges, latticeClusters, drawWheel, inPolys } from "./structures.js?v=2";
+import { bridgeOutlines, drawBridges, latticeClusters, drawWheel, inPolys } from "./structures.js?v=3";
 
 const SINK = 4;
 // Facade grid (facade.js): every wall segment carries a WHOLE number of bays
