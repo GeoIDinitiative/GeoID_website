@@ -8,11 +8,11 @@
  * them. Finishing or skipping is remembered on the server
  * (POST /v1/me/onboarding), so it does not come back on another device.
  */
-import * as api from "../api.js?v=20261024-3e1ba5c";
-import { store, refreshMe } from "../store.js?v=20261024-3e1ba5c";
-import { h, clear, field, input, toast, busy, errorBox, loading, empty, put } from "../dom.js?v=20261024-3e1ba5c";
-import { act, userChip, requireSignIn } from "../components.js?v=20261024-3e1ba5c";
-import { myAffiliations } from "./orgs.js?v=20261024-3e1ba5c";
+import * as api from "../api.js?v=20261024-f266375";
+import { store, refreshMe } from "../store.js?v=20261024-f266375";
+import { h, clear, field, input, toast, busy, errorBox, loading, empty, put } from "../dom.js?v=20261024-f266375";
+import { act, userChip, requireSignIn } from "../components.js?v=20261024-f266375";
+import { myAffiliations } from "./orgs.js?v=20261024-f266375";
 
 // Starting points, as tags() stores them; members can add their own.
 const TOPICS = ["volcanology", "seismology", "landslides", "floods", "hydrology", "glaciology", "geomorphology",

@@ -20,8 +20,8 @@
  * old rule — same id, same ice — because there is no ground to ask.
  */
 
-import { pointInRing } from "./geometry.js?v=20261024-3e1ba5c";
-import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20261024-3e1ba5c";
+import { pointInRing } from "./geometry.js?v=20261024-f266375";
+import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20261024-f266375";
 
 /** The imagery date an outline was drawn from, however the archive spelt it. */
 export function outlineDateOf(feature) {
