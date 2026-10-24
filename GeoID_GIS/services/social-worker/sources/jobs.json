@@ -1,0 +1,455 @@
+{
+ "_readme": "Job sources for the GeoID Network importer (importer.js). Seeded 2026-10-24 from the Atlas Career Scanner's watch list, keeping only the 75 of 200 employers whose pages have actually yielded a vacancy list (career_watch_stats.json ever_yielded). Add a source by adding a line; curating the URL to the real listing page matters more than parser code.",
+ "sources": [
+  {
+   "id": "british-geological-survey",
+   "name": "British Geological Survey",
+   "url": "https://www.bgs.ac.uk/about-bgs/working-with-us/job-vacancies/",
+   "group": "UK & Ireland"
+  },
+  {
+   "id": "british-antarctic-survey",
+   "name": "British Antarctic Survey",
+   "url": "https://www.bas.ac.uk/jobs/",
+   "group": "UK & Ireland"
+  },
+  {
+   "id": "epa-ireland",
+   "name": "EPA Ireland",
+   "url": "https://www.epa.ie/about/careers/",
+   "group": "UK & Ireland"
+  },
+  {
+   "id": "qub",
+   "name": "QUB",
+   "url": "https://www.qub.ac.uk/sites/QUBJobVacancies/",
+   "group": "UK & Ireland"
+  },
+  {
+   "id": "norwegian-meteorological-ins",
+   "name": "Norwegian Meteorological Institute",
+   "url": "https://www.met.no/om-oss/ledige-stillinger",
+   "group": "Europe / meteorology / climate"
+  },
+  {
+   "id": "ecmwf",
+   "name": "ECMWF",
+   "url": "https://jobs.ecmwf.int/",
+   "group": "Europe / meteorology / climate"
+  },
+  {
+   "id": "gns-science",
+   "name": "GNS Science",
+   "url": "https://www.gns.cri.nz/careers/",
+   "group": "Geological surveys / geophysics"
+  },
+  {
+   "id": "gfz",
+   "name": "GFZ",
+   "url": "https://www.gfz.de/en/career/job-offers",
+   "group": "Geological surveys / geophysics"
+  },
+  {
+   "id": "phivolcs-philippines",
+   "name": "PHIVOLCS Philippines",
+   "url": "https://www.phivolcs.dost.gov.ph/",
+   "group": "Volcano observatories / volcanic monitoring"
+  },
+  {
+   "id": "esa",
+   "name": "ESA",
+   "url": "https://jobs.esa.int/",
+   "group": "Space / Earth observation"
+  },
+  {
+   "id": "nasa",
+   "name": "NASA",
+   "url": "https://www.nasa.gov/careers/",
+   "group": "Space / Earth observation"
+  },
+  {
+   "id": "dlr",
+   "name": "DLR",
+   "url": "https://www.dlr.de/en/careers",
+   "group": "Space / Earth observation"
+  },
+  {
+   "id": "iceye",
+   "name": "ICEYE",
+   "url": "https://www.iceye.com/careers",
+   "group": "Space / Earth observation"
+  },
+  {
+   "id": "spire-global",
+   "name": "Spire Global",
+   "url": "https://spire.com/careers/",
+   "group": "Space / Earth observation"
+  },
+  {
+   "id": "umbra",
+   "name": "Umbra",
+   "url": "https://umbra.space/careers/",
+   "group": "Space / Earth observation"
+  },
+  {
+   "id": "moody-s",
+   "name": "Moody's",
+   "url": "https://careers.moodys.com/",
+   "group": "Climate risk / catastrophe"
+  },
+  {
+   "id": "munich-re",
+   "name": "Munich Re",
+   "url": "https://careers.munichre.com/",
+   "group": "Climate risk / catastrophe"
+  },
+  {
+   "id": "swiss-re",
+   "name": "Swiss Re",
+   "url": "https://careers.swissre.com/",
+   "group": "Climate risk / catastrophe"
+  },
+  {
+   "id": "cervest",
+   "name": "Cervest",
+   "url": "https://www.cervest.earth/careers",
+   "group": "Climate risk / catastrophe"
+  },
+  {
+   "id": "jacobs",
+   "name": "Jacobs",
+   "url": "https://careers.jacobs.com/",
+   "group": "Engineering / digital twins"
+  },
+  {
+   "id": "arup",
+   "name": "Arup",
+   "url": "https://www.arup.com/careers",
+   "group": "Engineering / digital twins"
+  },
+  {
+   "id": "atkinsrealis",
+   "name": "AtkinsRéalis",
+   "url": "https://careers.atkinsrealis.com/",
+   "group": "Engineering / digital twins"
+  },
+  {
+   "id": "aecom",
+   "name": "AECOM",
+   "url": "https://www.aecom.com/careers/",
+   "group": "Engineering / digital twins"
+  },
+  {
+   "id": "rps",
+   "name": "RPS",
+   "url": "https://www.rpsgroup.com/careers/",
+   "group": "Engineering / digital twins"
+  },
+  {
+   "id": "hr-wallingford",
+   "name": "HR Wallingford",
+   "url": "https://www.hrwallingford.com/careers",
+   "group": "Engineering / digital twins"
+  },
+  {
+   "id": "mott-macdonald",
+   "name": "Mott MacDonald",
+   "url": "https://www.mottmac.com/careers",
+   "group": "Engineering / digital twins"
+  },
+  {
+   "id": "sweco",
+   "name": "Sweco",
+   "url": "https://www.swecogroup.com/career/",
+   "group": "Engineering / digital twins"
+  },
+  {
+   "id": "worley",
+   "name": "Worley",
+   "url": "https://www.worley.com/careers",
+   "group": "Engineering / digital twins"
+  },
+  {
+   "id": "nvidia",
+   "name": "NVIDIA",
+   "url": "https://www.nvidia.com/en-us/about-nvidia/careers/",
+   "group": "AI / scientific computing"
+  },
+  {
+   "id": "microsoft-research",
+   "name": "Microsoft Research",
+   "url": "https://www.microsoft.com/en-us/research/careers/",
+   "group": "AI / scientific computing"
+  },
+  {
+   "id": "amazon-science",
+   "name": "Amazon Science",
+   "url": "https://www.amazon.science/careers",
+   "group": "AI / scientific computing"
+  },
+  {
+   "id": "ibm-research",
+   "name": "IBM Research",
+   "url": "https://research.ibm.com/careers",
+   "group": "AI / scientific computing"
+  },
+  {
+   "id": "amd",
+   "name": "AMD",
+   "url": "https://careers.amd.com/",
+   "group": "AI / scientific computing"
+  },
+  {
+   "id": "siemens",
+   "name": "Siemens",
+   "url": "https://www.siemens.com/global/en/company/jobs.html",
+   "group": "AI / scientific computing"
+  },
+  {
+   "id": "altair",
+   "name": "Altair",
+   "url": "https://altair.com/careers",
+   "group": "AI / scientific computing"
+  },
+  {
+   "id": "alfred-wegener-institute",
+   "name": "Alfred Wegener Institute",
+   "url": "https://www.awi.de/en/about-us/job-opportunities.html",
+   "group": "Polar / ocean / Earth systems"
+  },
+  {
+   "id": "csiro",
+   "name": "CSIRO",
+   "url": "https://jobs.csiro.au/",
+   "group": "Polar / ocean / Earth systems"
+  },
+  {
+   "id": "oxford",
+   "name": "Oxford",
+   "url": "https://www.jobs.ox.ac.uk/",
+   "group": "Universities / research"
+  },
+  {
+   "id": "cambridge",
+   "name": "Cambridge",
+   "url": "https://www.jobs.cam.ac.uk/",
+   "group": "Universities / research"
+  },
+  {
+   "id": "edinburgh",
+   "name": "Edinburgh",
+   "url": "https://www.ed.ac.uk/jobs",
+   "group": "Universities / research"
+  },
+  {
+   "id": "bristol",
+   "name": "Bristol",
+   "url": "https://www.bristol.ac.uk/jobs/",
+   "group": "Universities / research"
+  },
+  {
+   "id": "ucl",
+   "name": "UCL",
+   "url": "https://www.ucl.ac.uk/work-at-ucl/jobs",
+   "group": "Universities / research"
+  },
+  {
+   "id": "imperial",
+   "name": "Imperial",
+   "url": "https://www.imperial.ac.uk/jobs/",
+   "group": "Universities / research"
+  },
+  {
+   "id": "durham",
+   "name": "Durham",
+   "url": "https://www.durham.ac.uk/about-us/jobs/",
+   "group": "Universities / research"
+  },
+  {
+   "id": "birmingham",
+   "name": "Birmingham",
+   "url": "https://www.birmingham.ac.uk/jobs",
+   "group": "Universities / research"
+  },
+  {
+   "id": "eth-zurich",
+   "name": "ETH Zürich",
+   "url": "https://jobs.ethz.ch/",
+   "group": "Universities / research"
+  },
+  {
+   "id": "tu-delft",
+   "name": "TU Delft",
+   "url": "https://www.tudelft.nl/en/about-tu-delft/working-at-tu-delft",
+   "group": "Universities / research"
+  },
+  {
+   "id": "doe",
+   "name": "DOE",
+   "url": "https://www.energy.gov/careers",
+   "group": "US government / national labs"
+  },
+  {
+   "id": "llnl",
+   "name": "LLNL",
+   "url": "https://www.llnl.gov/join-our-team/careers",
+   "group": "US government / national labs"
+  },
+  {
+   "id": "sandia",
+   "name": "Sandia",
+   "url": "https://www.sandia.gov/careers/",
+   "group": "US government / national labs"
+  },
+  {
+   "id": "oak-ridge",
+   "name": "Oak Ridge",
+   "url": "https://jobs.ornl.gov/",
+   "group": "US government / national labs"
+  },
+  {
+   "id": "pnnl",
+   "name": "PNNL",
+   "url": "https://careers.pnnl.gov/",
+   "group": "US government / national labs"
+  },
+  {
+   "id": "brookhaven",
+   "name": "Brookhaven",
+   "url": "https://www.bnl.gov/hr/careers/",
+   "group": "US government / national labs"
+  },
+  {
+   "id": "caltech",
+   "name": "Caltech",
+   "url": "https://hr.caltech.edu/jobs",
+   "group": "US government / national labs"
+  },
+  {
+   "id": "colorado-boulder",
+   "name": "Colorado Boulder",
+   "url": "https://www.colorado.edu/jobs",
+   "group": "US government / national labs"
+  },
+  {
+   "id": "columbia",
+   "name": "Columbia",
+   "url": "https://opportunities.columbia.edu/",
+   "group": "US government / national labs"
+  },
+  {
+   "id": "uc-san-diego",
+   "name": "UC San Diego",
+   "url": "https://employment.ucsd.edu/",
+   "group": "US government / national labs"
+  },
+  {
+   "id": "two-sigma",
+   "name": "Two Sigma",
+   "url": "https://www.twosigma.com/careers/",
+   "group": "Quant / energy crossover"
+  },
+  {
+   "id": "xtx-markets",
+   "name": "XTX Markets",
+   "url": "https://www.xtxmarkets.com/careers",
+   "group": "Quant / energy crossover"
+  },
+  {
+   "id": "g-research",
+   "name": "G-Research",
+   "url": "https://www.gresearch.com/careers/",
+   "group": "Quant / energy crossover"
+  },
+  {
+   "id": "imc",
+   "name": "IMC",
+   "url": "https://www.imc.com/eu/careers/",
+   "group": "Quant / energy crossover"
+  },
+  {
+   "id": "optiver",
+   "name": "Optiver",
+   "url": "https://optiver.com/working-at-optiver/career-opportunities/",
+   "group": "Quant / energy crossover"
+  },
+  {
+   "id": "akuna-capital",
+   "name": "Akuna Capital",
+   "url": "https://akunacapital.com/careers/",
+   "group": "Quant / energy crossover"
+  },
+  {
+   "id": "shell",
+   "name": "Shell",
+   "url": "https://www.shell.com/careers.html",
+   "group": "Quant / energy crossover"
+  },
+  {
+   "id": "bp",
+   "name": "bp",
+   "url": "https://www.bp.com/en/global/corporate/careers.html",
+   "group": "Quant / energy crossover"
+  },
+  {
+   "id": "rwe",
+   "name": "RWE",
+   "url": "https://www.rwe.com/en/rwe-career/",
+   "group": "Quant / energy crossover"
+  },
+  {
+   "id": "rsted",
+   "name": "Ørsted",
+   "url": "https://orsted.com/en/careers",
+   "group": "Quant / energy crossover"
+  },
+  {
+   "id": "jobs-ac-uk",
+   "name": "jobs.ac.uk",
+   "url": "https://www.jobs.ac.uk/",
+   "group": "Job boards / aggregators"
+  },
+  {
+   "id": "nature-careers",
+   "name": "Nature Careers",
+   "url": "https://www.nature.com/naturecareers",
+   "group": "Job boards / aggregators"
+  },
+  {
+   "id": "egu-jobs",
+   "name": "EGU Jobs",
+   "url": "https://www.egu.eu/jobs/",
+   "group": "Job boards / aggregators"
+  },
+  {
+   "id": "agu-career-center",
+   "name": "AGU Career Center",
+   "url": "https://findajob.agu.org/",
+   "group": "Job boards / aggregators"
+  },
+  {
+   "id": "earthworks-jobs",
+   "name": "Earthworks Jobs",
+   "url": "https://earthworks-jobs.com/",
+   "group": "Job boards / aggregators"
+  },
+  {
+   "id": "euraxess",
+   "name": "EURAXESS",
+   "url": "https://euraxess.ec.europa.eu/jobs",
+   "group": "Job boards / aggregators"
+  },
+  {
+   "id": "academic-positions",
+   "name": "Academic Positions",
+   "url": "https://academicpositions.com/",
+   "group": "Job boards / aggregators"
+  },
+  {
+   "id": "linkedin-jobs",
+   "name": "LinkedIn Jobs",
+   "url": "https://www.linkedin.com/jobs/",
+   "group": "Job boards / aggregators"
+  }
+ ]
+}

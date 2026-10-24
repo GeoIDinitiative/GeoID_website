@@ -105,6 +105,8 @@ export function makeEnv(overrides = {}) {
     ADMINS: "admin@example.com",
     WRITES_PER_MIN: "1000",
     DEV_AUTH: "1",
+    // The importer reads the real web; tests opt in with a canned fetchImpl.
+    IMPORTS: "0",
     ...overrides,
   };
 }

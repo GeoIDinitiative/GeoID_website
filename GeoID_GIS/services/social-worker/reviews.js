@@ -93,12 +93,24 @@ async function reviewShapes(env, rows) {
   }));
 }
 
+/** {page, x, y, quote} from a client, or null: page 1..2000, x/y clamped to the page. */
+export function cleanPin(raw) {
+  if (!raw || typeof raw !== "object") return null;
+  const page = Math.trunc(Number(raw.page));
+  if (!(page >= 1 && page <= 2000)) return null;
+  const unit = (v) => (Number.isFinite(Number(v)) ? Math.min(1, Math.max(0, Number(v))) : 0);
+  return { page, x: unit(raw.x), y: unit(raw.y), quote: str(raw.quote, 500) };
+}
+
 function commentShape(row, users) {
   return {
     id: row.id,
     author: users[row.author_id] || null,
     parent_id: row.parent_id,
     anchor: row.anchor,
+    // Pinned to the draft PDF (v1.4): page from 1, x/y as 0..1 of the page, and
+    // the selected text if there was any. Null on a comment not pinned.
+    pin: row.page ? { page: row.page, x: row.x, y: row.y, quote: row.quote || "" } : null,
     severity: row.severity,
     body: row.body,
     resolved: !!row.resolved,
@@ -291,9 +303,13 @@ async function comment(ctx) {
   }
   const t = now();
   const commentId = id("rc");
+  const pin = cleanPin(b.pin);
+  // A pinned comment still says where it is in words, for email and export.
+  const anchor = str(b.anchor, 120) || (pin ? `p${pin.page}` : "");
   await run(env,
-    "INSERT INTO review_comments (id, review_id, author_id, parent_id, anchor, severity, body, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-    commentId, review.id, user.id, parent ? parent.id : null, str(b.anchor, 120), oneOf(b.severity, SEVERITIES, "general"), text, t);
+    "INSERT INTO review_comments (id, review_id, author_id, parent_id, anchor, severity, body, page, x, y, quote, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+    commentId, review.id, user.id, parent ? parent.id : null, anchor, oneOf(b.severity, SEVERITIES, "general"), text,
+    pin ? pin.page : null, pin ? pin.x : null, pin ? pin.y : null, pin ? pin.quote : "", t);
   await run(env, "UPDATE reviews SET updated_at = ? WHERE id = ?", t, review.id);
   const told = new Set();
   if (role !== "requester") told.add(review.requester_id);

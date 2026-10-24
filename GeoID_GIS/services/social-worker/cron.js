@@ -16,6 +16,10 @@
 import { notify, now, str, int } from "./lib.js";
 import { all, one, run } from "./collab.js";
 import { flushQueue, sendDigests, pruneMail } from "./mail.js";
+import { sweepOrphans } from "./media.js";
+import { sendWeekly, weeklyDue } from "./reach.js";
+import { checkins } from "./officehours.js";
+import { runImports } from "./importer.js";
 import { routes as reputationRoutes } from "./reputation.js";
 // A namespace import, so this file works before events.js grows dueReminders.
 import * as events from "./events.js";
@@ -126,12 +130,17 @@ export async function runJobs(cron, env, t = now(), { fetchImpl = fetch, mod = e
   if (cron === DAILY) {
     await job(report, "prune", () => prune(env, t));
     await job(report, "badges", () => refreshBadges(env, t));
+    await job(report, "orphans", () => sweepOrphans(env, t));
+    await job(report, "checkins", () => checkins(env, t));
     return report;
   }
   await job(report, "reminders", () => reminders(env, t, mod));
   await job(report, "mail", () => flushQueue(env, t, { fetchImpl }));
   const hour = new Date(t * 1000).getUTCHours();
   if (hour >= int(env.DIGEST_HOUR_UTC, 7)) await job(report, "digests", () => sendDigests(env, t, { fetchImpl }));
+  if (weeklyDue(t, int(env.DIGEST_HOUR_UTC, 7))) await job(report, "weekly", () => sendWeekly(env, t, { fetchImpl }));
+  // Imported opportunities and events: a few sources per tick (IMPORTS=0 turns it off).
+  if (String(env.IMPORTS ?? "1") !== "0") await job(report, "imports", () => runImports(env, t, { fetcher: fetchImpl }));
   return report;
 }
 

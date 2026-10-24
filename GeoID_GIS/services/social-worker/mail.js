@@ -100,6 +100,8 @@ export async function prefsOf(env, userId) {
     mode: !digest && !immediate.length ? "off" : immediate.length ? "immediate" : "digest",
     unsubscribed: !!(row && row.unsubscribed_at),
     last_digest_at: row ? row.last_digest_at : 0,
+    // The weekly "new for you" email (reach.js): on unless turned off or unsubscribed.
+    weekly: row ? !!row.weekly && !row.unsubscribed_at : true,
   };
 }
 
@@ -207,7 +209,7 @@ ${intro ? `<p style="margin:0 0 16px 0">${esc(intro)}</p>` : ""}
   return { html, text };
 }
 
-async function envelope(env, user, { subject, heading, intro, lines, footer }) {
+export async function envelope(env, user, { subject, heading, intro, lines, footer }) {
   const token = await unsubscribeToken(env, user.id);
   // No working way out, no mail: the secret is what signs the link.
   if (!token) return null;
@@ -415,7 +417,7 @@ export async function pruneMail(env, t = now()) {
 async function shape(env, userId) {
   const p = await prefsOf(env, userId);
   return {
-    digest: p.digest, immediate: p.immediate, mode: p.mode, unsubscribed: p.unsubscribed,
+    digest: p.digest, immediate: p.immediate, mode: p.mode, unsubscribed: p.unsubscribed, weekly: p.weekly,
     kinds: IMMEDIATE_KINDS.map(([k, label]) => ({ id: k, label })),
     defaults: { digest: true, immediate: DEFAULT_IMMEDIATE },
     sending: mailConfigured(env),
@@ -449,6 +451,9 @@ async function patchPrefs(ctx) {
     immediate = wanted;
   }
   await savePrefs(ctx.env, user.id, { digest, immediate });
+  if (b.weekly !== undefined) {
+    await run(ctx.env, "UPDATE mail_prefs SET weekly = ? WHERE user_id = ?", b.weekly ? 1 : 0, user.id);
+  }
   return shape(ctx.env, user.id);
 }
 

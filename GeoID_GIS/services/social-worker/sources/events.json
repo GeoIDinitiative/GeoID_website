@@ -1,0 +1,47 @@
+{
+ "_readme": "Event sources for the GeoID Network importer (importer.js). Probed 2026-10-24: of 48 society, agency and university calendars tried, these returned events (an iCalendar feed, or schema.org Event blocks). Most others build their listing in the browser or refuse bots; add a source by finding its .ics export (Indico: /category/<n>/events.ics; WordPress Events Calendar: ?ical=1) and adding a line.",
+ "sources": [
+  {
+   "id": "ecmwf-events",
+   "name": "ECMWF events",
+   "url": "https://events.ecmwf.int/category/0/events.ics",
+   "group": "Meteorology / climate"
+  },
+  {
+   "id": "esa-indico",
+   "name": "ESA conferences (Indico)",
+   "url": "https://indico.esa.int/category/0/events.ics",
+   "group": "Space / Earth observation"
+  },
+  {
+   "id": "esa-eo4society",
+   "name": "ESA Earth Observation for Society events",
+   "url": "https://eo4society.esa.int/events/",
+   "group": "Space / Earth observation"
+  },
+  {
+   "id": "iavcei",
+   "name": "IAVCEI (volcanology)",
+   "url": "https://www.iavceivolcano.org/",
+   "group": "Volcanology"
+  },
+  {
+   "id": "iag-geodesy",
+   "name": "International Association of Geodesy",
+   "url": "https://www.iag-aig.org/meetings",
+   "group": "Geodesy"
+  },
+  {
+   "id": "ictp-esp",
+   "name": "ICTP Earth System Physics",
+   "url": "https://indico.ictp.it/category/11/events.ics",
+   "group": "Training / schools"
+  },
+  {
+   "id": "ogc",
+   "name": "Open Geospatial Consortium",
+   "url": "https://www.ogc.org/events/",
+   "group": "Geospatial"
+  }
+ ]
+}

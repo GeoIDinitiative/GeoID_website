@@ -11,6 +11,7 @@
  *     a retry or two requests racing cannot make them drift, and removal is
  *     the same statement as addition.
  */
+import { classifyLink } from "./unfurl.js";
 import {
   PAGE, fail, now, id, str, url, int, oneOf, tags, parse, readJson,
   requireUser, currentUser, isAdmin, publicPost, usersById, userByHandle,
@@ -29,7 +30,7 @@ export const REACTIONS = ["like", "insightful", "reproduced", "useful"];
 const COMMENT_KINDS = ["comment", "correction", "suggestion"];
 const OPPORTUNITY_TYPES = ["job", "grant", "fellowship", "internship", "studentship", "project", "consultancy",
   "expedition", "hackathon", "expertise", "service"];
-const EVENT_FORMATS = ["webinar", "seminar", "workshop", "hackathon", "field-course", "poster-session"];
+const EVENT_FORMATS = ["webinar", "seminar", "workshop", "hackathon", "field-course", "poster-session", "conference"];
 const RESEARCH_KINDS = ["analysis", "workflow", "dataset", "paper", "monitor", "model", "repo"];
 const MESHERS = ["gmsh", "blender"];
 const REPO_HOSTS = ["github", "gitlab", "codeberg", "other"];
@@ -199,6 +200,33 @@ function cleanLinks(raw) {
     .map((l) => ({ url: url(l?.url ?? l), label: str(l?.label, 200) })).filter((l) => l.url);
 }
 
+/**
+ * Each link wears its card -- provider, title, file kind -- from the server's
+ * own unfurl cache (written when the composer asked), never from the client:
+ * a card the author typed could claim to be anything. A link nobody unfurled
+ * still gets its provider and file kind, which need no fetch.
+ */
+async function withCards(env, links) {
+  const out = [];
+  for (const l of links) {
+    const known = await env.DB.prepare("SELECT card_json FROM link_cache WHERE url = ?").bind(l.url).first();
+    let card = null;
+    try { card = known ? JSON.parse(known.card_json) : null; } catch { card = null; }
+    const c = card || classifyLink(l.url) || {};
+    out.push({
+      url: l.url,
+      label: l.label || str(c.title, 200),
+      provider: c.provider || "web",
+      provider_label: str(c.provider_label, 60),
+      file_kind: str(c.file_kind, 40),
+      file_name: str(c.file_name, 160),
+      description: str(c.description, 400),
+      ...(c.download_url ? { download_url: c.download_url } : {}),
+    });
+  }
+  return out;
+}
+
 function cleanSources(raw) {
   return (Array.isArray(raw) ? raw : []).slice(0, 50).map((s) => ({
     label: str(s?.label ?? (typeof s === "string" ? s : ""), 300), url: url(s?.url), doi: str(s?.doi, 120), licence: str(s?.licence, 60),
@@ -277,7 +305,7 @@ async function postFields(env, user, body, base) {
     }
     out.media_json = JSON.stringify(media);
   }
-  if (!base || has("links")) out.links_json = JSON.stringify(cleanLinks(body.links));
+  if (!base || has("links")) out.links_json = JSON.stringify(await withCards(env, cleanLinks(body.links)));
   if (!base || has("licence")) out.licence = str(body.licence, 60) || "CC-BY-4.0";
   if (!base || has("provenance")) {
     out.provenance = body.provenance == null ? "observed" : enumOf(body.provenance, PROVENANCE, "provenance");
@@ -339,7 +367,7 @@ const POST_COLUMNS = ["id", "author_id", "kind", "title", "body", "tags_json", "
   "method_json", "limitations", "meta_json", "visibility", "team_id", "community_id", "project_id",
   "allow_fork", "forked_from", "sponsored_by", "created_at", "updated_at"];
 
-function insertStatements(DB, row) {
+export function insertStatements(DB, row) {
   const out = [DB.prepare(
     `INSERT INTO posts (${POST_COLUMNS.join(", ")}) VALUES (${POST_COLUMNS.map(() => "?").join(", ")})`,
   ).bind(...POST_COLUMNS.map((c) => row[c] ?? null))];
@@ -583,7 +611,9 @@ async function feed(ctx) {
     // encodeCursor format as {created_at: offset, id: "discover"}. A post
     // that gains reactions between pages can move; for a discovery list
     // that is acceptable, and it is why the pool is bounded.
-    where.push("p.visibility = 'public'", "p.created_at > ?");
+    where.push("p.visibility = 'public'", "p.created_at > ?",
+      // Imported opportunities and events (importer.js) fill their boards, not this feed.
+      "COALESCE(json_extract(p.meta_json, '$.imported'), 0) != 1");
     binds.push(now() - DISCOVER_WINDOW);
     if (viewer) {
       where.push("p.author_id != ?",
