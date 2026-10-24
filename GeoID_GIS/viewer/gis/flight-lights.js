@@ -29,7 +29,7 @@
 //   * Depth-tested: hills and buildings hide what is behind them. Night only
 //     (the ship's NIGHT from flight-tiles.js); nothing runs by day.
 
-import { NIGHT } from "./night-lights.js?v=20261025-260d2fe";
+import { NIGHT } from "./night-lights.js?v=20261025-3362b5a";
 
 const TILEJSON = "https://tiles.openfreemap.org/planet";
 const BM = "https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/VIIRS_Black_Marble/default/2016-01-01/GoogleMapsCompatible_Level8/{z}/{y}/{x}.png";

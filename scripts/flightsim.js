@@ -3582,6 +3582,9 @@
   function holdPausedCamera(camera) {
     const h = state._camPose;
     if (!h || !state.pos || !state.quat) return;
+    // The aircraft too: the co-rotation keeps carrying its pose round with
+    // the planet, and its model is otherwise only moved by the flying frame.
+    if (ship) { ship.position.copy(state.pos); ship.quaternion.copy(state.quat); }
     camera.position.copy(state.pos).add(h.off.clone().applyQuaternion(state.quat));
     camera.up.copy(h.up).applyQuaternion(state.quat);
     camera.quaternion.copy(state.quat).multiply(h.rot);
