@@ -26,7 +26,7 @@
 // Esri World Imagery (blankTile=false: a missing tile is a 404 and the
 // ancestor stays). Flight only.
 
-import { NIGHT } from "./night-lights.js?v=20261024-409d202";
+import { NIGHT } from "./night-lights.js?v=20261024-d21ca2f";
 
 const URL_TEMPLATE = "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}?blankTile=false";
 const ROOT_Z = 7;
@@ -411,7 +411,11 @@ const NIGHT_FRAGMENT = /* glsl */`
     // whole view from the stratosphere nearly black, and tiles of different
     // zoom disagreed.) Close in, where a lamp is bigger than a pixel, the
     // carpet gives way to lamps along the streets.
-    float carpet = rad * (0.10 + 0.32 * paved);
+    // Mostly the radiance: the photo's "paved" test only shades it. A hazy,
+    // grey capture in Esri's mosaic reads as paved from edge to edge, and
+    // with the photo in charge it lit up as a bright rectangle (seen at 7 km
+    // over Shropshire); Black Marble is one consistent picture of the lights.
+    float carpet = rad * (0.17 + 0.08 * paved);
     vec3 warm = vec3(1.0, 0.72, 0.40);
     float glow = carpet;
     if (near > 0.0 && paved * rad > 0.0) {
