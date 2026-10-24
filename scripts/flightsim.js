@@ -49,6 +49,7 @@
                    there): a light aircraft from assets/aircraft/, built by
                    scripts/make-aircraft-stl.py. -->
               <option value="aircraft">Light Aircraft</option>
+              <option value="helicopter">Helicopter</option>
               <option value="saucer">Flying Saucer</option>
               <!-- Reinstated 2026-08-01 at Owen's request. Labels stay
                    generic on purpose — these are fan-made models of
@@ -2020,6 +2021,34 @@
     return group;
   }
 
+  // HELICOPTER -- a light turbine helicopter (Bell 206-class), built the same
+  // way as the aircraft by scripts/make-aircraft-stl.py: original geometry,
+  // metres, nose toward -Z. Its two rotors are built about their own hubs and
+  // the update spins them there. userData.heli switches the flight model to
+  // the helicopter's (see "HELICOPTER FLIGHT" in update).
+  const HELI_MAIN_HUB = [0, 2.42, -0.30];
+  const HELI_TAIL_HUB = [0.24, 1.32, 6.30];
+  const HELI_MAX_MS = 70;        // full throttle, ~135 kt: a light helicopter's cruise
+  const HELI_BOOST_MS = 85;      // never-exceed, ~165 kt, on the boost ramp
+  const HELI_VZ_MS = 8;          // collective: climb and descent rate
+  function buildHelicopter() {
+    const group = new THREE.Group();
+    group.userData.nominalLength = 10.5;
+    group.userData.realLength = 10.5;
+    group.userData.heli = true;
+    const mats = {
+      hull: new THREE.MeshStandardMaterial({ color: 0x2b4f80, metalness: 0.25, roughness: 0.45 }),
+      trim: new THREE.MeshStandardMaterial({ color: 0x30353b, metalness: 0.35, roughness: 0.55 }),
+      glass: new THREE.MeshStandardMaterial({ color: 0x3e5a72, metalness: 0.4, roughness: 0.15 }),
+      rotor: new THREE.MeshStandardMaterial({ color: 0x1d2024, metalness: 0.3, roughness: 0.5 }),
+      tailrotor: new THREE.MeshStandardMaterial({ color: 0x1d2024, metalness: 0.3, roughness: 0.5 }),
+    };
+    attachBaked(group, loadBakedGeometry("heli", Object.keys(mats), "/assets/aircraft"), mats, 1);
+    group.userData.rotorMat = mats.rotor;
+    group.userData.tailRotorMat = mats.tailrotor;
+    return group;
+  }
+
   function buildTardis() {
     const group = new THREE.Group();
     group.userData.nominalLength = 12;
@@ -2289,7 +2318,7 @@
   const SHIP_BUILDERS = {
     shuttle: buildShuttle, tardis: buildTardis, starship: buildStarship,
     xfighter: buildXFighter, falcon: buildFalcon, saucer: buildSaucer,
-    aircraft: buildAircraft,
+    aircraft: buildAircraft, helicopter: buildHelicopter,
   };
 
   function buildShip() {
@@ -2773,6 +2802,9 @@
     state.vel = new THREE.Vector3();
     state.speed = 0;
     state.throttle = bodyProfile().launchThrottle ?? LAUNCH_THROTTLE;
+    // A helicopter launches at half throttle (35 m/s) and level, not at the
+    // aircraft's 10% of a 1200 m/s range and nose down.
+    if (shipModelSelect?.value === "helicopter") { state.throttle = 0.5; state.vzMs = 0; }
     // Boost is now a RAMP position, not an energy reserve: start at 0 (cruise)
     // so the ship does not launch already at the top of the range.
     state.boost = 0;
@@ -3500,8 +3532,34 @@
       yaw = Math.max(-YAW_RATE, Math.min(YAW_RATE, yaw + YAW_RATE * pad.yaw));
       roll = Math.max(-ROLL_RATE, Math.min(ROLL_RATE, roll + ROLL_RATE * pad.roll));
     }
+    // HELICOPTER FLIGHT. Up/down arrows (and the stick's pitch) are the
+    // COLLECTIVE -- climb and descend at up to HELI_VZ_MS -- not the nose;
+    // left/right yaw it, on the spot if need be; it is held level, with only
+    // the tilt a helicopter shows: nose down with forward speed, banked into a
+    // turn. It hovers (no gravity sink) and tops out at HELI_MAX_MS, or
+    // HELI_BOOST_MS on the boost ramp, with no warp.
+    const heli = Boolean(ship?.userData?.heli);
+    if (heli) {
+      const collective = Math.max(-1, Math.min(1, (pitch / PITCH_RATE) || 0));
+      s.vzMs = (s.vzMs || 0) + (collective * HELI_VZ_MS - (s.vzMs || 0)) * Math.min(1, 2 * dts);
+      pitch = 0; roll = 0;
+    }
     const dq = new THREE.Quaternion().setFromEuler(new THREE.Euler(pitch * dts, yaw * dts, roll * dts, "XYZ"));
     s.quat.multiply(dq).normalize();
+    if (heli) {
+      const upH = s.pos.clone().normalize();
+      const fwdH = new THREE.Vector3(0, 0, -1).applyQuaternion(s.quat).addScaledVector(upH, 0);
+      fwdH.addScaledVector(upH, -fwdH.dot(upH)).normalize();
+      const right = new THREE.Vector3().crossVectors(fwdH, upH).normalize();
+      const level = new THREE.Quaternion().setFromRotationMatrix(
+        new THREE.Matrix4().makeBasis(right, upH, fwdH.clone().negate()));
+      const speedFrac = Math.min(1, (s.speed * METERS_PER_UNIT) / HELI_MAX_MS);
+      const tiltNose = -THREE.MathUtils.degToRad(7) * speedFrac;
+      const bank = THREE.MathUtils.degToRad(14) * Math.max(-1, Math.min(1, yaw / YAW_RATE)) * (0.3 + 0.7 * speedFrac);
+      s.heliBank = (s.heliBank || 0) + (bank - (s.heliBank || 0)) * Math.min(1, 3 * dts);
+      s.heliLevelFwd = fwdH;
+      s.quat.copy(level).multiply(new THREE.Quaternion().setFromEuler(new THREE.Euler(tiltNose, 0, s.heliBank, "XYZ")));
+    }
 
     // throttle trim
     if (keys.KeyW) s.throttle = Math.min(1, s.throttle + 0.5 * dts);
@@ -3542,7 +3600,7 @@
     // boost bar doubles as the charge indicator. Releasing boost, or
     // descending through the gate, drops back out on its own, so the ship
     // can never be in warp somewhere the streamer cannot feed it.
-    const warpEligible = altKmForSpeed >= WARP_MIN_ALT_KM;
+    const warpEligible = !heli && altKmForSpeed >= WARP_MIN_ALT_KM;
     const warpActive = s.boosting && s.boost >= 0.999 && warpEligible;
     if (warpActive !== s.warping) {
       s.warping = warpActive;
@@ -3563,7 +3621,9 @@
       : Math.min(MAX_SPEED_MS / 1000, ceilKmS);
     // Boost interpolates cruise -> ceiling, so the top of the range is only
     // available where the view is wide enough to absorb a hitch at that speed.
-    const maxKmS = cruiseKmS + (ceilKmS - cruiseKmS) * s.boost;
+    const maxKmS = heli
+      ? (HELI_MAX_MS + (HELI_BOOST_MS - HELI_MAX_MS) * s.boost) / 1000
+      : cruiseKmS + (ceilKmS - cruiseKmS) * s.boost;
     s.speedCeilKmS = ceilKmS;
     s.speedMaxKmS = maxKmS;
     const maxSpeed = (maxKmS * 1000) / METERS_PER_UNIT;
@@ -3604,7 +3664,12 @@
     // as one honest catch-up rather than a permanent surge cycle, and the 0.25 s
     // clamp still bounds how far a single frame can carry the ship.
     const gravAcc = -(bodyProfile().gravity * 3 / METERS_PER_UNIT);
-    s.vel.copy(fwd).multiplyScalar(s.speed).addScaledVector(up, gravAcc * dt);
+    if (heli) {
+      // Along the level heading, plus the collective; no sink at a hover.
+      s.vel.copy(s.heliLevelFwd || fwd).multiplyScalar(s.speed).addScaledVector(up, (s.vzMs || 0) / METERS_PER_UNIT);
+    } else {
+      s.vel.copy(fwd).multiplyScalar(s.speed).addScaledVector(up, gravAcc * dt);
+    }
     s.pos.addScaledVector(s.vel, dt);
 
     // Parallel-transport the orientation around the globe: rotate the ship by
@@ -3721,6 +3786,16 @@
         const a = ship.userData.propAngle;
         propMesh.rotation.z = a;
         propMesh.position.set(0.05 * Math.sin(a), 0.05 - 0.05 * Math.cos(a), 0);
+      }
+    }
+    // The helicopter's rotors turn about their hubs, at a steady rate (a real
+    // rotor runs at constant speed; the collective changes the pitch, not the rpm).
+    if (ship.userData.rotorMat) {
+      ship.userData.rotorAngle = ((ship.userData.rotorAngle || 0) + dt * 14) % (Math.PI * 2);
+      const a = ship.userData.rotorAngle;
+      for (const c of ship.children) {
+        if (c.material === ship.userData.rotorMat) { c.position.set(...HELI_MAIN_HUB); c.rotation.set(0, a, 0); }
+        else if (c.material === ship.userData.tailRotorMat) { c.position.set(...HELI_TAIL_HUB); c.rotation.set(a * 4.3, 0, 0); }
       }
     }
     if (ship.userData.spins) {

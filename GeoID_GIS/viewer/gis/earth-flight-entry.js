@@ -21,10 +21,10 @@
 //      frame): aim the globe there, then open pre-flight, whose centre
 //      crosshair takes the site from wherever the globe is aimed.
 
-import { startFlightLabels, stopFlightLabels } from "./flight-labels.js?v=20261024-61b7994";
-import { showFlightMap, hideFlightMap } from "./flight-map.js?v=20261024-61b7994";
-import { showFlightSky, hideFlightSky } from "./flight-sky.js?v=20261024-61b7994";
-import { isEarth } from "./bodies.js?v=20261024-61b7994";
+import { startFlightLabels, stopFlightLabels } from "./flight-labels.js?v=20261024-07cc760";
+import { showFlightMap, hideFlightMap } from "./flight-map.js?v=20261024-07cc760";
+import { showFlightSky, hideFlightSky } from "./flight-sky.js?v=20261024-07cc760";
+import { isEarth } from "./bodies.js?v=20261024-07cc760";
 
 /** `?flight=earth&lat=..&lon=..` -> { lat, lon } or { lat: null } or null. */
 export function parseFlightLink(search) {
@@ -51,6 +51,10 @@ function addEarthRows(section) {
   if (!stack) return;
   const rows = document.createElement("div");
   rows.className = "earth-flight-rows";
+  // Hidden (owner, 2026-10-24): buildings and shadows are part of the mode,
+  // always on, and the counts are not something to read in flight. The
+  // switches stay in the page, so the settings and their storage still work.
+  rows.hidden = true;
   rows.innerHTML = `
     <div class="row"><label for="earth-buildings-toggle">3D buildings</label>
       <input id="earth-buildings-toggle" type="checkbox" checked></div>

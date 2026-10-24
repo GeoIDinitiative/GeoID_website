@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Build Earth Flight's light aircraft as binary STLs.
 
-    python3 scripts/make-aircraft-stl.py        # writes assets/aircraft/cessna_*.stl
+    python3 scripts/make-aircraft-stl.py   # writes assets/aircraft/cessna_*.stl and heli_*.stl
 
 WHY GENERATED. The flight sim's ships are STLs (assets/ships/), and the
 aircraft was asked for the same way. No aircraft model with a licence that is
@@ -185,14 +185,72 @@ def build():
     return {"hull": hull, "trim": trim, "glass": glass, "prop": prop}
 
 
+def build_helicopter():
+    """A light turbine helicopter, Bell 206-class: 9.5 m fuselage, 10.2 m main
+    rotor, 1.6 m tail rotor, skids. Original geometry from published
+    proportions. The two rotors are built about their OWN hubs (main rotor
+    axis +Y, tail rotor axis +X) so the sim can spin them in place; it puts
+    them at MAIN_HUB and TAIL_HUB."""
+    hull, trim, glass, rotor, tail = Mesh(), Mesh(), Mesh(), Mesh(), Mesh()
+    # Cabin pod into the tail boom, nose at z = -3.0.
+    loft(hull, [
+        (-3.00, 0, 0.80, 0.18, 0.20, 2.2),
+        (-2.70, 0, 0.78, 0.50, 0.55, 2.4),
+        (-2.00, 0, 0.82, 0.70, 0.80, 2.8),
+        (-0.80, 0, 0.88, 0.76, 0.90, 3.2),
+        (0.50, 0, 0.92, 0.66, 0.82, 3.0),
+        (1.25, 0, 1.05, 0.36, 0.48, 2.6),
+        (2.20, 0, 1.12, 0.22, 0.26, 2.2),
+        (4.50, 0, 1.22, 0.15, 0.17, 2.0),
+        (6.30, 0, 1.30, 0.10, 0.12, 2.0),
+    ], seg=20)
+    # Engine and transmission fairing on the cabin roof.
+    loft(hull, [
+        (-0.70, 0, 1.72, 0.20, 0.10, 2.0),
+        (-0.40, 0, 1.80, 0.36, 0.22, 2.6),
+        (0.90, 0, 1.78, 0.34, 0.22, 2.6),
+        (1.50, 0, 1.62, 0.16, 0.10, 2.0),
+    ], seg=16)
+    # Fin above and below the boom end, tailplane across it.
+    surface(hull, 1.20, 2.30, 5.55, 0.75, 0.0, thick=0.7, vertical=True, taper=0.6, sweep=0.35)
+    surface(hull, 1.20, 0.55, 5.70, 0.55, 0.0, thick=0.7, vertical=True, taper=0.7, sweep=0.10)
+    for side in (-1, 1):
+        surface(hull, 0.0, side * 0.80, 4.70, 0.42, 1.22, thick=0.8, taper=0.7)
+    # Glass: the bubble windscreen over the front of the cabin.
+    loft(glass, [
+        (-2.92, 0, 0.92, 0.22, 0.24, 2.2),
+        (-2.55, 0, 0.98, 0.58, 0.60, 2.6),
+        (-1.70, 0, 1.08, 0.73, 0.72, 3.0),
+        (-1.20, 0, 1.12, 0.70, 0.66, 3.0),
+    ], seg=20)
+    # Mast, skids and their cross tubes.
+    beam(trim, (0, 1.95, -0.30), (0, 2.38, -0.30), 0.09, sides=8)
+    for side in (-1, 1):
+        x = side * 1.10
+        beam(trim, (x, -0.30, -1.70), (x, -0.30, 1.50), 0.05, sides=8)
+        beam(trim, (x, -0.30, -1.70), (x, -0.05, -2.15), 0.05, sides=8)
+        for z in (-1.00, 0.75):
+            beam(trim, (side * 0.55, 0.20, z), (x, -0.30, z), 0.045, sides=6)
+    # Main rotor about its hub: hub, two blades along X.
+    loft(rotor, [(-0.12, 0, 0, 0.18, 0.18, 2), (0.12, 0, 0, 0.18, 0.18, 2)], seg=12)
+    for side in (-1, 1):
+        surface(rotor, side * 0.20, side * 5.10, -0.15, 0.30, 0.02, thick=0.5, taper=0.85)
+    # Tail rotor about its hub (axis +X): two blades along Y.
+    for side in (-1, 1):
+        surface(tail, side * 0.06, side * 0.80, -0.09, 0.18, 0.0, thick=0.6, vertical=True, taper=0.8)
+    loft(tail, [(-0.07, 0, 0, 0.07, 0.07, 2), (0.07, 0, 0, 0.07, 0.07, 2)], seg=10)
+    return {"hull": hull, "trim": trim, "glass": glass, "rotor": rotor, "tailrotor": tail}
+
+
 def main():
     OUT.mkdir(parents=True, exist_ok=True)
     total = 0
-    for name, mesh in build().items():
-        path = OUT / f"cessna_{name}.stl"
-        mesh.write(path)
-        total += len(mesh.tris)
-        print(f"{path.relative_to(OUT.parent.parent)}  {len(mesh.tris)} triangles  {path.stat().st_size} bytes")
+    for prefix, parts in (("cessna", build()), ("heli", build_helicopter())):
+        for name, mesh in parts.items():
+            path = OUT / f"{prefix}_{name}.stl"
+            mesh.write(path)
+            total += len(mesh.tris)
+            print(f"{path.relative_to(OUT.parent.parent)}  {len(mesh.tris)} triangles  {path.stat().st_size} bytes")
     print(f"{total} triangles in all")
 
 
