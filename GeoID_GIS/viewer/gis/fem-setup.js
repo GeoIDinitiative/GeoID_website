@@ -30,7 +30,7 @@
  * where it is assigned. Units: kg/m³, Pa, –, W/(m·K), J/(kg·K), Pa·s.
  */
 // What GALES needs is stated once, in the contract; the checklist reads it.
-import { familyFor } from "./gales-contract.js?v=20261024-533f97b";
+import { familyFor } from "./gales-contract.js?v=20261024-f1f3c9f";
 
 export const MATERIALS = [
   { id: "granite", name: "Granite", group: "Rock", rho: 2650, E: 50e9, nu: 0.25, k: 2.9, cp: 790 },

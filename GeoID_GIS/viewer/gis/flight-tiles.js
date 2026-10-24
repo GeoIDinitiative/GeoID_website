@@ -26,7 +26,7 @@
 // Esri World Imagery (blankTile=false: a missing tile is a 404 and the
 // ancestor stays). Flight only.
 
-import { NIGHT } from "./night-lights.js?v=20261024-533f97b";
+import { NIGHT } from "./night-lights.js?v=20261024-f1f3c9f";
 
 const URL_TEMPLATE = "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}?blankTile=false";
 const ROOT_Z = 7;
@@ -373,11 +373,11 @@ const BUMP_FRAGMENT = /* glsl */`
  *
  *   * WHERE there is light, and how much: NASA's VIIRS Black Marble
  *     radiance (z8, ~0.4-0.6 km/px), cropped to the tile;
- *   * WHAT is lit inside that: the daytime photo's own streets -- grey,
- *     unsaturated, asphalt-dark pixels -- glow sodium/LED warm, with
- *     point lamps scattered along them (a hash per ~9 m cell), fading to an
- *     even glow where the cells are smaller than a pixel. Fields, woods and
- *     water inside a bright city stay dark, as they do from a real cockpit.
+ *   * WHAT is lit inside that: at any distance the radiance itself, a
+ *     little brighter over the photo's paved (grey, asphalt-dark) pixels --
+ *     a city seen from altitude is a carpet of light; close in, where a lamp
+ *     is bigger than a pixel, point lamps along those streets (a hash per
+ *     ~9 m cell) take over and the fields between them go dark.
  *
  * uNight is per tile, from the sun's elevation over it (twilight sweeps
  * across the ground as it does), 0 by day: nothing here costs anything then.
@@ -404,18 +404,25 @@ const NIGHT_FRAGMENT = /* glsl */`
     vec2 cell = vTileUv * uLampCells;
     float px = max(fwidth(cell.x), fwidth(cell.y));
     float near = clamp(1.0 - px * 1.2, 0.0, 1.0);
-    float lit = 0.055;
+    // The BASE light is the Black Marble radiance itself, at every scale:
+    // from altitude or toward the horizon a city is a carpet of light, a
+    // little brighter over its paved surfaces. (Lighting only the paved
+    // pixels, as first tuned for close range, left the distant tiles and the
+    // whole view from the stratosphere nearly black, and tiles of different
+    // zoom disagreed.) Close in, where a lamp is bigger than a pixel, the
+    // carpet gives way to lamps along the streets.
+    float carpet = rad * (0.10 + 0.32 * paved);
     vec3 warm = vec3(1.0, 0.72, 0.40);
+    float glow = carpet;
     if (near > 0.0 && paved * rad > 0.0) {
       float h = nHash(floor(cell));
       vec2 f = fract(cell) - 0.5;
       float r = length(f);
       // A small hot core and a faint pool on the road round it.
       float lamp = step(0.78, h) * (smoothstep(0.12, 0.02, r) * 1.6 + smoothstep(0.48, 0.08, r) * 0.22);
-      lit = mix(0.055, 0.02 + 2.2 * lamp, near);
-      warm = mix(vec3(1.0, 0.62, 0.28), vec3(1.0, 0.90, 0.75), fract(h * 7.0));   // sodium and LED
+      glow = mix(carpet, rad * (0.012 + paved * (0.02 + 2.2 * lamp)), near);
+      warm = mix(warm, mix(vec3(1.0, 0.62, 0.28), vec3(1.0, 0.90, 0.75), fract(h * 7.0)), near);   // sodium and LED
     }
-    float glow = rad * (0.012 + paved * lit);
     vec3 moon = day * vec3(0.035, 0.045, 0.07);
     diffuseColor.rgb = mix(day, moon + warm * glow, uNight);
   }`;
