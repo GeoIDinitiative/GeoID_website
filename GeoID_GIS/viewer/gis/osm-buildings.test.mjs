@@ -48,13 +48,13 @@ check("an out-of-range place is not trusted", parseFlightLink("?flight=earth&lat
 // In flight, the "visible" box every refiner reads is the near field.
 const ship = { lat: 51.5, lon: -0.12 };
 const low = nearFieldBounds(ship, 0.5);                       // 500 m up: horizon ~80 km
-check("near field at 500 m reaches past the ~80 km horizon", near((low.maxLat - low.minLat) / 2 * 111.32, 1.2 * Math.sqrt(2 * 6371 * 0.5), 0.01));
+check("near field at 500 m reaches past the ~80 km horizon", near((low.maxLat - low.minLat) / 2 * 111.32, 1.5 * Math.sqrt(2 * 6371 * 0.5), 0.01));
 check("never under 25 km", near((nearFieldBounds(ship, 0).maxLat - nearFieldBounds(ship, 0).minLat) / 2 * 111.32, 25, 0.01));
 const high = nearFieldBounds(ship, 400);
 check("near field is capped at 600 km", near((high.maxLat - high.minLat) / 2 * 111.32, 600, 0.01));
 const horizon = { minLat: 50, maxLat: 60, minLon: -3, maxLon: 3 };   // a frustum box out to the horizon
 const cut = nearFieldBounds(ship, 0.5, horizon);
-check("the horizon box is clipped to the near field", cut.maxLat < 52.4 && cut.minLat >= 50 && cut.minLon > -2);
+check("the horizon box is clipped to the near field", cut.maxLat < 52.6 && cut.minLat >= 50 && cut.minLon > -2);
 check("no overlap falls back to the ship's square",
   JSON.stringify(nearFieldBounds(ship, 0.5, { minLat: 10, maxLat: 11, minLon: 10, maxLon: 11 })) === JSON.stringify(nearFieldBounds(ship, 0.5)));
 

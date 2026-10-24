@@ -387,10 +387,37 @@ body.fs-flying #fs-preflight { display: none; }
 #fs-meters .fs-meter { width: 13rem; text-align: left; }
 /* Open chrome (Earth): the Workspace box keeps the bottom-left corner, so the
    meters step out to its right and up above the HUD's bottom bar. */
+/* Open chrome (Earth): the nav keeps the left column and expands and
+   collapses, so the HUD lays itself out in the area right of it.
+   earth-flight-entry.js publishes that area's left edge (--fs-free-left,
+   the compass column, which already follows the nav) and the meters' height.
+   Throttle and boost sit in the bottom-left corner of it, the compass
+   directly above them, and the top tape and instrument row are centred on it
+   rather than on the window, which put ALTITUDE under the Workspace. */
 body.fs-open-chrome #fs-meters {
-  left: calc(min(24rem, 100vw - 2rem) + 2rem + 7.4rem);  /* and clear of the compass */
-  bottom: 4.8rem;
+  left: var(--fs-free-left, calc(min(24rem, 100vw - 2rem) + 2rem));
+  bottom: max(0.45rem, env(safe-area-inset-bottom));
 }
+body.fs-open-chrome #fs-topbar {
+  left: calc((100vw + var(--fs-free-left, 0px)) / 2);
+}
+/* The instrument row spans exactly the room between the meters and the scale
+   bar (both measured), and its cells share that room: no fixed widths, and a
+   second row rather than an overlap when a narrow window cannot fit ten. */
+body.fs-open-chrome #fs-hud-dock {
+  left: calc(var(--fs-free-left, 0px) + var(--fs-meters-w, 13rem) + 1rem);
+  right: calc(var(--fs-right-reserve, 11rem) + 1rem);
+  transform: none;
+}
+body.fs-open-chrome #fs-hud-bar {
+  width: 100%;
+  box-sizing: border-box;
+  flex-wrap: wrap;
+  justify-content: space-evenly;
+  gap: 0.2rem clamp(0.35rem, 1vw, 1.15rem);
+  padding: 0.3rem 0 0.45rem;
+}
+body.fs-open-chrome .fs-cell { min-width: 0; }
 .fs-throttle-row { display: flex; align-items: center; gap: 0.3rem; }
 .fs-throttle-row .fs-meter-track { flex: 1; }
 /* Steppers: the meters live inside #fs-hud, which is pointer-events:none. */
@@ -482,7 +509,20 @@ body.fs-open-chrome .fs-tr-buttons {
 body.fs-open-chrome.fs-flying #surface-conditions { display: none !important; }
 /* ...and the compass rises onto the meters' baseline, clear of the HUD's
    bottom instrument row, which starts at the same left edge. */
-body.fs-open-chrome.fs-flying #bottom-right-hud { bottom: 4.6rem !important; }
+body.fs-open-chrome.fs-flying #bottom-right-hud {
+  bottom: calc(max(0.45rem, env(safe-area-inset-bottom)) + var(--fs-meters-h, 4.4rem) + 0.5rem) !important;
+}
+/* Things GeoHUB shows over the globe that flight has its own version of, or
+   no use for: the worlds bar (another planet is not a place to fly to from
+   here), the zoom-step pill above the scale bar (the camera follows the
+   aircraft, so "Site" steps nothing), and the cursor's lat/lon/height readout
+   beside the scale bar (the HUD's POSITION and GROUND say the same for the
+   aircraft). The scale bar itself stays. */
+body.fs-open-chrome.fs-flying .gis-planet-dock,
+body.fs-open-chrome.fs-flying .gis-planet-strip,
+body.fs-open-chrome.fs-flying .gis-planet-toggle,
+body.fs-open-chrome.fs-flying #geoid-zoom-step,
+body.fs-open-chrome.fs-flying #cursor-readout { display: none !important; }
 #fs-touch {
   display: flex; flex-direction: column; align-items: center; gap: 0.4rem;
 }
@@ -697,7 +737,12 @@ body.fs-paused #fs-topbar { opacity: 0.45; }
    58 px INTO the meters (measured at 1280x720). Cap it short of them in
    flight — the panel is a flex column with an inner scroller, so it simply
    gets a shorter scroll area rather than losing any content. */
-body.fs-flying #ui { max-height: calc(100vh - 7.5rem); }
+body.fs-flying:not(.fs-open-chrome) #ui { max-height: calc(100vh - 7.5rem); }
+/* Not on Earth (open chrome): there the meters sit right of the nav, and the
+   Workspace box keeps the foot of the nav's column -- so this cap, which knew
+   nothing of the box, let the panel run 111 px underneath it. The stock rule
+   (shell.css, `--layer-dock-space`) is what partitions the column, and it
+   resizes with every layer added or removed and every collapse. */
 
 /* Orbit-only chrome the flight HUD now supersedes: the hemisphere locator
    answers a question the Position cell already answers, the cursor

@@ -37,13 +37,13 @@
 // answers in -- no half-turn to bake in, unlike the Earth Engine drapes which
 // parent to the globe mesh itself.
 
-import { TILE_SOURCES, DEFAULT_SOURCE, tileUrl } from "./tile-sources.js?v=20261024-a5dccc6";
-import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20261024-a5dccc6";
-import { isEarth } from "./bodies.js?v=20261024-a5dccc6";
-import { holdLaunch } from "./launch-ready.js?v=20261024-a5dccc6";
-import { streamRings, cacheStats } from "./tile-streamer.js?v=20261024-a5dccc6";
+import { TILE_SOURCES, DEFAULT_SOURCE, tileUrl } from "./tile-sources.js?v=20261024-ab031d4";
+import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20261024-ab031d4";
+import { isEarth } from "./bodies.js?v=20261024-ab031d4";
+import { holdLaunch } from "./launch-ready.js?v=20261024-ab031d4";
+import { streamRings, cacheStats } from "./tile-streamer.js?v=20261024-ab031d4";
 import { visibleBounds, altitudeUnits, viewChangedEnough, onViewChange, viewFocus }
-  from "./view-extent.js?v=20261024-a5dccc6";
+  from "./view-extent.js?v=20261024-ab031d4";
 
 const TILE = 256;
 // Web Mercator cannot express the poles; this is where the projection is
@@ -1121,7 +1121,12 @@ async function refineOnce({ onStatus, motion = false } = {}) {
    */
   const sameSource = refineState?.source === source;
   const upgrade = !motion && refineState?.grade === "motion";
-  if (sameSource && !upgrade && !viewChangedEnough(refineState?.bbox, bbox)) return null;
+  // In flight the box is a square round the ship reaching 1.5x the horizon
+  // (view-extent.js), so it must re-centre long before the ship covers the
+  // third of a box the orbit view waits for, or its edge comes over the
+  // horizon ahead. A tenth of the box keeps the edge out of sight.
+  const moveFraction = window.__flightSim?.active ? 0.1 : 0.35;
+  if (sameSource && !upgrade && !viewChangedEnough(refineState?.bbox, bbox, { moveFraction })) return null;
 
   const maxZoom = TILE_SOURCES[source].maxZoom;
   const zoom = chooseZoom(bbox, motion

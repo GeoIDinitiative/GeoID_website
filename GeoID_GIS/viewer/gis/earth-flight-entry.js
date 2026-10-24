@@ -21,7 +21,7 @@
 //      frame): aim the globe there, then open pre-flight, whose centre
 //      crosshair takes the site from wherever the globe is aimed.
 
-import { isEarth } from "./bodies.js?v=20261024-a5dccc6";
+import { isEarth } from "./bodies.js?v=20261024-ab031d4";
 
 /** `?flight=earth&lat=..&lon=..` -> { lat, lon } or { lat: null } or null. */
 export function parseFlightLink(search) {
@@ -161,6 +161,30 @@ function wire() {
     window.addEventListener("resize", pinUnderClock);
     for (const ev of ["flightsim:engaged", "flightsim:disengaged"]) window.addEventListener(ev, () => setTimeout(pinUnderClock, 50));
     setInterval(pinUnderClock, 1500);   // the sidebar slides; cheap enough
+  }
+
+  // The HUD's free area starts where the compass column does: that column
+  // already moves with the nav's expand/collapse. Published with the meters'
+  // height so the CSS can stack compass over meters in that corner and centre
+  // the tape and instrument row on what is left.
+  const hudColumn = document.getElementById("bottom-right-hud");
+  const layoutHud = () => {
+    const r = hudColumn?.getBoundingClientRect();
+    if (r && r.width) document.body.style.setProperty("--fs-free-left", `${Math.round(r.left)}px`);
+    const m = document.getElementById("fs-meters")?.getBoundingClientRect();
+    if (m && m.height) {
+      document.body.style.setProperty("--fs-meters-h", `${Math.round(m.height)}px`);
+      document.body.style.setProperty("--fs-meters-w", `${Math.round(m.width)}px`);
+    }
+    // The scale bar keeps the bottom-right corner; the instrument row stops short of it.
+    const sc = document.getElementById("scale-readout")?.getBoundingClientRect();
+    if (sc && sc.width) document.body.style.setProperty("--fs-right-reserve", `${Math.round(window.innerWidth - sc.left)}px`);
+  };
+  if (hudColumn) {
+    layoutHud();
+    for (const ev of ["flightsim:engaged", "flightsim:disengaged", "resize"]) window.addEventListener(ev, () => setTimeout(layoutHud, 50));
+    // The nav slides over 0.32 s; follow it closely while flying.
+    setInterval(() => { if (document.body.classList.contains("fs-flying")) layoutHud(); }, 250);
   }
 
   // The aircraft is listed in the Workspace while it flies, so its credit is

@@ -1,20 +1,20 @@
-import { escapeHtml } from "./escape-html.js?v=20261024-a5dccc6";
+import { escapeHtml } from "./escape-html.js?v=20261024-ab031d4";
 import * as THREE from "../vendor/three.module.js";
-import { currentBody, getBody, currentBodyId } from "./bodies.js?v=20261024-a5dccc6";
-import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf, parseThicknesses } from "./mesh-primitives.js?v=20261024-a5dccc6";
+import { currentBody, getBody, currentBodyId } from "./bodies.js?v=20261024-ab031d4";
+import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf, parseThicknesses } from "./mesh-primitives.js?v=20261024-ab031d4";
 import {
   latticeTetMesh, tetBoundarySurface, qualityStats, elementCounts, toGmsh22,
-} from "./mesh-volume.js?v=20261024-a5dccc6";
-import { studioBlenderScript, shapesToSolids, normMesher, blenderUnavailable } from "./studio-blender.js?v=20261024-a5dccc6";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20261024-a5dccc6";
-import { downloadText } from "./extraction.js?v=20261024-a5dccc6";
-import { shellPositions, surfacePositions, tinHeightAt, tinToGrid, gridAsTin, tinValueAt } from "./surface-sampling.js?v=20261024-a5dccc6";
-import { rampColour } from "./symbology.js?v=20261024-a5dccc6";
-import { layeredVolumes, facetPositions, tinWith, LAYER_FLAGS } from "./layered-model.js?v=20261024-a5dccc6";
-import { sectionPolygons, sectionPositions, profileHeightAt } from "./section-model.js?v=20261024-a5dccc6";
-import { faceParts, partPositions, studioGmshScript, DEFAULT_FACE_FLAGS } from "./studio-gmsh.js?v=20261024-a5dccc6";
-import { describeField, FIELD_TYPES } from "./mesh-size-fields.js?v=20261024-a5dccc6";
-import { femSpec } from "./model-build.js?v=20261024-a5dccc6";
+} from "./mesh-volume.js?v=20261024-ab031d4";
+import { studioBlenderScript, shapesToSolids, normMesher, blenderUnavailable } from "./studio-blender.js?v=20261024-ab031d4";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20261024-ab031d4";
+import { downloadText } from "./extraction.js?v=20261024-ab031d4";
+import { shellPositions, surfacePositions, tinHeightAt, tinToGrid, gridAsTin, tinValueAt } from "./surface-sampling.js?v=20261024-ab031d4";
+import { rampColour } from "./symbology.js?v=20261024-ab031d4";
+import { layeredVolumes, facetPositions, tinWith, LAYER_FLAGS } from "./layered-model.js?v=20261024-ab031d4";
+import { sectionPolygons, sectionPositions, profileHeightAt } from "./section-model.js?v=20261024-ab031d4";
+import { faceParts, partPositions, studioGmshScript, DEFAULT_FACE_FLAGS } from "./studio-gmsh.js?v=20261024-ab031d4";
+import { describeField, FIELD_TYPES } from "./mesh-size-fields.js?v=20261024-ab031d4";
+import { femSpec } from "./model-build.js?v=20261024-ab031d4";
 
 // Meshing Studio, ported from atlas-ai/services/mesh/meshing_studio.
 //

@@ -44,10 +44,13 @@ const GRAZING = 0.12;
  * frustum box runs hundreds of kilometres out and every refiner would fall
  * back to its coarsest zoom for a strip of horizon nobody can read -- while
  * the ground going past underneath stayed coarse. So while flying, the box is
- * the frustum box clipped to a square round the ship whose half-size reaches
- * a little past the horizon (1.2 x sqrt(2Rh), between 25 and 600 km): low
- * over a city that is a few tens of kilometres, from orbit a region. Pure,
- * so it can be tested without a camera.
+ * a square round the ship whose half-size reaches
+ * half again past the horizon (1.5 x sqrt(2Rh), between 25 and 600 km, so
+ * the edge stays beyond the horizon between re-centres): low
+ * over a city that is a few tens of kilometres, from orbit a region. In
+ * flight `visibleBounds` uses the whole square (see there); the optional
+ * `raw` clip is kept for callers that want a camera box cut to it. Pure, so
+ * it can be tested without a camera.
  */
 export function nearFieldBounds(ship, altKm, raw = null) {
   if (!ship || !Number.isFinite(ship.lat) || !Number.isFinite(ship.lon)) return raw;
@@ -60,7 +63,7 @@ export function nearFieldBounds(ship, altKm, raw = null) {
   // and the sharp ground near the ship comes from the building tiles' own
   // z17 drapes (osm-buildings.js).
   const horizonKm = Math.sqrt(2 * 6371 * Math.max(0, altKm));
-  const halfKm = Math.max(25, Math.min(600, horizonKm * 1.2));
+  const halfKm = Math.max(25, Math.min(600, horizonKm * 1.5));
   const dLat = halfKm / 111.32;
   const dLon = halfKm / (111.32 * Math.max(0.05, Math.cos(ship.lat * RAD)));
   const near = {
@@ -83,11 +86,19 @@ function flightState() {
 }
 
 export function visibleBounds(viewer, THREE, opts = {}) {
-  const raw = frustumBounds(viewer, THREE, opts);
   const f = flightState();
-  if (!f || !f.shipLatLon) return raw;
+  if (!f || !f.shipLatLon) return frustumBounds(viewer, THREE, opts);
+  /**
+   * IN FLIGHT THE BOX IS THE SHIP'S WHOLE SQUARE, not that square cut by the
+   * camera's box. The camera's box is clamped to its FOREGROUND (the ground
+   * within the field of view at the centre ray's distance), and a chase camera
+   * pitched a few degrees down meets the ground a few kilometres ahead -- so
+   * the cut left a sharp patch a few kilometres deep and the base globe's
+   * coarse texture, with a hard edge, out to a horizon 70 km away. The square
+   * reaches past the horizon in every direction, so a turn never flies off it.
+   */
   const kmPerUnit = (viewer?.bodyRadiusKm || 6371) / (viewer?.GLOBE_RADIUS || 3.2);
-  return nearFieldBounds(f.shipLatLon, (Number(f.shipAltUnits) || 0) * kmPerUnit, raw);
+  return nearFieldBounds(f.shipLatLon, (Number(f.shipAltUnits) || 0) * kmPerUnit);
 }
 
 function frustumBounds(viewer, THREE, { steps = 8, padFraction = 0.05 } = {}) {
