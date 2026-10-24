@@ -104,7 +104,15 @@ function externalBoard(query) {
     };
     put(clear(listBox), pagedList((cursor) => api.get("/v1/feed", { tab: "opportunities", origin: "external", source, cursor }), row,
       { emptyTitle: "No open adverts from this source.", emptyDetail: "The scan runs once a day.", listClass: "s-list s-listings" }));
-  }).catch((error) => put(clear(head), errorBox(error)));
+  }).catch((error) => {
+    // An older server has no scan at all: say so, rather than "Not found".
+    if (error?.status === 404) {
+      put(clear(head), empty("The external scan isn't running on this server yet.",
+        "Adverts from jobs.ac.uk, EGU, AGU and employers' pages appear here once the server with the daily scan is deployed."));
+      return;
+    }
+    put(clear(head), errorBox(error));
+  });
   return h("div", {}, head, boards, listBox);
 }
 
