@@ -1,6 +1,6 @@
-import { registerPage } from "../stages.js?v=20261024-f4b48b2";
-import * as store from "../project-store.js?v=20261024-f4b48b2";
-import { needProject } from "./common.js?v=20261024-f4b48b2";
+import { registerPage } from "../stages.js?v=20261024-b7a524b";
+import * as store from "../project-store.js?v=20261024-b7a524b";
+import { needProject } from "./common.js?v=20261024-b7a524b";
 
 /**
  * StoryBoard: the project written up.

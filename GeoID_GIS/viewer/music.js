@@ -9,7 +9,9 @@
         "/assets/music/Zenith.mp3",
       ];
       let playlist = [];
-      let trackIndex = 0, manuallyPaused = false;
+      // nasaActive: whether a NASA audio clip is playing (it pauses the music).
+      // Earth has no clips, but the shared error handler reads it, so it is declared.
+      let trackIndex = 0, manuallyPaused = false, nasaActive = false;
       const audio = new Audio();
       audio.volume = 0.3;
       function shuffleTracks(tracks) {
