@@ -17,7 +17,7 @@
  * comparison across hazards, and the context those readings sit in.
  */
 
-import { sphericalPolygonAreaKm2 } from "../geo-utils.js?v=20261024-f266375";
+import { sphericalPolygonAreaKm2 } from "../geo-utils.js?v=20261024-e6d78e9";
 
 const EARTH_KM = 6371.0088;
 

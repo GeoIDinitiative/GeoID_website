@@ -29,7 +29,7 @@
 // updateLabelVisibility) so the two never double up.
 
 import * as THREE from "../vendor/three.module.js";
-import { buildLabelLayer, updateLabelVisibility, updateLabelAnchors } from "../../../planet_explorer/mars/viewer/label-layer.js?v=20261024-f266375";
+import { buildLabelLayer, updateLabelVisibility, updateLabelAnchors } from "../../../planet_explorer/mars/viewer/label-layer.js?v=20261024-e6d78e9";
 
 /* ── What the Mars viewer's scope provided, from Earth ─────────────────── */
 
@@ -69,6 +69,7 @@ let terrainVersion = -1;
 let frame = null;
 let frameCount = 0;
 let lastAnchorAt = 0;
+let lastItemsAt = 0;
 
 function rebuild(viewer, items) {
   dispose();
@@ -95,9 +96,14 @@ function step() {
   frame = requestAnimationFrame(step);
   const viewer = window.GeoIDViewer;
   if (!viewer?.globe || !viewer.camera || !viewer.renderer || !window.__flightSim?.active) return;
-  const items = viewer.getPlaceLabels?.() || [];
-  const key = `${items.length}|${items[0]?.name || ""}|${items[items.length - 1]?.name || ""}`;
-  if (key !== itemsKey) { itemsKey = key; if (items.length) rebuild(viewer, items); else dispose(); terrainVersion = -1; }
+  // The place set (the Location labels switch, its categories) is a 13k-item
+  // list: look at it once a second, not every frame.
+  if (performance.now() - lastItemsAt > 1000 || !itemsKey) {
+    lastItemsAt = performance.now();
+    const items = viewer.getPlaceLabels?.() || [];
+    const key = `${items.length}|${items[0]?.name || ""}|${items[items.length - 1]?.name || ""}`;
+    if (key !== itemsKey) { itemsKey = key; if (items.length) rebuild(viewer, items); else dispose(); terrainVersion = -1; }
+  }
   if (!labelLayer) return;
   const camera = viewer.camera, renderer = viewer.renderer, globe = viewer.globe;
   // The ground under the places moves as the terrain streams in: re-anchor,
