@@ -922,6 +922,20 @@ function castAt(clientX, clientY) {
 }
 
 /**
+ * How far along the ray the globe is, or Infinity where the ray misses it.
+ * A dot or an orbit farther along than that is on the far side of the Earth:
+ * the lines are drawn depth-tested, so the click must not land on what the
+ * globe hides (reported: orbits clickable through the globe).
+ */
+function globeDistance(raycaster) {
+  const viewer = window.GeoIDViewer;
+  if (!viewer?.globe) return Infinity;
+  const centre = viewer.globe.getWorldPosition(new THREE.Vector3());
+  const hit = raycaster.ray.intersectSphere(new THREE.Sphere(centre, 3.2), new THREE.Vector3());
+  return hit ? hit.distanceTo(raycaster.ray.origin) : Infinity;
+}
+
+/**
  * The tag under a pointer position, tested in SCREEN space.
  *
  * The sprites are world-sized now, so their drawn size is world scale times
@@ -980,15 +994,17 @@ function recordAt(clientX, clientY) {
    */
   const tagged = tagAt(clientX, clientY);
   if (tagged) return tagged;
+  const globeAt = globeDistance(raycaster);
   raycaster.params.Points.threshold = 12 * worldPerPixel;
   const dotHit = raycaster.intersectObject(active.fill, false)
-    .filter((h) => !active.records[h.index]?.dead && !active.records[h.index]?.hidden)
+    .filter((h) => h.distance < globeAt && !active.records[h.index]?.dead && !active.records[h.index]?.hidden)
     .sort((a, b) => a.distanceToRay - b.distanceToRay)[0];
   if (dotHit) return active.records[dotHit.index];
   if (active.rings?.visible) {
     raycaster.params.Line.threshold = 7 * worldPerPixel;
     const meshes = (active.rings.userData.ringMeshes || []).filter((m) => m.visible);
     const ringHit = raycaster.intersectObjects(meshes, false)
+      .filter((h) => h.distance < globeAt)
       .sort((a, b) => a.distance - b.distance)[0];
     if (ringHit) {
       // A line hit answers with a vertex index; index/2 is the segment, and
@@ -1052,15 +1068,17 @@ function onMove(event) {
     if (!cast) return;
     // Dots first: a constellation satellite draws no mass ring, and hovering
     // its DOT is how its orbit becomes visible at all.
+    const globeAt = globeDistance(cast.raycaster);
     cast.raycaster.params.Points.threshold = 10 * cast.worldPerPixel;
     const dotHit = cast.raycaster.intersectObject(active.fill, false)
-      .filter((h) => !active.records[h.index]?.dead && !active.records[h.index]?.hidden)
+      .filter((h) => h.distance < globeAt && !active.records[h.index]?.dead && !active.records[h.index]?.hidden)
       .sort((a, b) => a.distanceToRay - b.distanceToRay)[0];
     let record = dotHit ? active.records[dotHit.index] : null;
     if (!record) {
       cast.raycaster.params.Line.threshold = 7 * cast.worldPerPixel;
       const meshes = (active.rings.userData.ringMeshes || []).filter((m) => m.visible);
       const hit = cast.raycaster.intersectObjects(meshes, false)
+        .filter((h) => h.distance < globeAt)
         .sort((a, b) => a.distance - b.distance)[0];
       record = hit
         ? hit.object.userData.segmentOwner?.[Math.floor(hit.index / 2)] : null;
@@ -1652,6 +1670,7 @@ function installFrameHook() {
       const gmst = window.satellite.gstime(date);
       if (active.follow) followStep(camera, date, gmst);
       modelStep(camera, date, gmst);
+      syncPulseDot();
     } catch (error) { /* one bad frame must not stop the render */ }
   };
 }
@@ -1725,13 +1744,7 @@ function pulseLoop() {
   const t = performance.now() * 0.004;
   const pulse = (Math.sin(t) + 1) * 0.5;
   const record = active.selected;
-  const i = active.records.indexOf(record);
-  if (active.pulseDot && i >= 0 && !record.dead) {
-    const positions = active.geometry.attributes.position;
-    const target = active.pulseDot.geometry.attributes.position;
-    target.setXYZ(0, positions.getX(i), positions.getY(i), positions.getZ(i));
-    target.needsUpdate = true;
-    active.pulseDot.visible = true;
+  if (active.pulseDot && !record.dead) {
     active.pulseDot.material.size = 11 + pulse * 6;
     active.pulseDot.material.opacity = 0.5 + pulse * 0.45;
   }
@@ -1745,6 +1758,26 @@ function pulseLoop() {
   const tag = active.labels.get(record.norad);
   if (tag?.visible) tag.material.opacity = 0.72 + 0.28 * pulse;
   active.pulseFrame = window.requestAnimationFrame(pulseLoop);
+}
+
+/**
+ * The gold dot sits ON the selected satellite in the frame it is drawn: its
+ * position is copied in the render hook right after modelStep moves the dots.
+ * It was copied in this module's own animation loop, which can run before
+ * the render hook, so it trailed the satellite by a frame -- and with the
+ * camera following a satellite at ~7.5 km/s it jittered (reported: "very
+ * unstable in its positioning").
+ */
+function syncPulseDot() {
+  const record = active?.selected;
+  if (!active?.pulseDot || !record) return;
+  const i = active.records.indexOf(record);
+  if (i < 0 || record.dead) { active.pulseDot.visible = false; return; }
+  const positions = active.geometry.attributes.position;
+  const target = active.pulseDot.geometry.attributes.position;
+  target.setXYZ(0, positions.getX(i), positions.getY(i), positions.getZ(i));
+  target.needsUpdate = true;
+  active.pulseDot.visible = true;
 }
 
 function onDown(event) {
@@ -2105,7 +2138,7 @@ function init() {
       say("Turn the tracker on first — symbology colours the live layer.");
       return;
     }
-    const dialog = await import("./symbology-dialog.js?v=20261024-16a3172");
+    const dialog = await import("./symbology-dialog.js?v=20261024-15ddba3");
     dialog.openSymbologyDialog(layer);
   });
   // The layer box can remove the layer without asking: the tracker must not
