@@ -1,12 +1,12 @@
 import * as THREE from "../vendor/three.module.js";
 import { latLonToVector3, drapedRadius, looksLikeGeographic, sphericalPolygonAreaKm2 }
-  from "./geo-utils.js?v=20261024-9268a02";
-import { collectionBounds, geometryCoords, polygonsOf, linesOf } from "./geoprocessing.js?v=20261024-9268a02";
-import { pointInPolygon } from "./geometry.js?v=20261024-9268a02";
-import { paintOpacity } from "./layer-opacity.js?v=20261024-9268a02";
-import { applyCutaway } from "./cutaway.js?v=20261024-9268a02";
-import { categoricalSymbology, suggestCategoryField } from "./symbology.js?v=20261024-9268a02";
-import { flightGpuUniforms, DRAPE_MATERIALS } from "./flight-terrain-gpu.js?v=20261024-9268a02";
+  from "./geo-utils.js?v=20261024-10697a5";
+import { collectionBounds, geometryCoords, polygonsOf, linesOf } from "./geoprocessing.js?v=20261024-10697a5";
+import { pointInPolygon } from "./geometry.js?v=20261024-10697a5";
+import { paintOpacity } from "./layer-opacity.js?v=20261024-10697a5";
+import { applyCutaway } from "./cutaway.js?v=20261024-10697a5";
+import { categoricalSymbology, suggestCategoryField } from "./symbology.js?v=20261024-10697a5";
+import { flightGpuUniforms, DRAPE_MATERIALS } from "./flight-terrain-gpu.js?v=20261024-10697a5";
 
 // Single renderer for every vector source. Each parser produces a GeoJSON
 // FeatureCollection and this turns it into draped globe geometry, so shapefile,
@@ -751,7 +751,7 @@ export function followRelief(material, drape, {
   const flightKind = !flightTerrain ? null
     : (ribbon || lifted === "marker" || /Line|Points/.test(material.type)) ? "line" : "fill";
   if (flightTerrain) {
-    material.userData.geoidFlightKind = flightKind;
+    (material.userData ??= {}).geoidFlightKind = flightKind;
     FLIGHT_FOLLOWERS.add(new WeakRef(material));
     if (flightKind === "fill") DRAPE_MATERIALS.add(material);
     // Built mid-flight: take the flight's policy now, not at the next change.
