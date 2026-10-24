@@ -26,7 +26,7 @@
 // Esri World Imagery (blankTile=false: a missing tile is a 404 and the
 // ancestor stays). Flight only.
 
-import { NIGHT } from "./night-lights.js?v=20261024-0367919";
+import { NIGHT } from "./night-lights.js?v=20261024-b79e0cb";
 
 const URL_TEMPLATE = "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}?blankTile=false";
 const ROOT_Z = 7;

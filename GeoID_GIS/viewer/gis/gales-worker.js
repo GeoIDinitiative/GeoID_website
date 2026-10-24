@@ -19,12 +19,12 @@
  *   { id, type: "vtu", part, pointData, time } → { id, ok, blob, bytes, cells } (vtk-export.js; a Blob clones without copying)
  *   progress while parsing                 → { id, type: "progress", fraction }
  */
-import { readVtkGrid, vtkCellsToRawMesh, isVtkFile } from "./vtk-read.js?v=20261024-0367919";
-import { parseMesh, meshFromRaw, sliceTets, isoTets, cellLocator, locatePoints, streamlines, domainStats, exposedFaces, thresholdKeep, keptTriangles } from "./gales-results.js?v=20261024-0367919";
-import { analyseMesh } from "./mesh-quality.js?v=20261024-0367919";
-import { derivedFields, materialAt, nodalGradient } from "./strain-stress.js?v=20261024-0367919";
-import { parseTable, buildGrid, sampleGrid } from "./tomography.js?v=20261024-0367919";
-import { vtkCells, vtuParts } from "./vtk-export.js?v=20261024-0367919";
+import { readVtkGrid, vtkCellsToRawMesh, isVtkFile } from "./vtk-read.js?v=20261024-b79e0cb";
+import { parseMesh, meshFromRaw, sliceTets, isoTets, cellLocator, locatePoints, streamlines, domainStats, exposedFaces, thresholdKeep, keptTriangles } from "./gales-results.js?v=20261024-b79e0cb";
+import { analyseMesh } from "./mesh-quality.js?v=20261024-b79e0cb";
+import { derivedFields, materialAt, nodalGradient } from "./strain-stress.js?v=20261024-b79e0cb";
+import { parseTable, buildGrid, sampleGrid } from "./tomography.js?v=20261024-b79e0cb";
+import { vtkCells, vtuParts } from "./vtk-export.js?v=20261024-b79e0cb";
 
 let mesh = null;
 let locator = null; // built on the first locate, dropped with the mesh

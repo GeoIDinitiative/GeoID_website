@@ -6,10 +6,10 @@
  * sessions a gallery of posters. eventPanel() is the block the post page
  * draws under an event post.
  */
-import * as api from "../api.js?v=20261024-0367919";
-import { store } from "../store.js?v=20261024-0367919";
-import { h, clear, field, input, select, dateToEpoch, epochToDate, put, toast, loading, errorBox, textarea, busy, empty } from "../dom.js?v=20261024-0367919";
-import { OPP_TYPES, postCard, pagedList, act, userChip, requireSignIn } from "../components.js?v=20261024-0367919";
+import * as api from "../api.js?v=20261024-b79e0cb";
+import { store } from "../store.js?v=20261024-b79e0cb";
+import { h, clear, field, input, select, dateToEpoch, epochToDate, put, toast, loading, errorBox, textarea, busy, empty } from "../dom.js?v=20261024-b79e0cb";
+import { OPP_TYPES, postCard, pagedList, act, userChip, requireSignIn } from "../components.js?v=20261024-b79e0cb";
 
 export function renderOpportunities(root, { query }) {
   const type = select("type", [["", "Any type"], ...OPP_TYPES.map((t) => [t, t[0].toUpperCase() + t.slice(1)])], query.type || "");

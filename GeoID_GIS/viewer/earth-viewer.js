@@ -2,15 +2,15 @@ import * as THREE from "./vendor/three.module.js";
 // The polygon-area rule lives in one place, with a test. Stamped by hand
 // once: stamp.py only rewrites a ?v= that already exists.
 import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
-  from "./gis/geo-utils.js?v=20261024-0367919";
+  from "./gis/geo-utils.js?v=20261024-b79e0cb";
 import { attachReliefAttributes, followRelief }
-  from "./gis/vector-render.js?v=20261024-0367919";
+  from "./gis/vector-render.js?v=20261024-b79e0cb";
 import { rockClass, crustalSetting, rockClassLabel, classificationBasis }
-  from "./gis/rock-class.js?v=20261024-0367919";
+  from "./gis/rock-class.js?v=20261024-b79e0cb";
 import { lithologyLabel }
-  from "./gis/lithology-label.js?v=20261024-0367919";
+  from "./gis/lithology-label.js?v=20261024-b79e0cb";
 import { formatLatLon }
-  from "./gis/coord-format.js?v=20261024-0367919";
+  from "./gis/coord-format.js?v=20261024-b79e0cb";
 
 /**
  * This module's own cache stamp, read off its own URL.
@@ -9512,9 +9512,12 @@ function fmtProp(value) {
     function updateLabelVisibility(entries, ...rest) {
       updateLabelVisibilityCore(entries, ...rest);
       if (!window.__flightSim?.active) return;
+      // The globe's label layer is exactly the set the flight labels draw
+      // (getPlaceLabels), so all of it stands down; other layers lose their lines.
+      const all = Boolean(entries.flightLabelSet);
       for (const entry of entries) {
         if (entry.line?.visible) entry.line.visible = false;
-        if (entry.item?.place) hideLabelEntry(entry);
+        if (all || entry.item?.place) hideLabelEntry(entry);
       }
     }
 
@@ -15321,6 +15324,8 @@ uniform float uViewportWidth;`,
         new Promise((resolve) => window.setTimeout(resolve, 1500)),
       ]);
       const labelLayer = buildLabelLayer(3.2, elevationSampler, labelElevationCache, getTerrainRelief);
+      // The set Earth Flight's labels draw (getPlaceLabels): it stands down in flight.
+      labelLayer.entries.flightLabelSet = true;
       /** The label hit objects on screen now: the pickers ask only these, not every
        *  hidden name's hit sphere, marker and sprite on every pointer move. */
       const liveLabelTargets = () => labelLayer.interactiveObjects.filter((o) => o.visible && o.parent && o.parent.parent);
