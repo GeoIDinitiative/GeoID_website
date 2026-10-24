@@ -222,7 +222,7 @@ async function fileFor(entry, status) {
   }
   if (entry.build !== "ni-flood") throw new Error(`${entry.path.split("/").pop()}: ${reason}`);
   console.info(`[GeoID demo] ${entry.name} not shipped (${reason}); computing it from the prototype's inputs.`);
-  const { buildFloodGeoTiff } = await import("./ni-flood.js?v=20261024-86f01f1");
+  const { buildFloodGeoTiff } = await import("./ni-flood.js?v=20261024-3e1ba5c");
   const { bytes, demNote } = await buildFloodGeoTiff({ onProgress: status });
   const file = new File([bytes], entry.name, { type: "image/tiff" });
   file.note = `computed in the page from BGS superficial geology, HadUK rainfall and OSM rivers; ${demNote}`;
