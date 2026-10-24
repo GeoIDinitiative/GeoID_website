@@ -5,31 +5,31 @@
  * (or resolve to) a cleanup function -- a poll to stop, a map to release --
  * which runs when the route changes.
  */
-import * as api from "./api.js?v=20261024-9257ceb";
-import { store, onMe, refreshMe, setUnread } from "./store.js?v=20261024-9257ceb";
-import { h, clear, errorBox, pollWhileVisible, put } from "./dom.js?v=20261024-9257ceb";
-import { avatar } from "./components.js?v=20261024-9257ceb";
-import { createBackdrop } from "./backdrop.js?v=20261024-9257ceb";
-import { registerAtlasHost } from "./atlas-host.js?v=20261024-9257ceb";
-import { liveSocket } from "./chat.js?v=20261024-9257ceb";
+import * as api from "./api.js?v=20261024-050a56f";
+import { store, onMe, refreshMe, setUnread } from "./store.js?v=20261024-050a56f";
+import { h, clear, errorBox, pollWhileVisible, put } from "./dom.js?v=20261024-050a56f";
+import { avatar } from "./components.js?v=20261024-050a56f";
+import { createBackdrop } from "./backdrop.js?v=20261024-050a56f";
+import { registerAtlasHost } from "./atlas-host.js?v=20261024-050a56f";
+import { liveSocket } from "./chat.js?v=20261024-050a56f";
 
-import * as feed from "./views/feed.js?v=20261024-9257ceb";
-import * as compose from "./views/compose.js?v=20261024-9257ceb";
-import * as post from "./views/post.js?v=20261024-9257ceb";
-import * as profile from "./views/profile.js?v=20261024-9257ceb";
-import * as people from "./views/people.js?v=20261024-9257ceb";
-import * as communities from "./views/communities.js?v=20261024-9257ceb";
-import * as teams from "./views/teams.js?v=20261024-9257ceb";
-import * as projects from "./views/projects.js?v=20261024-9257ceb";
-import * as reviews from "./views/reviews.js?v=20261024-9257ceb";
-import * as inbox from "./views/inbox.js?v=20261024-9257ceb";
-import * as map from "./views/map.js?v=20261024-9257ceb";
-import * as opps from "./views/opportunities.js?v=20261024-9257ceb";
-import * as mod from "./views/mod.js?v=20261024-9257ceb";
-import * as settings from "./views/settings.js?v=20261024-9257ceb";
-import * as orgs from "./views/orgs.js?v=20261024-9257ceb";
-import * as onboarding from "./views/onboarding.js?v=20261024-9257ceb";
-import * as requests from "./views/requests.js?v=20261024-9257ceb";
+import * as feed from "./views/feed.js?v=20261024-050a56f";
+import * as compose from "./views/compose.js?v=20261024-050a56f";
+import * as post from "./views/post.js?v=20261024-050a56f";
+import * as profile from "./views/profile.js?v=20261024-050a56f";
+import * as people from "./views/people.js?v=20261024-050a56f";
+import * as communities from "./views/communities.js?v=20261024-050a56f";
+import * as teams from "./views/teams.js?v=20261024-050a56f";
+import * as projects from "./views/projects.js?v=20261024-050a56f";
+import * as reviews from "./views/reviews.js?v=20261024-050a56f";
+import * as inbox from "./views/inbox.js?v=20261024-050a56f";
+import * as map from "./views/map.js?v=20261024-050a56f";
+import * as opps from "./views/opportunities.js?v=20261024-050a56f";
+import * as mod from "./views/mod.js?v=20261024-050a56f";
+import * as settings from "./views/settings.js?v=20261024-050a56f";
+import * as orgs from "./views/orgs.js?v=20261024-050a56f";
+import * as onboarding from "./views/onboarding.js?v=20261024-050a56f";
+import * as requests from "./views/requests.js?v=20261024-050a56f";
 
 const ROUTES = [
   ["/", feed.render, "Feed"],

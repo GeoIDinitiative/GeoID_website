@@ -2,15 +2,15 @@ import * as THREE from "./vendor/three.module.js";
 // The polygon-area rule lives in one place, with a test. Stamped by hand
 // once: stamp.py only rewrites a ?v= that already exists.
 import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
-  from "./gis/geo-utils.js?v=20261024-9257ceb";
+  from "./gis/geo-utils.js?v=20261024-050a56f";
 import { attachReliefAttributes, followRelief }
-  from "./gis/vector-render.js?v=20261024-9257ceb";
+  from "./gis/vector-render.js?v=20261024-050a56f";
 import { rockClass, crustalSetting, rockClassLabel, classificationBasis }
-  from "./gis/rock-class.js?v=20261024-9257ceb";
+  from "./gis/rock-class.js?v=20261024-050a56f";
 import { lithologyLabel }
-  from "./gis/lithology-label.js?v=20261024-9257ceb";
+  from "./gis/lithology-label.js?v=20261024-050a56f";
 import { formatLatLon }
-  from "./gis/coord-format.js?v=20261024-9257ceb";
+  from "./gis/coord-format.js?v=20261024-050a56f";
 
 /**
  * This module's own cache stamp, read off its own URL.
@@ -24047,6 +24047,10 @@ ${error && error.message ? error.message : error}`;
         marsLonToSceneLon,
         getRequestedTerrainRelief,
         getEffectiveTerrainRelief,
+        // Earth Flight's own terrain (gis/flight-terrain.js): drawn height in
+        // scene units, and true ground metres for the readout.
+        flightTerrainUnits: (lat, lonE) => window.GeoIDFlightTerrain?.heightUnits?.(lat, lonE > 180 ? lonE - 360 : lonE) || 0,
+        flightGroundMetres: (lat, lonE) => window.GeoIDFlightTerrain?.active?.() ? window.GeoIDFlightTerrain.groundMetres(lat, lonE > 180 ? lonE - 360 : lonE) : null,
         syncTerrainReliefState,
         baseLayerSelect,
         // Whatever basemap is showing IS the flight basemap: the sim would

@@ -924,7 +924,11 @@
       lift = hooks.ctxDetailStreamer.surfaceLiftBase
         + Math.max(0, relief) * hooks.ctxDetailStreamer.surfaceLiftReliefFactor;
     }
-    return GLOBE_R + norm * relief + lift;
+    // A world with its own flight terrain (Earth: streamed DEM x the Vertical
+    // scale, gis/flight-terrain.js) adds it, so altitude, the ground floor and
+    // collisions are measured from the hills actually drawn.
+    const terrain = hooks.flightTerrainUnits ? Number(hooks.flightTerrainUnits(lat, lonE)) || 0 : 0;
+    return GLOBE_R + norm * relief + lift + terrain;
   }
 
   // ---- low-altitude surface detail, for worlds with no streamed tiles ----
@@ -3169,7 +3173,7 @@
     // globe, so the nav, Workspace and GIS tools stay open in the air (see
     // styles/flightsim.css, `fs-open-chrome`).
     earth:   { gravity: 9.81, atmosphere: earthAtmosphere, domain: "Earth atmosphere",
-               openChrome: true, coRotate: true, realShipScale: true, launchThrottle: 0.1, launchPitchDeg: -5,
+               openChrome: true, coRotate: true, realShipScale: true, ownTerrain: true, launchThrottle: 0.1, launchPitchDeg: -5,
                launchOptions: [[300, "300 m — rooftops"], [1000, "1 km — city", true], [3000, "3 km — region"],
                                [8000, "8 km — cruise"], [30000, "30 km — stratosphere"],
                                [120000, "120 km — edge of space"], [1000000, "1000 km — global"]] },
@@ -4009,7 +4013,9 @@
       const minM = Number(hooks.manifest?.elevation?.min_m ?? 0);
       const norm = hooks.elevationSampler
         ? hooks.sampleElevationNormalized(hooks.elevationSampler, ll.lat, ll.lon) : 0;
-      const groundM = minM + norm * relief;
+      // The flight terrain's true ground height where the world has one.
+      const terrainM = hooks.flightGroundMetres ? hooks.flightGroundMetres(ll.lat, ll.lon) : null;
+      const groundM = Number.isFinite(terrainM) ? terrainM : minM + norm * relief;
       const g = Math.abs(groundM);
       hudGround.textContent = (groundM < 0 ? "\u2212" : "+") +
         (g >= 1000 ? (g / 1000).toFixed(2) + " km" : Math.round(g) + " m");
@@ -4354,6 +4360,14 @@
   // ×1 = true 1:1 scale (TRUE_SCALE_TERRAIN_RELIEF); higher exaggerates height.
   function applyVex() {
     if (!hooks?.terrainScale) return;
+    // A world that flies over its OWN terrain (Earth: gis/flight-terrain.js,
+    // which reads this slider) keeps the globe's relief at zero in flight, or
+    // the hills would be drawn twice once the globe's taper lets it back in.
+    if (bodyProfile().ownTerrain) {
+      hooks.terrainScale.value = "0";
+      hooks.terrainScale.dispatchEvent(new Event("input", { bubbles: true }));
+      return;
+    }
     const vex = Math.max(1, Number(vexSlider?.value) || 1);
     const trueScale = hooks.TRUE_SCALE_TERRAIN_RELIEF ?? 0.0277;
     hooks.terrainScale.value = String(vex * trueScale);

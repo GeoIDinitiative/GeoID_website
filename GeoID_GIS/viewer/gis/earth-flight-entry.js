@@ -21,10 +21,11 @@
 //      frame): aim the globe there, then open pre-flight, whose centre
 //      crosshair takes the site from wherever the globe is aimed.
 
-import { startFlightLabels, stopFlightLabels } from "./flight-labels.js?v=20261024-9257ceb";
-import { showFlightMap, hideFlightMap } from "./flight-map.js?v=20261024-9257ceb";
-import { showFlightSky, hideFlightSky } from "./flight-sky.js?v=20261024-9257ceb";
-import { isEarth } from "./bodies.js?v=20261024-9257ceb";
+import { startFlightTerrain, stopFlightTerrain, setVex } from "./flight-terrain.js?v=20261024-050a56f";
+import { startFlightLabels, stopFlightLabels } from "./flight-labels.js?v=20261024-050a56f";
+import { showFlightMap, hideFlightMap } from "./flight-map.js?v=20261024-050a56f";
+import { showFlightSky, hideFlightSky } from "./flight-sky.js?v=20261024-050a56f";
+import { isEarth } from "./bodies.js?v=20261024-050a56f";
 
 /** `?flight=earth&lat=..&lon=..` -> { lat, lon } or { lat: null } or null. */
 export function parseFlightLink(search) {
@@ -272,9 +273,14 @@ function wire() {
   // A sky over the aircraft -- day, dusk or night from the real sun -- in
   // place of the viewer's space backdrop, while flying (flight-sky.js).
   window.addEventListener("flightsim:engaged", () => setTimeout(() => {
-    if (window.__flightSim?.active) { showFlightSky(); showFlightMap(); startFlightLabels(); }
+    if (window.__flightSim?.active) {
+      setVex(document.getElementById("fs-vex")?.value || 1);
+      startFlightTerrain(); showFlightSky(); showFlightMap(); startFlightLabels();
+    }
   }, 60));
-  window.addEventListener("flightsim:disengaged", () => { hideFlightSky(); hideFlightMap(); stopFlightLabels(); });
+  window.addEventListener("flightsim:disengaged", () => { stopFlightTerrain(); hideFlightSky(); hideFlightMap(); stopFlightLabels(); });
+  // The Vertical scale slider exaggerates the flight terrain (1 = true scale).
+  document.addEventListener("input", (e) => { if (e.target?.id === "fs-vex") setVex(e.target.value); });
 
 
   let link = parseFlightLink(window.location.search);

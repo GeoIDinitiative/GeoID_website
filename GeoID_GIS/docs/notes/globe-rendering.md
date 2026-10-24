@@ -1522,3 +1522,33 @@ Things that bit, each measured:
 they come from the main checkout, not the worktree. Rewrite them with CDP
 `Fetch` -- and set `Network.setBypassServiceWorker`, because the root service
 worker fetches on the page's behalf and the page's Fetch never sees it.
+## Earth Flight flies over its own terrain, not the globe's relief
+
+The globe's relief (a ~10 km GEBCO texture, normalised from the deepest trench
+and eased to nothing below ~300 km by `getEffectiveTerrainRelief`) gives flat
+ground at flight altitudes, and cannot simply be left on: true scale lifts
+sea-level ground ~11 km off the sphere every other layer is drawn on. So flight
+keeps its terrain BESIDE the globe (`gis/flight-terrain.js`):
+
+- heights are the streamed DEM (`dem-tiles.js` Terrarium, z12-14 near the
+  aircraft), sea held at 0, times the Vertical scale slider (1 = true scale);
+  the globe's own relief is held at 0 in flight (`ownTerrain` profile flag in
+  `scripts/flightsim.js`, so `applyVex` zeroes `terrainScale`);
+- the three imagery bands ahead (`basemap-drape.js`, close / near / mid) are
+  96x96 grids lifted to it, depth-tested, finer bands polygon-offset over
+  coarser, and each coarser band DISCARDS where the next finer one is opaque
+  (`updateCuts`) -- a coarse grid sits metres above a fine one in every valley
+  and otherwise wins the depth test in dark blotches;
+- building tiles carry a 65x65 height grid (metres x scale) to the worker, so
+  buildings and the canopy stand on their own ground; their sharp ground drape
+  and shadow catcher are lifted by the same grid; all tiles rebuild when the
+  scale changes or terrain comes on/off (not on every DEM tile);
+- the sim reads it through `hooks.flightTerrainUnits` (altitude, floor,
+  collision) and `hooks.flightGroundMetres` (the GROUND readout, true metres);
+  event markers (`events.js markerPoint`) and place labels add it radially.
+  `viewer.surfacePoint` is deliberately unchanged: the drapes bake it into their
+  relief shader and the building tiles are placed with it.
+
+Known gaps: imported vector layers and geology still drape on the flat globe
+(depthTest off), so in steep terrain a line can sit at the foot of a hill it
+should cross; a place label is not hidden behind a mountain in front of it.

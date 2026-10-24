@@ -36,9 +36,9 @@
 // transparent pass in a group sorted at 190 (see GROUP_ORDER), still
 // depth-tested and depth-writing against the globe and each other.
 
-import { isEarth } from "./bodies.js?v=20261024-9257ceb";
+import { isEarth } from "./bodies.js?v=20261024-050a56f";
 import { facade, roof } from "../../../flight_sim/earth/game/facade.js?v=1";
-import { NIGHT } from "./night-lights.js?v=20261024-9257ceb";
+import { NIGHT } from "./night-lights.js?v=20261024-050a56f";
 
 const BUILDINGS_TILEJSON = "https://tiles.openfreemap.org/planet";
 // blankTile=false: a tile with no imagery is a 404, not Esri's grey "Map data
@@ -314,6 +314,51 @@ function pump(viewer) {
   }
 }
 
+const DEM_N = 65;
+async function tileDem(t) {
+  const T = window.GeoIDFlightTerrain;
+  if (!T?.active?.()) return { dem: null, demSize: 256 };
+  try {
+    await window.GeoIDDem?.ensure?.({
+      north: tileYToLat(t.y, Z), south: tileYToLat(t.y + 1, Z), west: tileXToLon(t.x, Z), east: tileXToLon(t.x + 1, Z),
+    }, { maxTiles: 4 });
+  } catch (e) { /* flat where the DEM cannot be had */ }
+  const vex = T.getVex();
+  const dem = new Float32Array(DEM_N * DEM_N);
+  for (let j = 0; j < DEM_N; j++) {
+    const lat = tileYToLat(t.y + (j + 0.5) / DEM_N, Z);
+    for (let i = 0; i < DEM_N; i++) {
+      const lon = tileXToLon(t.x + (i + 0.5) / DEM_N, Z);
+      dem[j * DEM_N + i] = (T.groundMetres(lat, lon) ?? 0) * vex;
+    }
+  }
+  t.dem = dem;
+  return { dem, demSize: DEM_N };
+}
+/** The tile's ground height at tile-local metres (x east, z south), as extrude.js samples it. */
+function demAt(t, sizeM, x, z) {
+  const dem = t.dem;
+  if (!dem) return 0;
+  const fx = Math.min(Math.max(x / sizeM * DEM_N - 0.5, 0), DEM_N - 1);
+  const fy = Math.min(Math.max(z / sizeM * DEM_N - 0.5, 0), DEM_N - 1);
+  const x0 = Math.floor(fx), y0 = Math.floor(fy), x1 = Math.min(x0 + 1, DEM_N - 1), y1 = Math.min(y0 + 1, DEM_N - 1);
+  const tx = fx - x0, ty = fy - y0;
+  return (dem[y0 * DEM_N + x0] * (1 - tx) + dem[y0 * DEM_N + x1] * tx) * (1 - ty)
+    + (dem[y1 * DEM_N + x0] * (1 - tx) + dem[y1 * DEM_N + x1] * tx) * ty;
+}
+/** A ground plane for the tile, lifted to its height grid when it has one. */
+function groundPlane(t, sizeM, y) {
+  const seg = t.dem ? 32 : 1;
+  const g = new THREE.PlaneGeometry(sizeM, sizeM, seg, seg).rotateX(-Math.PI / 2).translate(sizeM / 2, y, sizeM / 2);
+  if (t.dem) {
+    const p = g.attributes.position;
+    for (let i = 0; i < p.count; i++) p.setY(i, p.getY(i) + demAt(t, sizeM, p.getX(i), p.getZ(i)));
+    p.needsUpdate = true;
+    g.computeVertexNormals();
+  }
+  return g;
+}
+
 async function loadTile(viewer, t) {
   const url = template.replace("{z}", Z).replace("{x}", t.x).replace("{y}", t.y);
   let buf;
@@ -327,11 +372,17 @@ async function loadTile(viewer, t) {
   const lat = (tileYToLat(t.y, Z) + tileYToLat(t.y + 1, Z)) / 2;
   const sizeM = (2 * Math.PI * 6378137 / 2 ** Z) * Math.cos(lat * Math.PI / 180);
   const id = ++jobSeq;
-  // No DEM: the globe's ground is drawn at its own (tapered) relief, which is
-  // the anchor's job below, so every building stands on the tile's plane.
+  // In Earth Flight the ground is the flight terrain (flight-terrain.js): the
+  // tile carries a height grid, metres x the Vertical scale with the sea at
+  // zero, sampled at cell centres, so every building and wood stands on its
+  // own ground (extrude.js `ground(u, v)`). Otherwise no DEM: the globe's
+  // ground is drawn at its own (tapered) relief, which is the anchor's job
+  // below, and every building stands on the tile's plane.
+  const { dem, demSize } = await tileDem(t);
+  if (t.dead) return;
   const res = await new Promise((resolve) => {
     jobs.set(id, resolve);
-    worker.postMessage({ id, buf, dem: null, demSize: 256, sizeLocal: sizeM, origin: [t.x, t.y] }, [buf]);
+    worker.postMessage({ id, buf, dem, demSize, sizeLocal: sizeM, origin: [t.x, t.y] }, [buf]);
   });
   if (t.dead || res.error || res.empty) return;
   build(viewer, t, res.mesh, res.buildings, lat, sizeM);
@@ -496,17 +547,23 @@ function build(viewer, t, m, count, lat, sizeM) {
   mesh.matrixAutoUpdate = false;
 
   // The ground under the buildings, showing only where a shadow falls.
+  const onTerrain = Boolean(t.dem);
   const catcher = noPick(new THREE.Mesh(
-    new THREE.PlaneGeometry(sizeM, sizeM).rotateX(-Math.PI / 2).translate(sizeM / 2, 0.4, sizeM / 2),
+    groundPlane(t, sizeM, 0.4),
     new THREE.ShadowMaterial({ opacity: 0.38, transparent: true, depthWrite: false })));
   catcher.renderOrder = ORDER_CATCHER;
 
   // The same imagery, on the ground under the tile, in the streamed-imagery
   // band: after the globe's own refine patch (40), before anything imported
   // (50+), refusing the depth test like every other drape.
+  // On the flight terrain the drape is real ground too: lifted to the tile's
+  // heights and depth-tested, just over the terrain patches under it.
   const ground = noPick(new THREE.Mesh(
-    new THREE.PlaneGeometry(sizeM, sizeM).rotateX(-Math.PI / 2).translate(sizeM / 2, 0, sizeM / 2),
-    edgeFaded(new THREE.MeshBasicMaterial({ map: t.roof, transparent: true, depthTest: false, depthWrite: false }), "alpha")));
+    groundPlane(t, sizeM, 0),
+    edgeFaded(new THREE.MeshBasicMaterial({
+      map: t.roof, transparent: true, depthTest: onTerrain, depthWrite: false,
+      polygonOffset: onTerrain, polygonOffsetFactor: -1, polygonOffsetUnits: -24,
+    }), "alpha")));
   ground.matrixAutoUpdate = false;
   catcher.receiveShadow = true;
   catcher.matrixAutoUpdate = false;
@@ -841,6 +898,17 @@ async function boot() {
     template = null;
     console.warn("osm-buildings: no building tiles (TileJSON failed)", e);
   }
+  // Rebuild every tile when the flight terrain's scale changes or it comes on
+  // or off -- not on every new DEM tile, which would thrash.
+  let terrainKey = "off";
+  const terrainCheck = () => {
+    const T = window.GeoIDFlightTerrain;
+    const key = T?.active?.() ? `on:${T.getVex()}` : "off";
+    if (key !== terrainKey) { terrainKey = key; dropAll(); }
+  };
+  window.addEventListener("geoid:flight-terrain-changed", terrainCheck);
+  window.addEventListener("flightsim:disengaged", () => setTimeout(terrainCheck, 100));
+  setInterval(terrainCheck, 1000);
   window.GeoIDBuildings = {
     stats, setEnabled, setShadows,
     // For the Metadata window, while anything is drawn.

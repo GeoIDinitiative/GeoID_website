@@ -37,13 +37,13 @@
 // answers in -- no half-turn to bake in, unlike the Earth Engine drapes which
 // parent to the globe mesh itself.
 
-import { TILE_SOURCES, DEFAULT_SOURCE, tileUrl } from "./tile-sources.js?v=20261024-9257ceb";
-import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20261024-9257ceb";
-import { isEarth } from "./bodies.js?v=20261024-9257ceb";
-import { holdLaunch } from "./launch-ready.js?v=20261024-9257ceb";
-import { streamRings, cacheStats } from "./tile-streamer.js?v=20261024-9257ceb";
+import { TILE_SOURCES, DEFAULT_SOURCE, tileUrl } from "./tile-sources.js?v=20261024-050a56f";
+import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20261024-050a56f";
+import { isEarth } from "./bodies.js?v=20261024-050a56f";
+import { holdLaunch } from "./launch-ready.js?v=20261024-050a56f";
+import { streamRings, cacheStats } from "./tile-streamer.js?v=20261024-050a56f";
 import { visibleBounds, altitudeUnits, viewChangedEnough, onViewChange, viewFocus }
-  from "./view-extent.js?v=20261024-9257ceb";
+  from "./view-extent.js?v=20261024-050a56f";
 
 const TILE = 256;
 // Web Mercator cannot express the poles; this is where the projection is
@@ -1318,6 +1318,113 @@ function featherEdges(mesh) {
   material.needsUpdate = true;
   return mesh;
 }
+/* ── Terrain (Earth Flight) ──────────────────────────────────────────────────
+   In flight the patches ahead are real ground, not drapes: a grid lifted to
+   the flight terrain (flight-terrain.js -- streamed DEM x the Vertical scale,
+   sea at zero), depth-tested and depth-writing so a hill hides what is behind
+   it, each band offset in depth so the finer one wins where they overlap.
+   Positions are rewritten whenever the terrain's version moves (new heights
+   arrived, or the scale changed) without fetching the imagery again. */
+const TERRAIN_SEGMENTS = 96;
+const terrainOn = () => Boolean(window.GeoIDFlightTerrain?.active?.());
+
+function terrainPositions(geometry, bbox) {
+  const viewer = window.GeoIDViewer, T = window.GeoIDFlightTerrain;
+  const seg = geometry.userData.segments;
+  const position = geometry.attributes.position;
+  const worldSize = TILE * 1024;
+  const pyTop = latToPixelY(bbox.maxLat, worldSize);
+  const pyBottom = latToPixelY(bbox.minLat, worldSize);
+  const v = new THREE.Vector3();
+  for (let y = 0; y <= seg; y += 1) {
+    const lat = pixelYToLat(pyTop + (pyBottom - pyTop) * (y / seg), worldSize);
+    for (let x = 0; x <= seg; x += 1) {
+      const lon = bbox.minLon + (bbox.maxLon - bbox.minLon) * (x / seg);
+      const p = viewer.surfacePoint(lat, lon, 0);
+      v.set(-p.x, p.y, -p.z);
+      v.setLength(v.length() + (T?.heightUnits?.(lat, lon) || 0));
+      position.setXYZ(y * (seg + 1) + x, v.x, v.y, v.z);
+    }
+  }
+  position.needsUpdate = true;
+  geometry.computeVertexNormals();
+  geometry.computeBoundingSphere();
+  geometry.userData.terrainVersion = T?.getVersion?.() ?? 0;
+}
+
+function buildTerrainMesh(canvas, bbox, depthRank) {
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.anisotropy = 8;
+  const geometry = new THREE.PlaneGeometry(1, 1, TERRAIN_SEGMENTS, TERRAIN_SEGMENTS);
+  geometry.userData.segments = TERRAIN_SEGMENTS;
+  terrainPositions(geometry, bbox);
+  const material = new THREE.MeshBasicMaterial({
+    map: texture,
+    transparent: true,
+    side: THREE.DoubleSide,
+    depthTest: true,
+    depthWrite: true,
+    // On top of the sphere at sea level, and finer bands over coarser ones.
+    polygonOffset: true,
+    polygonOffsetFactor: -1,
+    polygonOffsetUnits: -4 - 4 * depthRank,
+  });
+  // A hole where the next finer band is fully opaque (updateCuts): a coarser
+  // grid sits a few metres above a finer one in every valley, and won the depth
+  // test there in dark blotches. In this patch's UV space; empty to start.
+  const cut = { value: new THREE.Vector4(2, 2, -1, -1) };
+  const prev = material.onBeforeCompile;
+  material.onBeforeCompile = (shader, renderer) => {
+    prev?.call(material, shader, renderer);
+    shader.uniforms.uCut = cut;
+    shader.fragmentShader = shader.fragmentShader
+      .replace("#include <common>", "#include <common>\nuniform vec4 uCut;")
+      .replace("#include <map_fragment>", `#include <map_fragment>
+  #ifdef USE_MAP
+  if (vMapUv.x > uCut.x && vMapUv.x < uCut.z && vMapUv.y > uCut.y && vMapUv.y < uCut.w) discard;
+  #endif`);
+  };
+  material.customProgramCacheKey = () => "geoid-terrain-patch";
+  const mesh = new THREE.Mesh(geometry, material);
+  mesh.frustumCulled = false;
+  mesh.userData.terrain = true;
+  mesh.userData.bbox = bbox;
+  mesh.userData.cut = cut;
+  return mesh;
+}
+
+/** Where `inner` sits in `outer`'s UV space (u by longitude, v by Mercator y, 1 at the top). */
+function uvRect(outer, inner, shrink) {
+  const worldSize = TILE * 1024;
+  const yTop = latToPixelY(outer.maxLat, worldSize), yBot = latToPixelY(outer.minLat, worldSize);
+  const u = (lon) => (lon - outer.minLon) / (outer.maxLon - outer.minLon);
+  const v = (lat) => 1 - (latToPixelY(lat, worldSize) - yTop) / (yBot - yTop);
+  const du = (inner.maxLon - inner.minLon) * shrink, dLat = (inner.maxLat - inner.minLat) * shrink;
+  return [u(inner.minLon + du), v(inner.minLat + dLat), u(inner.maxLon - du), v(inner.maxLat - dLat)];
+}
+
+/** Cut each terrain band where the next finer band is opaque. */
+function updateCuts() {
+  for (let i = 0; i < AHEAD_PATCHES.length; i += 1) {
+    const coarse = aheadState.get(AHEAD_PATCHES[i].key);
+    const fine = aheadState.get(AHEAD_PATCHES[i + 1]?.key);
+    const fineBox = fine?.mesh?.userData?.bbox;
+    for (const m of [coarse?.mesh, coarse?.pass?.live]) {
+      if (!m?.userData?.cut) continue;
+      if (fineBox) m.userData.cut.value.set(...uvRect(m.userData.bbox, fineBox, FEATHER));
+      else m.userData.cut.value.set(2, 2, -1, -1);
+    }
+  }
+}
+
+/** Bring a patch's ground up to the terrain's current version. */
+function syncTerrain(mesh) {
+  if (!mesh?.userData?.terrain) return;
+  const now = window.GeoIDFlightTerrain?.getVersion?.() ?? 0;
+  if (mesh.geometry.userData.terrainVersion !== now) terrainPositions(mesh.geometry, mesh.userData.bbox);
+}
+
 const aheadState = new Map();   // key -> { bbox, half, zoom, source, mesh, pass }
 
 function disposeAhead(key) {
@@ -1340,6 +1447,13 @@ async function refineAhead(spec) {
   const altKm = (Number(flight.shipAltUnits) || 0) * kmPerUnit;
   const { half, bbox } = aheadBox(spec, ship, altKm, flight.headingDeg);
   let st = aheadState.get(spec.key);
+  // Terrain: keep the built ground current; a patch built in the other mode
+  // (terrain switched on or off) is rebuilt.
+  if (st) {
+    syncTerrain(st.mesh); syncTerrain(st.pass?.live);
+    const builtTerrain = Boolean((st.mesh || st.pass?.live)?.userData?.terrain);
+    if ((st.mesh || st.pass?.live) && builtTerrain !== terrainOn()) { disposeAhead(spec.key); st = null; }
+  }
   if (st?.source === source && st.bbox && (st.pass || st.mesh)) {
     const moved = Math.hypot(
       ((bbox.minLat + bbox.maxLat) - (st.bbox.minLat + st.bbox.maxLat)) / 2 * 111.32,
@@ -1374,7 +1488,8 @@ async function refineAhead(spec) {
       if (!pass.live) {
         const group = refineParent();
         if (!group) return;
-        pass.live = featherEdges(buildMesh(canvas, bbox, { frame: "globe" }));
+        const rank = AHEAD_PATCHES.indexOf(spec);
+        pass.live = featherEdges(terrainOn() ? buildTerrainMesh(canvas, bbox, rank) : buildMesh(canvas, bbox, { frame: "globe" }));
         pass.live.name = `GeoID-BasemapAhead-${spec.key}-pending`;
         pass.live.renderOrder = spec.order + 0.001;   // over the old one while it fills
         group.add(pass.live);
@@ -1396,7 +1511,8 @@ async function refineAhead(spec) {
 function refineNear() {
   // In list order, mid then near: the streamer serves the NEWEST pass first,
   // so the near patch -- what the aircraft reaches next -- is asked for last.
-  return Promise.all(AHEAD_PATCHES.map((spec) => refineAhead(spec)));
+  updateCuts();
+  return Promise.all(AHEAD_PATCHES.map((spec) => refineAhead(spec))).finally(updateCuts);
 }
 
 /**

@@ -161,7 +161,11 @@ function step() {
     // surfacePoint is in the globe's baseline frame; the mesh sits half a turn
     // round inside its group, so its local frame is (-x, y, -z) of that.
     // Without the flip, London showed the Aleutians' volcanoes.
-    const world = viewer.globe.localToWorld(new V(-base.x, base.y, -base.z));
+    const onGround = new V(-base.x, base.y, -base.z);
+    // Standing on the flight terrain, not the flat globe (flight-terrain.js).
+    const lift = window.GeoIDFlightTerrain?.heightUnits?.(item.lat, item.lon) || 0;
+    if (lift) onGround.setLength(onGround.length() + lift);
+    const world = viewer.globe.localToWorld(onGround);
     const rel = world.clone().sub(centre);
     if (rel.dot(camRel) < R * R) continue;                         // beyond the horizon
     const km = world.distanceTo(cam.position) * KM_PER_UNIT;

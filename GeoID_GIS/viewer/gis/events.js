@@ -16,9 +16,9 @@ import {
   gdacsPoints, resolveColour,
   MARKER_LIFT_MAX, liftForAltitude, dotSizePx, zoomGain, MARKER_MAX_PX, flightMarkerPx, isQuake, publisherOf, restoreActive,
   stormCategory, stormScale, stormLabel, STORM_BASE_CAP, markerHitGeometry, nearestHit,
-} from "./event-sources.js?v=20261024-9257ceb";
-import { escapeHtml, safeUrl } from "./escape-html.js?v=20261024-9257ceb";
-import { holdLaunch } from "./launch-ready.js?v=20261024-9257ceb";
+} from "./event-sources.js?v=20261024-050a56f";
+import { escapeHtml, safeUrl } from "./escape-html.js?v=20261024-050a56f";
+import { holdLaunch } from "./launch-ready.js?v=20261024-050a56f";
 
 const API = "https://eonet.gsfc.nasa.gov/api/v3/events";
 
@@ -106,9 +106,15 @@ let markerLift = MARKER_LIFT_MAX;
  * sphere floating over it.
  */
 function markerPoint(viewer, lat, lon) {
-  return viewer.surfacePoint
+  const p = viewer.surfacePoint
     ? viewer.surfacePoint(lat, lon, markerLift)
     : viewer.latLonToVector3(lat, lon, viewer.GLOBE_RADIUS + markerLift);
+  // In Earth Flight the ground is the flight terrain, not the flat globe
+  // (flight-terrain.js): stand on it. The relief watcher re-places the
+  // markers every 400 ms, so they follow the terrain as heights stream in.
+  const lift = window.GeoIDFlightTerrain?.heightUnits?.(lat, lon) || 0;
+  if (lift) p.setLength(p.length() + lift);
+  return p;
 }
 
 /**
@@ -2774,8 +2780,8 @@ async function showTrace(event) {
   }
 
   const [plot, { spectrogram }] = await Promise.all([
-    import("./seismogram-plot.js?v=20261024-9257ceb"),
-    import("./research/dsp.js?v=20261024-9257ceb"),
+    import("./seismogram-plot.js?v=20261024-050a56f"),
+    import("./research/dsp.js?v=20261024-050a56f"),
   ]);
   if (stale()) return;
 
