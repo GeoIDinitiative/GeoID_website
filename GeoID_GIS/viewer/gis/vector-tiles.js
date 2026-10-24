@@ -35,11 +35,11 @@
  */
 
 import * as THREE from "../vendor/three.module.js";
-import { decodeTile, tilesForBounds, zoomForBounds } from "./mvt.js?v=20261024-b79e0cb";
-import { renderFeatureCollection } from "./vector-render.js?v=20261024-b79e0cb";
-import * as GP from "./geoprocessing.js?v=20261024-b79e0cb";
-import { applyCutaway } from "./cutaway.js?v=20261024-b79e0cb";
-import { mergeTileFragments } from "./tile-merge.js?v=20261024-b79e0cb";
+import { decodeTile, tilesForBounds, zoomForBounds } from "./mvt.js?v=20261024-8749dda";
+import { renderFeatureCollection } from "./vector-render.js?v=20261024-8749dda";
+import * as GP from "./geoprocessing.js?v=20261024-8749dda";
+import { applyCutaway } from "./cutaway.js?v=20261024-8749dda";
+import { mergeTileFragments } from "./tile-merge.js?v=20261024-8749dda";
 
 const key = (z, x, y) => `${z}/${x}/${y}`;
 
