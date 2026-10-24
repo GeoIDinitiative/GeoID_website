@@ -25,8 +25,8 @@
  * pin; the rest is the page's own seams, asked for at the moment of reset.
  */
 
-import { stopPlayer } from "./timelapse-player.js?v=20261024-93269e3";
-import { defaultEnabled, SOURCES } from "./event-sources.js?v=20261024-93269e3";
+import { stopPlayer } from "./timelapse-player.js?v=20261024-35dc55e";
+import { defaultEnabled, SOURCES } from "./event-sources.js?v=20261024-35dc55e";
 
 const search = new URL(import.meta.url).search;
 

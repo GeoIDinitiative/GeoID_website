@@ -29,7 +29,7 @@
 //   * Depth-tested: hills and buildings hide what is behind them. Night only
 //     (the ship's NIGHT from flight-tiles.js); nothing runs by day.
 
-import { NIGHT } from "./night-lights.js?v=20261024-93269e3";
+import { NIGHT } from "./night-lights.js?v=20261024-35dc55e";
 
 const TILEJSON = "https://tiles.openfreemap.org/planet";
 const BM = "https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/VIIRS_Black_Marble/default/2016-01-01/GoogleMapsCompatible_Level8/{z}/{y}/{x}.png";
@@ -398,6 +398,8 @@ function tick() {
   // Sharp lanterns low down, a diffuse glow from ~1.5 km up (fully by 6 km).
   const altM = (Number(f.shipAltUnits) || 0) / UNITS_PER_M;
   shared.uDiffuse.value = Math.min(1, Math.max(0, (altM - 1500) / 4500));
+  // Ring sizes change in 1 km steps of height, not with every metre of a climb.
+  const altStep = Math.round(altM / 1000) * 1000;
   // AHEAD: the rings are centred where the aircraft is going (its own motion
   // since the last tick), so the lit streets reach far out in front of it
   // (owner: "the radius ahead of view for the night lighting needs increased
@@ -428,8 +430,6 @@ function tick() {
   // Radii grow with height, the tiles coarsening outward ("lower resolution
   // with height"); crossfades are wide (a fifth of a ring) so no band of
   // light sweeps visibly across the ground as the aircraft moves.
-  // Sizes change in 1 km steps of height, not with every metre of a climb.
-  const altStep = Math.round(altM / 1000) * 1000;
   const r13 = Math.min(40000, 14000 + 1.3 * altStep);
   const r11 = Math.min(90000, 70000 + 1.0 * altStep);
   const useZ10 = altStep > 8000;
