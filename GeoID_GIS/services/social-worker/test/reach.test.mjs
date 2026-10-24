@@ -10,7 +10,7 @@ import { depositMetadata, seal, unseal } from "../zenodo.js";
 import { slotIcs, checkins } from "../officehours.js";
 import { cleanPin } from "../reviews.js";
 import { detectPlatform, harvestJobs, jsonLd, jobsFromJsonLd, eventsFromJsonLd, parseIcs, fetchJobs, fetchEvents, looksLikeDetail, plausibleTitle, parseJobsAcUk, dayMonthAhead } from "../ats.js";
-import { scorePosting, readSource, runImports, seedSources } from "../importer.js";
+import { classifyPosting, readSource, runImports, seedSources } from "../importer.js";
 
 const ANA = "ana@example.com", BEN = "ben@example.com", ADMIN = "admin@example.com";
 const enc = (s) => new TextEncoder().encode(s);
@@ -289,14 +289,16 @@ test("ats: greenhouse adapter, and a landing page hops to the real listing", asy
   assert.equal(ev.events.length, 1);
 });
 
-test("importer: scores like the scanner; posts relevant jobs and future events, credited; never twice", async () => {
-  const [s1, hits] = scorePosting("Senior Volcano Remote Sensing Scientist (InSAR)");
-  assert.ok(s1 >= 10, String(s1));
-  assert.ok(hits.includes("insar"));
-  assert.equal(scorePosting("Strategist")[0], 0, "gis must not match inside a word");
-  assert.equal(scorePosting("Night nurse, volcano ward")[0], -1);
-  assert.equal(scorePosting("HGV Drivers wanted")[0], -1);
-  assert.ok(scorePosting("PhD Studentship: Drivers and Consequences of Recent Changes in Climate")[0] > 0, "drivers of change are science");
+test("importer: no scores -- a geoscience field or not; posts relevant jobs and future events, credited; never twice", async () => {
+  const c = classifyPosting("Senior Volcano Remote Sensing Scientist (InSAR)");
+  assert.equal(c.excluded, false);
+  assert.ok(c.fields.includes("volcan") && c.fields.includes("insar"));
+  assert.ok(!("score" in c), "nothing is weighed");
+  assert.deepEqual(classifyPosting("Strategist").fields, [], "gis must not match inside a word");
+  assert.deepEqual(classifyPosting("Digital Twin Software Engineer").fields, [], "the owner's own career terms are not the Network's");
+  assert.equal(classifyPosting("Night nurse, volcano ward").excluded, true);
+  assert.equal(classifyPosting("HGV Drivers wanted").excluded, true);
+  assert.equal(classifyPosting("PhD Studentship: Drivers and Consequences of Recent Changes in Climate").excluded, false, "drivers of change are science");
 
   const env = await world();
   await seedSources(env);
@@ -370,7 +372,7 @@ test("jobs.ac.uk: a discipline-filtered search is read as a board, employer kept
   const r = await readSource(env, source, Math.floor(Date.now() / 1000), { fetcher });
   assert.equal(asked.length, 1, "a short page is the last page");
   assert.equal(r.listed, 3);
-  assert.equal(r.posted, 2, "the board's filter is trusted (a geography lectureship scores 0 but goes in); exclusions still apply");
+  assert.equal(r.posted, 2, "the board's filter is trusted; exclusions still apply");
   const opp = await call(env, "GET", "/v1/feed?tab=opportunities");
   const post = opp.body.items.find((p) => /Physical Geography/.test(p.title));
   assert.ok(post);

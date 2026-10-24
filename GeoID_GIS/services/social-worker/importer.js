@@ -10,8 +10,10 @@
  *     the calendars that returned events when probed);
  *   - each source read on a ROTA -- a few per 15-minute tick, oldest first, so
  *     no tick is long and every source is read about daily;
- *   - every posting scored with transparent weighted keywords (no model);
- *     what clears MIN_SCORE is posted, the rest only remembered;
+ *   - NO SCORES. The scanner's weighted keywords rank roles for one person;
+ *     here a posting only has to be in a geoscience field (FIELDS, a plain
+ *     yes/no), or come from a board whose discipline filter already chose
+ *     the field. The rest are only remembered;
  *   - per-source yield kept (ever_yielded, consecutive_empty, last_error) and
  *     shown to admins at /v1/imports, green/amber/red as the Atlas widget
  *     does -- because CURATING A URL beats more parser code.
@@ -32,49 +34,58 @@ import JOB_SOURCES from "./sources/jobs.json" with { type: "json" };
 import EVENT_SOURCES from "./sources/events.json" with { type: "json" };
 
 const DAY = 86400;
-export const MIN_SCORE = 4;
 const PER_TICK = 4;                 // sources read per 15-minute tick
 const REREAD = 20 * 3600;           // a source is due again after ~a day
 const MAX_NEW_PER_SOURCE = 12;      // a first read posts at most this many
 const MAX_NEW_FROM_BOARD = 75;      // a board's discipline-filtered pages (ats.js BOARD_PAGES)
 const BOT = { handle: "geoidnetwork", name: "GeoID Network", email: "network-bot@geoid.invalid" };
 
-/** The scanner's weights: how strongly a term implies a role this Network should see. */
-export const KEYWORDS = {
-  volcano: 5, volcanic: 5, geohazard: 5, "natural hazard": 5, catastrophe: 4, "cat model": 5, landslide: 5,
-  "slope stability": 5, seismic: 4, seismolog: 4, earthquake: 4, tephra: 5, lahar: 5, "climate risk": 5,
-  "physical risk": 4, climate: 3, hazard: 4, "earth observation": 5, "remote sensing": 5, insar: 5,
-  satellite: 3, geospatial: 4, gis: 3, geodesy: 4, geodetic: 4, geophysic: 4, geoscien: 4, geolog: 3, hydrolog: 4,
-  flood: 4, meteorolog: 3, atmospheric: 3, ocean: 3, glacio: 4, glacier: 4, cryospher: 4, "sea ice": 4, polar: 3,
-  "digital twin": 5, "finite element": 5, "numerical model": 4, computational: 3, simulation: 3, hpc: 3,
-  "machine learning": 3, "deep learning": 3, "data scientist": 3, "research scientist": 4, postdoc: 3,
-  fellowship: 3, phd: 3, studentship: 4, modeller: 4, modeler: 4, risk: 2, resilience: 3, cmip: 5,
-  downscal: 4, "earth system": 5, soil: 3, groundwater: 4, hydrogeolog: 5, mineral: 3, mining: 2,
-  tectonic: 4, "weather": 3, "air quality": 3, wildfire: 4, drought: 4, "sea level": 4, coastal: 3,
-};
+const term = (k) => new RegExp(`\\b${k.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`, "i");
+
+/**
+ * Is a posting in a geoscience field at all? A plain yes or no -- NO SCORE.
+ * The Atlas scanner's weights rank roles for one person's career; the
+ * Network serves every member, so it asks only whether the field is
+ * geoscience and leaves "is this for me?" to the reader. A word start
+ * matches ("volcan" finds volcano and volcanology).
+ */
+export const FIELDS = [
+  "volcan", "seism", "earthquake", "tsunami", "geohazard", "natural hazard", "landslide", "slope stability", "tephra", "lahar",
+  "geolog", "geoscien", "geophysic", "geodes", "geodetic", "geomorpholog", "geochem", "geochron", "petrolog", "mineralog",
+  "sediment", "stratigraph", "palaeo", "paleo", "tectonic", "structural geolog", "geotechnic", "geothermal", "rock mechanic",
+  "hydrolog", "hydrogeolog", "groundwater", "flood", "drought", "river", "catchment", "glaci", "cryospher", "sea ice", "ice sheet",
+  "permafrost", "polar", "antarctic", "arctic", "ocean", "marine geo", "coastal", "sea level", "climate", "atmospher",
+  "meteorolog", "weather", "air quality", "wildfire", "earth observation", "remote sensing", "insar", "lidar", "gis",
+  "geospatial", "geographic information", "physical geograph", "geograph", "soil", "earth science", "earth system",
+  "environmental science", "planetary science", "mineral exploration", "mining geolog",
+];
+const FIELD_TERMS = FIELDS.map((k) => [k, term(k)]);
+
 export const EXCLUDE = ["nurse", "cleaner", "janitor", "security guard", "receptionist", "sales representative",
   "account executive", "recruiter", "barista", "chef", "driver", "warehouse", "custodian", "electrician",
   "plumber", "teller", "cashier", "apprentice", "medical physics", "graduation ceremony"];
 
-const term = (k) => new RegExp(`\\b${k.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`, "i");
-const TERMS = Object.fromEntries(Object.keys(KEYWORDS).map((k) => [k, term(k)]));
 // "Drivers of change" is science; "HGV drivers" is not. Every other exclusion is a plain word start.
 const EXCLUDE_TERMS = EXCLUDE.map((k) => (k === "driver" ? /\bdrivers?\b(?!\s+(?:of|and|behind|for)\b)/i : term(k)));
 
-/** [score, hits]: -1 for an excluded title. Anchored at a word start, as the scanner does. */
-export function scorePosting(text) {
+/**
+ * {excluded, fields}: the field words a posting mentions (for its tags), and
+ * whether it is a kind of job the Network never lists. Nothing is weighed.
+ */
+export function classifyPosting(text) {
   const t = String(text || "");
-  if (EXCLUDE_TERMS.some((re) => re.test(t))) return [-1, []];
-  const hits = Object.keys(TERMS).filter((k) => TERMS[k].test(t));
-  return [hits.reduce((n, k) => n + KEYWORDS[k], 0), hits];
+  if (EXCLUDE_TERMS.some((re) => re.test(t))) return { excluded: true, fields: [] };
+  return { excluded: false, fields: FIELD_TERMS.filter(([, re]) => re.test(t)).map(([k]) => k) };
 }
 
-/** Tags for a post from its keyword hits: the Network's own tag shape. */
+/** Tags for a post from the fields it mentions: the Network's own tag shape. */
 function tagsFrom(hits) {
   const map = { volcan: "volcanology", seism: "seismology", earthquake: "seismology", landslide: "landslides", flood: "hydrology",
     hydrolog: "hydrology", "remote sensing": "remote-sensing", "earth observation": "earth-observation", insar: "insar",
-    glaci: "cryosphere", cryospher: "cryosphere", climate: "climate", geodes: "geodesy", geophysic: "geophysics",
-    gis: "gis", geospatial: "gis", "machine learning": "machine-learning", ocean: "oceanography", soil: "soil" };
+    glaci: "cryosphere", cryospher: "cryosphere", "sea ice": "cryosphere", "ice sheet": "cryosphere", climate: "climate",
+    geodes: "geodesy", geophysic: "geophysics", gis: "gis", geospatial: "gis", ocean: "oceanography", soil: "soil",
+    geolog: "geology", tectonic: "tectonics", groundwater: "hydrology", hydrogeolog: "hydrology", atmospher: "atmosphere",
+    meteorolog: "meteorology", weather: "meteorology", geograph: "geography", geomorpholog: "geomorphology" };
   const out = new Set();
   for (const h of hits) for (const [k, tag] of Object.entries(map)) if (h.startsWith(k) || k.startsWith(h)) out.add(tag);
   return [...out].slice(0, 6);
@@ -173,19 +184,19 @@ export async function readSource(env, source, t = now(), { fetcher = fetch } = {
       continue;
     }
     const text = source.kind === "events" ? `${item.title} ${item.description || ""}`
-      : `${item.title} ${item.department || ""} ${item.location || ""}`;
-    const [score, hits] = scorePosting(text);
-    // A board's discipline filter has already chosen the field: anything not excluded is in.
-    const enough = item.board ? score >= 0 : score >= MIN_SCORE;
+      : `${item.title} ${item.department || ""}`;
+    const { excluded, fields } = classifyPosting(text);
+    // A board's own discipline filter has already chosen the field; an employer's page needs a field word.
+    const enough = !excluded && (item.board || fields.length > 0);
     let postId = null;
     if (enough && posted < (item.board ? MAX_NEW_FROM_BOARD : MAX_NEW_PER_SOURCE)) {
-      const row = source.kind === "events" ? eventPost(bot, source, item, hits, t) : jobPost(bot, source, item, hits, t);
+      const row = source.kind === "events" ? eventPost(bot, source, item, fields, t) : jobPost(bot, source, item, fields, t);
       await env.DB.batch(insertStatements(env.DB, row));
       postId = row.id;
       posted += 1;
     }
-    await run(env, "INSERT INTO imported (url_key, source_id, post_id, score, first_seen, last_seen) VALUES (?, ?, ?, ?, ?, ?)",
-      item.key, source.id, postId, Math.max(score, 0), t, t);
+    await run(env, "INSERT INTO imported (url_key, source_id, post_id, first_seen, last_seen) VALUES (?, ?, ?, ?, ?)",
+      item.key, source.id, postId, t, t);
   }
   // Three reads without a posting it used to list: it has gone.
   await run(env, "UPDATE imported SET gone_at = ? WHERE source_id = ? AND gone_at IS NULL AND last_seen < ?", t, source.id, t - 3 * REREAD);
