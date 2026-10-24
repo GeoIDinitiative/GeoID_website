@@ -30,8 +30,8 @@
 
 import {
   buildSymbology, colourOf, legendInfoFrom,
-} from "./symbology.js?v=20261024-baa9364";
-import { dataUrl } from "./data-base.js?v=20261024-baa9364";
+} from "./symbology.js?v=20261024-1bf5920";
+import { dataUrl } from "./data-base.js?v=20261024-1bf5920";
 
 const YEARS_PATH = "/data/global/cyclone-risk-years.json";
 
