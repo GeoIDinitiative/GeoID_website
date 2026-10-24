@@ -8,8 +8,9 @@
  */
 
 import { decodeLayer, rings, polygons, clipRing, ringArea } from "../game/mvt.js?v=1";
-import { extrudeTile, pitched } from "../game/extrude.js?v=1";
-import { clipLine, pointInRing, fitWheel, scatterTrees } from "../game/structures.js?v=1";
+import { extrudeTile, pitched } from "../game/extrude.js?v=2";
+import { clipLine, pointInRing, fitWheel, scatterTrees } from "../game/structures.js?v=2";
+import { extrudeCanopy, crownHeight, CANOPY_KINDS } from "../game/canopy.js?v=2";
 import { ShapeUtils, Vector2 } from "../../../everest/vendor/three.module.js";
 
 let failed = 0;
@@ -200,25 +201,72 @@ for (let k = 0; k < bm.position.length; k += 3) { if (bm.position[k + 1] < -1.9)
 check("piers reach down into the river", piers > 0, String(piers));
 check("a water patch hides the photo's bridge under the deck", patch > 0, String(patch));
 
-/* ── Trees ──────────────────────────────────────────────────────────────── */
-// A 200 x 200 m wood in a 1 km tile: ~40,000 m^2 / 80 = ~500 trees, all inside.
+/* ── Trees (parks only) ─────────────────────────────────────────────────── */
+// A 200 x 200 m park in a 1 km tile: ~40,000 m^2 / 700 = ~57 trees, all inside.
 const woodRing = [[1000, 1000], [1000 + 819, 1000], [1000 + 819, 1000 + 819], [1000, 1000 + 819]];
-const lc = { extent: 4096, features: [{ id: 5, type: 3, props: { class: "wood", subclass: "wood" }, geometry: geom([woodRing]) }] };
+const lc = { extent: 4096, features: [{ id: 5, type: 3, props: { class: "grass", subclass: "park" }, geometry: geom([woodRing]) }] };
 const treeApi = { s: 1000 / 4096, ext: 4096, ground: () => 7,
   polygonsOf: (f) => polygons(rings(f.geometry)) };
 const T1 = scatterTrees(treeApi, lc);
 const n1 = T1.length / 5;
-check("a 4 ha wood gets ~500 trees", n1 > 420 && n1 < 580, String(n1));
+check("a 4 ha park gets ~57 trees", n1 > 40 && n1 < 75, String(n1));
 let inside = true, onGround = true;
 for (let k = 0; k < T1.length; k += 5) {
   const u = T1[k] / treeApi.s, v = T1[k + 2] / treeApi.s;
   if (!pointInRing([u, v], woodRing)) inside = false;
   if (T1[k + 1] !== 7) onGround = false;
 }
-check("every tree is inside the wood, on the ground", inside && onGround);
-check("the same wood grows the same trees", JSON.stringify(Array.from(scatterTrees(treeApi, lc))) === JSON.stringify(Array.from(T1)));
+check("every tree is inside the park, on the ground", inside && onGround);
+check("the same park grows the same trees", JSON.stringify(Array.from(scatterTrees(treeApi, lc))) === JSON.stringify(Array.from(T1)));
 check("no trees on a bridge", scatterTrees(treeApi, lc, [{ outer: woodRing, holes: [] }]).length === 0);
-const bigWood = { extent: 4096, features: [{ id: 6, type: 3, props: { class: "wood" }, geometry: geom([[[0, 0], [4096, 0], [4096, 4096], [0, 4096]]]) }] };
-check("a tile of forest is capped at 7,000 trees", scatterTrees({ ...treeApi, s: 4000 / 4096 }, bigWood).length / 5 <= 7000);
+const bigPark = { extent: 4096, features: [{ id: 6, type: 3, props: { subclass: "park" }, geometry: geom([[[0, 0], [4096, 0], [4096, 4096], [0, 4096]]]) }] };
+check("a tile of park is capped at 7,000 trees", scatterTrees({ ...treeApi, s: 4000 / 4096 }, bigPark).length / 5 <= 7000);
+const woodLc = { extent: 4096, features: [{ id: 7, type: 3, props: { class: "wood", subclass: "wood" }, geometry: geom([woodRing]) }] };
+check("a wood grows no single trees (it is a canopy)", scatterTrees(treeApi, woodLc).length === 0);
+
+/* ── Woods as a raised canopy ───────────────────────────────────────────── */
+const canopyApi = { ...treeApi, ground: () => 7, triangulate: tri };
+const C = extrudeCanopy(canopyApi, woodLc, [8186, 5448]);
+const topTris = C.topCount / 3, wallTris = (C.index.length - C.topCount) / 3;
+check("a 4 ha wood becomes one canopy", C.polygons === 1 && topTris > 50 && wallTris >= 8, `${C.polygons} ${topTris} ${wallTris}`);
+// Watertight: every edge of the top is shared by two triangles except the outline's.
+const edgeUse = new Map();
+for (let i = 0; i < C.topCount; i += 3) for (let e = 0; e < 3; e++) {
+  const a = C.index[i + e], b = C.index[i + (e + 1) % 3], k = a < b ? `${a},${b}` : `${b},${a}`;
+  edgeUse.set(k, (edgeUse.get(k) || 0) + 1);
+}
+const open = [...edgeUse.values()].filter((n) => n === 1).length;
+check("the canopy top is watertight (no cracks when lifted)", open === 4 && ![...edgeUse.values()].some((n) => n > 2), `${open} open edges`);
+let faceUp = true, crownOK = true;
+for (let i = 0; i < C.topCount; i++) {
+  const k = C.index[i] * 3;
+  if (C.normal[k + 1] <= 0) faceUp = false;
+  const h = C.position[k + 1] - 7;
+  if (h < CANOPY_KINDS.wood.h0 * 0.7 - CANOPY_KINDS.wood.lump || h > CANOPY_KINDS.wood.h1 + CANOPY_KINDS.wood.lump) crownOK = false;
+}
+check("the canopy faces the sky, at crown height above the ground", faceUp && crownOK);
+// The rim (the outline's own corners) stands lower than the crowns inside.
+const cornerY = C.position[1] - 7;
+check("its rim is rounded off, lower than the crowns", cornerY < crownHeight(CANOPY_KINDS.wood, 8186 * 1000 + 1000 * treeApi.s, 5448 * 1000 + 1000 * treeApi.s), String(cornerY));
+let outward = true;
+const cu = (1000 + 409) * treeApi.s;
+for (let i = C.topCount; i < C.index.length; i++) {
+  const k = C.index[i] * 3;
+  if ((C.position[k] - cu) * C.normal[k] + (C.position[k + 2] - cu) * C.normal[k + 2] <= 0) outward = false;
+}
+check("its walls face out, down into the ground", outward && Math.min(...Array.from({ length: C.position.length / 3 }, (_, i) => C.position[i * 3 + 1])) < 7);
+check("the top carries the tile's imagery UVs", Math.abs(C.uv[0] - 1000 / 4096) < 1e-6 && Math.abs(C.uv[1] - (1 - 1000 / 4096)) < 1e-6);
+check("the same wood grows the same canopy", JSON.stringify(Array.from(extrudeCanopy(canopyApi, woodLc, [8186, 5448]).position)) === JSON.stringify(Array.from(C.position)));
+// A wood that fills the tile: no walls along the tile's own edges, and the
+// crowns either side of a tile edge are the same height (world-continuous).
+const fullWood = { extent: 4096, features: [{ id: 8, type: 3, props: { class: "wood" }, geometry: geom([[[0, 0], [4096, 0], [4096, 4096], [0, 4096]]]) }] };
+const F = extrudeCanopy(canopyApi, fullWood, [10, 20]);
+check("no foliage wall along the tile's own edges", F.index.length === F.topCount);
+const sizeM = 4096 * treeApi.s;
+check("crowns meet across a tile edge", Math.abs(crownHeight(CANOPY_KINDS.wood, 11 * sizeM, 20 * sizeM + 300) - crownHeight(CANOPY_KINDS.wood, 10 * sizeM + 4096 * treeApi.s, 20 * sizeM + 300)) < 1e-9);
+const scrub = extrudeCanopy(canopyApi, { extent: 4096, features: [{ id: 9, type: 3, props: { class: "scrub", subclass: "scrub" }, geometry: geom([woodRing]) }] }, [0, 0]);
+let scrubMax = 0; for (let i = 1; i < scrub.position.length; i += 3) scrubMax = Math.max(scrubMax, scrub.position[i] - 7);
+check("scrub is a low canopy", scrub.polygons === 1 && scrubMax <= CANOPY_KINDS.scrub.h1 + CANOPY_KINDS.scrub.lump, String(scrubMax));
+check("a park is not a canopy", extrudeCanopy(canopyApi, lc, [0, 0]).polygons === 0);
 
 process.exit(failed ? 1 : 0);

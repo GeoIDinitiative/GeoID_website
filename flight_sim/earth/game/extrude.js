@@ -21,7 +21,8 @@
  */
 
 import { rings, polygons, clipRing } from "./mvt.js?v=1";
-import { bridgeOutlines, drawBridges, latticeClusters, drawWheel, inPolys, scatterTrees } from "./structures.js?v=1";
+import { extrudeCanopy } from "./canopy.js?v=2";
+import { bridgeOutlines, drawBridges, latticeClusters, drawWheel, inPolys, scatterTrees } from "./structures.js?v=2";
 
 const SINK = 4;
 
@@ -309,7 +310,9 @@ export function extrudeTile(layer, dem, demSize, sizeLocal, triangulate, extra =
     drawWheel(api, { ...w, cy: w.cy + g });
   }
 
-  // Trees in the tile's woods and parks (structures.js), kept off bridges.
+  // Woods and scrub as a raised canopy (canopy.js); single trees only in
+  // parks (structures.js), kept off bridges.
+  const canopy = extrudeCanopy(api, extra.landcover, extra.origin);
   const trees = scatterTrees(api, extra.landcover, outlines);
 
   const index = new Uint32Array(roofIdx.length + wallIdx.length);
@@ -325,6 +328,7 @@ export function extrudeTile(layer, dem, demSize, sizeLocal, triangulate, extra =
     polygons: nPoly,
     bridges,
     trees,
+    canopy,
     wheels: lattice.wheels.length,
     latticeParts: lattice.skip.size,
     roofCount: roofIdx.length,

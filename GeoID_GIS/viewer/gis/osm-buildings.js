@@ -36,9 +36,9 @@
 // transparent pass in a group sorted at 190 (see GROUP_ORDER), still
 // depth-tested and depth-writing against the globe and each other.
 
-import { isEarth } from "./bodies.js?v=20261024-804d6d6";
+import { isEarth } from "./bodies.js?v=20261024-9058c2a";
 import { facade, roof } from "../../../flight_sim/earth/game/facade.js?v=1";
-import { NIGHT } from "./night-lights.js?v=20261024-804d6d6";
+import { NIGHT } from "./night-lights.js?v=20261024-9058c2a";
 
 const BUILDINGS_TILEJSON = "https://tiles.openfreemap.org/planet";
 // blankTile=false: a tile with no imagery is a 404, not Esri's grey "Map data
@@ -109,12 +109,79 @@ function treeAssets() {
   treeGeo = merged;
   treeMat = shadowed(new THREE.MeshLambertMaterial({ vertexColors: true, transparent: true }));
 }
+/**
+ * The canopy's two materials (flight_sim/earth/game/canopy.js builds the
+ * shape). The top is the tile's own aerial imagery -- the photographed
+ * forest, raised -- over a dark green where the imagery has not arrived yet,
+ * so a loading canopy is a canopy and not a hole. The walls are a foliage
+ * texture drawn once here: dark, mottled crowns with lighter flecks and a
+ * shadowed foot, repeating every 8 m (the wall UVs are in eighths of a metre).
+ */
+let foliageTex = null;
+function foliageTexture() {
+  if (foliageTex) return foliageTex;
+  const N = 256;
+  const c = document.createElement("canvas");
+  c.width = c.height = N;
+  const g = c.getContext("2d");
+  g.fillStyle = "#1f3317";
+  g.fillRect(0, 0, N, N);
+  let seed = 7;
+  const rnd = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
+  // Crowns: overlapping blobs in a few greens, lighter towards the top.
+  for (let i = 0; i < 900; i++) {
+    const x = rnd() * N, y = rnd() * N, r = 4 + rnd() * 14;
+    const lift = 1 - y / N;
+    const l = 14 + lift * 16 + rnd() * 10;
+    g.fillStyle = `hsl(${88 + rnd() * 30}, ${32 + rnd() * 18}%, ${l}%)`;
+    for (const dx of [-N, 0, N]) { g.beginPath(); g.arc(x + dx, y, r, 0, Math.PI * 2); g.fill(); }
+  }
+  // Sunlit flecks.
+  for (let i = 0; i < 500; i++) {
+    g.fillStyle = `rgba(150, 190, 90, ${0.15 + rnd() * 0.25})`;
+    g.fillRect(rnd() * N, rnd() * N * 0.7, 1 + rnd() * 2, 1 + rnd() * 2);
+  }
+  // The foot of the wall is in the wood's own shadow.
+  const foot = g.createLinearGradient(0, N, 0, N * 0.55);
+  foot.addColorStop(0, "rgba(5, 10, 4, 0.75)");
+  foot.addColorStop(1, "rgba(5, 10, 4, 0)");
+  g.fillStyle = foot;
+  g.fillRect(0, 0, N, N);
+  foliageTex = new THREE.CanvasTexture(c);
+  foliageTex.colorSpace = THREE.SRGBColorSpace;
+  foliageTex.wrapS = THREE.RepeatWrapping;
+  foliageTex.wrapT = THREE.RepeatWrapping;   // flipY (default) puts v = 0, the foot, at the canvas bottom
+  foliageTex.anisotropy = 8;
+  return foliageTex;
+}
+let canopySideMat = null;
+function canopyMaterials(imagery) {
+  if (!canopySideMat) {
+    // v runs 0 at the foot to 1 a canvas-height (8 m) up; taller walls
+    // repeat the crown band rather than stretching it.
+    canopySideMat = shadowed(new THREE.MeshLambertMaterial({ map: foliageTexture() }));
+  }
+  const top = shadowed(new THREE.MeshLambertMaterial({ map: imagery }));
+  const prev = top.onBeforeCompile;
+  top.onBeforeCompile = (shader) => {
+    prev(shader);
+    shader.fragmentShader = shader.fragmentShader.replace("#include <map_fragment>", `
+      #ifdef USE_MAP
+        vec4 canopyTexel = texture2D( map, vMapUv );
+        diffuseColor.rgb *= mix( vec3( 0.13, 0.21, 0.10 ), canopyTexel.rgb, canopyTexel.a );
+      #endif`);
+  };
+  const key = top.customProgramCacheKey.bind(top);
+  top.customProgramCacheKey = () => key() + "|canopy";
+  return [top, canopySideMat];
+}
+
 let sun = null;
 let keyLight = null;
 let enabled = true;
 let shadowsWanted = true;
 let lastDecision = 0;
-export const stats = { tiles: 0, buildings: 0, trees: 0, verts: 0, altitude: null, active: false, shadows: false };
+export const stats = { tiles: 0, buildings: 0, trees: 0, woods: 0, verts: 0, altitude: null, active: false, shadows: false };
 
 /* ── Pure helpers (tested) ───────────────────────────────────────────────── */
 
@@ -220,7 +287,7 @@ function heightAboveGround(viewer, eye) {
 
 function ensureWorker() {
   if (worker) return;
-  worker = new Worker(new URL("../../../flight_sim/earth/game/buildings-worker.js?v=1", import.meta.url), { type: "module" });
+  worker = new Worker(new URL("../../../flight_sim/earth/game/buildings-worker.js?v=2", import.meta.url), { type: "module" });
   worker.onmessage = (e) => {
     const job = jobs.get(e.data.id);
     if (!job) return;
@@ -256,7 +323,7 @@ async function loadTile(viewer, t) {
   // the anchor's job below, so every building stands on the tile's plane.
   const res = await new Promise((resolve) => {
     jobs.set(id, resolve);
-    worker.postMessage({ id, buf, dem: null, demSize: 256, sizeLocal: sizeM }, [buf]);
+    worker.postMessage({ id, buf, dem: null, demSize: 256, sizeLocal: sizeM, origin: [t.x, t.y] }, [buf]);
   });
   if (t.dead || res.error || res.empty) return;
   build(viewer, t, res.mesh, res.buildings, lat, sizeM);
@@ -429,11 +496,33 @@ function build(viewer, t, m, count, lat, sizeM) {
     trees.matrixAutoUpdate = false;
     stats.trees = (stats.trees || 0) + count;
   }
-  t.mesh = mesh; t.catcher = catcher; t.ground = ground; t.trees = trees;
+  // Woods and scrub as a raised canopy: imagery on top, foliage on the walls.
+  let canopy = null;
+  const C = m.canopy;
+  if (C && C.index && C.index.length) {
+    const cg = new THREE.BufferGeometry();
+    cg.setIndex(new THREE.BufferAttribute(C.index, 1));
+    cg.setAttribute("position", new THREE.BufferAttribute(C.position, 3));
+    cg.setAttribute("normal", new THREE.BufferAttribute(C.normal, 3));
+    cg.setAttribute("uv", new THREE.BufferAttribute(C.uv, 2));
+    cg.addGroup(0, C.topCount, 0);
+    cg.addGroup(C.topCount, C.index.length - C.topCount, 1);
+    cg.computeBoundingSphere();
+    canopy = noPick(new THREE.Mesh(cg, canopyMaterials(t.roof)));
+    canopy.name = "GeoID-OSMCanopy";
+    canopy.renderOrder = ORDER_BUILDINGS;
+    canopy.castShadow = true;
+    canopy.receiveShadow = true;
+    canopy.matrixAutoUpdate = false;
+    t.canopyWoods = C.polygons;
+    stats.woods += C.polygons;
+  }
+  t.mesh = mesh; t.catcher = catcher; t.ground = ground; t.trees = trees; t.canopy = canopy;
   t.count = count; t.verts = m.position.length / 3;
   place(viewer, t);
   holder(viewer).add(keep(mesh), keep(catcher));
   if (trees) holder(viewer).add(keep(trees));
+  if (canopy) holder(viewer).add(keep(canopy));
   groundHolder(viewer).add(keep(ground));
   stats.tiles++; stats.buildings += count; stats.verts += t.verts;
 }
@@ -451,7 +540,7 @@ function build(viewer, t, m, count, lat, sizeM) {
 const LAYER_NAME = "3D buildings & trees (OpenStreetMap)";
 const LAYER_INFO = {
   source: "OpenStreetMap via OpenFreeMap vector tiles (OpenMapTiles schema, z14): building, transportation, water, landcover; roof and ground imagery Esri World Imagery z16-z17",
-  citation: "Buildings, bridges, trees: © OpenStreetMap contributors, ODbL 1.0 (openstreetmap.org/copyright); tiles: OpenFreeMap (openfreemap.org), OpenMapTiles schema © OpenMapTiles. Imagery: Esri World Imagery — Source: Esri, Vantor, Earthstar Geographics, and the GIS User Community. Facades, pitched roofs and tree placement are procedural.",
+  citation: "Buildings, bridges, trees: © OpenStreetMap contributors, ODbL 1.0 (openstreetmap.org/copyright); tiles: OpenFreeMap (openfreemap.org), OpenMapTiles schema © OpenMapTiles. Imagery: Esri World Imagery — Source: Esri, Vantor, Earthstar Geographics, and the GIS User Community. Woods are drawn as a canopy at modelled crown heights (15-23 m) under the same imagery; facades, pitched roofs, canopy relief and park-tree placement are procedural.",
   crs: "EPSG:3857 tiles, drawn on the globe",
   licence: "ODbL 1.0 (OpenStreetMap data); Esri terms of use (imagery)",
 };
@@ -520,6 +609,7 @@ function place(viewer, t) {
   t.catcher.matrix.copy(mat); t.catcher.matrixWorldNeedsUpdate = true;
   t.ground.matrix.copy(mat); t.ground.matrixWorldNeedsUpdate = true;
   if (t.trees) { t.trees.matrix.copy(mat); t.trees.matrixWorldNeedsUpdate = true; }
+  if (t.canopy) { t.canopy.matrix.copy(mat); t.canopy.matrixWorldNeedsUpdate = true; }
 }
 
 function drop(key) {
@@ -531,6 +621,12 @@ function drop(key) {
     t.catcher.parent?.remove(t.catcher);
     t.ground.parent?.remove(t.ground);
     if (t.trees) { t.trees.parent?.remove(t.trees); t.trees.dispose(); stats.trees -= t.trees.count; }
+    if (t.canopy) {
+      t.canopy.parent?.remove(t.canopy);
+      t.canopy.geometry.dispose();
+      t.canopy.material[0].dispose();   // the top is per tile; the wall material is shared
+      stats.woods -= t.canopyWoods || 0;
+    }
     t.ground.geometry.dispose();
     t.ground.material.dispose();
     t.mesh.geometry.dispose();

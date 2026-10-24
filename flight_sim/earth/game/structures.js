@@ -377,10 +377,10 @@ const TREE_KINDS = {
   park: { per: 700, h0: 8, h1: 18 },
   scrub: { per: 250, h0: 2, h1: 4 },
 };
+// Woods and scrub are drawn as a raised canopy (canopy.js), not as single
+// trees; a park is mostly lawn, so its trees stay individual.
 function treeKind(props) {
-  if (props.class === "wood") return TREE_KINDS.wood;
   if (props.subclass === "park") return TREE_KINDS.park;
-  if (props.subclass === "scrub") return TREE_KINDS.scrub;
   return null;
 }
 function frac(n) { const x = Math.sin(n) * 43758.5453; return x - Math.floor(x); }

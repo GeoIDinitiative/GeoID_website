@@ -7,14 +7,14 @@
 
 import { ShapeUtils, Vector2 } from "../../../everest/vendor/three.module.js?v=84ebb99-a7f30c15";
 import { decodeLayer } from "./mvt.js?v=1";
-import { extrudeTile } from "./extrude.js?v=1";
+import { extrudeTile } from "./extrude.js?v=2";
 
 // three's earcut wrapper wants Vector2s (it calls .equals on them).
 const v2 = (pts) => pts.map((p) => new Vector2(p.x, p.y));
 const triangulate = (c, h) => ShapeUtils.triangulateShape(v2(c), h.map(v2));
 
 self.onmessage = (e) => {
-  const { id, buf, dem, demSize, sizeLocal } = e.data;
+  const { id, buf, dem, demSize, sizeLocal, origin } = e.data;
   try {
     const layer = decodeLayer(buf, "building") || { extent: 4096, features: [] };
     // Bridges and the water they cross come from the same tile (structures.js).
@@ -22,10 +22,11 @@ self.onmessage = (e) => {
     const water = decodeLayer(buf, "water");
     const landcover = decodeLayer(buf, "landcover");
     if (!layer.features.length && !transport && !landcover) { self.postMessage({ id, empty: true }); return; }
-    const m = extrudeTile(layer, dem, demSize, sizeLocal, triangulate, { transport, water, landcover });
-    if (!m.index.length && !m.trees.length) { self.postMessage({ id, empty: true }); return; }
+    const m = extrudeTile(layer, dem, demSize, sizeLocal, triangulate, { transport, water, landcover, origin });
+    if (!m.index.length && !m.trees.length && !m.canopy.index.length) { self.postMessage({ id, empty: true }); return; }
     self.postMessage({ id, mesh: m, buildings: m.polygons },
-      [m.position.buffer, m.normal.buffer, m.uv.buffer, m.color.buffer, m.style.buffer, m.index.buffer, m.trees.buffer]);
+      [m.position.buffer, m.normal.buffer, m.uv.buffer, m.color.buffer, m.style.buffer, m.index.buffer, m.trees.buffer,
+       m.canopy.position.buffer, m.canopy.normal.buffer, m.canopy.uv.buffer, m.canopy.index.buffer]);
   } catch (err) {
     self.postMessage({ id, error: String(err && err.message || err) });
   }

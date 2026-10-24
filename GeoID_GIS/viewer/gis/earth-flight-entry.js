@@ -21,7 +21,7 @@
 //      frame): aim the globe there, then open pre-flight, whose centre
 //      crosshair takes the site from wherever the globe is aimed.
 
-import { isEarth } from "./bodies.js?v=20261024-804d6d6";
+import { isEarth } from "./bodies.js?v=20261024-9058c2a";
 
 /** `?flight=earth&lat=..&lon=..` -> { lat, lon } or { lat: null } or null. */
 export function parseFlightLink(search) {
@@ -77,7 +77,7 @@ function addEarthRows(section) {
     else if (s.altitude == null) status.textContent = "";
     else if (s.altitude > b.thresholds.SHOW_BELOW_M && !s.tiles)
       status.textContent = `Buildings appear below ${km(b.thresholds.SHOW_BELOW_M)} km — now ${km(s.altitude)} km up.`;
-    else status.textContent = `${s.buildings.toLocaleString()} buildings, ${(s.trees || 0).toLocaleString()} trees in ${s.tiles} tiles`
+    else status.textContent = `${s.buildings.toLocaleString()} buildings, ${(s.woods || 0).toLocaleString()} woods, ${(s.trees || 0).toLocaleString()} park trees in ${s.tiles} tiles`
       + (s.shadows ? " · sun shadows" : "") + (b.pending() ? " · loading…" : "");
   }, 1000);
 }
