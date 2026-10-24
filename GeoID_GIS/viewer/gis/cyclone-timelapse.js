@@ -23,12 +23,12 @@
 
 import {
   buildSymbology, colourOf, legendInfoFrom,
-} from "./symbology.js?v=20261024-9058c2a";
-import { SAFFIR_SIMPSON_KTS } from "./event-sources.js?v=20261024-9058c2a";
-import { startPlayer, stopPlayer, playerHidden } from "./timelapse-player.js?v=20261024-9058c2a";
+} from "./symbology.js?v=20261024-16ef562";
+import { SAFFIR_SIMPSON_KTS } from "./event-sources.js?v=20261024-16ef562";
+import { startPlayer, stopPlayer, playerHidden } from "./timelapse-player.js?v=20261024-16ef562";
 import {
   showSeason, showClimatology, riskLayer,
-} from "./cyclone-risk.js?v=20261024-9058c2a";
+} from "./cyclone-risk.js?v=20261024-16ef562";
 
 const search = new URL(import.meta.url).search;
 

@@ -21,7 +21,7 @@
 //      frame): aim the globe there, then open pre-flight, whose centre
 //      crosshair takes the site from wherever the globe is aimed.
 
-import { isEarth } from "./bodies.js?v=20261024-9058c2a";
+import { isEarth } from "./bodies.js?v=20261024-16ef562";
 
 /** `?flight=earth&lat=..&lon=..` -> { lat, lon } or { lat: null } or null. */
 export function parseFlightLink(search) {
@@ -187,29 +187,42 @@ function wire() {
     setInterval(() => { if (document.body.classList.contains("fs-flying")) layoutHud(); }, 250);
   }
 
-  // A launch gives the view the screen: the nav, Events and Legend fold away
-  // (owner, 2026-10-24), and each is put back as it was on Exit. Every one
-  // is still a click away -- the Mission Control tab, the two dropdowns.
-  // Not at pre-flight: Launch lives in the nav panel.
+  // The view gets the screen (owner, 2026-10-24). Pre-flight folds the Events
+  // and Legend dropdowns away while the site is aimed; the nav stays, because
+  // Launch lives in it. Once the site is chosen and the aircraft launches,
+  // the nav folds too. Each panel's own state is recorded the first time it
+  // is folded and put back on Exit (or on cancelling pre-flight). All are a
+  // click away throughout: the Mission Control tab, the two dropdowns.
+  //
+  // The sim announces `flightsim:engaged` both on entering pre-flight and on
+  // launch, and BEFORE it marks itself active -- so which one this is is read
+  // a moment later, from the sim's state.
   let folded = null;
-  const isOpen = (panelId) => { const p = document.getElementById(panelId); return !!p && !p.hidden; };
-  window.addEventListener("flightsim:engaged", () => {
-    const ui = document.getElementById("ui");
-    folded = {
-      nav: !!ui && !ui.classList.contains("is-collapsed"),
-      events: isOpen("events-panel"),
-      legend: isOpen("map-legend-panel"),
-    };
-    if (folded.nav) document.getElementById("nav-collapse-btn")?.click();
-    if (folded.events) document.getElementById("events-panel-toggle")?.click();
-    if (folded.legend) document.getElementById("map-legend-toggle")?.click();
-  });
+  const PANELS = {
+    nav: { open: () => !document.getElementById("ui")?.classList.contains("is-collapsed"),
+      close: "nav-collapse-btn", reopen: "nav-tab" },
+    events: { open: () => isPanelOpen("events-panel"), close: "events-panel-toggle", reopen: "events-panel-toggle" },
+    legend: { open: () => isPanelOpen("map-legend-panel"), close: "map-legend-toggle", reopen: "map-legend-toggle" },
+  };
+  function isPanelOpen(id) { const p = document.getElementById(id); return !!p && !p.hidden; }
+  const fold = (names) => {
+    folded = folded || {};
+    for (const name of names) {
+      const p = PANELS[name];
+      if (!(name in folded)) folded[name] = p.open();
+      if (p.open()) document.getElementById(p.close)?.click();
+    }
+  };
+  window.addEventListener("flightsim:engaged", () => setTimeout(() => {
+    if (window.__flightSim?.active) fold(["nav", "events", "legend"]);
+    else if (document.body.classList.contains("fs-preflight")) fold(["events", "legend"]);
+  }, 60));
   window.addEventListener("flightsim:disengaged", () => {
     if (!folded) return;
-    const ui = document.getElementById("ui");
-    if (folded.nav && ui?.classList.contains("is-collapsed")) document.getElementById("nav-tab")?.click();
-    if (folded.events && !isOpen("events-panel")) document.getElementById("events-panel-toggle")?.click();
-    if (folded.legend && !isOpen("map-legend-panel")) document.getElementById("map-legend-toggle")?.click();
+    for (const [name, wasOpen] of Object.entries(folded)) {
+      const p = PANELS[name];
+      if (wasOpen && !p.open()) document.getElementById(p.reopen)?.click();
+    }
     folded = null;
   });
 

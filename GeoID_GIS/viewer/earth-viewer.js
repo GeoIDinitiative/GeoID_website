@@ -2,15 +2,15 @@ import * as THREE from "./vendor/three.module.js";
 // The polygon-area rule lives in one place, with a test. Stamped by hand
 // once: stamp.py only rewrites a ?v= that already exists.
 import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
-  from "./gis/geo-utils.js?v=20261024-9058c2a";
+  from "./gis/geo-utils.js?v=20261024-16ef562";
 import { attachReliefAttributes, followRelief }
-  from "./gis/vector-render.js?v=20261024-9058c2a";
+  from "./gis/vector-render.js?v=20261024-16ef562";
 import { rockClass, crustalSetting, rockClassLabel, classificationBasis }
-  from "./gis/rock-class.js?v=20261024-9058c2a";
+  from "./gis/rock-class.js?v=20261024-16ef562";
 import { lithologyLabel }
-  from "./gis/lithology-label.js?v=20261024-9058c2a";
+  from "./gis/lithology-label.js?v=20261024-16ef562";
 import { formatLatLon }
-  from "./gis/coord-format.js?v=20261024-9058c2a";
+  from "./gis/coord-format.js?v=20261024-16ef562";
 
 /**
  * This module's own cache stamp, read off its own URL.
@@ -679,9 +679,11 @@ function fmtProp(value) {
       return Math.round(101325 * Math.exp(-elevMeters / 8500));
     }
 
-    // THE 3D COMPASS (bottom left). It replaced a little wireframe globe with a
-    // dot on it, which said where the view was centred but not which way it
-    // FACED -- and in flight, or tilted low over a city, facing is the question.
+    // THE LOCATOR (bottom left) is two instruments sharing one canvas. In the
+    // ordinary GeoHUB it is the little wireframe globe with a dot on it: where
+    // on the planet the view is centred. In Earth Flight (pre-flight and
+    // flight) it becomes a 3D COMPASS, because in the air the question is
+    // which way you are FACING.
     // The rose lies in the ground plane under the view centre and is drawn as
     // the camera sees it: turned so the view's heading is up, foreshortened by
     // the camera's tilt off the vertical. Straight down it is a flat dial;
@@ -691,8 +693,10 @@ function fmtProp(value) {
     const locatorCtx = hemisphereLocatorCanvas?.getContext("2d") ?? null;
     const locatorCameraLocal = new THREE.Vector3();
     let locatorLatLon = { lat: 0, lon: 0 };
+    let locatorDrawnLatLon = { lat: NaN, lon: NaN };
     const locatorDrawn = { heading: NaN, tilt: NaN };
     const locatorViewState = { camera: null, planetGroup: null, globe: null };
+    let locatorWasFlight = false;
     const compassUp = new THREE.Vector3();
     const compassAxis = new THREE.Vector3();
     const compassEast = new THREE.Vector3();
@@ -848,6 +852,107 @@ function fmtProp(value) {
       ctx.fill();
     }
 
+    function drawHemisphereLocator(latDeg, lonDeg) {
+      if (!locatorCtx || !hemisphereLocatorCanvas) {
+        return;
+      }
+      const ctx = locatorCtx;
+      const width = hemisphereLocatorCanvas.width;
+      const height = hemisphereLocatorCanvas.height;
+      const centerX = width * 0.5;
+      const centerY = height * 0.5;
+      const radius = Math.min(width, height) * 0.39;
+      const latRad = THREE.MathUtils.degToRad(latDeg || 0);
+      const lonRad = THREE.MathUtils.degToRad(lonDeg || 0);
+      const sinTilt = Math.sin(THREE.MathUtils.degToRad(22));
+      const cosTilt = Math.cos(THREE.MathUtils.degToRad(22));
+      const project = (lat, lon) => {
+        const phi = THREE.MathUtils.degToRad(lat);
+        const lambda = THREE.MathUtils.degToRad(lon) - lonRad;
+        const x = Math.cos(phi) * Math.sin(lambda);
+        const y0 = Math.sin(phi);
+        const z0 = Math.cos(phi) * Math.cos(lambda);
+        const y = y0 * cosTilt - z0 * sinTilt;
+        const z = y0 * sinTilt + z0 * cosTilt;
+        return { x: centerX + x * radius, y: centerY - y * radius, visible: z >= 0 };
+      };
+
+      ctx.clearRect(0, 0, width, height);
+
+      const globeFill = ctx.createRadialGradient(centerX - radius * 0.28, centerY - radius * 0.32, radius * 0.18, centerX, centerY, radius);
+      globeFill.addColorStop(0, "rgba(255, 255, 255, 0.03)");
+      globeFill.addColorStop(0.55, "rgba(255, 255, 255, 0.012)");
+      globeFill.addColorStop(1, "rgba(255, 255, 255, 0.005)");
+      ctx.beginPath();
+      ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+      ctx.fillStyle = globeFill;
+      ctx.fill();
+
+      const drawPolyline = (points, strokeStyle, lineWidth = 1, alpha = 1) => {
+        let drawing = false;
+        ctx.strokeStyle = strokeStyle;
+        ctx.lineWidth = lineWidth;
+        ctx.globalAlpha = alpha;
+        ctx.beginPath();
+        for (const point of points) {
+          if (!point.visible) {
+            drawing = false;
+            continue;
+          }
+          if (!drawing) {
+            ctx.moveTo(point.x, point.y);
+            drawing = true;
+          } else {
+            ctx.lineTo(point.x, point.y);
+          }
+        }
+        ctx.stroke();
+        ctx.globalAlpha = 1;
+      };
+
+      for (let lat = -60; lat <= 60; lat += 30) {
+        const points = [];
+        for (let lon = -180; lon <= 180; lon += 4) {
+          points.push(project(lat, lon));
+        }
+        drawPolyline(points, "rgba(255, 255, 255, 0.26)");
+      }
+
+      for (let lon = -150; lon <= 180; lon += 30) {
+        const points = [];
+        for (let lat = -90; lat <= 90; lat += 4) {
+          points.push(project(lat, lon));
+        }
+        drawPolyline(points, "rgba(255, 255, 255, 0.18)");
+      }
+
+      ctx.beginPath();
+      ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+      ctx.strokeStyle = "rgba(255, 255, 255, 0.75)";
+      ctx.lineWidth = 1;
+      ctx.stroke();
+
+      const eqStart = project(0, -180);
+      const eqEnd = project(0, 180);
+      drawPolyline([eqStart, eqEnd], "rgba(255, 255, 255, 0.42)", 1);
+
+      const marker = project(latDeg, lonDeg);
+      if (marker.visible) {
+        ctx.beginPath();
+        ctx.arc(marker.x, marker.y, 4.2, 0, Math.PI * 2);
+        ctx.fillStyle = "rgba(255, 255, 255, 0.98)";
+        ctx.shadowColor = "rgba(255, 255, 255, 0.42)";
+        ctx.shadowBlur = 8;
+        ctx.fill();
+        ctx.shadowBlur = 0;
+        ctx.beginPath();
+        ctx.arc(marker.x, marker.y, 7.5, 0, Math.PI * 2);
+        ctx.strokeStyle = "rgba(111, 217, 232, 0.78)";
+        ctx.lineWidth = 1;
+        ctx.stroke();
+      }
+    }
+
     function sampleLocatorLatLon() {
       if (!locatorViewState.globe || !locatorViewState.camera || !locatorViewState.planetGroup || activeMoonViewerFeature) {
         return null;
@@ -875,21 +980,45 @@ function fmtProp(value) {
       if (latLon) {
         locatorLatLon = latLon;
       }
-      const view = sampleCompass();
+      const inFlight = document.body.classList.contains("fs-flying") || document.body.classList.contains("fs-preflight");
+      if (inFlight !== locatorWasFlight) {
+        // Switching instrument: force a redraw of whichever one is now shown.
+        locatorWasFlight = inFlight;
+        locatorDrawn.heading = NaN;
+        locatorDrawnLatLon = { lat: NaN, lon: NaN };
+        hemisphereLocatorEl.setAttribute("aria-label", inFlight ? "Compass: the way the view faces" : "Earth hemisphere locator");
+        const kicker = hemisphereLocatorEl.querySelector(".locator-kicker");
+        if (kicker) kicker.textContent = inFlight ? "Compass" : "Global Locator";
+      }
+      if (inFlight) {
+        const view = sampleCompass();
+        if (
+          view && (
+            !Number.isFinite(locatorDrawn.heading) ||
+            Math.abs(((view.heading - locatorDrawn.heading + 540) % 360) - 180) > 0.5 ||
+            Math.abs(view.tilt - locatorDrawn.tilt) > 0.5
+          )
+        ) {
+          drawCompass(view.heading, view.tilt);
+          locatorDrawn.heading = view.heading;
+          locatorDrawn.tilt = view.tilt;
+        }
+        if (hemisphereLocatorReadout) {
+          const hdg = Number.isFinite(locatorDrawn.heading) ? `${String(Math.round(locatorDrawn.heading) % 360).padStart(3, "0")}° · ` : "";
+          hemisphereLocatorReadout.textContent = `${hdg}${locatorLatLon.lat.toFixed(1)}°, ${locatorLatLon.lon.toFixed(1)}°E`;
+        }
+        return;
+      }
       if (
-        view && (
-          !Number.isFinite(locatorDrawn.heading) ||
-          Math.abs(((view.heading - locatorDrawn.heading + 540) % 360) - 180) > 0.5 ||
-          Math.abs(view.tilt - locatorDrawn.tilt) > 0.5
-        )
+        !Number.isFinite(locatorDrawnLatLon.lat) ||
+        Math.abs(locatorDrawnLatLon.lat - locatorLatLon.lat) > 0.15 ||
+        Math.abs(locatorDrawnLatLon.lon - locatorLatLon.lon) > 0.15
       ) {
-        drawCompass(view.heading, view.tilt);
-        locatorDrawn.heading = view.heading;
-        locatorDrawn.tilt = view.tilt;
+        drawHemisphereLocator(locatorLatLon.lat, locatorLatLon.lon);
+        locatorDrawnLatLon = { ...locatorLatLon };
       }
       if (hemisphereLocatorReadout) {
-        const hdg = Number.isFinite(locatorDrawn.heading) ? `${String(Math.round(locatorDrawn.heading) % 360).padStart(3, "0")}° · ` : "";
-        hemisphereLocatorReadout.textContent = `${hdg}${locatorLatLon.lat.toFixed(1)}°, ${locatorLatLon.lon.toFixed(1)}°E`;
+        hemisphereLocatorReadout.textContent = `Center ${locatorLatLon.lat.toFixed(1)}°, ${locatorLatLon.lon.toFixed(1)}°E`;
       }
     }
 
