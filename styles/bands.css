@@ -252,17 +252,49 @@ body.bands .band-tile .hero-side { border-top: 1px solid var(--band-rule) !impor
    Everything starts on the column's left edge and runs to its right edge:
    heading, then its description directly beneath, then the cards, then any
    note. Nothing centred, nothing indented, no text boxed narrower than the
-   cards under it. Heroes are left-aligned too, as on the dashboard.
+   cards under it.
    (A heading-left / description-right split was tried on 2026-10-24 and
    rejected: it separated the description from its heading.) */
-body.bands :is(.hero-content, .photo-tile-content, .cyan-tile-content, .cta-content,
+body.bands :is(.photo-tile-content, .cyan-tile-content, .cta-content,
                .section-panel, .band-tile, .cx-inner, .tile-desc, .feature-body, .vision-left) {
   text-align: left !important;
 }
 body.bands :is(.hero-actions, .cx-btns, .involve-actions, .track-card-links) { justify-content: flex-start !important; }
-body.bands .hero-tile { justify-content: flex-start !important; }
-body.bands .hero-content { align-items: flex-start !important; }
-body.bands .hero-content > * { margin-left: 0 !important; margin-right: 0 !important; }
+
+/* Heroes are the exception: a full-height hero over a photograph is an
+   opening statement, centred on the page's centre line -- logo, title, lead,
+   buttons and facts. (Left-aligned heroes were rejected on 2026-10-24.)
+   Opt in: .hero-tile, the consultancy .cx-top, or a band hero marked
+   .hero-centred; a hero with a side panel (For Researchers) stays two-column. */
+body.bands .hero-tile { justify-content: center !important; }
+body.bands :is(.hero-content, .cx-top .cx-inner, .hero-centred .hero-panel) {
+  display: flex !important;
+  flex-direction: column;
+  align-items: center !important;
+  text-align: center !important;
+}
+body.bands :is(.hero-content, .cx-top .cx-inner, .hero-centred .hero-panel) > * {
+  margin-left: auto !important;
+  margin-right: auto !important;
+}
+body.bands :is(.hero-content, .cx-top .cx-inner, .hero-centred .hero-panel) :is(.hero-actions, .cx-btns) {
+  justify-content: center !important;
+}
+body.bands .hero-content :is(p, .hero-desc, .hero-tagline, .hero-sub) { max-width: 46rem; }
+body.bands .band-tile.hero-centred { grid-template-columns: 1fr !important; justify-items: center; }
+/* A mark pinned to one side would pull a centred hero off its axis. */
+body.bands .hero-tile .hero-logo-bg { display: none !important; }
+/* The shade follows the text: darkest behind the centre, not the left. */
+body.bands .hero-tile .hero-overlay {
+  background:
+    radial-gradient(ellipse 60% 55% at 50% 52%, rgba(8,0,20,0.62) 0%, rgba(8,0,20,0.30) 70%, rgba(8,0,20,0.15) 100%),
+    linear-gradient(180deg, rgba(8,0,20,0.10) 0%, rgba(8,0,20,0.35) 60%, rgba(8,0,20,0.85) 100%) !important;
+}
+.cx-shade.shade-centre {
+  background:
+    radial-gradient(ellipse 60% 55% at 50% 52%, rgba(8,0,20,0.66) 0%, rgba(8,0,20,0.32) 70%, rgba(8,0,20,0.18) 100%),
+    linear-gradient(180deg, rgba(8,0,20,0.10) 0%, rgba(8,0,20,0.40) 60%, rgba(8,0,20,0.90) 100%);
+}
 body.bands .vision-tile > .vision-left { padding: 0 !important; }
 
 /* Section text spans the column: the description under a heading, and a

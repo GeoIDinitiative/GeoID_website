@@ -145,6 +145,8 @@
     .cx-btns { display: flex; gap: 0.75rem; flex-wrap: wrap; margin-top: 2rem; }
 
     .cx-facts {
+      width: 100%;
+      text-align: center;
       display: grid;
       grid-template-columns: repeat(4, minmax(0, 1fr));
       gap: clamp(1.25rem, 3vw, 2.5rem);
@@ -704,8 +706,7 @@
       <!-- Hero -->
       <header class="cx-band cx-top" id="top">
         <img class="cx-bg" src="/assets/consultancy/hero.webp" alt="" fetchpriority="high" decoding="async">
-        <div class="cx-shade shade-bottom"></div>
-        <div class="cx-shade" style="background:linear-gradient(90deg, rgba(8,0,20,0.70), rgba(8,0,20,0) 65%);"></div>
+        <div class="cx-shade shade-centre"></div>
         <div class="cx-inner">
           <span class="avail"><span class="avail-dot" aria-hidden="true"></span>Taking enquiries for 2026&ndash;27</span>
           <h1>Focused <span>geohazard</span> assessments</h1>
