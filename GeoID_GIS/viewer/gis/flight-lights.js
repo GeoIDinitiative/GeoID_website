@@ -26,7 +26,7 @@
 //   * Depth-tested: hills and buildings hide what is behind them. Night only
 //     (the ship's NIGHT from flight-tiles.js); nothing runs by day.
 
-import { NIGHT } from "./night-lights.js?v=20261024-05d24f9";
+import { NIGHT } from "./night-lights.js?v=20261024-86fa94c";
 
 const TILEJSON = "https://tiles.openfreemap.org/planet";
 const BM = "https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/VIIRS_Black_Marble/default/2016-01-01/GoogleMapsCompatible_Level8/{z}/{y}/{x}.png";
@@ -290,8 +290,12 @@ function disposeMeshes(t) {
   if (t.pools) { t.pools.parent?.remove(t.pools); t.pools.dispose?.(); t.pools = null; }
 }
 
+// Fetch order: the close streets first, then the wider rings (the ship sits
+// inside the big z9/z11 tiles too, and they were competing as equals).
+const LEVEL_PENALTY_M = [0, 8000, 30000, 2500];
+const priority = (t) => t.d + LEVEL_PENALTY_M[LEVELS.indexOf(t.level)];
 function pump() {
-  fetchQueue.sort((a, b) => a.d - b.d);
+  fetchQueue.sort((a, b) => priority(a) - priority(b));
   while (fetching < FETCH_BUDGET && fetchQueue.length) {
     const t = fetchQueue.shift();
     if (!t.want) { t.state = null; continue; }
@@ -367,7 +371,7 @@ function tick() {
   // Hand what has arrived to the worker, nearest first, once its Black
   // Marble tile is there (a few ms here: the heights grid; the rest is off
   // the main thread).
-  readyQueue.sort((a, b) => a.d - b.d);
+  readyQueue.sort((a, b) => priority(a) - priority(b));
   const until = now + BUILD_MS;
   for (let i = 0; i < readyQueue.length && performance.now() < until;) {
     const t = readyQueue[i];

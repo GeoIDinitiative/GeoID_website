@@ -1,17 +1,17 @@
 /** #/u/:handle — a member's profile, reputation and portfolio; edit mode for yourself. */
-import * as api from "../api.js?v=20261024-05d24f9";
-import { store, myHandle, refreshMe } from "../store.js?v=20261024-05d24f9";
+import * as api from "../api.js?v=20261024-86fa94c";
+import { store, myHandle, refreshMe } from "../store.js?v=20261024-86fa94c";
 import {
   h, clear, field, input, select, textarea, toast, busy, splitList, extLink, errorBox, loading,
   confirmDialog, dateText, put, checkbox,
-} from "../dom.js?v=20261024-05d24f9";
+} from "../dom.js?v=20261024-86fa94c";
 import {
   avatar, followButton, messageDialog, reportDialog, act, pagedList, postCard, tagList, requireSignIn,
   affiliationBadge, mentoringBadge,
-} from "../components.js?v=20261024-05d24f9";
-import { createMap } from "../mapcore.js?v=20261024-05d24f9";
-import { mentoringRequestDialog } from "./settings.js?v=20261024-05d24f9";
-import { slotsPanel } from "./officehours.js?v=20261024-05d24f9";
+} from "../components.js?v=20261024-86fa94c";
+import { createMap } from "../mapcore.js?v=20261024-86fa94c";
+import { mentoringRequestDialog } from "./settings.js?v=20261024-86fa94c";
+import { slotsPanel } from "./officehours.js?v=20261024-86fa94c";
 
 const AVAIL = { open: "Open to collaborate", limited: "Limited availability", closed: "Not taking on collaborations" };
 // Both lists are the Worker's own values (profiles.js JOB_STATUS, ITEM_KINDS);

@@ -26,7 +26,7 @@
 // Esri World Imagery (blankTile=false: a missing tile is a 404 and the
 // ancestor stays). Flight only.
 
-import { NIGHT } from "./night-lights.js?v=20261024-05d24f9";
+import { NIGHT } from "./night-lights.js?v=20261024-86fa94c";
 
 // Esri serves World Imagery over HTTP/1.1, so a browser opens only ~6
 // connections per host: measured, 12 requests on one host ran at ~20 tiles/s.
@@ -94,7 +94,12 @@ export function selectLeaves(eye, altM, reachM, { maxZ = MAX_Z, split = SPLIT, m
     const ground = distToTileM(eye.lat, eye.lon, z, x, y);
     if (ground > reachM) return;
     const d = Math.hypot(ground, altM);
-    if (z < maxZ && d < split * tileSizeM(z, y)) {
+    // Foreshortening: ground seen at a shallow angle is squashed on screen,
+    // so it needs less detail than ground seen from above -- about a level
+    // less toward the horizon, full detail straight down. Fewer tiles, and
+    // the sharp ones where they show.
+    const sinElev = Math.min(1, altM / Math.max(d, 1));
+    if (z < maxZ && d < split * tileSizeM(z, y) * (0.45 + 0.55 * Math.sqrt(sinElev))) {
       for (let j = 0; j < 2; j++) for (let i = 0; i < 2; i++) visit(z + 1, x * 2 + i, y * 2 + j);
     } else {
       leaves.push({ z, x, y, d });

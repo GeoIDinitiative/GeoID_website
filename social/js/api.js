@@ -96,7 +96,7 @@ function qs(query) {
 
 let mock = null;
 async function viaMock(method, path, query, body) {
-  if (!mock) mock = await import("./dev-mock.js?v=20261024-05d24f9");
+  if (!mock) mock = await import("./dev-mock.js?v=20261024-86fa94c");
   const { status, data } = await mock.handle(method, path, query || {}, body);
   if (status >= 400) throw new ApiError(status, (data && data.error) || `HTTP ${status}`, data);
   return data;
