@@ -29,7 +29,7 @@
 //   * Depth-tested: hills and buildings hide what is behind them. Night only
 //     (the ship's NIGHT from flight-tiles.js); nothing runs by day.
 
-import { NIGHT } from "./night-lights.js?v=20261025-16c7e3e";
+import { NIGHT } from "./night-lights.js?v=20261025-e868c5c";
 
 const TILEJSON = "https://tiles.openfreemap.org/planet";
 const BM = "https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/VIIRS_Black_Marble/default/2016-01-01/GoogleMapsCompatible_Level8/{z}/{y}/{x}.png";
@@ -189,7 +189,13 @@ const LAMP_VERT = /* glsl */`
     // buried and lit as you moved -- and made them shimmer. Close in (sharp
     // lanterns) it stays strict, so buildings and hills hide what is behind.
     float margin = max(30.0 * upm, dCam * mix(0.012, 0.35, uDiffuse));
-    gl_Position = projectionMatrix * vec4(mv.xyz * (1.0 - margin / dCam), 1.0);
+    // Never through the eye: behind the camera (dCam was floored at 1e-9, so
+    // the factor below went hugely negative) or nearer than the margin, the
+    // pull flipped a lamp to the far side of the camera -- the city behind the
+    // aircraft hung upside down in the sky ahead. Behind is clipped; nearer
+    // than the margin keeps a sliver of its range.
+    if (mv.z > -1e-9) gl_Position = vec4(0.0, 0.0, 2.0, 1.0);
+    else gl_Position = projectionMatrix * vec4(mv.xyz * max(1.0 - margin / dCam, 0.02), 1.0);
     #include <logdepthbuf_vertex>
     float dShip = distance(wp.xyz, uShipW) / upm, dAhead = distance(wp.xyz, uAheadW) / upm;
     float dIn = mix(dShip, dAhead, uFrom.x), dOut = mix(dShip, dAhead, uFrom.y);

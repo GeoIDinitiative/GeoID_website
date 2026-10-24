@@ -1,12 +1,12 @@
 import * as THREE from "../vendor/three.module.js";
 import { latLonToVector3, drapedRadius, looksLikeGeographic, sphericalPolygonAreaKm2 }
-  from "./geo-utils.js?v=20261025-16c7e3e";
-import { collectionBounds, geometryCoords, polygonsOf, linesOf } from "./geoprocessing.js?v=20261025-16c7e3e";
-import { pointInPolygon } from "./geometry.js?v=20261025-16c7e3e";
-import { paintOpacity } from "./layer-opacity.js?v=20261025-16c7e3e";
-import { applyCutaway } from "./cutaway.js?v=20261025-16c7e3e";
-import { categoricalSymbology, suggestCategoryField } from "./symbology.js?v=20261025-16c7e3e";
-import { flightGpuUniforms, DRAPE_MATERIALS } from "./flight-terrain-gpu.js?v=20261025-16c7e3e";
+  from "./geo-utils.js?v=20261025-e868c5c";
+import { collectionBounds, geometryCoords, polygonsOf, linesOf } from "./geoprocessing.js?v=20261025-e868c5c";
+import { pointInPolygon } from "./geometry.js?v=20261025-e868c5c";
+import { paintOpacity } from "./layer-opacity.js?v=20261025-e868c5c";
+import { applyCutaway } from "./cutaway.js?v=20261025-e868c5c";
+import { categoricalSymbology, suggestCategoryField } from "./symbology.js?v=20261025-e868c5c";
+import { flightGpuUniforms, DRAPE_MATERIALS } from "./flight-terrain-gpu.js?v=20261025-e868c5c";
 
 // Single renderer for every vector source. Each parser produces a GeoJSON
 // FeatureCollection and this turns it into draped globe geometry, so shapefile,
@@ -464,7 +464,8 @@ const FLIGHT_DEPTH_MARGIN = `
   if (uFlightOn > 0.5) {
     float geoidRange = max(length(mvPosition.xyz), 1e-9);
     float geoidMargin = max(15.0 * ${UNITS}, 0.006 * geoidRange);
-    gl_Position = projectionMatrix * vec4(mvPosition.xyz * (1.0 - geoidMargin / geoidRange), 1.0);
+    // Never through the eye (nearer than the margin the factor went negative).
+    gl_Position = projectionMatrix * vec4(mvPosition.xyz * max(1.0 - geoidMargin / geoidRange, 0.02), 1.0);
   }`;
 // Fills: in a drape pass the vertex goes to its lat/lon in the drape's box
 // (longitude taken round the box's centre, so a polygon across the
