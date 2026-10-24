@@ -19,17 +19,17 @@
  * route coloured by each 100 km segment's risk) and to Atlas (`assess`).
  */
 
-import { buildVectorLayerResult } from "./vector-render.js?v=20261024-fee91ab";
+import { buildVectorLayerResult } from "./vector-render.js?v=20261025-16c7e3e";
 import {
   greatCircle, deadReckonPath, destination, flightProfile, assessRoute, describeRisk, routeWeatherUrl,
   readRouteWeather, weatherSampleIndices, riskDensity, HAZARDS, HAZARD_LABELS, CAPACITY,
-} from "./route-risk.js?v=20261024-fee91ab";
-import { AIRPORTS, findAirport, airportLabel } from "./airports.js?v=20261024-fee91ab";
-import { coneRadiusKm } from "./cyclone-cone.js?v=20261024-fee91ab";
-import { concentrationGrid } from "./ash-plume.js?v=20261024-fee91ab";
+} from "./route-risk.js?v=20261025-16c7e3e";
+import { AIRPORTS, findAirport, airportLabel } from "./airports.js?v=20261025-16c7e3e";
+import { coneRadiusKm } from "./cyclone-cone.js?v=20261025-16c7e3e";
+import { concentrationGrid } from "./ash-plume.js?v=20261025-16c7e3e";
 import {
   chartColors, prepareCanvas, plotRect, drawAxes, niceTicks, formatNumber,
-} from "./chart-core.js?v=20261024-fee91ab";
+} from "./chart-core.js?v=20261025-16c7e3e";
 
 const byId = (id) => document.getElementById(id);
 const manager = () => window.GeoIDImportManager;

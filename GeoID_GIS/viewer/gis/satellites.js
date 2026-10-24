@@ -649,7 +649,11 @@ function occludedByGlobe(point, camera) {
   const t = -camera.position.dot(toPoint);
   if (t <= 0 || t >= span) return false;
   const closest = camera.position.clone().addScaledVector(toPoint, t);
-  return closest.length() < 3.15;
+  // 3.15, a little inside the planet, keeps the limb's tags from the globe
+  // view. From Earth Flight's cockpit a satellite just below the horizon is
+  // seen past the sea by metres, not by 300 km, so there the sea is the edge:
+  // its tags were standing on the ground ahead.
+  return closest.length() < (window.GeoIDFlightTerrain?.active?.() ? 3.2 : 3.15);
 }
 
 /**
@@ -2175,7 +2179,7 @@ function init() {
       say("Turn the tracker on first — symbology colours the live layer.");
       return;
     }
-    const dialog = await import("./symbology-dialog.js?v=20261024-fee91ab");
+    const dialog = await import("./symbology-dialog.js?v=20261025-16c7e3e");
     dialog.openSymbologyDialog(layer);
   });
   // The layer box can remove the layer without asking: the tracker must not
