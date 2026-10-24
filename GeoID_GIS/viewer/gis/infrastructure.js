@@ -23,8 +23,8 @@
  *    centre; the worst wins -- a building half in the water is in the water.
  */
 
-import { classIndex, LEVELS, LEVEL_COLOURS, formatCount } from "./risk-assessment.js?v=20261024-5d792bf";
-import { DEPOSIT_CLASSES } from "./ash-plume.js?v=20261024-5d792bf";
+import { classIndex, LEVELS, LEVEL_COLOURS, formatCount } from "./risk-assessment.js?v=20261024-8894228";
+import { DEPOSIT_CLASSES } from "./ash-plume.js?v=20261024-8894228";
 
 /** A footprint with no values of its own: a drawn area, a fire perimeter, an alert. */
 export const INSIDE_SCHEME = {

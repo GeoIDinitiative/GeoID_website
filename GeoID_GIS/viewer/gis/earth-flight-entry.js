@@ -21,7 +21,7 @@
 //      frame): aim the globe there, then open pre-flight, whose centre
 //      crosshair takes the site from wherever the globe is aimed.
 
-import { isEarth } from "./bodies.js?v=20261024-5d792bf";
+import { isEarth } from "./bodies.js?v=20261024-8894228";
 
 /** `?flight=earth&lat=..&lon=..` -> { lat, lon } or { lat: null } or null. */
 export function parseFlightLink(search) {
@@ -224,6 +224,22 @@ function wire() {
       if (wasOpen && !p.open()) document.getElementById(p.reopen)?.click();
     }
     folded = null;
+  });
+
+  // Expanding the nav DURING FLIGHT opens it on Earth Flight (owner,
+  // 2026-10-24): the Explorer group and the flight panel are opened and the
+  // panel is scrolled to the middle of the nav, rather than the nav coming
+  // back as a column of closed sections. Flight only -- the ordinary nav keeps
+  // whatever it had.
+  document.getElementById("nav-tab")?.addEventListener("click", () => {
+    if (!window.__flightSim?.active) return;
+    const group = document.getElementById("geoid-controls-group");
+    const section = document.getElementById("flightsim-section");
+    if (!section) return;
+    if (group && !group.open) group.open = true;
+    if (!section.open) section.open = true;
+    // After the nav has slid in (0.32 s), so the scroller has its height.
+    setTimeout(() => section.scrollIntoView({ block: "center", behavior: "smooth" }), 360);
   });
 
   // The aircraft is listed in the Workspace while it flies, so its credit is
