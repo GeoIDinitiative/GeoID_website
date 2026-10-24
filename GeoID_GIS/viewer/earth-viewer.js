@@ -2,15 +2,15 @@ import * as THREE from "./vendor/three.module.js";
 // The polygon-area rule lives in one place, with a test. Stamped by hand
 // once: stamp.py only rewrites a ?v= that already exists.
 import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
-  from "./gis/geo-utils.js?v=20261024-843c3f7";
+  from "./gis/geo-utils.js?v=20261024-9a20dc2";
 import { attachReliefAttributes, followRelief }
-  from "./gis/vector-render.js?v=20261024-843c3f7";
+  from "./gis/vector-render.js?v=20261024-9a20dc2";
 import { rockClass, crustalSetting, rockClassLabel, classificationBasis }
-  from "./gis/rock-class.js?v=20261024-843c3f7";
+  from "./gis/rock-class.js?v=20261024-9a20dc2";
 import { lithologyLabel }
-  from "./gis/lithology-label.js?v=20261024-843c3f7";
+  from "./gis/lithology-label.js?v=20261024-9a20dc2";
 import { formatLatLon }
-  from "./gis/coord-format.js?v=20261024-843c3f7";
+  from "./gis/coord-format.js?v=20261024-9a20dc2";
 
 /**
  * This module's own cache stamp, read off its own URL.
@@ -5542,12 +5542,20 @@ function fmtProp(value) {
 
     function getReliefPoint(radius, elevationSampler, elevationCache, getTerrainRelief, latDegrees, lonDegrees, lift = 0) {
       const displacement = getCachedElevationNormalized(elevationCache, elevationSampler, latDegrees, lonDegrees) * getTerrainRelief();
-      // In Earth Flight the ground is the flight terrain: labels, markers and
-      // the cards pinned to a place stand on its hills (0 outside flight).
-      // Not added to `surfacePoint`: vector layers derive their displacement
-      // from it and get the flight terrain on the GPU instead (vector-render).
+      return latLonToVector3(latDegrees, lonDegrees, radius + displacement + lift);
+    }
+
+    /**
+     * `getReliefPoint` on Earth Flight's ground: labels, pins and the cards
+     * pinned to a place stand on the flight terrain's hills (identical outside
+     * flight). Only for things placed on the CPU. `getReliefPoint` itself, and
+     * the viewer's `surfacePoint` built on it, stay the globe's: the flight
+     * modules add the flight terrain themselves, and `followRelief` layers get
+     * it on the GPU (vector-render), so adding it there stood it twice.
+     */
+    function getGroundPoint(radius, elevationSampler, elevationCache, getTerrainRelief, latDegrees, lonDegrees, lift = 0) {
       const flight = window.GeoIDFlightTerrain?.heightUnits?.(latDegrees, lonDegrees) || 0;
-      return latLonToVector3(latDegrees, lonDegrees, radius + displacement + flight + lift);
+      return getReliefPoint(radius, elevationSampler, elevationCache, getTerrainRelief, latDegrees, lonDegrees, lift + flight);
     }
 
     function isGeologyFeature(feature) {
@@ -8968,7 +8976,7 @@ function fmtProp(value) {
       const interactiveObjects = [];
 
       function sampleLabelSurfacePoint(latDegrees, lonDegrees, lift = 0) {
-        return getReliefPoint(radius, elevationSampler, elevationCache, getTerrainRelief, latDegrees, lonDegrees, lift);
+        return getGroundPoint(radius, elevationSampler, elevationCache, getTerrainRelief, latDegrees, lonDegrees, lift);
       }
 
       function labelThemeStyle(theme) {
@@ -9289,7 +9297,7 @@ function fmtProp(value) {
       const PIN_COLOR = '#e05c1a';
 
       function samplePinSurfacePoint(latDegrees, lonDegrees, lift = 0) {
-        return getReliefPoint(radius, elevationSampler, elevationCache, getTerrainRelief, latDegrees, lonDegrees, lift);
+        return getGroundPoint(radius, elevationSampler, elevationCache, getTerrainRelief, latDegrees, lonDegrees, lift);
       }
 
       let sortIndex = 0;
@@ -9404,9 +9412,9 @@ function fmtProp(value) {
         const item = entry.item;
 	        const isGeoSelector = item?.type === "GeoSelector pin";
 	        const anchorLift = isGeoSelector ? GEOSELECTOR_PIN_SURFACE_LIFT : 0;
-	        const anchor = getReliefPoint(radius, elevationSampler, elevationCache, getTerrainRelief, item.lat, item.lon, anchorLift);
-        const hitPoint = getReliefPoint(radius, elevationSampler, elevationCache, getTerrainRelief, item.lat, item.lon, 0.01);
-        const surfacePoint = getReliefPoint(radius, elevationSampler, elevationCache, getTerrainRelief, item.lat, item.lon, 0);
+	        const anchor = getGroundPoint(radius, elevationSampler, elevationCache, getTerrainRelief, item.lat, item.lon, anchorLift);
+        const hitPoint = getGroundPoint(radius, elevationSampler, elevationCache, getTerrainRelief, item.lat, item.lon, 0.01);
+        const surfacePoint = getGroundPoint(radius, elevationSampler, elevationCache, getTerrainRelief, item.lat, item.lon, 0);
         const normal = anchor.clone().normalize();
 	        const isUserPin = item?.type === "User pin" || item?.type === "Imported pin" || isGeoSelector;
         const east = new THREE.Vector3(-normal.z, 0, normal.x);
@@ -15542,7 +15550,7 @@ uniform float uViewportWidth;`,
         }
         const lat = feature.lat !== undefined ? feature.lat : feature.anchor_lat;
         const lon = feature.lon !== undefined ? feature.lon : feature.anchor_lon;
-        return getReliefPoint(3.2, elevationSampler, popupElevationCache, getTerrainRelief, lat, lon, lift);
+        return getGroundPoint(3.2, elevationSampler, popupElevationCache, getTerrainRelief, lat, lon, lift);
       }
 
       function syncGeologyFeatureOutline() {
@@ -16066,7 +16074,7 @@ uniform float uViewportWidth;`,
         for (const base of baseItems || []) {
           if (!base?.center) continue;
           const item = baseLabelItem(base);
-          const anchor = getReliefPoint(radius, elevationSampler, elevationCache, getTerrainRelief, item.lat, item.lon, 0.008);
+          const anchor = getGroundPoint(radius, elevationSampler, elevationCache, getTerrainRelief, item.lat, item.lon, 0.008);
           const normal = anchor.clone().normalize();
           const markerMaterial = new THREE.MeshBasicMaterial({ color: item.markerHex || "#ff7846", transparent: true, opacity: 0.95, depthTest: false, depthWrite: false });
           const marker = new THREE.Mesh(new THREE.SphereGeometry(0.028, 12, 12), markerMaterial);
@@ -16158,7 +16166,7 @@ uniform float uViewportWidth;`,
 	          const PIN_W = PIN_H * (64 / 96);
 	          const anchor = options.anchorPoint
 	            ? options.anchorPoint.clone()
-	            : getReliefPoint(
+	            : getGroundPoint(
 	              3.2,
 	              elevationSampler,
 	              labelElevationCache,
@@ -16169,7 +16177,7 @@ uniform float uViewportWidth;`,
 	            );
           const surfacePoint = options.surfacePoint
             ? options.surfacePoint.clone()
-            : getReliefPoint(3.2, elevationSampler, labelElevationCache, getTerrainRelief, pin.lat, pin.lon, 0);
+            : getGroundPoint(3.2, elevationSampler, labelElevationCache, getTerrainRelief, pin.lat, pin.lon, 0);
           const normal = options.surfaceNormal
             ? options.surfaceNormal.clone().normalize()
             : anchor.clone().normalize();
@@ -23637,7 +23645,7 @@ uniform float uViewportWidth;`,
            * anchor is a DOM element positioned by projection, so there is no
            * depth test for it to win.
            */
-          const local = getReliefPoint(3.2, elevationSampler, new Map(),
+          const local = getGroundPoint(3.2, elevationSampler, new Map(),
             getEffectiveTerrainRelief, lat, lon, 0)
             .applyEuler(new THREE.Euler(0, spin, 0));
           openGeoPopup(feature, marsGroup.localToWorld(local), spin);
@@ -24781,7 +24789,7 @@ ${error && error.message ? error.message : error}`;
              * built with. Asking `getReliefPoint` is.
              */
             const anchorLocal = activeGeoPopupLatLon
-              ? getReliefPoint(3.2, elevationSampler, popupElevationCache, getTerrainRelief,
+              ? getGroundPoint(3.2, elevationSampler, popupElevationCache, getTerrainRelief,
                 activeGeoPopupLatLon.lat, activeGeoPopupLatLon.lon, 0)
               : activeGeoPopupLocalPos.clone();
             const worldPos = marsGroup.localToWorld(
