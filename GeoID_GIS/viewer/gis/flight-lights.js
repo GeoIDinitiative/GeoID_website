@@ -14,9 +14,10 @@
 //     countryside is unlit, a town's residential streets are lit, service
 //     roads only in bright centres. LED white or low-pressure sodium by a
 //     stable hash of the lamp's place, more LED on the main roads.
-//   * AT EVERY RANGE: every lit street within ~4 km (z14 tiles), the main
-//     roads to ~30 km (z11), motorways and trunk roads to ~120-220 km (z9),
-//     cross-fading between them. From ~1.5 km up the lamps turn from sharp
+//   * AT EVERY RANGE, centred AHEAD of the aircraft: every lit street close
+//     round it (z14) and out to ~26 km ahead (z13), the main roads to ~70 km
+//     (z11), motorways and trunk roads to 200-300 km (z9), cross-fading
+//     between them. From ~1.5 km up the lamps turn from sharp
 //     lanterns into a soft glow (their light spread over a few pixels, so the
 //     sum follows the roads), and the every-street ring hands over to the
 //     main roads. Each lamp is a hot point with a halo whose
@@ -26,7 +27,7 @@
 //   * Depth-tested: hills and buildings hide what is behind them. Night only
 //     (the ship's NIGHT from flight-tiles.js); nothing runs by day.
 
-import { NIGHT } from "./night-lights.js?v=20261024-86fa94c";
+import { NIGHT } from "./night-lights.js?v=20261024-0b5ae30";
 
 const TILEJSON = "https://tiles.openfreemap.org/planet";
 const BM = "https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/VIIRS_Black_Marble/default/2016-01-01/GoogleMapsCompatible_Level8/{z}/{y}/{x}.png";
@@ -34,19 +35,22 @@ const UNITS_PER_M = 3.2 / 6371000;
 const EARTH_CIRC_M = 40075016.686;
 const LAMP_HEIGHT_M = 9;
 const ALL = ["motorway", "trunk", "primary", "secondary", "tertiary", "minor", "service"];
-// Each level: its tile zoom, how far it reaches, the classes it draws, and
-// the distances (m from the aircraft's ground point) it fades in and out over.
+// Each level: its tile zoom, the classes it draws, whether it is centred on
+// the aircraft or on a point AHEAD of it, how far it reaches from that centre,
+// and the distances it fades in and out over (`fade`: in0, in1 measured from
+// `inFrom`, out0, out1 from `outFrom`; 0 = the aircraft, 1 = the ahead point).
+// Reaches and fades are set each tick from the aircraft's height (tick()).
 export const LEVELS = [
-  { z: 14, reach: 4500, classes: ALL, fade: [0, 0, 3500, 4500], pools: true },
-  { z: 11, reach: 32000, classes: ["motorway", "trunk", "primary", "secondary"], fade: [3500, 4500, 26000, 32000] },
-  { z: 9, reach: 125000, classes: ["motorway", "trunk", "primary"], fade: [26000, 32000, 105000, 125000] },
-  // Every street again, coarser, once the aircraft is up: a town from 5-10 km
-  // is its whole street network glowing, not just its arterials.
-  { z: 13, reach: 0, classes: ALL, fade: [0, 0, 0, 0] },
+  { z: 14, classes: ALL, pools: true, centre: 0, reach: 4500, inFrom: 0, outFrom: 0, fade: [0, 0, 3500, 4500] },
+  { z: 11, classes: ["motorway", "trunk", "primary", "secondary"], centre: 1, reach: 70000, inFrom: 1, outFrom: 1, fade: [0, 0, 0, 0] },
+  { z: 9, classes: ["motorway", "trunk", "primary"], centre: 1, reach: 200000, inFrom: 1, outFrom: 1, fade: [0, 0, 0, 0] },
+  // Every street, coarser, far out ahead: a town 20 km away is its whole
+  // street network glowing, not just its arterials.
+  { z: 13, classes: ALL, centre: 1, reach: 14000, inFrom: 0, outFrom: 1, fade: [0, 0, 0, 0] },
 ];
 const FETCH_BUDGET = 10;          // OpenFreeMap is HTTP/2: one connection, many streams
 const BUILD_MS = 5;
-const MAX_KEPT = 260;
+const MAX_KEPT = 420;
 
 const lonToX = (lon, z) => ((lon + 180) / 360) * 2 ** z;
 const latToY = (lat, z) => { const r = lat * Math.PI / 180; return (1 - Math.log(Math.tan(r) + 1 / Math.cos(r)) / Math.PI) / 2 * 2 ** z; };
@@ -60,17 +64,18 @@ function distToTileM(lat, lon, z, x, y) {
   return Math.hypot((lat - cl) * 111320, dLon * 111320 * Math.cos(lat * Math.PI / 180));
 }
 
-/** The tiles a level wants round a point, nearest first. */
-export function tilesFor(level, lat, lon) {
+/** The tiles a level wants within `reach` of a centre, nearest the aircraft first. */
+export function tilesFor(level, centre, ship = centre) {
   const { z, reach } = level, n = 2 ** z;
-  const cx = Math.floor(lonToX(lon, z)), cy = Math.floor(latToY(lat, z));
+  const cx = Math.floor(lonToX(centre.lon, z)), cy = Math.floor(latToY(centre.lat, z));
   const span = Math.ceil(reach / tileSizeM(z, cy)) + 1;
   const out = [];
   for (let y = cy - span; y <= cy + span; y++) {
     if (y < 0 || y >= n) continue;
     for (let x = cx - span; x <= cx + span; x++) {
-      const d = distToTileM(lat, lon, z, ((x % n) + n) % n, y);
-      if (d <= reach) out.push({ z, x: ((x % n) + n) % n, y, d });
+      const xx = ((x % n) + n) % n;
+      if (distToTileM(centre.lat, centre.lon, z, xx, y) > reach) continue;
+      out.push({ z, x: xx, y, d: distToTileM(ship.lat, ship.lon, z, xx, y) });
     }
   }
   return out.sort((a, b) => a.d - b.d);
@@ -83,10 +88,11 @@ let lampMat = null, poolMat = null, poolGeo = null;
 const tiles = new Map();          // "L/z/x/y" -> { level, z, x, y, state, lamps, points, pools, used, d }
 const fetchQueue = [], readyQueue = [];
 let fetching = 0, nextJob = 1;
+let prevShip = null, lastDir = null;
 const jobs = new Map();
 const bm = new Map();             // "x/y" (z8) -> Uint8ClampedArray | "loading" | "missing"
 const shared = {
-  uNight: { value: 0 }, uPxScale: { value: 800 }, uShipW: { value: null }, uDiffuse: { value: 0 },
+  uNight: { value: 0 }, uPxScale: { value: 800 }, uShipW: { value: null }, uAheadW: { value: null }, uDiffuse: { value: 0 },
 };
 export const stats = { tiles: 0, lamps: 0, lit: 0 };
 
@@ -129,8 +135,9 @@ function demGrid(t) {
 
 const LAMP_VERT = /* glsl */`
   uniform float uNight, uPxScale, uDiffuse;
-  uniform vec3 uShipW;
-  uniform vec4 uFade;           // in0, in1, out0, out1 (m from the aircraft)
+  uniform vec3 uShipW, uAheadW;
+  uniform vec4 uFade;           // in0, in1 (m from uInFrom's centre), out0, out1 (from uOutFrom's)
+  uniform vec2 uFrom;           // x: fade-in from (0 aircraft, 1 ahead point), y: fade-out from
   attribute vec3 color;         // lamp colour x power
   varying vec3 vCol;
   varying float vA;
@@ -145,8 +152,9 @@ const LAMP_VERT = /* glsl */`
     #include <logdepthbuf_vertex>
     float upm = ${UNITS_PER_M.toExponential(8)};
     float dCam = max(-mv.z, 1e-9);
-    float dShip = distance(wp.xyz, uShipW) / upm;
-    float keep = smoothstep(uFade.x, uFade.y + 0.001, dShip) * (1.0 - smoothstep(uFade.z, uFade.w, dShip));
+    float dShip = distance(wp.xyz, uShipW) / upm, dAhead = distance(wp.xyz, uAheadW) / upm;
+    float dIn = mix(dShip, dAhead, uFrom.x), dOut = mix(dShip, dAhead, uFrom.y);
+    float keep = smoothstep(uFade.x, uFade.y + 0.001, dIn) * (1.0 - smoothstep(uFade.z, uFade.w, dOut));
     // The lantern's glow (~12 m) in pixels; a lamp smaller than that still
     // draws two pixels and keeps its light, so far roads stay dotted.
     float px = 12.0 * upm * uPxScale / dCam;
@@ -226,7 +234,7 @@ const POOL_FRAG = /* glsl */`
 function materials() {
   if (lampMat) return;
   lampMat = new THREE.ShaderMaterial({
-    uniforms: { ...shared, uFade: { value: new THREE.Vector4() } }, vertexShader: LAMP_VERT, fragmentShader: LAMP_FRAG,
+    uniforms: { ...shared, uFade: { value: new THREE.Vector4() }, uFrom: { value: new THREE.Vector2() } }, vertexShader: LAMP_VERT, fragmentShader: LAMP_FRAG,
     transparent: true, depthTest: true, depthWrite: false, blending: THREE.AdditiveBlending,
   });
   poolMat = new THREE.ShaderMaterial({
@@ -263,7 +271,7 @@ function meshes(t, r) {
   geo.setAttribute("color", new THREE.BufferAttribute(r.colours, 3));
   geo.computeBoundingSphere();
   const mat = lampMat.clone();
-  mat.uniforms = { ...shared, uFade: { value: new THREE.Vector4(...t.level.fade) } };
+  mat.uniforms = { ...shared, uFade: { value: new THREE.Vector4(...t.level.fade) }, uFrom: { value: new THREE.Vector2(t.level.inFrom, t.level.outFrom) } };
   t.points = new THREE.Points(geo, mat);
   t.points.position.copy(centre);
   t.points.renderOrder = 195;          // after the ground and the buildings (190)
@@ -333,29 +341,45 @@ function tick() {
   shared.uShipW.value = viewer.globe.localToWorld(shipLocal.clone());
   const canvas = viewer.renderer?.domElement;
   shared.uPxScale.value = (canvas?.clientHeight || 800) / (2 * Math.tan((viewer.camera.fov * Math.PI / 180) / 2));
-  // Sharp lanterns low down, a diffuse glow from ~1.5 km up (fully by 6 km);
-  // the major-road ring reaches further as the view widens.
+  // Sharp lanterns low down, a diffuse glow from ~1.5 km up (fully by 6 km).
   const altM = (Number(f.shipAltUnits) || 0) / UNITS_PER_M;
   shared.uDiffuse.value = Math.min(1, Math.max(0, (altM - 1500) / 4500));
-  LEVELS[2].reach = Math.max(125000, Math.min(220000, 4 * altM));
-  LEVELS[2].fade[3] = LEVELS[2].reach; LEVELS[2].fade[2] = LEVELS[2].reach * 0.85;
-  // From ~2.5 km up the every-street ring hands over to the main-roads ring,
-  // so a city does not glow as a bright disc under the aircraft with only
-  // its arterials lit round it.
-  // From ~2.5 km up the close every-street ring (z14) hands over to a wider
-  // one (z13, out to 15 km by 5 km up), and the main roads start beyond it.
+  // AHEAD: the rings are centred where the aircraft is going (its own motion
+  // since the last tick), so the lit streets reach far out in front of it
+  // (owner: "the radius ahead of view for the night lighting needs increased
+  // greatly") rather than round it, where most of the light was behind.
+  const tNow = performance.now();
+  let dir = null;
+  if (prevShip && tNow > prevShip.t) {
+    const dLat = lat - prevShip.lat, dLon = (lon - prevShip.lon) * Math.cos(lat * Math.PI / 180);
+    const len = Math.hypot(dLat, dLon);
+    if (len > 1e-7) dir = { lat: dLat / len, lon: dLon / len };
+  }
+  if (dir) lastDir = dir;
+  prevShip = { lat, lon, t: tNow };
+  const aheadM = Math.min(40000, 12000 + 1.5 * altM);
+  const d = lastDir || { lat: 0, lon: 0 };
+  const ahead = { lat: lat + d.lat * aheadM / 111320, lon: lon + d.lon * aheadM / (111320 * Math.cos(lat * Math.PI / 180)) };
+  const ap = viewer.surfacePoint(ahead.lat, ahead.lon, 0);
+  shared.uAheadW.value = viewer.globe.localToWorld(new THREE.Vector3(-ap.x, ap.y, -ap.z));
+  // Every street: close round the aircraft (z14), and from there out to
+  // ~26 km ahead (z13, further when higher); main roads to ~70 km ahead;
+  // motorways and A-roads to 200-300 km. Each fades in where the last fades
+  // out. From ~2.5 km up the close ring hands over to the z13 one.
   const high = Math.min(1, Math.max(0, (altM - 2500) / 2500)), hand = 1 - high;
-  const wide = high > 0 ? 4000 + 11000 * high : 0;
-  LEVELS[0].fade[2] = 3500 * hand; LEVELS[0].fade[3] = 4500 * hand + 1;
-  LEVELS[3].reach = wide;
-  LEVELS[3].fade[0] = 3500 * hand; LEVELS[3].fade[1] = 4500 * hand; LEVELS[3].fade[2] = wide * 0.8; LEVELS[3].fade[3] = wide + 1;
-  LEVELS[1].fade[0] = 3500 * hand + wide * 0.8 * high; LEVELS[1].fade[1] = 4500 * hand + wide * high;
+  const r13 = Math.min(26000, 14000 + 0.8 * altM);
+  const r11 = Math.min(110000, 70000 + 2 * altM);
+  const r9 = Math.min(320000, Math.max(200000, 5 * altM));
+  LEVELS[0].fade = [0, 0, 3500 * hand, 4500 * hand + 1];
+  LEVELS[3].reach = r13; LEVELS[3].fade = [3500 * hand, 4500 * hand, r13 - 2500, r13];
+  LEVELS[1].reach = r11; LEVELS[1].fade = [r13 - 2500, r13, r11 * 0.88, r11];
+  LEVELS[2].reach = r9; LEVELS[2].fade = [r11 * 0.88, r11, r9 * 0.88, r9];
   const now = performance.now();
   for (const t of tiles.values()) t.want = false;
   const tv = window.GeoIDFlightTerrain?.getVersion?.() ?? 0;
   LEVELS.forEach((level, li) => {
     if (level.reach <= 0) return;
-    for (const w of tilesFor(level, lat, lon)) {
+    for (const w of tilesFor(level, level.centre ? ahead : { lat, lon }, { lat, lon })) {
       const key = `${li}/${w.z}/${w.x}/${w.y}`;
       let t = tiles.get(key);
       if (!t) { t = { level, key, z: w.z, x: w.x, y: w.y, state: null }; tiles.set(key, t); }
@@ -398,6 +422,7 @@ export async function startFlightLights() {
   if (!THREE) THREE = await import("../vendor/three.module.js");
   materials();
   shared.uShipW.value = new THREE.Vector3();
+  shared.uAheadW.value = new THREE.Vector3();
   if (!worker) {
     worker = new Worker(new URL("../../../flight_sim/earth/game/lights-worker.js?v=2", import.meta.url), { type: "module" });
     worker.onmessage = (e) => {
@@ -424,6 +449,7 @@ export function stopFlightLights() {
   for (const t of tiles.values()) disposeMeshes(t);
   tiles.clear(); fetchQueue.length = 0; readyQueue.length = 0; jobs.clear();
   group?.parent?.remove(group); group = null;
+  prevShip = null; lastDir = null;
 }
 
 /** For the Metadata window while lights are drawn. */
