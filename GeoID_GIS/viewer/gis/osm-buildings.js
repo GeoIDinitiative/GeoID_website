@@ -36,12 +36,15 @@
 // transparent pass in a group sorted at 190 (see GROUP_ORDER), still
 // depth-tested and depth-writing against the globe and each other.
 
-import { isEarth } from "./bodies.js?v=20261024-ab031d4";
+import { isEarth } from "./bodies.js?v=20261024-191fd43";
 import { facade, roof } from "../../../flight_sim/earth/game/facade.js?v=1";
-import { NIGHT } from "./night-lights.js?v=20261024-ab031d4";
+import { NIGHT } from "./night-lights.js?v=20261024-191fd43";
 
 const BUILDINGS_TILEJSON = "https://tiles.openfreemap.org/planet";
-const IMAGERY_URL = "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}";
+// blankTile=false: a tile with no imagery is a 404, not Esri's grey "Map data
+// not yet available" picture (tile-sources.js); roofTexture then falls back
+// to the parent tile.
+const IMAGERY_URL = "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}?blankTile=false";
 
 export const SHOW_BELOW_M = 6000;
 export const HIDE_ABOVE_M = 8000;
@@ -303,12 +306,21 @@ function roofTexture(t) {
   tex.anisotropy = 8;
   for (let j = 0; j < k; j++)
     for (let i = 0; i < k; i++) {
-      const url = IMAGERY_URL.replace("{z}", zoom).replace("{x}", t.x * k + i).replace("{y}", t.y * k + j);
-      loadImage(url, () => t.dead).then((img) => {
-        if (t.dead) return;
-        ctx.drawImage(img, i * 256, j * 256);
-        tex.needsUpdate = true;
-      }).catch(() => {});
+      // Missing at this zoom: the same ground cut from the parent tile, up to
+      // four levels coarser, so the roofs and ground keep the best imagery
+      // that exists instead of going bare.
+      const draw = (z, up) => {
+        const s = 1 << up, x = (t.x * k + i), y = (t.y * k + j);
+        const px = x >> up, py = y >> up;
+        const url = IMAGERY_URL.replace("{z}", z).replace("{x}", px).replace("{y}", py);
+        loadImage(url, () => t.dead).then((img) => {
+          if (t.dead) return;
+          const sub = 256 / s;
+          ctx.drawImage(img, (x - px * s) * sub, (y - py * s) * sub, sub, sub, i * 256, j * 256, 256, 256);
+          tex.needsUpdate = true;
+        }).catch(() => { if (!t.dead && up < 4) draw(z - 1, up + 1); });
+      };
+      draw(zoom, 0);
     }
   return tex;
 }

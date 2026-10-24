@@ -95,8 +95,16 @@ export const TILE_SOURCES = {
    * so both offered the reader a basemap that renders as a nag across the
    * planet. `map2d.js` already opens on OpenStreetMap for this reason.
    */
+  /**
+   * `?blankTile=false` on both Esri services: without it a tile Esri has no
+   * imagery for answers 200 with a grey "Map data not yet available" picture
+   * (measured over the Sahara: real imagery to z17, the placeholder at z19),
+   * which the streamer then painted over the coarser ring -- the surface went
+   * grey and labelled close to the ground. With it the same tile is a 404, the
+   * streamer paints nothing, and the best level that exists shows through.
+   */
   "ESRI Satellite": {
-    url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+    url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}?blankTile=false",
     credit: "Source: Esri, Vantor, Earthstar Geographics, and the GIS User Community",
     maxZoom: 19,
     kind: "imagery",
@@ -173,7 +181,7 @@ export const TILE_SOURCES = {
     freeToStream: true,
   },
   "ESRI Topo": {
-    url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}",
+    url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}?blankTile=false",
     credit: "Sources: Esri, HERE, Garmin, Intermap, increment P Corp., GEBCO, USGS, FAO, "
       + "NPS, NRCAN, GeoBase, IGN, Kadaster NL, Ordnance Survey, Esri Japan, METI, "
       + "Esri China (Hong Kong), © OpenStreetMap contributors, and the GIS User Community",

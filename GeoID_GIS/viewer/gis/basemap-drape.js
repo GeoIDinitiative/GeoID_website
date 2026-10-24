@@ -37,13 +37,13 @@
 // answers in -- no half-turn to bake in, unlike the Earth Engine drapes which
 // parent to the globe mesh itself.
 
-import { TILE_SOURCES, DEFAULT_SOURCE, tileUrl } from "./tile-sources.js?v=20261024-ab031d4";
-import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20261024-ab031d4";
-import { isEarth } from "./bodies.js?v=20261024-ab031d4";
-import { holdLaunch } from "./launch-ready.js?v=20261024-ab031d4";
-import { streamRings, cacheStats } from "./tile-streamer.js?v=20261024-ab031d4";
+import { TILE_SOURCES, DEFAULT_SOURCE, tileUrl } from "./tile-sources.js?v=20261024-191fd43";
+import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20261024-191fd43";
+import { isEarth } from "./bodies.js?v=20261024-191fd43";
+import { holdLaunch } from "./launch-ready.js?v=20261024-191fd43";
+import { streamRings, cacheStats } from "./tile-streamer.js?v=20261024-191fd43";
 import { visibleBounds, altitudeUnits, viewChangedEnough, onViewChange, viewFocus }
-  from "./view-extent.js?v=20261024-ab031d4";
+  from "./view-extent.js?v=20261024-191fd43";
 
 const TILE = 256;
 // Web Mercator cannot express the poles; this is where the projection is
@@ -1249,6 +1249,91 @@ async function refineOnce({ onStatus, motion = false } = {}) {
 }
 
 /**
+ * THE GROUND UNDER THE AIRCRAFT, AT THE BEST ZOOM THERE IS (Earth Flight).
+ *
+ * In flight the refine above covers a square reaching past the horizon, so a
+ * single 4096 px canvas is 50-70 m a pixel at a few hundred metres up: right
+ * for the ground 50 km out, soft for the ground going past underneath. This
+ * second patch is a square of NEAR_HALF_KM round the aircraft at the finest
+ * zoom the source serves that fits the canvas budget (Sentinel-2's 14, about
+ * 10 m; Esri's 15-16), drawn just above the horizon patch. It re-centres when
+ * the aircraft is a quarter of the way to its edge, and the old one stays
+ * underneath until the new one is complete, so there is always sharp ground
+ * under the aircraft and never a hole.
+ *
+ * Tiles a service has no imagery for (Esri answers 404 with blankTile=false,
+ * tile-sources.js) are simply not painted: the rings are drawn coarsest first
+ * into one canvas, so the best level that exists shows through.
+ */
+const NEAR_HALF_KM = 8;
+const NEAR_ORDER = REFINE_ORDER + 0.05;   // above the horizon patch's 40.00-40.02
+let nearState = null;   // { bbox, zoom, source, mesh, pass }
+
+function disposeNear() {
+  if (!nearState) return;
+  nearState.pass?.cancel?.();
+  disposeMesh(nearState.pass?.live);
+  disposeMesh(nearState.mesh);
+  nearState = null;
+}
+
+async function refineNear() {
+  const flight = window.__flightSim;
+  const source = tileBasemapSource();
+  const ship = flight?.active ? flight.shipLatLon : null;
+  if (!ship || !source || !Number.isFinite(ship.lat)) { disposeNear(); return; }
+  const dLat = NEAR_HALF_KM / 111.32;
+  const dLon = NEAR_HALF_KM / (111.32 * Math.max(0.05, Math.cos(ship.lat * Math.PI / 180)));
+  const bbox = { minLat: Math.max(-85, ship.lat - dLat), maxLat: Math.min(85, ship.lat + dLat), minLon: ship.lon - dLon, maxLon: ship.lon + dLon };
+  if (nearState?.source === source && nearState.bbox && (nearState.pass || nearState.mesh)
+    && !viewChangedEnough(nearState.bbox, bbox, { moveFraction: 0.25 })) return;
+  const zoom = chooseZoom(bbox, { maxZoom: TILE_SOURCES[source].maxZoom });
+  // The horizon patch is already this sharp (high up): nothing to add.
+  if (refineState?.zoom && zoom <= refineState.zoom) { disposeNear(); return; }
+  if (!THREE) THREE = await import("../vendor/three.module.js");
+
+  if (nearState?.source !== source) disposeNear();
+  nearState = nearState || { source };
+  nearState.pass?.cancel?.();
+  disposeMesh(nearState.pass?.live);
+  const pass = { live: null, cancel: null };
+  Object.assign(nearState, { bbox, zoom, source, pass });
+
+  const grid = tileGrid(bbox, zoom);
+  const canvas = document.createElement("canvas");
+  canvas.width = grid.width;
+  canvas.height = grid.height;
+  const run = streamRings(canvas, bbox, source, {
+    targetZoom: zoom,
+    grid,
+    tileGridAt: tileGrid,
+    focus: ship,
+    shouldContinue: () => nearState?.pass === pass,
+    onPaint: () => {
+      if (nearState?.pass !== pass) return;
+      if (!pass.live) {
+        const group = refineParent();
+        if (!group) return;
+        pass.live = buildMesh(canvas, bbox, { frame: "globe" });
+        pass.live.name = "GeoID-BasemapNearPending";
+        pass.live.renderOrder = NEAR_ORDER + 0.001;   // over the old one while it fills
+        group.add(pass.live);
+      }
+      pass.live.material.map.needsUpdate = true;
+    },
+  });
+  pass.cancel = run.cancel;
+  await run;
+  if (nearState?.pass !== pass) return;
+  if (!pass.live) { nearState.pass = null; return; }
+  disposeMesh(nearState.mesh);
+  pass.live.name = "GeoID-BasemapNear";
+  pass.live.renderOrder = NEAR_ORDER;
+  nearState.mesh = pass.live;
+  nearState.pass = null;
+}
+
+/**
  * Start refining, and keep doing it until told to stop.
  *
  * Re-evaluated on movement as well as on rest: throttled while the camera
@@ -1268,6 +1353,7 @@ export function startRefining({ onStatus } = {}) {
   const run = (motion) => {
     if (!refineState) return;
     refineOnce({ onStatus, motion }).catch(() => { /* one failed pass is not the watcher's end */ });
+    refineNear().catch(() => { /* the horizon patch is still there */ });
   };
   // 250 ms of stillness is unambiguously "stopped" and does not fire during a
   // drag; 400 ms between motion passes is about two refines a second, each a
@@ -1280,6 +1366,7 @@ export function startRefining({ onStatus } = {}) {
 }
 
 export function stopRefining() {
+  disposeNear();
   refineState?.stop?.();
   dropPass(refineState?.pass);
   disposeMesh(refineState?.fallback);

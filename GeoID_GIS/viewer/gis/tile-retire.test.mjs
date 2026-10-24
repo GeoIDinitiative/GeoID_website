@@ -47,7 +47,7 @@ check("and when the basemap stops being a tile service", () =>
  * every time somebody stopped.
  */
 check("an unchanged view still leaves the patch alone", () =>
-  ok(/!viewChangedEnough\(refineState\?\.bbox, bbox\)\) return null/.test(drape),
+  ok(/!viewChangedEnough\(refineState\?\.bbox, bbox(?:, \{ moveFraction \})?\)\) return null/.test(drape),
     "unchanged view declines without retiring"));
 
 check("a change of SOURCE counts as a change", () =>

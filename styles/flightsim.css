@@ -418,6 +418,9 @@ body.fs-open-chrome #fs-hud-bar {
   padding: 0.3rem 0 0.45rem;
 }
 body.fs-open-chrome .fs-cell { min-width: 0; }
+body.fs-open-chrome #fs-hud-bar { column-gap: clamp(0.3rem, 0.7vw, 1.15rem); }
+body.fs-open-chrome .fs-cell .fs-v { font-size: clamp(0.82rem, 1.05vw, 1.15rem); }
+body.fs-open-chrome .fs-cell .fs-k { font-size: clamp(0.5rem, 0.62vw, 0.62rem); letter-spacing: 0.1em; }
 .fs-throttle-row { display: flex; align-items: center; gap: 0.3rem; }
 .fs-throttle-row .fs-meter-track { flex: 1; }
 /* Steppers: the meters live inside #fs-hud, which is pointer-events:none. */
