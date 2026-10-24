@@ -26,7 +26,7 @@
 // Esri World Imagery (blankTile=false: a missing tile is a 404 and the
 // ancestor stays). Flight only.
 
-import { NIGHT } from "./night-lights.js?v=20261024-bde01a9";
+import { NIGHT } from "./night-lights.js?v=20261024-7501960";
 
 const URL_TEMPLATE = "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}?blankTile=false";
 const ROOT_Z = 7;
@@ -296,7 +296,8 @@ const NIGHT_PARS = /* glsl */`
 uniform float uNight, uLightsOn, uLampCells;
 uniform sampler2D uLights;
 uniform vec3 uLightsXf;
-float nHash(vec2 p) { return fract(sin(dot(p, vec2(41.3, 289.1))) * 43758.5453); }`;
+// Arithmetic hash (no sin): this runs per ground pixel at night.
+float nHash(vec2 p) { vec3 q = fract(vec3(p.xyx) * 0.1031); q += dot(q, q.yzx + 33.33); return fract((q.x + q.y) * q.z); }`;
 const NIGHT_FRAGMENT = /* glsl */`
   if (uNight > 0.001) {
     vec3 day = diffuseColor.rgb;
@@ -313,10 +314,16 @@ const NIGHT_FRAGMENT = /* glsl */`
     vec2 cell = vTileUv * uLampCells;
     float px = max(fwidth(cell.x), fwidth(cell.y));
     float near = clamp(1.0 - px * 1.2, 0.0, 1.0);
-    vec2 f = fract(cell) - 0.5;
-    float lamp = step(0.72, nHash(floor(cell))) * smoothstep(0.30, 0.05, length(f));
-    float glow = rad * (0.012 + paved * mix(0.055, 0.015 + 3.0 * lamp, near));
-    vec3 warm = mix(vec3(1.0, 0.62, 0.28), vec3(1.0, 0.90, 0.75), nHash(floor(cell * 0.25)));
+    float lit = 0.055;
+    vec3 warm = vec3(1.0, 0.72, 0.40);
+    if (near > 0.0 && paved * rad > 0.0) {
+      float h = nHash(floor(cell));
+      vec2 f = fract(cell) - 0.5;
+      float lamp = step(0.72, h) * smoothstep(0.30, 0.05, length(f));
+      lit = mix(0.055, 0.015 + 3.0 * lamp, near);
+      warm = mix(vec3(1.0, 0.62, 0.28), vec3(1.0, 0.90, 0.75), fract(h * 7.0));   // sodium and LED
+    }
+    float glow = rad * (0.012 + paved * lit);
     vec3 moon = day * vec3(0.035, 0.045, 0.07);
     diffuseColor.rgb = mix(day, moon + warm * glow, uNight);
   }`;
