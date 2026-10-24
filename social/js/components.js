@@ -221,6 +221,7 @@ export function postCard(p) {
       p.kind === "observation" ? verificationBadge(p.verification) : null,
       p.visibility && p.visibility !== "public" ? h("span", { class: "s-vis", text: VISIBILITY[p.visibility]?.split(" —")[0] || p.visibility }) : null,
       p.sponsored_by ? h("span", { class: "s-sponsor", text: `Sponsored by ${p.sponsored_by}` }) : null,
+      importedBadge(p),
       p.org ? h("a", { class: "s-org-label", href: `#/o/${encodeURIComponent(p.org.slug)}`, title: "Posted by an admin of this organisation" }, `Posted as ${p.org.name}`) : null,
       p.pinned ? h("span", { class: "s-vis", text: "Pinned" }) : null,
       p.forked_from ? h("span", { class: "s-vis", text: "Fork" }) : null),
@@ -517,6 +518,15 @@ export function postUrl(id) {
   return `${location.origin}/social/#/post/${encodeURIComponent(id)}`;
 }
 
+/**
+ * The Worker's share page for a public post (p), org (o), community (c) or
+ * opted-in profile (u): a real URL with a title, summary and card that link
+ * unfurlers can read, which then sends a person on into the app.
+ */
+export function sharePageUrl(kind, id) {
+  return `${api.base()}/s/${kind}/${encodeURIComponent(id)}`;
+}
+
 export async function citeDialog(id) {
   let data;
   try { data = await api.get(`/v1/posts/${encodeURIComponent(id)}/cite`); } catch (error) { toast(error.message, "error"); return; }
@@ -558,3 +568,13 @@ export function loadingThen(container, load, render) {
 }
 
 export { myHandle, ago, extLink, confirmDialog };
+
+/** "Imported from BGS careers": the source is credited on every imported post. */
+export function importedBadge(p) {
+  if (!p.meta?.imported) return null;
+  const name = p.meta.source_name || p.meta.org || "an external listing";
+  return p.meta.source_url
+    ? h("a", { class: "s-vis s-imported", href: p.meta.source_url, target: "_blank", rel: "noopener noreferrer", title: "Gathered automatically. The original listing is the authority." }, `Imported from ${name}`)
+    : h("span", { class: "s-vis s-imported", text: `Imported from ${name}` });
+}
+

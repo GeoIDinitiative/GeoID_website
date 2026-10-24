@@ -28,6 +28,8 @@ export function render(root, { query = {} } = {}) {
   const availability = select("availability", [["open", "Open to collaborate"], ["limited", "Limited"], ["closed", "Not taking on collaborations"]], u.availability || "open");
   const matcher = checkbox("match_opt_in", "Let the collaboration matcher suggest me", !!u.match_opt_in,
     "Suggestions say why you were suggested — e.g. a self-declared skill or posts you made. You are never ranked, and you are not shown while availability is “Not taking on collaborations”.");
+  const publicProfile = checkbox("public_profile", "Let search engines and link previews show my profile", !!u.public_profile,
+    "Off by default. On, your profile has a public page that people can share and search engines can find: your name, headline, bio and public posts. Your email and anything not public stay hidden.");
   const notifyBoxes = NOTIFY.map(([k, label]) => checkbox(`n_${k}`, label, prefs[k] !== false));
   const mail = emailFieldset();
   const status = h("p", { class: "s-form-status", role: "status", "aria-live": "polite" });
@@ -35,7 +37,7 @@ export function render(root, { query = {} } = {}) {
     h("fieldset", {}, h("legend", {}, "Privacy and contact"),
       field("Who can message you directly", contact),
       field("Collaboration availability", availability),
-      matcher,
+      matcher, publicProfile,
       h("p", { class: "s-hint", text: "Each post has its own visibility, and each location its own precision — chosen when you post. Your email address is never shown to anyone on GeoID Network." })),
     h("fieldset", {}, h("legend", {}, "Notify me when…"), h("div", { class: "s-check-grid" }, notifyBoxes)),
     mail.el,
@@ -47,7 +49,8 @@ export function render(root, { query = {} } = {}) {
     try {
       const notify = {};
       NOTIFY.forEach(([k], i) => { notify[k] = notifyBoxes[i].querySelector("input").checked; });
-      await api.patch("/v1/me", { contact_pref: contact.value, availability: availability.value, match_opt_in: matcher.querySelector("input").checked, notify });
+      await api.patch("/v1/me", { contact_pref: contact.value, availability: availability.value, match_opt_in: matcher.querySelector("input").checked,
+        public_profile: publicProfile.querySelector("input").checked, notify });
       await mail.save();
       await refreshMe();
       status.textContent = "Saved.";
@@ -82,7 +85,7 @@ export function render(root, { query = {} } = {}) {
 
   put(clear(root), h("h1", { class: "s-h1", text: "Settings" }),
     h("p", { class: "s-muted" }, "Your public profile is edited on ", h("a", { href: `#/u/${encodeURIComponent(u.handle)}?edit=1` }, "your profile page"), "."),
-    form, identitySection(query), following, blocked, yourData());
+    form, identitySection(query), storageSection(), zenodoSection(query), following, blocked, yourData());
 }
 
 // ── Identity & institutions track ──────────────────────────────────────────
@@ -189,7 +192,7 @@ function mentoringPanel(u) {
     })));
   };
   draw();
-  return h("div", {}, form, h("h4", { class: "s-h3", text: "Requests" }), list,
+  return h("div", {}, form, h("h4", { class: "s-h3", text: "Requests" }), list, u.mentoring ? myOfficeHours() : null,
     h("p", { class: "s-hint" }, "Looking for a mentor? ", h("a", { href: "#/people?mentor=1" }, "Find mentors"), "."));
 }
 
@@ -230,6 +233,7 @@ function emailFieldset() {
   let state = null;
   let radios = [];
   let boxes = [];
+  let weekly = null;
   const sync = () => {
     const immediate = radios.find((r) => r.checked)?.value === "immediate";
     boxes.forEach(([, label]) => {
@@ -255,6 +259,8 @@ function emailFieldset() {
         radio("digest", "A daily digest", "Unread notifications, once a day, only when there are some."),
         radio("immediate", "A daily digest, and straight away for…")),
       h("div", { class: "s-check-grid s-mail-kinds", role: "group", "aria-label": "Email straight away for" }, boxes.map(([, b]) => b)),
+      weekly = checkbox("mail_weekly", "A weekly round-up on Mondays", data.weekly !== false,
+        "New jobs, studentships and events in your interests, the most-saved work of the week, and people working near your study areas. Sent only when there is something."),
       h("p", { class: "s-hint", text: "Email goes to the address you sign in with, which is never shown to anyone. Message emails say who wrote, never what they wrote. Every email has a one-click unsubscribe link." }),
       data.unsubscribed ? h("p", { class: "s-hint", text: "You unsubscribed from an email link. Choose again here to turn email back on." }) : null,
       data.sending ? null : h("p", { class: "s-hint s-mail-off", text: "Email is not switched on for GeoID Network yet. Your choice is saved and used once it is." }));
@@ -266,9 +272,87 @@ function emailFieldset() {
       if (!state) return;
       const mode = radios.find((r) => r.checked)?.value || state.mode;
       const immediate = mode === "immediate" ? boxes.filter(([, b]) => b.querySelector("input").checked).map(([k]) => k) : [];
-      state = await api.patch("/v1/me/mail", { digest: mode !== "off", immediate });
+      state = await api.patch("/v1/me/mail", { digest: mode !== "off", immediate, weekly: !!weekly?.querySelector("input").checked });
     },
   };
+}
+
+// ── Files and Zenodo ───────────────────────────────────────────────────────
+
+/**
+ * What you have uploaded, against your allowance, with a delete on each: the
+ * way to make room. Files nothing uses any more are swept after a day anyway.
+ */
+function storageSection() {
+  const sec = h("section", { class: "s-section", "aria-labelledby": "files-h" },
+    h("h2", { class: "s-h2", id: "files-h", text: "Your files" }), loading());
+  const draw = (d) => {
+    clear(sec);
+    const used = Number(d.used || 0);
+    const pct = d.quota ? Math.min(100, Math.round((used / d.quota) * 100)) : 0;
+    const fill = h("span", { class: "s-meter-fill" });
+    fill.style.width = `${pct}%`;
+    put(sec, h("h2", { class: "s-h2", id: "files-h", text: "Your files" }),
+      d.quota
+        ? h("div", { class: "s-meter", role: "meter", "aria-valuemin": "0", "aria-valuemax": String(d.quota), "aria-valuenow": String(used), "aria-label": "Upload space used" },
+          fill)
+        : null,
+      h("p", { class: "s-muted", text: d.quota ? `${sizeText(used) || "0 B"} of ${sizeText(d.quota)} used.` : `${sizeText(used) || "0 B"} uploaded (no limit on this account).` }),
+      h("p", { class: "s-hint", text: "Large datasets, theses and recordings are better kept on Dropbox, Google Drive, OSF or Zenodo and linked from a post: they stay where they are, and the post shows a card. Uploads nothing uses any more are removed after a day." }),
+      (d.files || []).length
+        ? h("ul", { class: "s-rows" }, d.files.map((f) => {
+          const li = h("li", { class: "s-row" },
+            h("span", { class: "s-kind", text: (String(f.key).match(/\.([a-z0-9]{1,5})$/i) || [, "file"])[1] }),
+            // Through the API with your credentials: review and team files are not public.
+            h("button", { type: "button", class: "s-link-btn", onClick: async () => {
+              try { window.open(await api.mediaBlobUrl(f.url), "_blank", "noopener"); } catch (error) { toast(error.message, "error"); }
+            } }, f.name || f.key.split("/").pop()),
+            h("span", { class: "s-muted", text: sizeText(f.bytes) }),
+            h("button", { type: "button", class: "s-link-btn s-danger", onClick: () => act(async () => {
+              if (!(await confirmDialog("Delete this file?", "Posts that show it will show nothing in its place.", "Delete"))) return;
+              await api.del(`/v1/media/${encodeURIComponent(f.key)}`);
+              load();
+            }) }, "Delete"));
+          return li;
+        }))
+        : h("p", { class: "s-muted", text: "You haven't uploaded anything." }));
+  };
+  const load = () => api.get("/v1/me/storage").then(draw).catch((error) => sec.lastChild.replaceWith(errorBox(error)));
+  load();
+  return sec;
+}
+
+const ZENODO_RESULT = {
+  linked: ["Zenodo is connected. Publish a post's files from the post.", "info"],
+  cancelled: ["Zenodo sign-in was cancelled. Nothing changed.", "error"],
+  expired: ["That Zenodo sign-in took too long or was not for this account. Try again.", "error"],
+  failed: ["Zenodo did not connect. Try again.", "error"],
+};
+
+/** Connect your own Zenodo account: deposits go under your name, never ours. */
+function zenodoSection(query) {
+  const sec = h("section", { class: "s-section", "aria-labelledby": "zen-h" },
+    h("h2", { class: "s-h2", id: "zen-h", text: "Zenodo" }), loading());
+  const said = ZENODO_RESULT[query.zenodo];
+  if (said) toast(...said);
+  api.get("/v1/zenodo").then((z) => {
+    sec.lastChild.remove();
+    put(sec, h("p", { class: "s-muted", text: "Zenodo, run by CERN, keeps research files for good and gives them a DOI. Connect your account and you can send a post's files there from the post — as a draft to check first, or published." }));
+    if (!z.configured) { put(sec, h("p", { class: "s-hint", text: "Publishing to Zenodo isn't switched on for GeoID Network yet." })); return; }
+    if (z.connected) {
+      put(sec, h("p", {}, "Connected", z.sandbox ? " (the Zenodo sandbox)" : "", "."),
+        h("button", { type: "button", class: "btn-ghost s-btn-sm", onClick: () => act(async () => {
+          if (!(await confirmDialog("Disconnect Zenodo?", "Records already on Zenodo stay there. GeoID Network forgets its access to your account.", "Disconnect"))) return;
+          await api.del("/v1/zenodo"); toast("Disconnected."); sec.replaceWith(zenodoSection({}));
+        }) }, "Disconnect"));
+    } else {
+      put(sec, h("button", { type: "button", class: "btn-primary s-btn-sm", onClick: () => act(async () => {
+        const { authorize_url: go } = await api.post("/v1/zenodo/connect", {});
+        location.href = go;
+      }) }, "Connect Zenodo"));
+    }
+  }).catch((error) => sec.lastChild.replaceWith(errorBox(error)));
+  return sec;
 }
 
 function yourData() {

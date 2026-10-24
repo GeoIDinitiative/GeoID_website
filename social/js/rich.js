@@ -20,7 +20,7 @@ export const SERIES_COLOURS = ["rgb(0, 212, 192)", "rgb(240, 176, 48)", "#9aa8ff
 
 // A video is neither: it gets a player (embed.js), not a thumbnail or a link.
 const isVideoItem = (m) => m && String(m.type || "").startsWith("video/");
-const isImage = (m) => m && !isVideoItem(m) && m.type !== "application/pdf" && !/\.pdf($|\?)/i.test(m.key || "");
+const isImage = (m) => m && (m.type ? String(m.type).startsWith("image/") : !/\.(pdf|mp3|m4a|txt|csv|docx)($|\?)/i.test(m.key || ""));
 
 /**
  * What a before/after reference points at: one of the post's own images (by
@@ -325,14 +325,15 @@ export function measurementsBlock(list) {
  * Every image on the post, lazy-loaded, each opening a lightbox: a <dialog>
  * (so Escape and focus trapping come free) with the image, its alt text as
  * the caption, its position, and previous/next by button or arrow key.
- * Focus goes back to the thumbnail that opened it. PDFs stay links.
+ * Focus goes back to the thumbnail that opened it. Other files (PDF, Word,
+ * audio, text, CSV) get a file block with its preview a press away (files.js).
  */
 export function gallery(media, { exclude = [] } = {}) {
   const list = Array.isArray(media) ? media : [];
   const images = list.filter((m) => isImage(m) && m.url && !exclude.includes(m.key));
   const videos = list.filter((m) => isVideoItem(m) && m.url && !exclude.includes(m.key));
-  const pdfs = list.filter((m) => !isImage(m) && !isVideoItem(m) && m.url);
-  if (!images.length && !pdfs.length && !videos.length) return null;
+  const docs = list.filter((m) => !isImage(m) && !isVideoItem(m) && (m.url || m.key));
+  if (!images.length && !docs.length && !videos.length) return null;
   const open = (i, opener) => lightbox(images, i, opener);
   const single = images.length === 1;
   const thumbs = images.map((m, i) => {
@@ -344,7 +345,7 @@ export function gallery(media, { exclude = [] } = {}) {
   return h("div", { class: "s-media" },
     videos.map(videoPlayer),
     images.length ? (single ? thumbs[0] : h("ul", { class: "s-gallery", "aria-label": `${images.length} images` }, thumbs)) : null,
-    pdfs.map((m) => h("p", {}, h("a", { href: m.url, target: "_blank", rel: "noopener noreferrer" }, `Download the PDF${m.alt ? `: ${m.alt}` : ""}`))));
+    docs.map((m) => fileBlock(m)));
 }
 
 export function lightbox(images, start = 0, opener = null) {

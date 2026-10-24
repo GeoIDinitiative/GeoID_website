@@ -122,7 +122,11 @@ async function status(ctx) {
   const user = await requireUser(ctx);
   const env = ctx.env;
   const row = zenodoConfigured(env) ? await one(env, "SELECT connected_at FROM zenodo_links WHERE user_id = ?", user.id) : null;
-  return { configured: zenodoConfigured(env), connected: !!row, sandbox: /sandbox/.test(base(env)) };
+  // ?post=<id>: the member's latest deposit of that post, so the post page can say where it went.
+  const postId = new URL(ctx.request.url).searchParams.get("post");
+  const dep = postId ? await one(env,
+    "SELECT status, doi, url FROM zenodo_deposits WHERE post_id = ? AND user_id = ? ORDER BY updated_at DESC LIMIT 1", postId, user.id) : null;
+  return { configured: zenodoConfigured(env), connected: !!row, sandbox: /sandbox/.test(base(env)), deposit: dep || null };
 }
 
 async function connect(ctx) {

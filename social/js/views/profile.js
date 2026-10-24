@@ -85,6 +85,7 @@ export async function render(root, { params, query }) {
       h("div", {},
         u.bio ? h("section", { class: "s-section" }, h("h2", { class: "s-h2", text: "About" }), h("div", { class: "s-prose" }, String(u.bio).split(/\n{2,}/).map((t) => h("p", {}, t)))) : null,
         portfolio(items),
+        u.mentoring && !self ? slotsPanel(u) : null,
         scenes, posts, projects, rep),
       h("aside", { class: "s-side" }, facts(u))));
 

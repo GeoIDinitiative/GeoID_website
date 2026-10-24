@@ -227,7 +227,7 @@ async function upload(ctx) {
   await env.DB.prepare(
     "INSERT INTO media (key, owner_id, type, bytes, name, scope, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
   ).bind(key, user.id, kind.type, bytes.length, str(file.name, 120), scope, now()).run();
-  return { key, url: avatarUrl(env, key), type: kind.type, bytes: bytes.length, scope, alt: str(form.get("alt"), 500) };
+  return { key, url: avatarUrl(env, key), type: kind.type, bytes: bytes.length, name: str(file.name, 120), scope, alt: str(form.get("alt"), 500) };
 }
 
 async function serve(ctx) {

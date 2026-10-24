@@ -132,7 +132,10 @@ export async function unfurl(env, raw, { fetcher = fetch, t = now() } = {}) {
     card.status = 0;
   }
   // Dropbox and Drive put the file name in the title; strip their suffixes.
-  card.title = str(read.title.replace(/\s*[-|–]\s*(Dropbox|Google Drive|OneDrive|Box)\s*$/i, ""), 200) || card.file_name || card.host;
+  card.title = str(read.title.replace(/\s*[-|–]\s*(Dropbox|Google Drive|OneDrive|Box)\s*$/i, ""), 200);
+  // A page that only names the service ("Dropbox", "OSF") says nothing about the file.
+  if (!card.title || card.title.toLowerCase() === String(card.provider_label || "").toLowerCase()) card.title = card.file_name || "";
+  card.title = card.title || card.host;
   card.description = read.description;
   card.site = read.site;
   await env.DB.prepare(

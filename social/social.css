@@ -1046,3 +1046,88 @@ a.s-stat:focus-visible, button.s-stat:focus-visible { color: var(--text); outlin
 @media (min-width: 720px) and (max-width: 84rem) {
   .s-app { padding-left: 4rem; padding-right: 4rem; }
 }
+
+/* ── Files, link cards and previews (files.js, pdfview.js) ──────────────── */
+.s-linkcards { display: grid; gap: 0.6rem; margin: 0.9rem 0; }
+.s-linkcard {
+  display: grid; grid-template-columns: 2.4rem 1fr auto; gap: 0.75rem; align-items: center;
+  padding: 0.7rem 0.85rem; border: 1px solid var(--line); border-radius: var(--n-radius, 12px);
+  background: var(--n-glass, rgba(9, 12, 28, 0.62));
+}
+.s-linkcard-badge {
+  display: grid; place-items: center; width: 2.4rem; height: 2.4rem; border-radius: 10px;
+  border: 1px solid var(--line-strong); color: var(--accent); font-weight: 700; font-size: 0.8rem;
+}
+.s-linkcard-main { min-width: 0; }
+.s-linkcard-main p { margin: 0; }
+.s-linkcard-title { font-weight: 600; color: var(--text); overflow-wrap: anywhere; }
+.s-linkcard-kind { color: var(--muted); font-size: 0.82rem; }
+.s-linkcard-desc { color: var(--muted); font-size: 0.86rem; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.s-linkcard-acts { display: flex; gap: 0.7rem; white-space: nowrap; font-size: 0.88rem; }
+@media (max-width: 560px) { .s-linkcard { grid-template-columns: 2.4rem 1fr; } .s-linkcard-acts { grid-column: 2; } }
+
+.s-file { margin: 0.9rem 0; border: 1px solid var(--line); border-radius: var(--n-radius, 12px); background: var(--n-glass, rgba(9, 12, 28, 0.62)); overflow: hidden; }
+.s-filehead { display: flex; flex-wrap: wrap; align-items: center; gap: 0.6rem; padding: 0.6rem 0.85rem; border-bottom: 1px solid var(--line); }
+.s-filename { font-weight: 600; color: var(--text); overflow-wrap: anywhere; flex: 1 1 12rem; }
+.s-filekind { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; padding: 0.1rem 0.45rem; border-radius: 6px; border: 1px solid var(--line-strong); color: var(--accent); }
+.s-media > .s-file { margin: 0; }
+.s-filebody { padding: 0.75rem 0.85rem; }
+.s-filebody:empty { display: none; }
+.s-audio { width: 100%; }
+.s-textpreview { max-height: 28rem; overflow: auto; margin: 0; white-space: pre-wrap; font-size: 0.84rem; line-height: 1.45; }
+.s-tablewrap { max-height: 28rem; overflow: auto; }
+.s-csv { border-collapse: collapse; font-size: 0.84rem; font-variant-numeric: tabular-nums; }
+.s-csv th, .s-csv td { border: 1px solid var(--line); padding: 0.3rem 0.55rem; text-align: left; white-space: nowrap; }
+.s-csv th { position: sticky; top: 0; background: var(--bg-1); color: var(--text); }
+.s-docpreview { max-height: 36rem; overflow: auto; }
+/* A Word document's own headings, kept a step below the post's title. */
+.s-docpreview h1 { font-size: 1.3rem; margin: 0.2rem 0 0.6rem; }
+.s-docpreview h2 { font-size: 1.12rem; margin: 1rem 0 0.4rem; }
+.s-docpreview h3, .s-docpreview h4, .s-docpreview h5, .s-docpreview h6 { font-size: 1rem; margin: 0.9rem 0 0.3rem; }
+.s-docpreview img { max-width: 100%; height: auto; }
+.s-docpreview table { border-collapse: collapse; }
+.s-docpreview td, .s-docpreview th { border: 1px solid var(--line); padding: 0.25rem 0.5rem; }
+.s-filechip { display: inline-flex; gap: 0.35rem; align-items: baseline; overflow-wrap: anywhere; }
+
+.s-pdf { display: grid; gap: 1rem; justify-items: center; }
+.s-pdf-page { position: relative; min-height: 12rem; display: grid; place-items: center; max-width: 100%; }
+.s-pdf-canvas { display: block; max-width: 100%; height: auto; background: #fff; border-radius: 4px; box-shadow: 0 6px 22px rgba(0, 0, 0, 0.35); cursor: crosshair; }
+.s-pdf-pin {
+  position: absolute; transform: translate(-50%, -100%); min-width: 1.5rem; height: 1.5rem; padding: 0 0.35rem;
+  display: grid; place-items: center; border-radius: 0.75rem 0.75rem 0.75rem 0.15rem;
+  background: var(--accent); color: var(--accent-ink, #04211c); font-size: 0.75rem; font-weight: 700; cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
+}
+.s-pin-no { display: inline-grid; place-items: center; min-width: 1.35rem; height: 1.35rem; padding: 0 0.3rem; border-radius: 0.7rem; background: var(--accent); color: var(--accent-ink, #04211c); font-size: 0.72rem; font-weight: 700; }
+.s-pin-quote { margin: 0.35rem 0; padding-left: 0.7rem; border-left: 3px solid var(--line-strong); color: var(--muted); font-style: italic; }
+.s-pin-row { display: flex; gap: 0.6rem; align-items: baseline; }
+.s-pin-row:has(.s-pin-note[hidden]) { display: none; }
+.s-review-doc { padding: 1rem; border: 1px solid var(--line); border-radius: var(--n-radius, 12px); background: rgba(0, 0, 0, 0.25); }
+
+/* Storage meter (Settings → Your files). */
+.s-meter { height: 0.5rem; border-radius: 0.25rem; background: var(--line); overflow: hidden; max-width: 28rem; }
+.s-meter-fill { display: block; height: 100%; background: var(--accent); border-radius: inherit; }
+
+/* Imported listings: the credit, and the admin's source table. */
+.s-imported { border-style: dashed; }
+.s-imports-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+.s-imports-table th, .s-imports-table td { padding: 0.45rem 0.5rem; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+.s-imports-table tr.is-off { opacity: 0.55; }
+.s-imports-table details input { width: 100%; margin: 0.3rem 0; }
+.s-health { display: inline-block; width: 0.65rem; height: 0.65rem; border-radius: 50%; margin-top: 0.3rem; background: var(--muted); }
+.s-health-green { background: #3ecf8e; }
+.s-health-amber { background: #f0b030; }
+.s-health-red { background: #ff5d5d; }
+.s-nowrap { white-space: nowrap; }
+.s-imports-table td.s-nowrap { text-align: right; }
+.s-imports-table td.s-nowrap button + button { margin-left: 0.9rem; }
+.s-small { font-size: 0.8rem; margin: 0.2rem 0 0; }
+
+/* Office hours. */
+.s-form-inline { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.6rem 1rem; align-items: start; }
+.s-form-inline .s-span-2 { grid-column: span 2; }
+.s-form-inline > button { grid-column: 1 / -1; justify-self: start; }
+@media (max-width: 720px) { .s-form-inline { grid-template-columns: 1fr; } .s-form-inline .s-span-2 { grid-column: auto; } }
+/* A slot per row: when, topic, then the action at the end of the line. */
+.s-officehours .s-row { display: grid; grid-template-columns: minmax(13rem, auto) 1fr auto; align-items: center; gap: 0.4rem 1rem; }
+@media (max-width: 560px) { .s-officehours .s-row { grid-template-columns: 1fr auto; } }
