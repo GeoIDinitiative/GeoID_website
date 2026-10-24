@@ -21,7 +21,7 @@
 //      frame): aim the globe there, then open pre-flight, whose centre
 //      crosshair takes the site from wherever the globe is aimed.
 
-import { isEarth } from "./bodies.js?v=20261024-32219cb";
+import { isEarth } from "./bodies.js?v=20261024-235ad98";
 
 /** `?flight=earth&lat=..&lon=..` -> { lat, lon } or { lat: null } or null. */
 export function parseFlightLink(search) {

@@ -36,9 +36,9 @@
 // transparent pass in a group sorted at 190 (see GROUP_ORDER), still
 // depth-tested and depth-writing against the globe and each other.
 
-import { isEarth } from "./bodies.js?v=20261024-32219cb";
+import { isEarth } from "./bodies.js?v=20261024-235ad98";
 import { facade, roof } from "../../../flight_sim/earth/game/facade.js?v=1";
-import { NIGHT } from "./night-lights.js?v=20261024-32219cb";
+import { NIGHT } from "./night-lights.js?v=20261024-235ad98";
 
 const BUILDINGS_TILEJSON = "https://tiles.openfreemap.org/planet";
 const IMAGERY_URL = "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}";
