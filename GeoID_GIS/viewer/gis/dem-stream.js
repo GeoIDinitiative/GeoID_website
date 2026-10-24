@@ -15,8 +15,8 @@
  * globe's own texture.
  */
 
-import * as dem from "./dem-tiles.js?v=20261024-9c509d7";
-import { visibleBounds, viewChangedEnough, onViewSettled } from "./view-extent.js?v=20261024-9c509d7";
+import * as dem from "./dem-tiles.js?v=20261024-bde01a9";
+import { visibleBounds, viewChangedEnough, onViewSettled } from "./view-extent.js?v=20261024-bde01a9";
 
 let THREE = null;
 let watchStop = null;

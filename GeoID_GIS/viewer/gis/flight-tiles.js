@@ -26,7 +26,7 @@
 // Esri World Imagery (blankTile=false: a missing tile is a 404 and the
 // ancestor stays). Flight only.
 
-import { NIGHT } from "./night-lights.js?v=20261024-9c509d7";
+import { NIGHT } from "./night-lights.js?v=20261024-bde01a9";
 
 const URL_TEMPLATE = "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}?blankTile=false";
 const ROOT_Z = 7;
@@ -315,9 +315,9 @@ const NIGHT_FRAGMENT = /* glsl */`
     float near = clamp(1.0 - px * 1.2, 0.0, 1.0);
     vec2 f = fract(cell) - 0.5;
     float lamp = step(0.72, nHash(floor(cell))) * smoothstep(0.30, 0.05, length(f));
-    float glow = rad * (0.025 + paved * mix(0.16, 0.05 + 2.6 * lamp, near));
+    float glow = rad * (0.012 + paved * mix(0.055, 0.015 + 3.0 * lamp, near));
     vec3 warm = mix(vec3(1.0, 0.62, 0.28), vec3(1.0, 0.90, 0.75), nHash(floor(cell * 0.25)));
-    vec3 moon = day * vec3(0.05, 0.065, 0.09);
+    vec3 moon = day * vec3(0.035, 0.045, 0.07);
     diffuseColor.rgb = mix(day, moon + warm * glow, uNight);
   }`;
 
