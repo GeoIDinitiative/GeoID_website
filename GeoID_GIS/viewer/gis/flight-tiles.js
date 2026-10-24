@@ -26,7 +26,7 @@
 // Esri World Imagery (blankTile=false: a missing tile is a 404 and the
 // ancestor stays). Flight only.
 
-import { NIGHT } from "./night-lights.js?v=20261024-1bf5920";
+import { NIGHT } from "./night-lights.js?v=20261024-3b234b0";
 
 // Esri serves World Imagery over HTTP/1.1, so a browser opens only ~6
 // connections per host: measured, 12 requests on one host ran at ~20 tiles/s.
@@ -664,9 +664,10 @@ function tick() {
   }
   // Faint: the lamps (flight-lights.js) carry the light; this only fills
   // between them, a little more as the view widens.
-  // None below 12 km (the lamps are the light); from there towards 30 km it
-  // fills in where the street lamps are too far away to stream.
-  SKYGLOW.value = 0.12 * Math.min(1, Math.max(0, (altM - 12000) / 18000));
+  // Black Marble is a GUIDE only (owner): it decides which lamps are lit
+  // (flight-lights.js) and is never drawn as light -- its 500 m pixels are
+  // blotches at any height.
+  SKYGLOW.value = 0;
   // The buildings' night (lit windows, dimmed walls) is the ship's.
   if (sunL) {
     const p = viewer.surfacePoint(f.shipLatLon.lat, f.shipLatLon.lon, 0);

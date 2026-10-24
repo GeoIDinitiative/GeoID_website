@@ -12,7 +12,7 @@
  */
 
 import { decodeLayer, rings } from "./mvt.js?v=1";
-import { placeLamps, litPower, radianceAboveBackground, CLASS_BY_CODE } from "./lamps.js?v=1";
+import { placeLamps, litPower, radianceAboveBackground, CLASS_BY_CODE } from "./lamps.js?v=2";
 
 const R = 3.2;
 const UNITS_PER_M = R / 6371000;
@@ -47,7 +47,7 @@ function lampColour(code, hash, power) {
   return [c[0] * k, c[1] * k, c[2] * k];
 }
 
-function decode(buf, tileSizeM, classes) {
+function decode(buf, tileSizeM, classes, thin) {
   const layer = decodeLayer(buf, "transportation");
   if (!layer) return new Float32Array(0);
   const lines = [];
@@ -56,11 +56,11 @@ function decode(buf, tileSizeM, classes) {
     const cls = String(f.props.class || "").replace(/_construction$/, "");
     for (const pts of rings(f.geometry)) lines.push({ cls, pts });
   }
-  return placeLamps(lines, layer.extent || 4096, tileSizeM, classes);
+  return placeLamps(lines, layer.extent || 4096, tileSizeM, classes, thin);
 }
 
 /** Stand a tile's lamps on the terrain: positions, colours, pool matrices. */
-function stand(L, z, x, y, dem, pools) {
+function stand(L, z, x, y, dem, pools, thin = 1) {
   const centre = globePoint(yToLat(y + 0.5, z), xToLon(x + 0.5, z), R, [0, 0, 0]);
   const pos = [], col = [], mats = [];
   const p = [0, 0, 0];
@@ -81,7 +81,7 @@ function stand(L, z, x, y, dem, pools) {
     const ground = R + height(u, v);
     globePoint(lat, lon, ground + LAMP_HEIGHT_M * UNITS_PER_M, p);
     pos.push(p[0] - centre[0], p[1] - centre[1], p[2] - centre[2]);
-    const [cr, cg, cb] = lampColour(code, hash, power);
+    const [cr, cg, cb] = lampColour(code, hash, power * thin);   // a thinned lamp carries the light of those left out
     col.push(cr, cg, cb);
     if (pools) {
       // A disc on the ground under the lamp: columns east, north, up, at.
@@ -106,16 +106,16 @@ function stand(L, z, x, y, dem, pools) {
 self.onmessage = (e) => {
   const m = e.data;
   if (m.bm) { bmTiles.set(m.bmKey, m.bm); return; }
-  const { id, key, buf, z, x, y, tileSizeM, classes, dem, pools } = m;
+  const { id, key, buf, z, x, y, tileSizeM, classes, dem, pools, thin = 1 } = m;
   try {
     let L = candidates.get(key);
     if (!L) {
       if (!buf) { self.postMessage({ id, refetch: true }); return; }
-      L = decode(buf, tileSizeM, classes);
+      L = decode(buf, tileSizeM, classes, thin);
       candidates.set(key, L);
       if (candidates.size > CANDIDATES_KEPT) candidates.delete(candidates.keys().next().value);
     }
-    const r = stand(L, z, x, y, dem, pools);
+    const r = stand(L, z, x, y, dem, pools, thin);
     const transfer = [r.positions.buffer, r.colours.buffer];
     if (r.pools) transfer.push(r.pools.buffer);
     self.postMessage({ id, ...r }, transfer);

@@ -15,9 +15,10 @@
 //     roads only in bright centres. LED white or low-pressure sodium by a
 //     stable hash of the lamp's place, more LED on the main roads.
 //   * AT EVERY RANGE, centred AHEAD of the aircraft: every lit street close
-//     round it (z14) and out to ~26 km ahead (z13), the main roads to ~70 km
-//     (z11), motorways and trunk roads to 200-300 km (z9), cross-fading
-//     between them. From ~1.5 km up the lamps turn from sharp
+//     round it (z14) and out to 26-80 km ahead (z12, by height), the main
+//     roads to ~70-150 km (z11), motorways and trunk roads to 200-300 km
+//     (z9), cross-fading between them. Black Marble is never drawn: it only
+//     decides which lamps are lit. From ~1.5 km up the lamps turn from sharp
 //     lanterns into a soft glow (their light spread over a few pixels, so the
 //     sum follows the roads), and the every-street ring hands over to the
 //     main roads. Each lamp is a hot point with a halo whose
@@ -27,7 +28,7 @@
 //   * Depth-tested: hills and buildings hide what is behind them. Night only
 //     (the ship's NIGHT from flight-tiles.js); nothing runs by day.
 
-import { NIGHT } from "./night-lights.js?v=20261024-1bf5920";
+import { NIGHT } from "./night-lights.js?v=20261024-3b234b0";
 
 const TILEJSON = "https://tiles.openfreemap.org/planet";
 const BM = "https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/VIIRS_Black_Marble/default/2016-01-01/GoogleMapsCompatible_Level8/{z}/{y}/{x}.png";
@@ -44,12 +45,14 @@ export const LEVELS = [
   { z: 14, classes: ALL, pools: true, centre: 0, reach: 4500, inFrom: 0, outFrom: 0, fade: [0, 0, 3500, 4500] },
   { z: 11, classes: ["motorway", "trunk", "primary", "secondary"], centre: 1, reach: 70000, inFrom: 1, outFrom: 1, fade: [0, 0, 0, 0] },
   { z: 9, classes: ["motorway", "trunk", "primary"], centre: 1, reach: 200000, inFrom: 1, outFrom: 1, fade: [0, 0, 0, 0] },
-  // Every street, coarser, far out ahead: a town 20 km away is its whole
-  // street network glowing, not just its arterials.
-  { z: 13, classes: ALL, centre: 1, reach: 14000, inFrom: 0, outFrom: 1, fade: [0, 0, 0, 0] },
+  // Every street, coarser (z12 carries the minor roads too, at a quarter of
+  // z13's tiles), far out ahead: a town 20-80 km away is its whole street
+  // network glowing, not just its arterials -- every second lamp, each twice
+  // as bright, which reads the same at that range.
+  { z: 12, classes: ALL, centre: 1, reach: 14000, inFrom: 0, outFrom: 1, fade: [0, 0, 0, 0], thin: 2 },
 ];
 const FETCH_BUDGET = 10;          // OpenFreeMap is HTTP/2: one connection, many streams
-const MAX_KEPT = 420;
+const MAX_KEPT = 520;
 
 const lonToX = (lon, z) => ((lon + 180) / 360) * 2 ** z;
 const latToY = (lat, z) => { const r = lat * Math.PI / 180; return (1 - Math.log(Math.tan(r) + 1 / Math.cos(r)) / Math.PI) / 2 * 2 ** z; };
@@ -273,7 +276,7 @@ function stand(t) {
   const id = nextJob++;
   jobs.set(id, t);
   t.state = "standing";
-  const msg = { id, key: t.key, z: t.z, x: t.x, y: t.y, tileSizeM: tileSizeM(t.z, t.y), classes: t.level.classes, dem: demGrid(t), pools: !!t.level.pools };
+  const msg = { id, key: t.key, z: t.z, x: t.x, y: t.y, tileSizeM: tileSizeM(t.z, t.y), classes: t.level.classes, dem: demGrid(t), pools: !!t.level.pools, thin: t.level.thin || 1 };
   const transfer = [];
   if (t.buf) { msg.buf = t.buf; transfer.push(t.buf); t.buf = null; }
   if (msg.dem) transfer.push(msg.dem.buffer);
@@ -391,7 +394,7 @@ function tick() {
   // motorways and A-roads to 200-300 km. Each fades in where the last fades
   // out. From ~2.5 km up the close ring hands over to the z13 one.
   const high = Math.min(1, Math.max(0, (altM - 2500) / 2500)), hand = 1 - high;
-  const r13 = Math.min(26000, 14000 + 0.8 * altM);
+  const r13 = Math.min(40000, 14000 + 1.3 * altM);
   const r11 = Math.min(110000, 70000 + 2 * altM);
   const r9 = Math.min(320000, Math.max(200000, 5 * altM));
   LEVELS[0].fade = [0, 0, 3500 * hand, 4500 * hand + 1];
@@ -440,7 +443,7 @@ export async function startFlightLights() {
   shared.uShipW.value = new THREE.Vector3();
   shared.uAheadW.value = new THREE.Vector3();
   if (!worker) {
-    worker = new Worker(new URL("../../../flight_sim/earth/game/lights-worker.js?v=2", import.meta.url), { type: "module" });
+    worker = new Worker(new URL("../../../flight_sim/earth/game/lights-worker.js?v=3", import.meta.url), { type: "module" });
     worker.onmessage = (e) => {
       const t = jobs.get(e.data.id);
       jobs.delete(e.data.id);

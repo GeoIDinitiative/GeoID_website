@@ -15,7 +15,7 @@
  * instead. The photograph changes only when the section does, as a 400 ms
  * opacity cross-fade between two layers. Reduced transparency hides it.
  */
-import { h } from "./dom.js?v=20261024-1bf5920";
+import { h } from "./dom.js?v=20261024-3b234b0";
 
 const EARTH = "/load_screen/earth/";
 const ETNA = "/load_screen/etna/";

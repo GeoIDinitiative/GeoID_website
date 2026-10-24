@@ -36,16 +36,18 @@ export function lampHash(u, v) {
  * Lamp candidates along a tile's road lines.
  *   lines: [{ cls, pts: [[x, y], ...] }] in tile units (0..extent)
  *   returns Float32Array of [u, v, code, hash] per lamp, u, v in 0..1 of the tile
- *   (v down, as the tile's y).
+ *   (v down, as the tile's y). `thin` > 1 keeps one lamp in `thin` (wider
+ *   pitch) for far rings, where the caller brightens each by the same factor.
  */
-export function placeLamps(lines, extent, tileSizeM, classes = Object.keys(LAMP_CLASSES)) {
+export function placeLamps(lines, extent, tileSizeM, classes = Object.keys(LAMP_CLASSES), thin = 1) {
   const out = [];
   const mPerUnit = tileSizeM / extent;
   const wanted = new Set(classes);
   for (const { cls, pts } of lines) {
     const c = LAMP_CLASSES[cls];
     if (!c || !wanted.has(cls) || !pts || pts.length < 2) continue;
-    let carry = c.spacing * 0.5;          // distance to the next lamp
+    const pitch = c.spacing * thin;
+    let carry = pitch * 0.5;              // distance to the next lamp
     let side = 1;
     for (let i = 0; i + 1 < pts.length; i++) {
       const [x0, y0] = pts[i], [x1, y1] = pts[i + 1];
@@ -62,7 +64,7 @@ export function placeLamps(lines, extent, tileSizeM, classes = Object.keys(LAMP_
         if (u >= 0 && u < 1 && v >= 0 && v < 1) out.push(u, v, c.code, lampHash(u * 4096 + 0.5, v * 4096 + 0.5));
         side = -side;
         // A little irregularity: real columns are not on a perfect pitch.
-        at += c.spacing * (0.9 + 0.2 * lampHash(x, y));
+        at += pitch * (0.9 + 0.2 * lampHash(x, y));
       }
       carry = at - segM;
     }
