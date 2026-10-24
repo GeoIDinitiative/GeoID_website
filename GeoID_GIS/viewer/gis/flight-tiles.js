@@ -26,7 +26,7 @@
 // Esri World Imagery (blankTile=false: a missing tile is a 404 and the
 // ancestor stays). Flight only.
 
-import { NIGHT } from "./night-lights.js?v=20261024-2dc6cd0";
+import { NIGHT } from "./night-lights.js?v=20261024-9c509d7";
 
 const URL_TEMPLATE = "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}?blankTile=false";
 const ROOT_Z = 7;
@@ -283,8 +283,8 @@ const VEG_VERTEX = /* glsl */`
  *
  *   * WHERE there is light, and how much: NASA's VIIRS Black Marble
  *     radiance (z8, ~0.4-0.6 km/px), cropped to the tile;
- *   * WHAT is lit inside that: the daytime photo's own streets and paving --
- *     grey, unsaturated, mid-bright pixels -- glow sodium/LED warm, with
+ *   * WHAT is lit inside that: the daytime photo's own streets -- grey,
+ *     unsaturated, asphalt-dark pixels -- glow sodium/LED warm, with
  *     point lamps scattered along them (a hash per ~9 m cell), fading to an
  *     even glow where the cells are smaller than a pixel. Fields, woods and
  *     water inside a bright city stay dark, as they do from a real cockpit.
@@ -303,7 +303,8 @@ const NIGHT_FRAGMENT = /* glsl */`
     vec3 c = sqrt(max(day, 0.0));                                   // ~sRGB, for the masks
     float lum = dot(c, vec3(0.299, 0.587, 0.114));
     float sat = max(max(c.r, c.g), c.b) - min(min(c.r, c.g), c.b);
-    float paved = smoothstep(0.16, 0.06, sat) * smoothstep(0.22, 0.42, lum);
+    // Asphalt: grey and mid-dark. Bright roofs and concrete stay unlit.
+    float paved = smoothstep(0.14, 0.05, sat) * smoothstep(0.12, 0.24, lum) * smoothstep(0.62, 0.40, lum);
     float rad = 0.0;
     if (uLightsOn > 0.5) {
       vec3 bm = texture2D(uLights, uLightsXf.xy + vTileUv * uLightsXf.z).rgb;
@@ -314,7 +315,7 @@ const NIGHT_FRAGMENT = /* glsl */`
     float near = clamp(1.0 - px * 1.2, 0.0, 1.0);
     vec2 f = fract(cell) - 0.5;
     float lamp = step(0.72, nHash(floor(cell))) * smoothstep(0.30, 0.05, length(f));
-    float glow = rad * (0.10 + paved * mix(0.55, 0.35 + 2.2 * lamp, near));
+    float glow = rad * (0.025 + paved * mix(0.16, 0.05 + 2.6 * lamp, near));
     vec3 warm = mix(vec3(1.0, 0.62, 0.28), vec3(1.0, 0.90, 0.75), nHash(floor(cell * 0.25)));
     vec3 moon = day * vec3(0.05, 0.065, 0.09);
     diffuseColor.rgb = mix(day, moon + warm * glow, uNight);
