@@ -15,11 +15,11 @@
  * here, how close, and when" through `window.GeoIDCycloneForecast.threatTo`.
  */
 
-import { buildVectorLayerResult } from "./vector-render.js?v=20261024-bbb7d0d";
+import { buildVectorLayerResult } from "./vector-render.js?v=20261024-59e7890";
 import {
   gdacsCycloneListUrl, gdacsGeometryUrl, gdacsStorms, readGdacsGeometry, interpolateTrack,
   conePolygon, threatTo, saffirSimpson,
-} from "./cyclone-cone.js?v=20261024-bbb7d0d";
+} from "./cyclone-cone.js?v=20261024-59e7890";
 
 export const LAYER_NAME = "Active cyclones — forecast track and cone (GDACS)";
 const CREDIT = "GDACS — European Commission Joint Research Centre, from the warning agencies' "

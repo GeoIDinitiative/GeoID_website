@@ -28,7 +28,7 @@
 //   * Depth-tested: hills and buildings hide what is behind them. Night only
 //     (the ship's NIGHT from flight-tiles.js); nothing runs by day.
 
-import { NIGHT } from "./night-lights.js?v=20261024-bbb7d0d";
+import { NIGHT } from "./night-lights.js?v=20261024-59e7890";
 
 const TILEJSON = "https://tiles.openfreemap.org/planet";
 const BM = "https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/VIIRS_Black_Marble/default/2016-01-01/GoogleMapsCompatible_Level8/{z}/{y}/{x}.png";
@@ -160,11 +160,13 @@ const LAMP_VERT = /* glsl */`
     // The lantern's glow (~12 m) in pixels; a lamp smaller than that still
     // draws two pixels and keeps its light, so far roads stay dotted.
     float px = 12.0 * upm * uPxScale / dCam;
-    // High up, a lamp's light falls off with the square of its distance, as
-    // a point source's does: the sum over a city is then a glow that follows
-    // its density, not a flat wash (a fixed minimum per lamp, right for the
-    // scattered far roads seen from 1 km, saturated 500k lamps at 8 km).
-    float energy = 4.0 * min(1.0, px * px) * 7.0;
+    // High up, a lamp's light falls off with distance, so the sum over a
+    // city is a glow that follows its street density, not a flat wash. As
+    // 1/d rather than a point source's strict 1/d^2: an eye or a camera
+    // exposes for the night, and at 1/d^2 the towns 50 km off, seen from
+    // 30 km up, all but vanished (measured: 717k lamps in view, a black
+    // screen); at 1/d the 8 km view is as before and they are ~3x brighter.
+    float energy = 4.0 * min(1.0, px) * 6.0;
     // HIGH UP the dots go soft: the glow widens to a few pixels whatever the
     // distance, the light SPREAD over it (energy / area), so thousands of
     // lamps add up to a diffuse glow that still follows the roads, rather
