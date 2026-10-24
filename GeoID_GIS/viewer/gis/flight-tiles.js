@@ -329,7 +329,14 @@ function pump() {
       }
       pump();
     };
-    img.onerror = () => { inflight--; t.loading = false; t.image = "missing"; pump(); };
+    // A failure may be a 404 (no imagery: keep the ancestor) or a refusal
+    // under load (429): try once more a few seconds later before giving up.
+    img.onerror = () => {
+      inflight--; t.loading = false;
+      if (!t.retried) { t.retried = true; setTimeout(() => { if (t.image == null) request(t); }, 4000); }
+      else t.image = "missing";
+      pump();
+    };
     img.src = URL_TEMPLATE.replace("{z}", t.z).replace("{y}", t.y).replace("{x}", t.x);
   }
 }
