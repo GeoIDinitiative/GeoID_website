@@ -1,11 +1,11 @@
 /** #/reviews, #/reviews/new and #/r/:id — peer review of draft papers. */
-import * as api from "../api.js?v=20261024-8894228";
-import { store, myHandle } from "../store.js?v=20261024-8894228";
+import * as api from "../api.js?v=20261024-080b7f6";
+import { store, myHandle } from "../store.js?v=20261024-080b7f6";
 import {
   h, clear, field, input, select, textarea, toast, busy, splitList, errorBox, loading, empty, confirmDialog,
   timeEl, dateToEpoch, dateText, extLink, epochToDate, put,
-} from "../dom.js?v=20261024-8894228";
-import { act, pagedList, userChip, requireSignIn } from "../components.js?v=20261024-8894228";
+} from "../dom.js?v=20261024-080b7f6";
+import { act, pagedList, userChip, requireSignIn } from "../components.js?v=20261024-080b7f6";
 
 const RECS = [["accept", "Accept as is"], ["minor", "Minor revisions"], ["major", "Major revisions"], ["reject", "Reject / not ready"]];
 // The Worker's severities (reviews.js SEVERITIES); any other value is a 400.
