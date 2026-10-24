@@ -20,7 +20,7 @@
  * in, not the median cell), because the question is what happens to people.
  */
 
-import { cellKm2, insideAny, boxOf } from "./exposure.js?v=20261024-59e7890";
+import { cellKm2, insideAny, boxOf } from "./exposure.js?v=20261024-64a34cf";
 
 export const LEVELS = ["Very high", "High", "Moderate", "Low", "Very low"];
 export const LEVEL_COLOURS = {

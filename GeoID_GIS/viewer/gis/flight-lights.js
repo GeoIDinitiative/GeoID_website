@@ -28,7 +28,7 @@
 //   * Depth-tested: hills and buildings hide what is behind them. Night only
 //     (the ship's NIGHT from flight-tiles.js); nothing runs by day.
 
-import { NIGHT } from "./night-lights.js?v=20261024-59e7890";
+import { NIGHT } from "./night-lights.js?v=20261024-64a34cf";
 
 const TILEJSON = "https://tiles.openfreemap.org/planet";
 const BM = "https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/VIIRS_Black_Marble/default/2016-01-01/GoogleMapsCompatible_Level8/{z}/{y}/{x}.png";
@@ -150,10 +150,17 @@ const LAMP_VERT = /* glsl */`
   void main() {
     vec4 wp = modelMatrix * vec4(position, 1.0);
     vec4 mv = viewMatrix * wp;
-    gl_Position = projectionMatrix * mv;
-    #include <logdepthbuf_vertex>
     float upm = ${UNITS_PER_M.toExponential(8)};
     float dCam = max(-mv.z, 1e-9);
+    // DEPTH MARGIN: the lamps stand on a 33 x 33 height grid per road tile,
+    // the ground on finer heights, so on any rise a lamp sat under the drawn
+    // surface and the depth test hid it (measured: 717k lamps in view, 30 km
+    // up, almost none drawn). Its depth is pulled toward the eye by a margin
+    // growing with range (screen position unchanged); hills and buildings
+    // still hide it.
+    float margin = max(30.0 * upm, 0.003 * dCam);
+    gl_Position = projectionMatrix * vec4(mv.xyz * (1.0 - margin / dCam), 1.0);
+    #include <logdepthbuf_vertex>
     float dShip = distance(wp.xyz, uShipW) / upm, dAhead = distance(wp.xyz, uAheadW) / upm;
     float dIn = mix(dShip, dAhead, uFrom.x), dOut = mix(dShip, dAhead, uFrom.y);
     float keep = smoothstep(uFade.x, uFade.y + 0.001, dIn) * (1.0 - smoothstep(uFade.z, uFade.w, dOut));
@@ -161,12 +168,10 @@ const LAMP_VERT = /* glsl */`
     // draws two pixels and keeps its light, so far roads stay dotted.
     float px = 12.0 * upm * uPxScale / dCam;
     // High up, a lamp's light falls off with distance, so the sum over a
-    // city is a glow that follows its street density, not a flat wash. As
-    // 1/d rather than a point source's strict 1/d^2: an eye or a camera
-    // exposes for the night, and at 1/d^2 the towns 50 km off, seen from
-    // 30 km up, all but vanished (measured: 717k lamps in view, a black
-    // screen); at 1/d the 8 km view is as before and they are ~3x brighter.
-    float energy = 4.0 * min(1.0, px) * 6.0;
+    // city is a glow that follows its street density, not a flat wash
+    // (between a point source's 1/d^2 and the 1/d of an eye exposing for the
+    // night).
+    float energy = 4.0 * min(1.0, pow(px, 1.5)) * 3.0;
     // HIGH UP the dots go soft: the glow widens to a few pixels whatever the
     // distance, the light SPREAD over it (energy / area), so thousands of
     // lamps add up to a diffuse glow that still follows the roads, rather
