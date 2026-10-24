@@ -2,15 +2,15 @@ import * as THREE from "./vendor/three.module.js";
 // The polygon-area rule lives in one place, with a test. Stamped by hand
 // once: stamp.py only rewrites a ?v= that already exists.
 import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
-  from "./gis/geo-utils.js?v=20261025-e868c5c";
+  from "./gis/geo-utils.js?v=20261025-5f80ae3";
 import { attachReliefAttributes, followRelief }
-  from "./gis/vector-render.js?v=20261025-e868c5c";
+  from "./gis/vector-render.js?v=20261025-5f80ae3";
 import { rockClass, crustalSetting, rockClassLabel, classificationBasis }
-  from "./gis/rock-class.js?v=20261025-e868c5c";
+  from "./gis/rock-class.js?v=20261025-5f80ae3";
 import { lithologyLabel }
-  from "./gis/lithology-label.js?v=20261025-e868c5c";
+  from "./gis/lithology-label.js?v=20261025-5f80ae3";
 import { formatLatLon }
-  from "./gis/coord-format.js?v=20261025-e868c5c";
+  from "./gis/coord-format.js?v=20261025-5f80ae3";
 
 /**
  * This module's own cache stamp, read off its own URL.
@@ -8885,11 +8885,15 @@ function fmtProp(value) {
       const occupiedRects = [];
       const candidates = [];
       const activeMoonName = activeMoonViewerFeature?.name || null;
+      // In Earth Flight the Moon is the Moon in the sky: its orbit ring -- seen
+      // from inside it, a line straight across the sky through the Moon -- and
+      // its name tag stand down, as the globe's place labels do.
+      const inFlight = Boolean(window.__flightSim?.active);
 
       for (const entry of entries) {
         const isMoonViewerFocus = Boolean(activeMoonViewerFeature) && entry.item?.name === activeMoonViewerFeature.name;
         const labelScaleFactor = isMoonViewerFocus ? 0.58 : 1;
-        entry.orbitLine.visible = moonsEnabled && !activeMoonName;
+        entry.orbitLine.visible = moonsEnabled && !activeMoonName && !inFlight;
         entry.sprite.visible = false;
         entry.line.visible = false;
         if (entry.baseScale) {
@@ -8912,7 +8916,7 @@ function fmtProp(value) {
           continue;
         }
         entry.moonMesh.visible = true;
-        if (!moonsEnabled || !labelsEnabled) {
+        if (!moonsEnabled || !labelsEnabled || inFlight) {
           continue;
         }
 
