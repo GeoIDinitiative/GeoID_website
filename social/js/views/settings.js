@@ -1,11 +1,11 @@
 /** #/settings — privacy, contact, matcher, notifications, follows, blocks, and your data. */
-import * as api from "../api.js?v=20261024-9a20dc2";
-import { store, refreshMe, myHandle } from "../store.js?v=20261024-9a20dc2";
-import { h, clear, field, input, select, checkbox, toast, busy, errorBox, loading, empty, modal, put, confirmDialog } from "../dom.js?v=20261024-9a20dc2";
-import { act, userChip, requireSignIn, sharePageUrl } from "../components.js?v=20261024-9a20dc2";
-import { sizeText } from "../files.js?v=20261024-9a20dc2";
-import { myAffiliations } from "./orgs.js?v=20261024-9a20dc2";
-import { myOfficeHours } from "./officehours.js?v=20261024-9a20dc2";
+import * as api from "../api.js?v=20261024-9268a02";
+import { store, refreshMe, myHandle } from "../store.js?v=20261024-9268a02";
+import { h, clear, field, input, select, checkbox, toast, busy, errorBox, loading, empty, modal, put, confirmDialog } from "../dom.js?v=20261024-9268a02";
+import { act, userChip, requireSignIn, sharePageUrl } from "../components.js?v=20261024-9268a02";
+import { sizeText } from "../files.js?v=20261024-9268a02";
+import { myAffiliations } from "./orgs.js?v=20261024-9268a02";
+import { myOfficeHours } from "./officehours.js?v=20261024-9268a02";
 
 // The kinds the API knows (NOTIFY_KINDS in social-worker/profiles.js); a
 // toggle for any other name would be silently ignored by the server.

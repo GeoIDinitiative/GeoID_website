@@ -28,7 +28,7 @@
  * treated as water, which costs 0.2 °C.
  */
 
-import { dataUrl } from "./data-base.js?v=20261024-9a20dc2";
+import { dataUrl } from "./data-base.js?v=20261024-9268a02";
 
 /** The environmental lapse rate, K per metre — the ICAO standard atmosphere's. */
 export const LAPSE = 0.0065;

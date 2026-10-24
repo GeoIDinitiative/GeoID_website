@@ -26,7 +26,8 @@
 // Esri World Imagery (blankTile=false: a missing tile is a 404 and the
 // ancestor stays). Flight only.
 
-import { NIGHT } from "./night-lights.js?v=20261024-9a20dc2";
+import { NIGHT } from "./night-lights.js?v=20261024-9268a02";
+import { flightGpuUniforms } from "./flight-terrain-gpu.js?v=20261024-9268a02";
 
 // Esri serves World Imagery over HTTP/1.1, so a browser opens only ~6
 // connections per host: measured, 12 requests on one host ran at ~20 tiles/s.
@@ -262,7 +263,12 @@ function material(t) {
     uLightsOn: { value: 0 },
     uLampCells: { value: sizeM / 9 },
     uSkyglow: SKYGLOW,
+    // The tile's longitudes and Web Mercator rows (0..1 from the north), so a
+    // fragment knows its lat/lon for the overlays' drapes.
+    uTileLL: { value: [tileXToLon(t.x, t.z), 360 / 2 ** t.z, t.y / 2 ** t.z, (t.y + 1) / 2 ** t.z] },
   };
+  const D = flightGpuUniforms();
+  for (const k of ["uDrapeOn", "uDrapeNear", "uDrapeNearBox", "uDrapeMid", "uDrapeMidBox", "uDrapeFar", "uDrapeFarBox"]) t.uniforms[k] = D[k];
   const sampled = veg || rocks;
   m.onBeforeCompile = (shader) => {
     Object.assign(shader.uniforms, t.uniforms);
@@ -285,11 +291,13 @@ varying vec2 vTileUv;
 varying float vSlope;
 ${veg ? "varying float vVegShade;" : ""}
 ${bump ? ROCK_FN + BUMP_PARS : ""}
-${NIGHT_PARS}`)
+${NIGHT_PARS}
+${DRAPE_PARS}`)
       .replace("#include <map_fragment>", `#include <map_fragment>
 ${veg ? "  diffuseColor.rgb *= vVegShade;" : ""}
 ${bump ? BUMP_FRAGMENT : ""}
-${NIGHT_FRAGMENT}`);
+${NIGHT_FRAGMENT}
+${DRAPE_FRAGMENT}`);
   };
   m.customProgramCacheKey = () => `geoid-flight-tile|${veg}|${rocks}|${bump}`;
   return m;
@@ -429,6 +437,36 @@ const NIGHT_FRAGMENT = /* glsl */`
     vec3 warm = vec3(1.0, 0.72, 0.42);
     vec3 moon = day * vec3(0.035, 0.045, 0.07);
     diffuseColor.rgb = mix(day, moon + warm * glow, uNight);
+  }`;
+
+/*
+ * The overlays' fills, draped (flight-terrain-gpu.js): every polygon and
+ * raster layer drawn into lat/lon textures round the aircraft, laid over the
+ * photo here, after the night, so a layer reads by night as by day. The
+ * finest drape that covers the fragment is used.
+ */
+const DRAPE_PARS = /* glsl */`
+uniform float uDrapeOn;
+uniform sampler2D uDrapeNear, uDrapeMid, uDrapeFar;
+uniform vec4 uDrapeNearBox, uDrapeMidBox, uDrapeFarBox;
+uniform vec4 uTileLL;
+bool inDrape(vec2 ll, vec4 box, out vec2 uv) {
+  float c = box.x + 0.5 * box.z;
+  ll.x = c + mod(ll.x - c + 180.0, 360.0) - 180.0;
+  uv = (ll - box.xy) / box.zw;
+  return uv.x > 0.0 && uv.x < 1.0 && uv.y > 0.0 && uv.y < 1.0;
+}`;
+const DRAPE_FRAGMENT = /* glsl */`
+  if (uDrapeOn > 0.5) {
+    float my = mix(uTileLL.z, uTileLL.w, 1.0 - vTileUv.y);
+    vec2 ll = vec2(uTileLL.x + vTileUv.x * uTileLL.y, degrees(atan(sinh(PI * (1.0 - 2.0 * my)))));
+    vec2 duv;
+    vec4 o = vec4(0.0);
+    if (inDrape(ll, uDrapeNearBox, duv)) o = texture2D(uDrapeNear, duv);
+    else if (inDrape(ll, uDrapeMidBox, duv)) o = texture2D(uDrapeMid, duv);
+    else if (inDrape(ll, uDrapeFarBox, duv)) o = texture2D(uDrapeFar, duv);
+    // Drawn over clear black with the layers' own blending: premultiplied.
+    diffuseColor.rgb = diffuseColor.rgb * (1.0 - o.a) + o.rgb;
   }`;
 
 /**
@@ -604,6 +642,7 @@ function tick() {
   const altM = (Number(f.shipAltUnits) || 0) / UNITS_PER_M;
   const horizonM = Math.sqrt(2 * 6371000 * Math.max(10, altM));
   const reach = Math.max(25000, Math.min(400000, 1.4 * horizonM));
+  window.__geoidFlightTileReachM = reach;      // how far the drapes can be painted (flight-terrain-gpu.js)
   const leaves = selectLeaves(f.shipLatLon, altM, reach);
   const now = performance.now();
   for (const t of tiles.values()) { t.want = false; t.ancestorWanted = false; t.cover = false; t.ahead = false; t.d = Infinity; }

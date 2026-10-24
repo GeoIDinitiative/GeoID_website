@@ -25,6 +25,27 @@ check("the shared uniforms start switched off", U.uFlightOn.value === 0 && U.uFl
 check("one shared object for every module", G.flightGpuUniforms() === U);
 check("no uniform starts null where three.js needs a value (a null vec4 stops the render loop)",
   ["Near", "Mid", "Far"].every((k) => Array.isArray(U[`uFlight${k}Box`].value) && U[`uFlight${k}Box`].value.length === 4));
+check("the drape uniforms start off, and the fill cover discards nothing",
+  U.uDrapeOn.value === 0 && U.uFlightCoverCos.value > 1 && U.uFlightDrapePass.value === 0
+  && ["Near", "Mid", "Far"].every((k) => Array.isArray(U[`uDrape${k}Box`].value) && U[`uDrape${k}Box`].value.length === 4)
+  && Array.isArray(U.uFlightShipDir.value) && Array.isArray(U.uFlightDrapeBox.value));
+
+// The overlays' direction convention: lon = atan(z, -x), lat = asin(y).
+for (const [lat, lon] of [[39.6, -105.2], [-33.9, 151.2], [64.1, -21.9]]) {
+  const [x, y, z] = G.dirFor(lat, lon);
+  const lo = Math.atan2(z, -x) * 180 / Math.PI, la = Math.asin(y) * 180 / Math.PI;
+  check(`dirFor round-trips ${lat}, ${lon}`, Math.abs(lo - lon) < 1e-9 && Math.abs(la - lat) < 1e-9, `${la}, ${lo}`);
+}
+
+// The drape stands in for fills only where it is drawn AND painted.
+check("no drape yet: nothing stands in", G.drapeCoverM(0, 150000) === 0);
+check("the drape's own box limits it (a quarter span off centre)", G.drapeCoverM(400, 1e9) === 300000);
+check("the flight tiles' reach limits it", G.drapeCoverM(400, 100000) === 95000);
+for (const D of G.DRAPES) {
+  const b = G.boxFor(39.6, -105.2, D.halfKm), b2 = G.boxFor(39.6 + D.halfKm / 111.32 * 0.24, -105.2, D.halfKm);
+  check(`${D.key} drape: a box snapped round the aircraft still covers 0.75 of its half-span`,
+    (b2.lat0 + b2.dLat) - (39.6 + D.halfKm / 111.32 * 0.24) >= 0.75 * D.halfKm / 111.32 - 1e-9);
+}
 
 console.log(`\n${passed} passed, ${failed} failed`);
 process.exit(failed ? 1 : 0);

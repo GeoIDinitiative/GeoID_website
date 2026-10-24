@@ -8,13 +8,13 @@
  * The arithmetic (ticks, projection, notation) is plotmath.js, tested in
  * node; this file only draws it.
  */
-import { h, put, clear, dateText, timeEl } from "./dom.js?v=20261024-9a20dc2";
-import { videoPlayer } from "./embed.js?v=20261024-9a20dc2";
-import { fileBlock } from "./files.js?v=20261024-9a20dc2";
+import { h, put, clear, dateText, timeEl } from "./dom.js?v=20261024-9268a02";
+import { videoPlayer } from "./embed.js?v=20261024-9268a02";
+import { fileBlock } from "./files.js?v=20261024-9268a02";
 import {
   niceTicks, niceDomain, timeTicks, nearestIndex, seriesByUnit, lineToXY, poleOf, planeCircle,
   measurementText, measurementGlyphLabel, MEASUREMENT_LABELS,
-} from "./plotmath.js?v=20261024-9a20dc2";
+} from "./plotmath.js?v=20261024-9268a02";
 
 // The map's palette, so a series reads the same colour wherever it is drawn.
 export const SERIES_COLOURS = ["rgb(0, 212, 192)", "rgb(240, 176, 48)", "#9aa8ff", "#8be28b", "#ff9f7a", "#d8c4ff"];

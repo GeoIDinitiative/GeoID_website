@@ -18,6 +18,17 @@
 // The grids are filled a few milliseconds a frame (the elevation sampler is a
 // main-thread lookup), into a back buffer that replaces the live one only
 // when complete, so an overlay never sees half a grid.
+//
+// FILLS are DRAPED rather than lifted. A polygon's triangles are as big as its
+// outline allows -- 47 km across Denver's urban area -- and lifting only their
+// corners leaves a flat sheet cutting through the hills, white haze where it
+// floats and gaps where the ground pokes through. So in flight every fill
+// (polygons, geology, Earth Engine and GeoTIFF rasters) is also rendered,
+// with its own material, into lat/lon textures over three boxes round the
+// aircraft, and the flight tiles paint those textures onto the ground
+// (flight-tiles.js): exactly on the terrain, hidden by it like the photo is.
+// Lines and markers stay geometry, which hides itself behind ridges
+// (vector-render.js).
 
 const UNITS_PER_M = 3.2 / 6371000;
 // size (texels), half-span (km): ~78 m, ~625 m and ~3 km cells.
@@ -27,6 +38,15 @@ export const LEVELS = [
   { key: "Far", n: 256, halfKm: 400 },
 ];
 const WORK_MS = 4;
+// The drapes: size (texels) and half-span (km), ~20 m, ~160 m and ~780 m a
+// texel, and how often each is redrawn (layers toggled, restyled or added).
+export const DRAPES = [
+  { key: "Near", n: 2048, halfKm: 20, everyMs: 600 },
+  { key: "Mid", n: 1024, halfKm: 80, everyMs: 2000 },
+  { key: "Far", n: 1024, halfKm: 400, everyMs: 6000 },
+];
+/** The materials drawn into the drapes (vector-render.js registers its fills). */
+export const DRAPE_MATERIALS = new WeakSet();
 
 /** The shared uniforms every `followRelief` material reads (vector-render.js). */
 export function flightGpuUniforms() {
@@ -39,8 +59,35 @@ export function flightGpuUniforms() {
     uFlightNear: { value: null }, uFlightNearBox: { value: [0, 0, 1, 1] },
     uFlightMid: { value: null }, uFlightMidBox: { value: [0, 0, 1, 1] },
     uFlightFar: { value: null }, uFlightFarBox: { value: [0, 0, 1, 1] },
+    // The aircraft's direction in the overlays' frame, and the cosine of the
+    // radius round it inside which fills are drawn by the drape, not as
+    // geometry (2: nowhere).
+    uFlightShipDir: { value: [0, 1, 0] },
+    uFlightCoverCos: { value: 2 },
+    // 1 while a drape is being drawn, and the lat/lon box it is drawn over.
+    uFlightDrapePass: { value: 0 }, uFlightDrapeBox: { value: [0, 0, 1, 1] },
+    uDrapeOn: { value: 0 },
+    uDrapeNear: { value: null }, uDrapeNearBox: { value: [0, 0, 1, 1] },
+    uDrapeMid: { value: null }, uDrapeMidBox: { value: [0, 0, 1, 1] },
+    uDrapeFar: { value: null }, uDrapeFarBox: { value: [0, 0, 1, 1] },
   };
   return w.__geoidFlightGPU;
+}
+
+/** The overlays' direction convention (vector-render `aDir`): lon = atan(z, -x). */
+export function dirFor(lat, lon) {
+  const la = lat * Math.PI / 180, lo = lon * Math.PI / 180;
+  return [-Math.cos(la) * Math.cos(lo), Math.sin(la), Math.cos(la) * Math.sin(lo)];
+}
+
+/**
+ * How far round the aircraft (m) the drapes stand in for fill geometry: inside
+ * both the coarsest drape drawn (a box is snapped, so the aircraft can be a
+ * quarter of its span off centre) and the flight tiles that paint it.
+ */
+export function drapeCoverM(readyHalfKm, tileReachM) {
+  if (!readyHalfKm) return 0;
+  return Math.min(0.75 * readyHalfKm * 1000, 0.95 * (tileReachM || 0));
 }
 
 /** A grid's box round a point, snapped to a quarter of its span so it does not crawl. */
@@ -55,8 +102,9 @@ export function boxFor(lat, lon, halfKm) {
 
 /* ── Browser ────────────────────────────────────────────────────────────── */
 
-let THREE = null, timer = null, running = false;
+let THREE = null, timer = null, running = false, drapeCam = null;
 const state = LEVELS.map(() => ({ tex: null, box: null, version: -1, job: null }));
+const drapeState = DRAPES.map(() => ({ rt: null, box: null, at: 0 }));
 
 function makeTexture(n, data) {
   const tex = new THREE.DataTexture(data, n, n, THREE.RedFormat, THREE.FloatType);
@@ -102,6 +150,77 @@ function step() {
     }
   }
   U.uFlightOn.value = state[0].tex ? 1 : 0;
+  U.uFlightShipDir.value = dirFor(lat, lon);
+  if (U.uFlightOn.value) drapeStep(lat, lon, U);
+}
+
+/* One drape a tick at most: the one whose box moved, else the stalest due. */
+function drapeStep(lat, lon, U) {
+  const now = performance.now();
+  let pick = -1;
+  for (let i = 0; i < DRAPES.length; i++) {
+    const s = drapeState[i], box = boxFor(lat, lon, DRAPES[i].halfKm);
+    const moved = !s.box || box.lon0 !== s.box.lon0 || box.lat0 !== s.box.lat0;
+    if (moved) { pick = i; break; }
+    if (pick < 0 && now - s.at > DRAPES[i].everyMs) pick = i;
+  }
+  if (pick >= 0) renderDrape(pick, boxFor(lat, lon, DRAPES[pick].halfKm), U);
+  let ready = 0;
+  drapeState.forEach((s, i) => { if (s.box) ready = DRAPES[i].halfKm; });
+  const coverM = drapeCoverM(ready, window.__geoidFlightTileReachM);
+  U.uFlightCoverCos.value = coverM > 0 ? Math.cos(coverM / 6371000) : 2;
+  U.uDrapeOn.value = drapeState[0].box ? 1 : 0;
+}
+
+/*
+ * Draw every visible fill into one drape. The fills' own vertex shader moves
+ * each vertex to its lat/lon in the box while uFlightDrapePass is 1
+ * (vector-render.js), so they are drawn with their own material, colour,
+ * opacity and order -- whatever the panels say -- in the order the globe
+ * draws them. No depth buffer: a drape is flat.
+ */
+function renderDrape(i, box, U) {
+  const V = window.GeoIDViewer, r = V?.renderer, scene = V?.scene;
+  if (!r || !scene) return;
+  const D = DRAPES[i], s = drapeState[i];
+  if (!s.rt) {
+    s.rt = new THREE.WebGLRenderTarget(D.n, D.n, { depthBuffer: false, stencilBuffer: false });
+    const t = s.rt.texture;
+    t.generateMipmaps = true;
+    t.minFilter = THREE.LinearMipmapLinearFilter;
+    t.magFilter = THREE.LinearFilter;
+    t.anisotropy = r.capabilities?.getMaxAnisotropy?.() || 1;
+  }
+  if (!drapeCam) { drapeCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1); drapeCam.layers.enableAll(); }
+  const list = [];
+  scene.traverseVisible((o) => {
+    if (o.material && !Array.isArray(o.material) && o.material.visible !== false && DRAPE_MATERIALS.has(o.material)) list.push(o);
+  });
+  list.sort((a, b) => a.renderOrder - b.renderOrder || a.id - b.id);
+  const prevRT = r.getRenderTarget(), prevAuto = r.autoClear;
+  const prevColour = r.getClearColor(new THREE.Color()), prevAlpha = r.getClearAlpha();
+  try {
+    r.setRenderTarget(s.rt);
+    r.setClearColor(0x000000, 0);
+    r.clear(true, false, false);
+    r.autoClear = false;
+    U.uFlightDrapePass.value = 1;
+    U.uFlightDrapeBox.value = [box.lon0, box.lat0, box.dLon, box.dLat];
+    for (const o of list) {
+      // The vertex shader places it, so the camera's frustum must not cull it.
+      const culled = o.frustumCulled;
+      o.frustumCulled = false;
+      try { r.render(o, drapeCam); } finally { o.frustumCulled = culled; }
+    }
+  } finally {
+    U.uFlightDrapePass.value = 0;
+    r.setRenderTarget(prevRT);
+    r.autoClear = prevAuto;
+    r.setClearColor(prevColour, prevAlpha);
+  }
+  s.box = box; s.at = performance.now();
+  U[`uDrape${D.key}`].value = s.rt.texture;
+  U[`uDrape${D.key}Box`].value = [box.lon0, box.lat0, box.dLon, box.dLat];
 }
 
 /** Start keeping the overlays' terrain grids current (idempotent). */
@@ -124,6 +243,14 @@ export function stopFlightTerrainGpu() {
     U[`uFlight${LEVELS[li].key}`].value = null;
     U[`uFlight${LEVELS[li].key}Box`].value = [0, 0, 1, 1];
   });
+  drapeState.forEach((s, i) => {
+    s.rt?.dispose(); s.rt = null; s.box = null; s.at = 0;
+    U[`uDrape${DRAPES[i].key}`].value = null;
+    U[`uDrape${DRAPES[i].key}Box`].value = [0, 0, 1, 1];
+  });
+  U.uDrapeOn.value = 0;
+  U.uFlightCoverCos.value = 2;
+  U.uFlightDrapePass.value = 0;
 }
 
 if (typeof window !== "undefined") {

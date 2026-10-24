@@ -1,12 +1,12 @@
 import * as THREE from "../vendor/three.module.js";
 import { latLonToVector3, drapedRadius, looksLikeGeographic, sphericalPolygonAreaKm2 }
-  from "./geo-utils.js?v=20261024-9a20dc2";
-import { collectionBounds, geometryCoords, polygonsOf, linesOf } from "./geoprocessing.js?v=20261024-9a20dc2";
-import { pointInPolygon } from "./geometry.js?v=20261024-9a20dc2";
-import { paintOpacity } from "./layer-opacity.js?v=20261024-9a20dc2";
-import { applyCutaway } from "./cutaway.js?v=20261024-9a20dc2";
-import { categoricalSymbology, suggestCategoryField } from "./symbology.js?v=20261024-9a20dc2";
-import { flightGpuUniforms } from "./flight-terrain-gpu.js?v=20261024-9a20dc2";
+  from "./geo-utils.js?v=20261024-9268a02";
+import { collectionBounds, geometryCoords, polygonsOf, linesOf } from "./geoprocessing.js?v=20261024-9268a02";
+import { pointInPolygon } from "./geometry.js?v=20261024-9268a02";
+import { paintOpacity } from "./layer-opacity.js?v=20261024-9268a02";
+import { applyCutaway } from "./cutaway.js?v=20261024-9268a02";
+import { categoricalSymbology, suggestCategoryField } from "./symbology.js?v=20261024-9268a02";
+import { flightGpuUniforms, DRAPE_MATERIALS } from "./flight-terrain-gpu.js?v=20261024-9268a02";
 
 // Single renderer for every vector source. Each parser produces a GeoJSON
 // FeatureCollection and this turns it into draped globe geometry, so shapefile,
@@ -373,17 +373,41 @@ function ensureReliefSync() {
  * Every follower also adds the flight terrain (flight-terrain-gpu.js: height
  * textures round the aircraft, sampled by the vertex's direction), so in
  * flight an overlay lies on the hills rather than on the bare sphere under
- * them. And there, where the ground is real 3D terrain, the overlays are
- * DEPTH-TESTED against it -- a river behind a ridge is behind the ridge --
- * with their depth pulled a little toward the eye (15 m, or 0.6% of the
- * range, whichever is more) so they are never buried by the difference
- * between their grid and the ground's; and they write no depth, so overlays
- * still stack by draw order among themselves as they do on the globe. Out of
- * flight every material is restored exactly as it was built.
+ * them. Then, by kind:
+ *
+ *   * FILLS (meshes) are draped: round the aircraft they are drawn into the
+ *     ground's own texture (flight-terrain-gpu.js renders them there, this
+ *     shader placing each vertex at its lat/lon while uFlightDrapePass is 1)
+ *     and discarded as geometry, because their triangles -- up to tens of km
+ *     -- are flat sheets through the hills. Beyond the drape they stay
+ *     geometry, DEPTH-TESTED against the terrain with their depth pulled
+ *     toward the eye (15 m, or 0.6% of the range) so the grids' small
+ *     difference from the ground never buries them.
+ *   * LINES, ribbons and markers stay geometry and test their own visibility:
+ *     each vertex looks back along its sight line through the height grids
+ *     (and past the Earth's bulge) and is hidden if the ground is in the way.
+ *     Not the depth test: a river's vertices are kilometres apart and the
+ *     straight span between them dips under every rise -- measured over
+ *     Denver, 68 m for one span in ten and 235 m for one in a hundred --
+ *     which the depth test turned into dashes.
+ *
+ * Neither writes depth, so overlays stack by draw order among themselves as
+ * on the globe. Out of flight every material is restored exactly as built.
  */
 const FLIGHT = flightGpuUniforms();
 const FLIGHT_FOLLOWERS = new Set();
 let flightDepthOn = false;
+function applyFlightDepth(m, on) {
+  if (on) {
+    if (!m.userData.geoidBuiltDepth) m.userData.geoidBuiltDepth = { test: m.depthTest, write: m.depthWrite };
+    m.depthTest = m.userData.geoidFlightKind !== "line";
+    m.depthWrite = false;
+  } else if (m.userData.geoidBuiltDepth) {
+    m.depthTest = m.userData.geoidBuiltDepth.test;
+    m.depthWrite = m.userData.geoidBuiltDepth.write;
+    delete m.userData.geoidBuiltDepth;
+  }
+}
 function syncFlightDepth() {
   const on = FLIGHT.uFlightOn.value > 0.5;
   if (on === flightDepthOn) return;
@@ -391,16 +415,10 @@ function syncFlightDepth() {
   for (const ref of FLIGHT_FOLLOWERS) {
     const m = ref.deref();
     if (!m) { FLIGHT_FOLLOWERS.delete(ref); continue; }
-    if (on) {
-      m.userData.geoidBuiltDepth = { test: m.depthTest, write: m.depthWrite };
-      m.depthTest = true;
-      m.depthWrite = false;
-    } else if (m.userData.geoidBuiltDepth) {
-      m.depthTest = m.userData.geoidBuiltDepth.test;
-      m.depthWrite = m.userData.geoidBuiltDepth.write;
-    }
+    applyFlightDepth(m, on);
   }
 }
+const UNITS = (3.2 / 6371000).toExponential(8);
 const FLIGHT_VERTEX_PARS = `
 uniform float uFlightOn;
 uniform sampler2D uFlightNear;
@@ -414,20 +432,68 @@ float geoidFlightHeight(vec3 d) {
   vec3 n = normalize(d);
   vec2 ll = vec2(degrees(atan(n.z, -n.x)), degrees(asin(clamp(n.y, -1.0, 1.0))));
   vec2 uv = (ll - uFlightNearBox.xy) / uFlightNearBox.zw;
-  if (uv.x > 0.001 && uv.x < 0.999 && uv.y > 0.001 && uv.y < 0.999) return texture2D(uFlightNear, uv).r * ${(3.2 / 6371000).toExponential(8)};
+  if (uv.x > 0.001 && uv.x < 0.999 && uv.y > 0.001 && uv.y < 0.999) return texture2D(uFlightNear, uv).r * ${UNITS};
   uv = (ll - uFlightMidBox.xy) / uFlightMidBox.zw;
-  if (uv.x > 0.001 && uv.x < 0.999 && uv.y > 0.001 && uv.y < 0.999) return texture2D(uFlightMid, uv).r * ${(3.2 / 6371000).toExponential(8)};
+  if (uv.x > 0.001 && uv.x < 0.999 && uv.y > 0.001 && uv.y < 0.999) return texture2D(uFlightMid, uv).r * ${UNITS};
   uv = (ll - uFlightFarBox.xy) / uFlightFarBox.zw;
-  if (uv.x > 0.001 && uv.x < 0.999 && uv.y > 0.001 && uv.y < 0.999) return texture2D(uFlightFar, uv).r * ${(3.2 / 6371000).toExponential(8)};
+  if (uv.x > 0.001 && uv.x < 0.999 && uv.y > 0.001 && uv.y < 0.999) return texture2D(uFlightFar, uv).r * ${UNITS};
   return 0.0;
+}
+`;
+// Lines: is the ground between this vertex and the eye? Samples bunched
+// toward the vertex, where the ground that hides a thing usually is.
+const FLIGHT_SEEN_PARS = `
+varying float vFlightSeen;
+float geoidFlightSeen(vec3 p) {
+  if (uFlightOn < 0.5) return 1.0;
+  vec3 eye = (inverse(modelMatrix) * vec4(cameraPosition, 1.0)).xyz;
+  vec3 d = eye - p;
+  // The Earth's bulge: the sight line passes inside the sphere.
+  float t = clamp(-dot(p, d) / dot(d, d), 0.0, 1.0);
+  if (t > 0.002 && t < 0.998 && length(p + d * t) < 3.2) return 0.0;
+  float tol = 8.0 * ${UNITS};
+  for (int i = 1; i <= 40; i++) {
+    float s = pow(float(i) / 40.0, 1.6);
+    vec3 q = p + d * s;
+    if (length(q) < 3.2 + geoidFlightHeight(q) - tol) return 0.0;
+  }
+  return 1.0;
 }
 `;
 const FLIGHT_DEPTH_MARGIN = `
   if (uFlightOn > 0.5) {
     float geoidRange = max(length(mvPosition.xyz), 1e-9);
-    float geoidMargin = max(15.0 * ${(3.2 / 6371000).toExponential(8)}, 0.006 * geoidRange);
+    float geoidMargin = max(15.0 * ${UNITS}, 0.006 * geoidRange);
     gl_Position = projectionMatrix * vec4(mvPosition.xyz * (1.0 - geoidMargin / geoidRange), 1.0);
   }`;
+// Fills: in a drape pass the vertex goes to its lat/lon in the drape's box
+// (longitude taken round the box's centre, so a polygon across the
+// antimeridian does not smear across the box).
+const FLIGHT_FILL_VERTEX_PARS = `
+uniform float uFlightDrapePass;
+uniform vec4 uFlightDrapeBox;
+varying vec3 vFlightDir;
+`;
+const FLIGHT_FILL_VERTEX = `
+  vFlightDir = normalize(aDir);
+  if (uFlightDrapePass > 0.5) {
+    vec3 gn = normalize(aDir);
+    float gc = uFlightDrapeBox.x + 0.5 * uFlightDrapeBox.z;
+    float glon = degrees(atan(gn.z, -gn.x));
+    glon = gc + mod(glon - gc + 180.0, 360.0) - 180.0;
+    vec2 guv = (vec2(glon, degrees(asin(clamp(gn.y, -1.0, 1.0)))) - uFlightDrapeBox.xy) / uFlightDrapeBox.zw;
+    gl_Position = vec4(guv * 2.0 - 1.0, 0.0, 1.0);
+  }`;
+const FLIGHT_FILL_FRAGMENT_PARS = `
+uniform float uFlightOn;
+uniform float uFlightDrapePass;
+uniform vec3 uFlightShipDir;
+uniform float uFlightCoverCos;
+varying vec3 vFlightDir;
+`;
+const FLIGHT_FILL_FRAGMENT = `
+  if (uFlightOn > 0.5 && uFlightDrapePass < 0.5 && dot(normalize(vFlightDir), uFlightShipDir) > uFlightCoverCos) discard;
+`;
 
 /**
  * How high a LINE is drawn, which cannot be zero and must not be fixed.
@@ -681,7 +747,16 @@ export function followRelief(material, drape, {
   // altitude-scaled one; anything else the fixed drape it was built with.
   const drapeUniform = lifted === "marker" ? MARKER_DRAPE_UNIFORM
     : lifted ? LINE_DRAPE_UNIFORM : { value: drape };
-  if (flightTerrain) FLIGHT_FOLLOWERS.add(new WeakRef(material));
+  // In flight: a fill is draped, a line hides itself behind the ground.
+  const flightKind = !flightTerrain ? null
+    : (ribbon || lifted === "marker" || /Line|Points/.test(material.type)) ? "line" : "fill";
+  if (flightTerrain) {
+    material.userData.geoidFlightKind = flightKind;
+    FLIGHT_FOLLOWERS.add(new WeakRef(material));
+    if (flightKind === "fill") DRAPE_MATERIALS.add(material);
+    // Built mid-flight: take the flight's policy now, not at the next change.
+    if (flightDepthOn) applyFlightDepth(material, true);
+  }
   material.onBeforeCompile = (shader) => {
     shader.uniforms.uRelief = RELIEF_UNIFORM;
     shader.uniforms.uDrape = drapeUniform;
@@ -704,6 +779,8 @@ ${ribbon ? "attribute vec3 aPerp;\nattribute float aSide;\nuniform float uRibbon
 ${cullFarSide ? "varying float vFacing;" : ""}
 ${hole ? "varying vec3 vDir;" : ""}
 ${flightTerrain ? FLIGHT_VERTEX_PARS : ""}
+${flightKind === "line" ? FLIGHT_SEEN_PARS : ""}
+${flightKind === "fill" ? FLIGHT_FILL_VERTEX_PARS : ""}
 ${shader.vertexShader}`.replace(
       "#include <begin_vertex>",
       `vec3 transformed = aDir * (${base.toFixed(4)} + aDisp * uRelief + uDrape${flightTerrain ? " + geoidFlightHeight(aDir)" : ""});`
@@ -720,9 +797,22 @@ ${shader.vertexShader}`.replace(
   }`
         : ""),
     );
-    if (flightTerrain) {
+    if (flightKind === "fill") {
       shader.vertexShader = shader.vertexShader.replace(
-        "#include <project_vertex>", `#include <project_vertex>${FLIGHT_DEPTH_MARGIN}`);
+        "#include <project_vertex>", `#include <project_vertex>${FLIGHT_DEPTH_MARGIN}${FLIGHT_FILL_VERTEX}`
+        // Flat in a drape: nothing faces away there.
+        + (cullFarSide ? "\n  if (uFlightDrapePass > 0.5) vFacing = 1.0;" : ""));
+      shader.fragmentShader = `${FLIGHT_FILL_FRAGMENT_PARS}
+${shader.fragmentShader}`.replace(
+        "#include <clipping_planes_fragment>", `${FLIGHT_FILL_FRAGMENT}  #include <clipping_planes_fragment>`);
+    } else if (flightKind === "line") {
+      shader.vertexShader = shader.vertexShader.replace(
+        "#include <project_vertex>", "#include <project_vertex>\n  vFlightSeen = geoidFlightSeen(transformed);");
+      shader.fragmentShader = `uniform float uFlightOn;
+varying float vFlightSeen;
+${shader.fragmentShader}`.replace(
+        "#include <clipping_planes_fragment>",
+        "if (uFlightOn > 0.5 && vFlightSeen < 0.5) discard;\n  #include <clipping_planes_fragment>");
     }
     /**
      * BACKFACE CULLING, FOR SOMETHING THAT HAS NO FACES.
@@ -792,7 +882,7 @@ ${shader.fragmentShader}`.replace(
   // Found by bisection: the same injection inlined with a unique key drew
   // perfectly.
   material.customProgramCacheKey = () =>
-    `geoid-relief-${flightTerrain ? "flight1" : "noflight"}-${material.type}-${lifted === "marker" ? "marker" : lifted ? "live" : drape}-${ribbon ? "ribbon" : "flat"}`
+    `geoid-relief-${flightKind ? `flight2${flightKind}` : "noflight"}-${material.type}-${lifted === "marker" ? "marker" : lifted ? "live" : drape}-${ribbon ? "ribbon" : "flat"}`
     + `${cullFarSide ? `-cull${facingLimit}` : ""}${hole ? "-hole" : ""}`;
   return material;
 }
