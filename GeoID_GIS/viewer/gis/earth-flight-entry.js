@@ -21,10 +21,10 @@
 //      frame): aim the globe there, then open pre-flight, whose centre
 //      crosshair takes the site from wherever the globe is aimed.
 
-import { startFlightLabels, stopFlightLabels } from "./flight-labels.js?v=20261024-58e15bb";
-import { showFlightMap, hideFlightMap } from "./flight-map.js?v=20261024-58e15bb";
-import { showFlightSky, hideFlightSky } from "./flight-sky.js?v=20261024-58e15bb";
-import { isEarth } from "./bodies.js?v=20261024-58e15bb";
+import { startFlightLabels, stopFlightLabels } from "./flight-labels.js?v=20261024-9257ceb";
+import { showFlightMap, hideFlightMap } from "./flight-map.js?v=20261024-9257ceb";
+import { showFlightSky, hideFlightSky } from "./flight-sky.js?v=20261024-9257ceb";
+import { isEarth } from "./bodies.js?v=20261024-9257ceb";
 
 /** `?flight=earth&lat=..&lon=..` -> { lat, lon } or { lat: null } or null. */
 export function parseFlightLink(search) {

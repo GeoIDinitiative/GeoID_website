@@ -37,13 +37,13 @@
 // answers in -- no half-turn to bake in, unlike the Earth Engine drapes which
 // parent to the globe mesh itself.
 
-import { TILE_SOURCES, DEFAULT_SOURCE, tileUrl } from "./tile-sources.js?v=20261024-58e15bb";
-import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20261024-58e15bb";
-import { isEarth } from "./bodies.js?v=20261024-58e15bb";
-import { holdLaunch } from "./launch-ready.js?v=20261024-58e15bb";
-import { streamRings, cacheStats } from "./tile-streamer.js?v=20261024-58e15bb";
+import { TILE_SOURCES, DEFAULT_SOURCE, tileUrl } from "./tile-sources.js?v=20261024-9257ceb";
+import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20261024-9257ceb";
+import { isEarth } from "./bodies.js?v=20261024-9257ceb";
+import { holdLaunch } from "./launch-ready.js?v=20261024-9257ceb";
+import { streamRings, cacheStats } from "./tile-streamer.js?v=20261024-9257ceb";
 import { visibleBounds, altitudeUnits, viewChangedEnough, onViewChange, viewFocus }
-  from "./view-extent.js?v=20261024-58e15bb";
+  from "./view-extent.js?v=20261024-9257ceb";
 
 const TILE = 256;
 // Web Mercator cannot express the poles; this is where the projection is
@@ -1276,10 +1276,18 @@ async function refineOnce({ onStatus, motion = false } = {}) {
  * tile-sources.js) are simply not painted: the rings are drawn coarsest first
  * into one canvas, so the best level that exists shows through.
  */
+// Three bands, coarsest first. The two nearest are on Esri World Imagery --
+// the same imagery the 3D buildings' ground uses, at 0.7 m -- because the
+// basemap (Sentinel-2, 10 m) beside it was a fourteen-fold step at a square
+// edge (reported: "too big of an immediate discontinuity between mapping
+// resolutions"). "close" bridges it at ~1.5 m, "near" at ~5 m, "mid" hands
+// over to the basemap. Every band's edges are feathered (featherEdges).
 export const AHEAD_PATCHES = [
   { key: "mid", min: 30, max: 150, perKm: 12, base: 20, order: REFINE_ORDER + 0.04 },
-  { key: "near", min: 6, max: 25, perKm: 2.5, base: 5, order: REFINE_ORDER + 0.05 },
+  { key: "near", min: 6, max: 25, perKm: 2.5, base: 5, order: REFINE_ORDER + 0.05, source: "ESRI Satellite" },
+  { key: "close", min: 3, max: 6, perKm: 0.8, base: 2.5, order: REFINE_ORDER + 0.06, source: "ESRI Satellite", maxZoom: 16 },
 ];
+const FEATHER = 0.08;   // of the patch, on every side
 /** Where a patch wants to be: its half-size and centre for this altitude and heading. */
 export function aheadBox(spec, ship, altKm, headingDeg) {
   const half = Math.max(spec.min, Math.min(spec.max, spec.base + spec.perKm * Math.max(0, altKm)));
@@ -1290,6 +1298,25 @@ export function aheadBox(spec, ship, altKm, headingDeg) {
   const lon = ship.lon + (ahead * Math.sin(h)) / (111.32 * cosLat);
   const dLat = half / 111.32, dLon = half / (111.32 * cosLat);
   return { half, bbox: { minLat: Math.max(-85, lat - dLat), maxLat: Math.min(85, lat + dLat), minLon: lon - dLon, maxLon: lon + dLon } };
+}
+/** Fade a patch out over its outer FEATHER on every side, so bands blend. */
+function featherEdges(mesh) {
+  const material = mesh.material;
+  const prev = material.onBeforeCompile;
+  material.onBeforeCompile = (shader, renderer) => {
+    prev?.call(material, shader, renderer);
+    shader.fragmentShader = shader.fragmentShader.replace("#include <map_fragment>", `#include <map_fragment>
+  #ifdef USE_MAP
+  {
+    float edgeDist = min(min(vMapUv.x, 1.0 - vMapUv.x), min(vMapUv.y, 1.0 - vMapUv.y));
+    diffuseColor.a *= smoothstep(0.0, ${FEATHER.toFixed(3)}, edgeDist);
+  }
+  #endif`);
+  };
+  const key = material.customProgramCacheKey?.bind(material);
+  material.customProgramCacheKey = () => (key ? key() : "") + "|feather";
+  material.needsUpdate = true;
+  return mesh;
 }
 const aheadState = new Map();   // key -> { bbox, half, zoom, source, mesh, pass }
 
@@ -1305,9 +1332,10 @@ function disposeNear() { for (const k of [...aheadState.keys()]) disposeAhead(k)
 
 async function refineAhead(spec) {
   const flight = window.__flightSim;
-  const source = tileBasemapSource();
+  const basemap = tileBasemapSource();
+  const source = spec.source && TILE_SOURCES[spec.source] ? spec.source : basemap;
   const ship = flight?.active ? flight.shipLatLon : null;
-  if (!ship || !source || !Number.isFinite(ship.lat)) { disposeAhead(spec.key); return; }
+  if (!ship || !basemap || !Number.isFinite(ship.lat)) { disposeAhead(spec.key); return; }
   const kmPerUnit = 6371 / 3.2;
   const altKm = (Number(flight.shipAltUnits) || 0) * kmPerUnit;
   const { half, bbox } = aheadBox(spec, ship, altKm, flight.headingDeg);
@@ -1319,7 +1347,7 @@ async function refineAhead(spec) {
     const resized = Math.abs(half - st.half) / st.half > 0.35;
     if (moved < 0.2 * st.half && !resized) return;
   }
-  const zoom = chooseZoom(bbox, { maxZoom: TILE_SOURCES[source].maxZoom });
+  const zoom = chooseZoom(bbox, { maxZoom: Math.min(spec.maxZoom ?? 99, TILE_SOURCES[source].maxZoom) });
   // The horizon patch is already this sharp (high up): nothing to add.
   if (refineState?.zoom && zoom <= refineState.zoom) { disposeAhead(spec.key); return; }
   if (!THREE) THREE = await import("../vendor/three.module.js");
@@ -1346,7 +1374,7 @@ async function refineAhead(spec) {
       if (!pass.live) {
         const group = refineParent();
         if (!group) return;
-        pass.live = buildMesh(canvas, bbox, { frame: "globe" });
+        pass.live = featherEdges(buildMesh(canvas, bbox, { frame: "globe" }));
         pass.live.name = `GeoID-BasemapAhead-${spec.key}-pending`;
         pass.live.renderOrder = spec.order + 0.001;   // over the old one while it fills
         group.add(pass.live);

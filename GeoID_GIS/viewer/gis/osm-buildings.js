@@ -36,9 +36,9 @@
 // transparent pass in a group sorted at 190 (see GROUP_ORDER), still
 // depth-tested and depth-writing against the globe and each other.
 
-import { isEarth } from "./bodies.js?v=20261024-58e15bb";
+import { isEarth } from "./bodies.js?v=20261024-9257ceb";
 import { facade, roof } from "../../../flight_sim/earth/game/facade.js?v=1";
-import { NIGHT } from "./night-lights.js?v=20261024-58e15bb";
+import { NIGHT } from "./night-lights.js?v=20261024-9257ceb";
 
 const BUILDINGS_TILEJSON = "https://tiles.openfreemap.org/planet";
 // blankTile=false: a tile with no imagery is a 404, not Esri's grey "Map data
@@ -56,6 +56,14 @@ const ROOF_NEAR_M = 900;
 const RADIUS_M = 2500;        // tiles whose box is this close to the eye's ground point
 const AHEAD_M = 1800;         // ...or to the point the view is centred on
 const MAX_TILES = 16;
+// In flight the tiles follow the aircraft and the ground it is flying towards:
+// a circle round it and a larger one ahead along the heading, further out the
+// higher it flies, on a bigger budget. At the edge of that cover everything
+// fades out over FADE_M (see edgeFaded) instead of ending in a wall.
+const FLIGHT_RADIUS_M = 3000;
+const FLIGHT_AHEAD_RADIUS_M = 4500;
+const FLIGHT_MAX_TILES = 32;
+const FADE_M = 800;
 const FETCH_BUDGET = 3;       // vector tiles + worker jobs in flight
 const IMAGE_BUDGET = 6;       // roof imagery requests in flight
 const UNITS_PER_M = 3.2 / 6371000;
@@ -159,7 +167,7 @@ function canopyMaterials(imagery) {
   if (!canopySideMat) {
     // v runs 0 at the foot to 1 a canvas-height (8 m) up; taller walls
     // repeat the crown band rather than stretching it.
-    canopySideMat = shadowed(new THREE.MeshLambertMaterial({ map: foliageTexture() }));
+    canopySideMat = edgeFaded(shadowed(new THREE.MeshLambertMaterial({ map: foliageTexture() })), "dither");
   }
   const top = shadowed(new THREE.MeshLambertMaterial({ map: imagery }));
   const prev = top.onBeforeCompile;
@@ -173,7 +181,7 @@ function canopyMaterials(imagery) {
   };
   const key = top.customProgramCacheKey.bind(top);
   top.customProgramCacheKey = () => key() + "|canopy";
-  return [top, canopySideMat];
+  return [edgeFaded(top, "dither"), canopySideMat];
 }
 
 let sun = null;
@@ -416,6 +424,50 @@ function shadowed(material) {
   return material;
 }
 
+/* ── Fading out at the edge of the cover (flight) ──────────────────────────
+   The buildings, woods and their sharp ground stop where the streamed tiles
+   stop, and in flight that edge was a wall a couple of kilometres ahead, with
+   0.7 m imagery against the 10 m basemap beyond (reported: "too big of an
+   immediate discontinuity"). Every one of their materials fades out over the
+   last FADE_M of the cover: solids by a screen-door dither (they stay depth
+   tested and opaque), the ground drape by alpha. The cover is the union of two
+   circles -- round the aircraft and round the point ahead -- passed in world
+   space each frame; off in orbit (uFadeOn 0). */
+const FADE = {
+  uFadeOn: { value: 0 },
+  uFadeA: { value: null },      // world centre of the aircraft circle
+  uFadeB: { value: null },      // world centre of the circle ahead
+  uFadeR: { value: null },      // (rA, rB, fade) in world units
+};
+function edgeFaded(material, mode) {
+  const prev = material.onBeforeCompile;
+  material.onBeforeCompile = (shader, renderer) => {
+    prev?.call(material, shader, renderer);
+    Object.assign(shader.uniforms, FADE);
+    shader.vertexShader = shader.vertexShader
+      .replace("#include <common>", "#include <common>\nvarying vec3 vFadeW;")
+      .replace("#include <project_vertex>", "#include <project_vertex>\n  vFadeW = (modelMatrix * vec4(transformed, 1.0)).xyz;");
+    const body = mode === "dither"
+      ? "if (edgeFade < 0.999 && edgeFade < fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715))))) discard;"
+      : "gl_FragColor.a *= edgeFade;";
+    shader.fragmentShader = shader.fragmentShader
+      .replace("#include <common>", "#include <common>\nvarying vec3 vFadeW;\nuniform float uFadeOn;\nuniform vec3 uFadeA;\nuniform vec3 uFadeB;\nuniform vec3 uFadeR;")
+      .replace("#include <dithering_fragment>", `#include <dithering_fragment>
+  {
+    float edgeFade = 1.0;
+    if (uFadeOn > 0.5) {
+      float a = 1.0 - smoothstep(uFadeR.x - uFadeR.z, uFadeR.x, distance(vFadeW, uFadeA));
+      float b = 1.0 - smoothstep(uFadeR.y - uFadeR.z, uFadeR.y, distance(vFadeW, uFadeB));
+      edgeFade = max(a, b);
+    }
+    ${body}
+  }`);
+  };
+  const key = material.customProgramCacheKey?.bind(material);
+  material.customProgramCacheKey = () => (key ? key() : "") + "|edge-" + mode;
+  return material;
+}
+
 function noPick(obj) {
   obj.raycast = () => {};
   obj.userData.nonInteractive = true;
@@ -435,7 +487,7 @@ function build(viewer, t, m, count, lat, sizeM) {
   geo.computeBoundingSphere();
 
   t.roof = roofTexture(t);
-  const roofMat = roof(shadowed(new THREE.MeshLambertMaterial({ map: t.roof, transparent: true })));
+  const roofMat = edgeFaded(roof(shadowed(new THREE.MeshLambertMaterial({ map: t.roof, transparent: true }))), "dither");
   const mesh = noPick(new THREE.Mesh(geo, [roofMat, wallMat]));
   mesh.name = "GeoID-OSMBuildings";
   mesh.renderOrder = ORDER_BUILDINGS;
@@ -454,7 +506,7 @@ function build(viewer, t, m, count, lat, sizeM) {
   // (50+), refusing the depth test like every other drape.
   const ground = noPick(new THREE.Mesh(
     new THREE.PlaneGeometry(sizeM, sizeM).rotateX(-Math.PI / 2).translate(sizeM / 2, 0, sizeM / 2),
-    new THREE.MeshBasicMaterial({ map: t.roof, transparent: true, depthTest: false, depthWrite: false })));
+    edgeFaded(new THREE.MeshBasicMaterial({ map: t.roof, transparent: true, depthTest: false, depthWrite: false }), "alpha")));
   ground.matrixAutoUpdate = false;
   catcher.receiveShadow = true;
   catcher.matrixAutoUpdate = false;
@@ -677,6 +729,28 @@ function updateShadows(viewer, altitude, eye) {
   sun.shadow.normalBias = (2 * half / 2048) * 1.5;
 }
 
+/** In flight: the aircraft's ground point and the point ahead of it. */
+function flightCover(viewer, altM) {
+  const f = window.__flightSim;
+  const ship = f?.active ? f.shipLatLon : null;
+  if (!ship || !Number.isFinite(ship.lat)) return null;
+  const aheadM = Math.max(3000, Math.min(9000, 3000 + 3 * (Number(altM) || 0)));
+  const h = (Number(f.headingDeg) || 0) * Math.PI / 180;
+  const cosLat = Math.max(0.05, Math.cos(ship.lat * Math.PI / 180));
+  const ahead = { lat: ship.lat + (aheadM * Math.cos(h)) / 111320, lon: ship.lon + (aheadM * Math.sin(h)) / (111320 * cosLat) };
+  return { eye: { lat: ship.lat, lon: ship.lon }, ahead };
+}
+function updateFade(viewer, cover) {
+  FADE.uFadeOn.value = cover ? 1 : 0;
+  if (!cover) return;
+  if (!FADE.uFadeA.value) { FADE.uFadeA.value = new THREE.Vector3(); FADE.uFadeB.value = new THREE.Vector3(); FADE.uFadeR.value = new THREE.Vector3(); }
+  FADE.uFadeA.value.copy(viewer.globe.localToWorld(groundPoint(viewer, cover.eye.lat, cover.eye.lon)));
+  FADE.uFadeB.value.copy(viewer.globe.localToWorld(groundPoint(viewer, cover.ahead.lat, cover.ahead.lon)));
+  // The cover reaches a tile's FAR corner, so the fade sits just inside the
+  // radius the tiles were chosen by.
+  FADE.uFadeR.value.set(FLIGHT_RADIUS_M * UNITS_PER_M, FLIGHT_AHEAD_RADIUS_M * UNITS_PER_M, FADE_M * UNITS_PER_M);
+}
+
 /* ── The loop ────────────────────────────────────────────────────────────── */
 
 function frame(now) {
@@ -699,12 +773,18 @@ function frame(now) {
   // Seat every built tile on this frame's ground (the relief moves with altitude).
   for (const t of tiles.values()) if (t.mesh) place(viewer, t);
   updateShadows(viewer, alt, eye);
+  updateFade(viewer, flightCover(viewer, alt));
 
   if (now - lastDecision < 300) return;
   lastDecision = now;
   stats.active = alt < SHOW_BELOW_M;
   if (!template || !stats.active) return;
-  const want = wantedTiles(eye, focus && tileDistanceKm(eye, focus) < 8 ? focus : null);
+  // In flight: round the aircraft and round the ground ahead of it, not round
+  // the chase camera's ground point behind it.
+  const flight = flightCover(viewer, alt);
+  const want = flight
+    ? wantedTiles(flight.eye, flight.ahead, { radius: FLIGHT_RADIUS_M, ahead: FLIGHT_AHEAD_RADIUS_M, max: FLIGHT_MAX_TILES })
+    : wantedTiles(eye, focus && tileDistanceKm(eye, focus) < 8 ? focus : null);
   const keep = new Set();
   for (const w of want) {
     const key = w.x + "/" + w.y;
@@ -718,7 +798,11 @@ function frame(now) {
   // Let go of anything no longer wanted once it is well out of range.
   for (const [key, t] of tiles) {
     if (keep.has(key)) continue;
-    if (tileDistanceM(eye.lat, eye.lon, t.x, t.y) > RADIUS_M + 1500 || tiles.size > MAX_TILES + 6) drop(key);
+    const far = flight
+      ? tileDistanceM(flight.eye.lat, flight.eye.lon, t.x, t.y) > FLIGHT_RADIUS_M + 1500
+        && tileDistanceM(flight.ahead.lat, flight.ahead.lon, t.x, t.y) > FLIGHT_AHEAD_RADIUS_M + 1500
+      : tileDistanceM(eye.lat, eye.lon, t.x, t.y) > RADIUS_M + 1500;
+    if (far || tiles.size > (flight ? FLIGHT_MAX_TILES : MAX_TILES) + 6) drop(key);
   }
   pump(viewer);
 }
@@ -748,7 +832,7 @@ async function boot() {
     if (saved) { enabled = saved.enabled !== false; shadowsWanted = saved.shadows !== false; }
   } catch (e) { /* private mode */ }
   THREE = await import("../vendor/three.module.js");
-  wallMat = shadowed(facade(new THREE.MeshLambertMaterial({ vertexColors: true, transparent: true })));
+  wallMat = edgeFaded(shadowed(facade(new THREE.MeshLambertMaterial({ vertexColors: true, transparent: true }))), "dither");
   ensureWorker();
   try {
     const tj = await (await fetch(BUILDINGS_TILEJSON)).json();
