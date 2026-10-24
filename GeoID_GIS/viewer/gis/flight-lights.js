@@ -23,7 +23,7 @@
 //   * Depth-tested: hills and buildings hide what is behind them. Night only
 //     (the ship's NIGHT from flight-tiles.js); nothing runs by day.
 
-import { NIGHT } from "./night-lights.js?v=20261024-7a19849";
+import { NIGHT } from "./night-lights.js?v=20261024-36652d4";
 import { litPower, radianceAboveBackground, CLASS_BY_CODE } from "../../../flight_sim/earth/game/lamps.js?v=1";
 
 const TILEJSON = "https://tiles.openfreemap.org/planet";
@@ -36,7 +36,7 @@ const ALL = ["motorway", "trunk", "primary", "secondary", "tertiary", "minor", "
 // the distances (m from the aircraft's ground point) it fades in and out over.
 export const LEVELS = [
   { z: 14, reach: 4500, classes: ALL, fade: [0, 0, 3500, 4500], pools: true },
-  { z: 11, reach: 32000, classes: ["motorway", "trunk", "primary", "secondary", "tertiary"], fade: [3500, 4500, 26000, 32000] },
+  { z: 11, reach: 32000, classes: ["motorway", "trunk", "primary", "secondary"], fade: [3500, 4500, 26000, 32000] },
   { z: 9, reach: 125000, classes: ["motorway", "trunk", "primary"], fade: [26000, 32000, 105000, 125000] },
 ];
 const FETCH_BUDGET = 6;
@@ -141,7 +141,7 @@ const LAMP_VERT = /* glsl */`
     // The glow's real radius (~12 m) in pixels; a lamp smaller than that
     // still draws two pixels and keeps its light, so far roads stay dotted.
     float px = 12.0 * ${UNITS_PER_M.toExponential(8)} * uPxScale / dCam;
-    gl_PointSize = clamp(px * 2.0, 2.0, 48.0);
+    gl_PointSize = clamp(px * 2.0, 2.0, 32.0);
     vCore = clamp(1.6 / max(px * 2.0, 2.0), 0.03, 0.6);   // the hot core: ~1.6 px or the lantern
     vA = keep * uNight * clamp(px, 0.35, 1.0);
     vCol = color;
