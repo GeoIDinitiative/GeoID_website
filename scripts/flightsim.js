@@ -4097,7 +4097,17 @@
     updateFlightAtmosphere(datumAltitudeM(altM, ll.lat, ll.lon));
     if (hudCoord) hudCoord.textContent =
       Math.abs(ll.lat).toFixed(1) + "°" + (ll.lat >= 0 ? "N" : "S") + " " + lonLabel(ll.lon, 1);
-    if (hudRegion) hudRegion.textContent = regionName(ll.lat, eastLonOf(ll.lon));
+    // A world that can name the ground (Earth: its nation and nearest town)
+    // captions the panel and the bearing tape with that, not a coarse region.
+    const placeName = hooks.flightPlaceName?.(ll.lat, eastLonOf(ll.lon));
+    if (hudRegion) {
+      const r = placeName?.region || regionName(ll.lat, eastLonOf(ll.lon));
+      if (hudRegion.textContent !== r) hudRegion.textContent = r;
+    }
+    if (placeName?.title) {
+      const dn = document.getElementById("fs-domain");
+      if (dn && dn.textContent !== placeName.title) dn.textContent = placeName.title;
+    }
     if (hudThr) hudThr.textContent = Math.round(s.throttle * 100) + "%";
     if (hudThrottleFill) hudThrottleFill.style.width = (s.throttle * 100) + "%";
     if (hudBoostFill) {

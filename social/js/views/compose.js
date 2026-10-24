@@ -6,19 +6,19 @@
  * a scene post with that view. The key is removed once the post is published
  * or the reader discards it.
  */
-import { play } from "../sounds.js?v=20261024-8749dda";
-import * as api from "../api.js?v=20261024-8749dda";
-import { store } from "../store.js?v=20261024-8749dda";
+import { play } from "../sounds.js?v=20261024-66b6e04";
+import * as api from "../api.js?v=20261024-66b6e04";
+import { store } from "../store.js?v=20261024-66b6e04";
 import {
   h, clear, field, input, select, textarea, checkbox, toast, busy, splitList,
   dateToEpoch, epochToDate, errorBox, loading, put,
-} from "../dom.js?v=20261024-8749dda";
+} from "../dom.js?v=20261024-66b6e04";
 import {
   KINDS, PROVENANCE, LICENCES, VISIBILITY, OPP_TYPES, EVENT_FORMATS, WORLDS, requireSignIn, kindLabel,
   hasProvenance,
-} from "../components.js?v=20261024-8749dda";
-import { parseVideoLink } from "../embed.js?v=20261024-8749dda";
-import { createMap } from "../mapcore.js?v=20261024-8749dda";
+} from "../components.js?v=20261024-66b6e04";
+import { parseVideoLink } from "../embed.js?v=20261024-66b6e04";
+import { createMap } from "../mapcore.js?v=20261024-66b6e04";
 
 const SHARE_KEY = "geoid:social-share";
 

@@ -2,15 +2,15 @@ import * as THREE from "./vendor/three.module.js";
 // The polygon-area rule lives in one place, with a test. Stamped by hand
 // once: stamp.py only rewrites a ?v= that already exists.
 import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
-  from "./gis/geo-utils.js?v=20261024-8749dda";
+  from "./gis/geo-utils.js?v=20261024-66b6e04";
 import { attachReliefAttributes, followRelief }
-  from "./gis/vector-render.js?v=20261024-8749dda";
+  from "./gis/vector-render.js?v=20261024-66b6e04";
 import { rockClass, crustalSetting, rockClassLabel, classificationBasis }
-  from "./gis/rock-class.js?v=20261024-8749dda";
+  from "./gis/rock-class.js?v=20261024-66b6e04";
 import { lithologyLabel }
-  from "./gis/lithology-label.js?v=20261024-8749dda";
+  from "./gis/lithology-label.js?v=20261024-66b6e04";
 import { formatLatLon }
-  from "./gis/coord-format.js?v=20261024-8749dda";
+  from "./gis/coord-format.js?v=20261024-66b6e04";
 
 /**
  * This module's own cache stamp, read off its own URL.
@@ -23862,6 +23862,9 @@ uniform float uViewportWidth;`,
           ? labelLayer.entries.map((e) => e.item).filter((i) => i && Number.isFinite(i.lat) && Number.isFinite(i.lon) && i.name)
           : []),
         openPlace: (item) => openFeature(item, false),
+        // Every gazetteer place, whatever the Location labels switch says
+        // (Earth Flight's "where am I" readout, gis/flight-place.js).
+        getAllPlaceItems: () => (labelLayer?.entries || []).map((e) => e.item).filter((i) => i && i.name),
         getTimeRate,
         // Jump the one clock to any moment (ms UTC), keeping the current
         // rate — the scrubber's own seam, and the door forecast playback
@@ -24076,6 +24079,8 @@ ${error && error.message ? error.message : error}`;
           const m = T?.groundMetres?.(lat, lonE > 180 ? lonE - 360 : lonE);
           return Number.isFinite(m) ? m * T.getVex() * 3.2 / 6371000 : 0;
         },
+        // The nation and nearest town under the aircraft, for the HUD (gis/flight-place.js).
+        flightPlaceName: (lat, lonE) => window.GeoIDFlightPlace?.placeNow?.(lat, lonE > 180 ? lonE - 360 : lonE) || null,
         flightGroundMetres: (lat, lonE) => window.GeoIDFlightTerrain?.active?.() ? window.GeoIDFlightTerrain.groundMetres(lat, lonE > 180 ? lonE - 360 : lonE) : null,
         syncTerrainReliefState,
         baseLayerSelect,

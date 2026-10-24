@@ -1,7 +1,7 @@
-import { escapeHtml } from "./escape-html.js?v=20261024-8749dda";
-import { CRS_OPTIONS, transform } from "./projection.js?v=20261024-8749dda";
-import { currentBody } from "./bodies.js?v=20261024-8749dda";
-import { rowsToCsv, downloadText } from "./extraction.js?v=20261024-8749dda";
+import { escapeHtml } from "./escape-html.js?v=20261024-66b6e04";
+import { CRS_OPTIONS, transform } from "./projection.js?v=20261024-66b6e04";
+import { currentBody } from "./bodies.js?v=20261024-66b6e04";
+import { rowsToCsv, downloadText } from "./extraction.js?v=20261024-66b6e04";
 
 // GIS mode presents a toolbox rather than a control centre: the whole GeoID
 // control set folds into one group, and the tool groups stack beneath it.

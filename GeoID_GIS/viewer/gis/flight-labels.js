@@ -9,7 +9,7 @@
 // density, screen overlap, the mosaic close layout) and updateLabelAnchors --
 // and below, between the markers, the Mars viewer's flight "horizon POI
 // system" (mars-viewer.js, render(), "FLIGHT-SIM: horizon POI system"),
-// copied byte for byte:
+// copied byte for byte (Earth's few changes are marked EARTH):
 //
 //   * a place whose GROUND POINT clears the horizon (with hysteresis) is the
 //     standard label, re-anchored straight above its dot, and drawn only
@@ -31,7 +31,7 @@
 import * as THREE from "../vendor/three.module.js";
 // The Mars module, loaded when flight labels start: it imports three.js by an
 // absolute web path, which only a browser resolves (Node tests import this file).
-const MARS_LABELS = "../../../planet_explorer/mars/viewer/label-layer.js?v=20261024-8749dda";
+const MARS_LABELS = "../../../planet_explorer/mars/viewer/label-layer.js?v=20261024-66b6e04";
 let buildLabelLayer = null, updateLabelVisibility = null, updateLabelAnchors = null;
 
 /* ── What the Mars viewer's scope provided, from Earth ─────────────────── */
@@ -64,6 +64,29 @@ function getReliefPoint(radius, _sampler, _cache, _relief, lat, lon, lift = 0) {
   const v = new THREE.Vector3(-p.x, p.y, -p.z);
   v.setLength(v.length() + (window.GeoIDFlightTerrain?.heightUnits?.(lat, lon) || 0) + lift);
   return v;
+}
+
+/*
+ * EARTH: relevance. The Mars pass flags every feature on the near side of
+ * the planet; on Earth that put Berlin and Scandinavia on the skyline over
+ * Wales (reported: "be more intuitive"). So a place is labelled only within
+ * reach -- about three horizons (150-700 km), a little further for the most
+ * significant (lod 1 x1.6, lod 2 x1.25) -- and an AREA name (an island, a
+ * landform, a sea) is dropped while the aircraft is inside or near it: the
+ * HUD names where you are (gis/flight-place.js), and "Great Britain" hung
+ * over Great Britain says nothing.
+ */
+const AREA_CATEGORIES = new Set(["place-island", "place-landform", "place-marine"]);
+function earthHidden(entry, km, altKm, beyondHorizon) {
+  const lod = Number(entry.item?.lod) || 3;
+  const horizonKm = Math.sqrt(2 * (MARS_RADIUS_METERS / 1000) * Math.max(0.05, altKm));
+  const reach = Math.min(700, Math.max(150, 3 * horizonKm)) * (lod <= 1 ? 1.6 : lod === 2 ? 1.25 : 1);
+  if (km > reach) return true;
+  if (!beyondHorizon && AREA_CATEGORIES.has(entry.item?.category)) {
+    const areaKm = lod <= 1 ? 500 : lod === 2 ? 200 : 60;
+    if (km < areaKm) return true;
+  }
+  return false;
 }
 
 let labelLayer = null;
@@ -310,6 +333,14 @@ function step() {
     const wasOut = entry._fsMode === "out";
     const out = wasOut ? over > -EPS : over > EPS; // hysteresis
     entry._fsMode = out ? "out" : "in";
+    // EARTH: only what is relevant from here (see earthHidden).
+    if (earthHidden(entry, gamma * Rg * (MARS_RADIUS_METERS / 1000 / Rg), (d - Rg) * (MARS_RADIUS_METERS / 1000 / Rg), out)) {
+      entry.sprite.visible = false;
+      if (entry.line) entry.line.visible = false;
+      entry.marker.visible = false;
+      hideProxies(entry);
+      continue;
+    }
     if (!out) { // promote: the standard viewer label — shown only while the
       // feature's LOCATION is inside the view frustum; out of frame
       // (side/behind) the whole label is dropped, never forced on-screen.
@@ -410,7 +441,9 @@ function step() {
     // to terrain sampled at 60/85/100% of the way to the horizon.
     let maxSin = Math.sin(-alpha); // floor: the geometric (datum) horizon
     if (canSample) {
-      for (const f of [0.6, 0.85, 1.0]) {
+      // EARTH: close in too -- at a few hundred metres up the ridges that
+      // hide the skyline are a few km away, not 60-100% of the horizon.
+      for (const f of [0.02, 0.05, 0.1, 0.2, 0.35, 0.6, 0.85, 1.0]) {
         const a = alpha * f;
         sDir.copy(Chat).multiplyScalar(Math.cos(a)).addScaledVector(tang, Math.sin(a));
         const lat = Math.asin(Math.max(-1, Math.min(1, sDir.y))) * 180 / Math.PI;
@@ -483,7 +516,10 @@ function step() {
         // should legitimately occlude it — and renderOrder 94 keeps it above
         // the glyph and name it belongs to.
         entry._fsDist = new THREE.Sprite(new THREE.SpriteMaterial({
-          transparent: true, depthTest: false, depthWrite: false,
+          // EARTH: depth-tested like its glyph and name. Over real terrain a
+          // nearer ridge must hide the readout too (reported: the km figures
+          // drawn across the hills).
+          transparent: true, depthTest: true, depthWrite: false,
         }));
         entry._fsDist.renderOrder = 94;
         entry._fsDist.frustumCulled = false;
