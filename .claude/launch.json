@@ -5,11 +5,10 @@
       "name": "geoid-site",
       "runtimeExecutable": "python3",
       "runtimeArgs": [
-        "-m",
-        "http.server",
+        "/home/owen/GeoID_webpage_v1/serve.py",
+        "--port",
         "8125",
-        "--directory",
-        "/home/owen/GeoID_webpage"
+        "--no-sidecar"
       ],
       "port": 8125,
       "autoPort": false
