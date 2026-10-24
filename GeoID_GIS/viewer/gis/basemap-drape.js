@@ -37,13 +37,13 @@
 // answers in -- no half-turn to bake in, unlike the Earth Engine drapes which
 // parent to the globe mesh itself.
 
-import { TILE_SOURCES, DEFAULT_SOURCE, tileUrl } from "./tile-sources.js?v=20261024-7ee18fc";
-import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20261024-7ee18fc";
-import { isEarth } from "./bodies.js?v=20261024-7ee18fc";
-import { holdLaunch } from "./launch-ready.js?v=20261024-7ee18fc";
-import { streamRings, cacheStats } from "./tile-streamer.js?v=20261024-7ee18fc";
+import { TILE_SOURCES, DEFAULT_SOURCE, tileUrl } from "./tile-sources.js?v=20261024-ce67a52";
+import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20261024-ce67a52";
+import { isEarth } from "./bodies.js?v=20261024-ce67a52";
+import { holdLaunch } from "./launch-ready.js?v=20261024-ce67a52";
+import { streamRings, cacheStats } from "./tile-streamer.js?v=20261024-ce67a52";
 import { visibleBounds, altitudeUnits, viewChangedEnough, onViewChange, viewFocus }
-  from "./view-extent.js?v=20261024-7ee18fc";
+  from "./view-extent.js?v=20261024-ce67a52";
 
 const TILE = 256;
 // Web Mercator cannot express the poles; this is where the projection is
@@ -1442,6 +1442,9 @@ async function refineAhead(spec) {
   const basemap = tileBasemapSource();
   const source = spec.source && TILE_SOURCES[spec.source] ? spec.source : basemap;
   const ship = flight?.active ? flight.shipLatLon : null;
+  // The flight ground (flight-tiles.js) is one quadtree surface; these bands
+  // would only overlap it.
+  if (window.GeoIDFlightTiles?.active?.()) { disposeAhead(spec.key); return; }
   if (!ship || !basemap || !Number.isFinite(ship.lat)) { disposeAhead(spec.key); return; }
   const kmPerUnit = 6371 / 3.2;
   const altKm = (Number(flight.shipAltUnits) || 0) * kmPerUnit;

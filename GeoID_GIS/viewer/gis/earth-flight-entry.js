@@ -21,11 +21,12 @@
 //      frame): aim the globe there, then open pre-flight, whose centre
 //      crosshair takes the site from wherever the globe is aimed.
 
-import { startFlightTerrain, stopFlightTerrain, setVex, primeLaunchSite } from "./flight-terrain.js?v=20261024-7ee18fc";
-import { startFlightLabels, stopFlightLabels } from "./flight-labels.js?v=20261024-7ee18fc";
-import { showFlightMap, hideFlightMap } from "./flight-map.js?v=20261024-7ee18fc";
-import { showFlightSky, hideFlightSky } from "./flight-sky.js?v=20261024-7ee18fc";
-import { isEarth } from "./bodies.js?v=20261024-7ee18fc";
+import { startFlightTerrain, stopFlightTerrain, setVex, primeLaunchSite } from "./flight-terrain.js?v=20261024-ce67a52";
+import { startFlightLabels, stopFlightLabels } from "./flight-labels.js?v=20261024-ce67a52";
+import { showFlightMap, hideFlightMap } from "./flight-map.js?v=20261024-ce67a52";
+import { showFlightSky, hideFlightSky } from "./flight-sky.js?v=20261024-ce67a52";
+import { startFlightTiles, stopFlightTiles } from "./flight-tiles.js?v=20261024-ce67a52";
+import { isEarth } from "./bodies.js?v=20261024-ce67a52";
 
 /** `?flight=earth&lat=..&lon=..` -> { lat, lon } or { lat: null } or null. */
 export function parseFlightLink(search) {
@@ -276,10 +277,10 @@ function wire() {
     if (!window.__flightSim?.active && document.body.classList.contains("fs-preflight")) primeLaunchSite();
     if (window.__flightSim?.active) {
       setVex(document.getElementById("fs-vex")?.value || 1);
-      startFlightTerrain(); showFlightSky(); showFlightMap(); startFlightLabels();
+      startFlightTerrain(); startFlightTiles(); showFlightSky(); showFlightMap(); startFlightLabels();
     }
   }, 60));
-  window.addEventListener("flightsim:disengaged", () => { stopFlightTerrain(); hideFlightSky(); hideFlightMap(); stopFlightLabels(); });
+  window.addEventListener("flightsim:disengaged", () => { stopFlightTerrain(); stopFlightTiles(); hideFlightSky(); hideFlightMap(); stopFlightLabels(); });
   // The Vertical scale slider exaggerates the flight terrain (1 = true scale).
   document.addEventListener("input", (e) => { if (e.target?.id === "fs-vex") setVex(e.target.value); });
 
