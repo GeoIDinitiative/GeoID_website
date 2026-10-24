@@ -7,8 +7,10 @@
  *   tick   -- you reacted to, or reshared, a post
  *   send   -- your post went out (two rising notes)
  *   arrive -- a new message or notification came in (a soft two-note chime)
- * Nothing on navigation, hover or typing: feedback heard every few seconds is
- * feedback people learn to ignore, and then switch off.
+ * Hover and click are not here: the page loads the site-wide
+ * scripts/ui-sound.js (owner, 2026-10-24), the same tick and click every
+ * GeoHUB viewer plays, so the Network sounds like the rest of the site.
+ * Nothing on typing.
  *
  * Synthesised with Web Audio rather than loaded, so there are no files to
  * fetch and no new origins in the page's policy. Quiet (peak gain 0.06) and

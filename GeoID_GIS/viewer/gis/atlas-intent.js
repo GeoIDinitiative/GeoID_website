@@ -14,8 +14,8 @@
  * (`atlas-tools.js`). This only says what was asked.
  */
 
-import { SIZE_WORDS } from "./ash-plume.js?v=20261024-235ad98";
-import { isMeshRequest } from "./atlas-mesh-spec.js?v=20261024-235ad98";
+import { SIZE_WORDS } from "./ash-plume.js?v=20261024-a5dccc6";
+import { isMeshRequest } from "./atlas-mesh-spec.js?v=20261024-a5dccc6";
 
 /**
  * The tasks a sentence can name, most specific first. Each is a test on the

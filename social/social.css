@@ -25,6 +25,11 @@
 .s-app a { color: var(--accent); text-decoration: none; }
 .s-app a:hover { text-decoration: underline; }
 .s-app :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+/* A view's heading and <main> take focus from the router (app.js) so a screen
+   reader announces the new page, not because anyone tabbed there. Chrome
+   counts that scripted focus as :focus-visible, which drew the accent box
+   round "Feed" on every launch. Neither is a control, so neither shows a ring. */
+.s-app [tabindex="-1"]:focus, .s-app [tabindex="-1"]:focus-visible { outline: none; }
 .s-app .btn-primary, .s-app .btn-ghost { text-decoration: none; }
 .s-app .btn-primary { color: var(--accent-ink, #04211c); }
 .s-noscript { color: var(--muted); }
