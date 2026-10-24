@@ -662,7 +662,23 @@ async function feed(ctx) {
   } else if (tab === "research") {
     where.push(`p.kind IN (${inList(RESEARCH_KINDS.length)})`); binds.push(...RESEARCH_KINDS);
   } else if (tab === "opportunities") {
-    where.push(`p.kind IN (${inList(OPPORTUNITY_KINDS.length)})`); binds.push(...OPPORTUNITY_KINDS);
+    // origin=here: what members posted. origin=external: the daily scan's open
+    // adverts (importer.js), optionally one source, or "employers" for every
+    // employer's own page.
+    const origin = oneOf(q.get("origin"), ["", "here", "external"], "");
+    if (origin === "external") {
+      const open = openListingSql(now());
+      where.push("p.kind = 'opportunity'", open.sql); binds.push(...open.binds);
+      const source = q.get("source");
+      if (source === "employers") {
+        where.push("json_extract(p.meta_json, '$.source_id') IN (SELECT id FROM import_sources WHERE kind = 'jobs' AND grp != 'Job boards')");
+      } else if (source) {
+        where.push("json_extract(p.meta_json, '$.source_id') = ?"); binds.push(str(source, 120));
+      }
+    } else {
+      where.push(`p.kind IN (${inList(OPPORTUNITY_KINDS.length)})`); binds.push(...OPPORTUNITY_KINDS);
+      if (origin === "here") where.push("COALESCE(json_extract(p.meta_json, '$.imported'), 0) != 1");
+    }
     const type = q.get("type");
     if (type) { where.push("json_extract(p.meta_json, '$.type') = ?"); binds.push(enumOf(type, OPPORTUNITY_TYPES, "type")); }
     const skill = tags([q.get("skill") || ""])[0];
@@ -696,6 +712,21 @@ async function feed(ctx) {
   const { page, next } = pageOf(rows);
   return { items: await shapePosts(env, viewer, page), next };
 }
+
+/** How long an imported advert with no closing date stays listed. */
+export const UNDATED_DAYS = 60;
+
+/** SQL (and binds) for the imported listings still open at `t`. */
+export function openListingSql(t) {
+  return {
+    sql: `COALESCE(json_extract(p.meta_json, '$.imported'), 0) = 1
+      AND NOT EXISTS (SELECT 1 FROM imported i WHERE i.post_id = p.id AND i.gone_at IS NOT NULL)
+      AND (CASE WHEN json_extract(p.meta_json, '$.deadline') IS NOT NULL THEN json_extract(p.meta_json, '$.deadline') >= ?
+           ELSE p.created_at >= ? END)`,
+    binds: [t - 86400, t - UNDATED_DAYS * 86400],
+  };
+}
+
 
 // ── Comments ───────────────────────────────────────────────────────────────
 

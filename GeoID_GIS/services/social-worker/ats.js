@@ -55,6 +55,8 @@ export function detectPlatform(url) {
   if (h.includes("workable.com")) return "workable";
   if (h.includes("jobs.personio") || h.includes("personio.de")) return "personio";
   if (h.endsWith("jobs.ac.uk") && p.startsWith("/search")) return "jobsacuk";
+  if (h.endsWith("egu.eu") && p.startsWith("/jobs")) return "egu";
+  if (h === "findajob.agu.org") return "agu";
   if (/\.ics(\?|$)/.test(p) || /webcal:/.test(url)) return "ics";
   return "html";
 }
@@ -164,7 +166,50 @@ export function parseJobsAcUk(html, base, from = new Date()) {
   return out;
 }
 
-const BOARD_PAGES = 3;          // 25 a page: the newest 75, once a day
+/** The EGU jobs list (egu.eu/jobs/): an <article class="media"> per advert. */
+export function parseEgu(html, base) {
+  const out = [];
+  for (const b of String(html || "").split(/<article class="media"/).slice(1)) {
+    const a = /<h2[^>]*>\s*<a href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/.exec(b);
+    if (!a) continue;
+    const pick = (re) => clean((re.exec(b) || [])[1]);
+    out.push({
+      title: clean(a[2]),
+      url: join(base, a[1]),
+      org: pick(/fa-university"><\/i>\s*(?:<a[^>]*>)?([\s\S]*?)(?:<\/a>)?\s*<\/li>/),
+      location: pick(/fa-globe"><\/i>([\s\S]*?)<\/li>/),
+      posted: ((/<time[^>]*datetime="([^"]+)"/.exec(b) || [])[1] || "").slice(0, 10),
+      description: pick(/<p>([\s\S]*?)<\/p>/).slice(0, 600),
+      board: "EGU",
+    });
+  }
+  return out;
+}
+
+/** The AGU Career Center (findajob.agu.org/jobs/): a lister__item per advert. */
+export function parseAgu(html, base) {
+  const out = [];
+  for (const b of String(html || "").split(/<li class="lister__item\b/).slice(1)) {
+    const a = /lister__header"><a\s+href="\s*([^"]+?)\s*"[^>]*>\s*<span>([\s\S]*?)<\/span>/.exec(b);
+    if (!a) continue;
+    const pick = (re) => clean((re.exec(b) || [])[1]);
+    out.push({
+      title: clean(a[2]),
+      url: join(base, a[1]).split("?")[0],
+      org: pick(/lister__meta-item--recruiter">([\s\S]*?)<\/li>/),
+      location: pick(/lister__meta-item--location">([\s\S]*?)<\/li>/),
+      salary: pick(/lister__meta-item--salary">([\s\S]*?)<\/li>/),
+      description: pick(/lister__description[^"]*">([\s\S]*?)<\/p>/).slice(0, 600),
+      board: "AGU",
+    });
+  }
+  return out;
+}
+
+/** Platforms that are job boards (read for their newest pages, many employers). */
+export const BOARD_PLATFORMS = ["jobsacuk", "egu", "agu"];
+
+const BOARD_PAGES = 3;          // the newest three pages of each board, once a day
 
 ADAPTERS.jobsacuk = async (fetcher, url) => {
   const out = [];
@@ -176,6 +221,31 @@ ADAPTERS.jobsacuk = async (fetcher, url) => {
     const got = parseJobsAcUk(body, final);
     out.push(...got);
     if (got.length < 25) break;
+  }
+  return out;
+};
+
+ADAPTERS.egu = async (fetcher, url) => {
+  const out = [];
+  for (let page = 1; page <= BOARD_PAGES; page += 1) {
+    const u = new URL("/jobs/", url);
+    if (page > 1) u.searchParams.set("page", String(page));
+    const { body, url: final } = await getText(fetcher, u.toString());
+    const got = parseEgu(body, final);
+    out.push(...got);
+    if (got.length < 10) break;
+  }
+  return out;
+};
+
+ADAPTERS.agu = async (fetcher, url) => {
+  const out = [];
+  for (let page = 1; page <= BOARD_PAGES; page += 1) {
+    const u = new URL(page > 1 ? `/jobs/${page}/` : "/jobs/", url);
+    const { body, url: final } = await getText(fetcher, u.toString());
+    const got = parseAgu(body, final);
+    out.push(...got);
+    if (got.length < 20) break;
   }
   return out;
 };
