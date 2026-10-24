@@ -21,7 +21,7 @@
  * feeds is `sampleElevationMeters`, never `sampleElevationNormalized`.
  */
 
-import { tilesForBounds, tileCountForBounds, mercatorTile } from "./mvt.js?v=20261025-5f80ae3";
+import { tilesForBounds, tileCountForBounds, mercatorTile } from "./mvt.js?v=20261025-eb433fd";
 
 /**
  * Terrarium: height packed into RGB, EGM96 metres.
@@ -366,9 +366,16 @@ const INFLIGHT = new Map();
 const MAX_TILES = 128;
 
 let blocked = false;
+// Moves whenever what the sampler answers can have changed: a tile arrives or
+// one is evicted. The count cannot say so -- once the cache is full every new
+// tile evicts an old one and the count stands still at the cap, so Earth
+// Flight's terrain stopped noticing new heights and its lamps were left
+// standing hundreds of metres above ground that had since come in finer.
+let revision = 0;
 
 function remember(key, tile, pin = false) {
   noteZoom(tile.z);
+  revision += 1;
   if (pin) { PINNED.set(key, tile); return; }
   CACHE.delete(key);
   CACHE.set(key, tile);
@@ -658,13 +665,14 @@ export function state() {
   CACHE.forEach(count);
   PINNED.forEach(count);
   return {
-    tiles: CACHE.size + PINNED.size, pinned: PINNED.size, zooms, blocked,
+    tiles: CACHE.size + PINNED.size, pinned: PINNED.size, zooms, blocked, revision,
     credit: TERRARIUM.credit,
   };
 }
 
 /** Forget everything held. Only a test or a source change should need this. */
 export function reset() {
+  revision += 1;
   CACHE.clear();
   PINNED.clear();
   HELD_ZOOMS.clear();

@@ -85,10 +85,13 @@ async function ensureAround() {
     dem.ensure(box(mid.lat, mid.lon, 30 + 6 * altKm), { maxTiles: 12 }),
   ];
   await Promise.allSettled(asks);
-  const held = dem.state?.()?.tiles ?? dem.state?.tiles ?? null;
-  const count = typeof held === "number" ? held : (Array.isArray(held) ? held.length : -1);
-  if (count !== lastHeld) {
-    lastHeld = count;
+  // The sampler's revision, not its tile count: a full cache swaps tiles at a
+  // constant count, and the heights under everything changed unannounced.
+  const st = dem.state?.() ?? dem.state ?? {};
+  const held = Number.isFinite(st.revision) ? st.revision
+    : (typeof st.tiles === "number" ? st.tiles : (Array.isArray(st.tiles) ? st.tiles.length : -1));
+  if (held !== lastHeld) {
+    lastHeld = held;
     version += 1;
     window.dispatchEvent(new CustomEvent("geoid:flight-terrain-changed", { detail: { vex, version } }));
   }

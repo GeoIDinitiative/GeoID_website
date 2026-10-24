@@ -3567,6 +3567,23 @@
   }
 
   // ---- per-frame update (called from the viewer render loop) ----
+  function holdPausedCamera(camera) {
+    if (!state.pos || !state.quat) return;
+    if (!state._pauseCam) {
+      const inv = state.quat.clone().invert();
+      state._pauseCam = {
+        off: camera.position.clone().sub(state.pos).applyQuaternion(inv),
+        up: camera.up.clone().applyQuaternion(inv),
+        rot: inv.multiply(camera.quaternion),
+      };
+    }
+    const h = state._pauseCam;
+    camera.position.copy(state.pos).add(h.off.clone().applyQuaternion(state.quat));
+    camera.up.copy(h.up).applyQuaternion(state.quat);
+    camera.quaternion.copy(state.quat).multiply(h.rot);
+    camera.updateMatrixWorld();
+  }
+
   function update(camera) {
     if (!fs.active) return;
     // One body per flight. The moon viewer opening (flying a planet) or
@@ -3601,7 +3618,12 @@
     }
     // PAUSED: hold everything where it is. Zeroing lastT makes the first frame
     // after resuming a zero-length step instead of one long catch-up.
-    if (fs.paused) { state.lastT = 0; return; }
+    // The CAMERA is held too, in the ship's own frame (which the co-rotation
+    // above keeps turning with the planet): returning before the camera was
+    // placed left it to the viewer's own controls, which swung it round to
+    // look straight down at the globe.
+    if (fs.paused) { state.lastT = 0; holdPausedCamera(camera); return; }
+    state._pauseCam = null;
 
     const now = performance.now();
     let dt = state.lastT ? (now - state.lastT) / 1000 : 0;

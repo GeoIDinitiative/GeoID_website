@@ -129,7 +129,12 @@ function step() {
       const box = boxFor(lat, lon, L.halfKm);
       const moved = !s.box || box.lon0 !== s.box.lon0 || box.lat0 !== s.box.lat0;
       if (!moved && s.version === version) continue;
-      s.job = { box, version, row: 0, data: new Float32Array(L.n * L.n) };
+      // A new terrain version that did not change a coarse grid's ground
+      // (most of them: a tile arriving somewhere else) is taken without a
+      // rebuild. The near grid's detail is finer than any sample would see,
+      // so it rebuilds.
+      if (!moved && li > 0 && s.sig && sameHeights(s.sig, sigFor(box, T))) { s.version = version; continue; }
+      s.job = { box, version, row: 0, data: new Float32Array(L.n * L.n), sig: sigFor(box, T) };
     }
     const j = s.job, n = L.n;
     while (j.row < n && performance.now() < until) {
@@ -144,7 +149,7 @@ function step() {
       // Complete: swap it in, texture and box together.
       s.tex?.dispose();
       s.tex = makeTexture(n, j.data);
-      s.box = j.box; s.version = j.version; s.job = null;
+      s.box = j.box; s.version = j.version; s.sig = j.sig; s.job = null;
       U[`uFlight${L.key}`].value = s.tex;
       U[`uFlight${L.key}Box`].value = new THREE.Vector4(s.box.lon0, s.box.lat0, s.box.dLon, s.box.dLat);
     }
@@ -153,6 +158,16 @@ function step() {
   U.uFlightShipDir.value = dirFor(lat, lon);
   if (U.uFlightOn.value) drapeStep(lat, lon, U);
 }
+
+/** A 7 x 7 sample of a box's ground (m): has the terrain under a grid moved? */
+function sigFor(box, T) {
+  const out = new Float32Array(49);
+  for (let j = 0; j < 7; j++) for (let i = 0; i < 7; i++) {
+    out[j * 7 + i] = (T.heightUnits(box.lat0 + (j + 0.5) / 7 * box.dLat, box.lon0 + (i + 0.5) / 7 * box.dLon) || 0) / UNITS_PER_M;
+  }
+  return out;
+}
+const sameHeights = (a, b) => a.every((h, i) => Math.abs(h - b[i]) < 2);
 
 /* One drape a tick at most: the one whose box moved, else the stalest due. */
 function drapeStep(lat, lon, U) {
@@ -239,7 +254,7 @@ export function stopFlightTerrainGpu() {
   const U = flightGpuUniforms();
   U.uFlightOn.value = 0;
   state.forEach((s, li) => {
-    s.tex?.dispose(); s.tex = null; s.box = null; s.job = null; s.version = -1;
+    s.tex?.dispose(); s.tex = null; s.box = null; s.job = null; s.version = -1; s.sig = null;
     U[`uFlight${LEVELS[li].key}`].value = null;
     U[`uFlight${LEVELS[li].key}Box`].value = [0, 0, 1, 1];
   });
