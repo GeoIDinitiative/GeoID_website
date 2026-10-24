@@ -36,9 +36,9 @@
 // transparent pass in a group sorted at 190 (see GROUP_ORDER), still
 // depth-tested and depth-writing against the globe and each other.
 
-import { isEarth } from "./bodies.js?v=20261024-8839ad0";
+import { isEarth } from "./bodies.js?v=20261024-61b7994";
 import { facade, roof } from "../../../flight_sim/earth/game/facade.js?v=1";
-import { NIGHT } from "./night-lights.js?v=20261024-8839ad0";
+import { NIGHT } from "./night-lights.js?v=20261024-61b7994";
 
 const BUILDINGS_TILEJSON = "https://tiles.openfreemap.org/planet";
 // blankTile=false: a tile with no imagery is a 404, not Esri's grey "Map data
@@ -527,16 +527,16 @@ function build(viewer, t, m, count, lat, sizeM) {
   stats.tiles++; stats.buildings += count; stats.verts += t.verts;
 }
 
-/* ── The Workspace layer ──────────────────────────────────────────────────
-   The buildings, trees, bridges and their ground imagery are ONE Workspace
-   layer, adopted into the import manager like the events feed: a row with
-   visibility and removal, and provenance the Metadata tab and the row's (i)
-   read like any other layer's -- OpenStreetMap under the ODbL through
-   OpenFreeMap, and Esri World Imagery for the roofs and the ground under
-   them. That replaced Earth Flight's on-screen credit line.
+/* ── Credit, not a Workspace layer ────────────────────────────────────────
+   The buildings, trees, bridges and their ground imagery are part of Earth
+   Flight itself, on by default and switched from its own panel ("3D
+   buildings"), so they are NOT a Workspace row (owner, 2026-10-24). Their
+   provenance still reaches the Metadata window: it reads `creditNow()` from
+   GeoIDBuildings while there is anything drawn -- OpenStreetMap under the ODbL
+   through OpenFreeMap, and Esri World Imagery for the roofs and the ground.
    Every node keeps its own draw order (`keepRenderOrder`): the ground drape is
    imagery (41) and the buildings are depth-tested solids drawn after every
-   ground layer (190), bands the stack's 50+ would flatten. */
+   ground layer (190). */
 const LAYER_NAME = "3D buildings & trees (OpenStreetMap)";
 const LAYER_INFO = {
   source: "OpenStreetMap via OpenFreeMap vector tiles (OpenMapTiles schema, z14): building, transportation, water, landcover; roof and ground imagery Esri World Imagery z16-z17",
@@ -555,16 +555,6 @@ function root(viewer) {
   }
   return layerRoot;
 }
-function publishLayer() {
-  const manager = window.GeoIDImportManager;
-  if (!manager?.adoptLayer || !layerRoot) return;
-  if (!enabled) { manager.releaseLayer?.(LAYER_NAME); return; }
-  const layer = manager.adoptLayer(LAYER_NAME, layerRoot, {
-    ext: "osm-3d", role: "buildings", info: { ...LAYER_INFO, tiles: stats.tiles, buildings: stats.buildings, trees: stats.trees },
-    onRemove: () => { setEnabled(false); const t = document.getElementById("earth-buildings-toggle"); if (t) t.checked = false; },
-  });
-  if (layer) layer.legendHidden = true;
-}
 
 let group = null;
 /** The group every tile hangs in: on the globe mesh (so it carries the spin
@@ -576,7 +566,6 @@ function holder(viewer) {
     group.renderOrder = GROUP_ORDER;
     group.userData.keepRenderOrder = true;
     root(viewer).add(group);
-    publishLayer();
   }
   return group;
 }
@@ -744,7 +733,6 @@ function tileDistanceKm(a, b) {
 
 export function setEnabled(on) {
   enabled = Boolean(on);
-  publishLayer();
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ enabled, shadows: shadowsWanted })); } catch (e) { /* private mode */ }
 }
 export function setShadows(on) {
@@ -771,6 +759,8 @@ async function boot() {
   }
   window.GeoIDBuildings = {
     stats, setEnabled, setShadows,
+    // For the Metadata window, while anything is drawn.
+    creditNow: () => (enabled && stats.tiles > 0 ? { title: LAYER_NAME, ...LAYER_INFO } : null),
     isEnabled: () => enabled, shadowsOn: () => shadowsWanted,
     source: () => template,
     thresholds: { SHOW_BELOW_M, HIDE_ABOVE_M, SHADOW_BELOW_M },

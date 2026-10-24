@@ -2,15 +2,15 @@ import * as THREE from "./vendor/three.module.js";
 // The polygon-area rule lives in one place, with a test. Stamped by hand
 // once: stamp.py only rewrites a ?v= that already exists.
 import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
-  from "./gis/geo-utils.js?v=20261024-8839ad0";
+  from "./gis/geo-utils.js?v=20261024-61b7994";
 import { attachReliefAttributes, followRelief }
-  from "./gis/vector-render.js?v=20261024-8839ad0";
+  from "./gis/vector-render.js?v=20261024-61b7994";
 import { rockClass, crustalSetting, rockClassLabel, classificationBasis }
-  from "./gis/rock-class.js?v=20261024-8839ad0";
+  from "./gis/rock-class.js?v=20261024-61b7994";
 import { lithologyLabel }
-  from "./gis/lithology-label.js?v=20261024-8839ad0";
+  from "./gis/lithology-label.js?v=20261024-61b7994";
 import { formatLatLon }
-  from "./gis/coord-format.js?v=20261024-8839ad0";
+  from "./gis/coord-format.js?v=20261024-61b7994";
 
 /**
  * This module's own cache stamp, read off its own URL.
@@ -5268,6 +5268,17 @@ function fmtProp(value) {
           title: layer.name || "Workspace layer",
           copy: [source, crs ? `CRS: ${crs}` : "", info.licence || meta.licence || ""].filter(Boolean).join(" · "),
           citation,
+          links: [],
+        });
+      }
+      // Earth Flight's own parts, which are the mode rather than Workspace
+      // layers: the 3D buildings and trees, and the aircraft.
+      for (const credit of [window.GeoIDBuildings?.creditNow?.(), window.GeoIDEarthFlight?.aircraftCredit?.()]) {
+        if (!credit) continue;
+        sourceEntries.push({
+          title: credit.title,
+          copy: [credit.source, credit.crs ? `CRS: ${credit.crs}` : "", credit.licence || ""].filter(Boolean).join(" · "),
+          citation: credit.citation || "",
           links: [],
         });
       }
