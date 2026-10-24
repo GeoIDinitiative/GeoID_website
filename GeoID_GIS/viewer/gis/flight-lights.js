@@ -29,7 +29,7 @@
 //   * Depth-tested: hills and buildings hide what is behind them. Night only
 //     (the ship's NIGHT from flight-tiles.js); nothing runs by day.
 
-import { NIGHT } from "./night-lights.js?v=20261024-0020891";
+import { NIGHT } from "./night-lights.js?v=20261024-93269e3";
 
 const TILEJSON = "https://tiles.openfreemap.org/planet";
 const BM = "https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/VIIRS_Black_Marble/default/2016-01-01/GoogleMapsCompatible_Level8/{z}/{y}/{x}.png";
@@ -71,8 +71,8 @@ function distToTileM(lat, lon, z, x, y) {
 }
 
 /** The tiles a level wants within `reach` of a centre, nearest the aircraft first. */
-export function tilesFor(level, centre, ship = centre) {
-  const { z, reach } = level, n = 2 ** z;
+export function tilesFor(level, centre, ship = centre, reach = level.reach) {
+  const { z } = level, n = 2 ** z;
   const cx = Math.floor(lonToX(centre.lon, z)), cy = Math.floor(latToY(centre.lat, z));
   const span = Math.ceil(reach / tileSizeM(z, cy)) + 1;
   const out = [];
@@ -80,8 +80,9 @@ export function tilesFor(level, centre, ship = centre) {
     if (y < 0 || y >= n) continue;
     for (let x = cx - span; x <= cx + span; x++) {
       const xx = ((x % n) + n) % n;
-      if (distToTileM(centre.lat, centre.lon, z, xx, y) > reach) continue;
-      out.push({ z, x: xx, y, d: distToTileM(ship.lat, ship.lon, z, xx, y) });
+      const dc = distToTileM(centre.lat, centre.lon, z, xx, y);
+      if (dc > reach) continue;
+      out.push({ z, x: xx, y, dc, d: distToTileM(ship.lat, ship.lon, z, xx, y) });
     }
   }
   return out.sort((a, b) => a.d - b.d);
@@ -89,7 +90,13 @@ export function tilesFor(level, centre, ship = centre) {
 
 /* ── Browser ────────────────────────────────────────────────────────────── */
 
-let THREE = null, group = null, timer = null, running = false, template = null, worker = null;
+let THREE = null, group = null, timer = null, running = false, template = null;
+// Decoding road tiles is the slow part: a few workers in parallel. A tile
+// always goes to the same one (by its key), which caches its decoded roads
+// for terrain updates; Black Marble tiles go to every worker.
+const workers = [];
+const POOL = Math.max(2, Math.min(4, ((typeof navigator !== "undefined" && navigator.hardwareConcurrency) || 4) - 1));
+function workerFor(key) { let h = 0; for (let i = 0; i < key.length; i++) h = (h * 31 + key.charCodeAt(i)) | 0; return workers[Math.abs(h) % workers.length]; }
 let lampMat = null, poolMat = null, poolGeo = null;
 const tiles = new Map();          // "L/z/x/y" -> { level, z, x, y, state, lamps, points, pools, used, d }
 const fetchQueue = [], readyQueue = [];
@@ -118,7 +125,7 @@ function ensureBM(z, x, y) {
     const cx = c.getContext("2d", { willReadFrequently: true });
     cx.drawImage(img, 0, 0);
     const data = cx.getImageData(0, 0, 256, 256).data;
-    worker.postMessage({ bm: data, bmKey: k }, [data.buffer]);
+    for (const w of workers) w.postMessage({ bm: data, bmKey: k });
     bm.set(k, "sent");
   };
   img.onerror = () => bm.set(k, "missing");
@@ -166,7 +173,12 @@ const LAMP_VERT = /* glsl */`
     // interpolated straight across, so a valley (where the towns are) is
     // bridged hundreds of metres above its floor. The margin follows that
     // error, ~1.2% of the range.
-    float margin = max(30.0 * upm, 0.012 * dCam);
+    // And from altitude (diffuse) it opens right up: you are above anything
+    // that could hide a town, while the coarse distant ground's heights shift
+    // as its tiles change detail, so a strict test flipped whole towns between
+    // buried and lit as you moved -- and made them shimmer. Close in (sharp
+    // lanterns) it stays strict, so buildings and hills hide what is behind.
+    float margin = max(30.0 * upm, dCam * mix(0.012, 0.35, uDiffuse));
     gl_Position = projectionMatrix * vec4(mv.xyz * (1.0 - margin / dCam), 1.0);
     #include <logdepthbuf_vertex>
     float dShip = distance(wp.xyz, uShipW) / upm, dAhead = distance(wp.xyz, uAheadW) / upm;
@@ -272,7 +284,7 @@ function materials() {
  * works in arrival order, and big z11/z13 road tiles that landed early were
  * keeping the close streets waiting ~10 s.
  */
-const WORKER_BUDGET = 2;
+const WORKER_BUDGET = 2 * POOL;
 let working = 0;
 function pumpReady() {
   readyQueue.sort((a, b) => priority(a) - priority(b));
@@ -296,7 +308,7 @@ function stand(t) {
   if (t.buf) { msg.buf = t.buf; transfer.push(t.buf); t.buf = null; }
   if (msg.dem) transfer.push(msg.dem.buffer);
   t.terrainVersion = window.GeoIDFlightTerrain?.getVersion?.() ?? 0;
-  worker.postMessage(msg, transfer);
+  workerFor(t.key).postMessage(msg, transfer);
 }
 
 /** The worker's lamps for a tile, as a Points (and pools) at the tile's centre. */
@@ -390,16 +402,20 @@ function tick() {
   // since the last tick), so the lit streets reach far out in front of it
   // (owner: "the radius ahead of view for the night lighting needs increased
   // greatly") rather than round it, where most of the light was behind.
+  // From the sim's own heading (position deltas every 0.3 s were noisy),
+  // smoothed over ~8 s, so a turn swings the rings slowly.
   const tNow = performance.now();
-  let dir = null;
-  if (prevShip && tNow > prevShip.t) {
-    const dLat = lat - prevShip.lat, dLon = (lon - prevShip.lon) * Math.cos(lat * Math.PI / 180);
-    const len = Math.hypot(dLat, dLon);
-    if (len > 1e-7) dir = { lat: dLat / len, lon: dLon / len };
+  const hd = (Number(f.headingDeg) || 0) * Math.PI / 180;
+  const cur = { lat: Math.cos(hd), lon: Math.sin(hd) };
+  if (!lastDir) lastDir = cur;
+  else {
+    const k = 1 - Math.exp(-Math.max(0, tNow - (prevShip?.t ?? tNow)) / 8000);
+    const a = lastDir.lat + (cur.lat - lastDir.lat) * k, b = lastDir.lon + (cur.lon - lastDir.lon) * k;
+    const n = Math.hypot(a, b) || 1;
+    lastDir = { lat: a / n, lon: b / n };
   }
-  if (dir) lastDir = dir;
   prevShip = { lat, lon, t: tNow };
-  const aheadM = Math.min(40000, 12000 + 1.5 * altM);
+  const aheadM = Math.min(40000, 12000 + 1.5 * altStep);
   const d = lastDir || { lat: 0, lon: 0 };
   const ahead = { lat: lat + d.lat * aheadM / 111320, lon: lon + d.lon * aheadM / (111320 * Math.cos(lat * Math.PI / 180)) };
   const ap = viewer.surfacePoint(ahead.lat, ahead.lon, 0);
@@ -412,11 +428,13 @@ function tick() {
   // Radii grow with height, the tiles coarsening outward ("lower resolution
   // with height"); crossfades are wide (a fifth of a ring) so no band of
   // light sweeps visibly across the ground as the aircraft moves.
-  const r13 = Math.min(40000, 14000 + 1.3 * altM);
-  const r11 = Math.min(90000, 70000 + 1.0 * altM);
-  const useZ10 = altM > 8000;
-  const r10 = useZ10 ? Math.min(180000, 100000 + 4 * altM) : 0;
-  const r9 = Math.min(400000, Math.max(200000, 12 * altM));
+  // Sizes change in 1 km steps of height, not with every metre of a climb.
+  const altStep = Math.round(altM / 1000) * 1000;
+  const r13 = Math.min(40000, 14000 + 1.3 * altStep);
+  const r11 = Math.min(90000, 70000 + 1.0 * altStep);
+  const useZ10 = altStep > 8000;
+  const r10 = useZ10 ? Math.min(180000, 100000 + 4 * altStep) : 0;
+  const r9 = Math.min(400000, Math.max(200000, 12 * altStep));
   const band = (r) => 0.2 * r;
   LEVELS[0].fade = [0, 0, 3500 * hand, 4500 * hand + 1];
   LEVELS[3].reach = r13; LEVELS[3].fade = [3500 * hand, 4500 * hand, r13 - band(r13), r13];
@@ -429,9 +447,13 @@ function tick() {
   const tv = window.GeoIDFlightTerrain?.getVersion?.() ?? 0;
   LEVELS.forEach((level, li) => {
     if (level.reach <= 0) return;
-    for (const w of tilesFor(level, level.centre ? ahead : { lat, lon }, { lat, lon })) {
+    // HYSTERESIS: a tile joins inside its ring and leaves only 15% beyond
+    // it, so tiles at the edge do not flicker in and out (measured: 2-7 per
+    // tick in straight, level flight).
+    for (const w of tilesFor(level, level.centre ? ahead : { lat, lon }, { lat, lon }, level.reach * 1.15)) {
       const key = `${li}/${w.z}/${w.x}/${w.y}`;
       let t = tiles.get(key);
+      if (w.dc > level.reach && !t?.wasWanted) continue;
       if (!t) { t = { level, key, z: w.z, x: w.x, y: w.y, state: null }; tiles.set(key, t); }
       t.want = true; t.d = w.d; t.used = now;
       if (!t.state) { t.state = "fetch"; fetchQueue.push(t); }
@@ -441,7 +463,7 @@ function tick() {
       if (t.state === "built" && li === 0 && t.count && t.terrainVersion !== tv) readyQueue.push(t);
     }
   });
-  for (const t of tiles.values()) if (!t.want) { if (t.points) t.points.visible = false; if (t.pools) t.pools.visible = false; }
+  for (const t of tiles.values()) { t.wasWanted = t.want; if (!t.want) { if (t.points) t.points.visible = false; if (t.pools) t.pools.visible = false; } }
   // Hand what has arrived to the worker, nearest first, once its Black
   // Marble tile is there (a few ms here: the heights grid; the rest is off
   // the main thread).
@@ -465,9 +487,8 @@ export async function startFlightLights() {
   materials();
   shared.uShipW.value = new THREE.Vector3();
   shared.uAheadW.value = new THREE.Vector3();
-  if (!worker) {
-    worker = new Worker(new URL("../../../flight_sim/earth/game/lights-worker.js?v=3", import.meta.url), { type: "module" });
-    worker.onmessage = (e) => {
+  if (!workers.length) {
+    const onmessage = (e) => {
       const t = jobs.get(e.data.id);
       jobs.delete(e.data.id);
       working = Math.max(0, working - 1);
@@ -477,6 +498,11 @@ export async function startFlightLights() {
       if (e.data.error) { t.state = "built"; t.count = 0; return; }
       meshes(t, e.data);
     };
+    for (let i = 0; i < POOL; i++) {
+      const w = new Worker(new URL("../../../flight_sim/earth/game/lights-worker.js?v=3", import.meta.url), { type: "module" });
+      w.onmessage = onmessage;
+      workers.push(w);
+    }
   }
   if (!template) {
     try { template = (await (await fetch(TILEJSON)).json()).tiles?.[0] || null; } catch (e) { template = null; }
