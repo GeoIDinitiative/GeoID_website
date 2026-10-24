@@ -114,8 +114,11 @@ export function mountStationMarkers({ getStations, isShown = () => true, onPick 
     const placed = [];
     for (const [, rec] of els) {
       const st = rec.station;
-      const local = v.surfacePoint?.(st.lat, st.lon, 0);
+      const local = v.surfacePoint?.(st.lat, st.lon, 0)?.clone?.();
       if (!local) { rec.el.hidden = true; placed.push(null); continue; }
+      // In Earth Flight the station stands on the flight terrain's hills.
+      const flight = window.GeoIDFlightTerrain?.heightUnits?.(st.lat, st.lon) || 0;
+      if (flight) local.setLength(local.length() + flight);
       const world = geo.localToWorld(local.clone());
       const n = world.clone().sub(centre);
       const r = n.length();

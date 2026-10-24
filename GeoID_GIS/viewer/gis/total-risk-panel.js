@@ -28,7 +28,7 @@ import {
   weatherTerms, cycloneTerm, aftershockTerm, proximityTerm, fosTerm, backgroundTerm,
   combine, combineInTime, combineEnsemble, floodTerm, mainDangerSentence, DEFAULT_WEIGHTS, distanceKm,
   ensembleMembers, seawardBearing, waveTerm, ashTerm, peopleWithin, exposureClass, hazardLevel, riskMatrix,
-} from "./total-risk.js?v=20261024-30383a4";
+} from "./total-risk.js?v=20261024-5fec71f";
 
 const byId = (id) => document.getElementById(id);
 const WEIGHTS_KEY = "geoid-gis:total-risk-weights";

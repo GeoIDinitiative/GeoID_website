@@ -23,9 +23,9 @@ import { STLLoader } from "../vendor/STLLoader.js";
 import {
   AIR_SOURCES, AIR_CATEGORIES, SHIP_CATEGORIES, readDigitraffic, foldAisStream, aisStreamSubscription,
   boxAbout, deadReckon, radiusForView, mergeRecords, cardRows, headingBasis, KT_TO_MS,
-} from "./traffic-feeds.js?v=20261024-30383a4";
-import { isParked } from "./parked.js?v=20261024-30383a4";
-import { followFrame, FOLLOW_PITCH_MAX } from "./satellites.js?v=20261024-30383a4";
+} from "./traffic-feeds.js?v=20261024-5fec71f";
+import { isParked } from "./parked.js?v=20261024-5fec71f";
+import { followFrame, FOLLOW_PITCH_MAX } from "./satellites.js?v=20261024-5fec71f";
 
 const KM_TO_UNITS = 3.2 / 6371;
 const M_TO_UNITS = KM_TO_UNITS / 1000;
@@ -152,7 +152,9 @@ function placeCraft(record, lat, lon, target) {
   const viewer = window.GeoIDViewer;
   const relief = viewer?.getEffectiveRelief?.() ?? 0;
   const norm = viewer?.elevationNormalized?.(lat, lon);
-  const groundR = 3.2 + (Number.isFinite(norm) ? norm : 0) * relief;
+  // In Earth Flight the drawn ground is the flight terrain (0 outside flight).
+  const flight = window.GeoIDFlightTerrain?.heightUnits?.(lat, lon) || 0;
+  const groundR = 3.2 + (Number.isFinite(norm) ? norm : 0) * relief + flight;
   let aboveM = 0;
   if (record.kind === "Aircraft" && !record.onGround && Number.isFinite(record.altM)) {
     const groundM = Math.max(0, Number(viewer?.sampleElevationMeters?.(lat, lon)) || 0);
@@ -1187,7 +1189,7 @@ function wireSpec(spec) {
   document.getElementById(spec.ids.symbology)?.addEventListener("click", async () => {
     const layer = layerOf(spec);
     if (!layer) { say(spec, "Turn the tracker on first — symbology colours the live layer."); return; }
-    const dialog = await import("./symbology-dialog.js?v=20261024-30383a4");
+    const dialog = await import("./symbology-dialog.js?v=20261024-5fec71f");
     dialog.openSymbologyDialog(layer);
   });
   window.GeoIDImportManager?.onChange?.(() => {
