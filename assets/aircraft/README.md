@@ -36,3 +36,8 @@ picker, made by the same script.
 It flies as a helicopter (`HELICOPTER FLIGHT` in `scripts/flightsim.js`): up/down
 arrows are the collective (+20 / −25 m/s, doubled on boost), it is held level and yaws on the spot, hovers
 at zero throttle, and tops out at 70 m/s (85 on the boost ramp) with no warp.
+
+`livery-logo-light.png`, `livery-logo.png`, `livery-mark.png`: the GeoID livery
+decals (scripts/flightsim.js `addLivery`), 1024/512 px copies cropped from the
+brand kit (`assets/brand/geoid-logo-light.png` for the white Cessna,
+`geoid-logo.png` for the navy helicopter, `geoid-mark.png` for the fins).

@@ -30,14 +30,14 @@
  *   panel and applied to something already drawn wrongly.
  */
 
-import { CRS_OPTIONS } from "./projection.js?v=20261024-dfaa065";
-import { readHead, validateMapping } from "./delimited.js?v=20261024-dfaa065";
-import { RAMP_NAMES } from "./symbology.js?v=20261024-dfaa065";
-import { AREA_OPACITY, MARK_OPACITY } from "./layer-opacity.js?v=20261024-dfaa065";
-import { isEarth } from "./bodies.js?v=20261024-dfaa065";
-import { DATA_TYPES, inferType, applyTag, markUserInput, suppressNextArrival } from "./data-tags.js?v=20261024-dfaa065";
-import { may, refusal } from "./membership.js?v=20261024-dfaa065";
-import { lockMark } from "./feature-locks.js?v=20261024-dfaa065";
+import { CRS_OPTIONS } from "./projection.js?v=20261024-042ab26";
+import { readHead, validateMapping } from "./delimited.js?v=20261024-042ab26";
+import { RAMP_NAMES } from "./symbology.js?v=20261024-042ab26";
+import { AREA_OPACITY, MARK_OPACITY } from "./layer-opacity.js?v=20261024-042ab26";
+import { isEarth } from "./bodies.js?v=20261024-042ab26";
+import { DATA_TYPES, inferType, applyTag, markUserInput, suppressNextArrival } from "./data-tags.js?v=20261024-042ab26";
+import { may, refusal } from "./membership.js?v=20261024-042ab26";
+import { lockMark } from "./feature-locks.js?v=20261024-042ab26";
 
 /* ── Where data belongs ──────────────────────────────────────────────────────
  *

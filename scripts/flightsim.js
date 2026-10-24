@@ -2005,6 +2005,40 @@
     rec.onReady = put;
   }
 
+  // GeoID livery: the brand's lockup and globe mark as decals, flat planes
+  // standing a centimetre or two off the hull (the STLs carry no UVs). Every
+  // placement is read off scripts/make-aircraft-stl.py's lofts and fins: the
+  // side decals sit on the rear fuselage and are yawed to its taper, the mark
+  // on both faces of the fin. Each side reads left to right from outside.
+  const _livery = {};
+  function liveryTexture(file) {
+    if (_livery[file]) return _livery[file];
+    const t = new THREE.TextureLoader().load(`/assets/aircraft/${file}`);
+    t.colorSpace = THREE.SRGBColorSpace;
+    t.anisotropy = 4;
+    t.userData.shared = true;           // cached per file; disposeGroup must skip it
+    return (_livery[file] = t);
+  }
+  function addLivery(group, decals) {
+    for (const d of decals) {
+      const mat = new THREE.MeshStandardMaterial({
+        map: liveryTexture(d.file), transparent: true, alphaTest: 0.35,
+        metalness: 0.15, roughness: 0.5, depthWrite: false,
+        polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2,
+      });
+      for (const side of [1, -1]) {
+        const m = new THREE.Mesh(new THREE.PlaneGeometry(d.w, d.h), mat);
+        // PlaneGeometry faces +Z; yaw it to face out of this side, leaning
+        // with the hull's taper (the surface narrows toward the tail, +Z).
+        m.rotation.y = side * (Math.PI / 2 - (d.taper || 0));
+        m.position.set(side * d.x, d.y, d.z);
+        m.name = "GeoID-Livery";
+        group.add(m);
+        applyShipDepthOrder(m);
+      }
+    }
+  }
+
   // LIGHT AIRCRAFT -- Earth Flight's default. A Cessna 172-class high-wing
   // monoplane, built as STLs by scripts/make-aircraft-stl.py (original geometry,
   // see assets/aircraft/README.md): metres, nose toward -Z, so it attaches at
@@ -2021,6 +2055,12 @@
       prop: new THREE.MeshStandardMaterial({ color: 0x24282c, metalness: 0.35, roughness: 0.5 }),
     };
     attachBaked(group, loadBakedGeometry("cessna", Object.keys(mats), "/assets/aircraft"), mats, 1);
+    addLivery(group, [
+      // Rear fuselage z 0.75..2.05: half-width 0.48 -> 0.32 there, ~7 deg of taper.
+      { file: "livery-logo-light.png", w: 1.3, h: 0.40, x: 0.415, y: 0.31, z: 1.40, taper: 0.127 },
+      // Fin, mid-height: chord ~0.97 m, faces ~0.045 m off the centre plane.
+      { file: "livery-mark.png", w: 0.52, h: 0.52, x: 0.062, y: 1.20, z: 3.71 },
+    ]);
     group.userData.propMat = mats.prop;
     return group;
   }
@@ -2053,6 +2093,12 @@
       tailrotor: new THREE.MeshStandardMaterial({ color: 0x1d2024, metalness: 0.3, roughness: 0.5 }),
     };
     attachBaked(group, loadBakedGeometry("heli", Object.keys(mats), "/assets/aircraft"), mats, 1);
+    addLivery(group, [
+      // Aft cabin z -0.70..0.60, under the engine fairing: half-width 0.75 -> 0.62.
+      { file: "livery-logo.png", w: 1.25, h: 0.38, x: 0.71, y: 0.86, z: -0.05, taper: 0.10 },
+      // Upper fin, mid-height: chord ~0.6 m, faces ~0.03 m off the centre plane.
+      { file: "livery-mark.png", w: 0.36, h: 0.36, x: 0.045, y: 1.75, z: 5.99 },
+    ]);
     group.userData.rotorMat = mats.rotor;
     group.userData.tailRotorMat = mats.tailrotor;
     return group;
