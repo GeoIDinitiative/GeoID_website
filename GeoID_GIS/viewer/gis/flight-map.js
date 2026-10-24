@@ -15,8 +15,8 @@
 // 2026-10-24), re-measured as the bar resizes. Flight only: built on launch, taken
 // down on Exit. Redrawn four times a second -- a map, not an instrument.
 
-import { TILE_SOURCES, DEFAULT_SOURCE, tileUrl } from "./tile-sources.js?v=20261024-c6fb513";
-import { tileBasemapSource } from "./basemap-drape.js?v=20261024-c6fb513";
+import { TILE_SOURCES, DEFAULT_SOURCE, tileUrl } from "./tile-sources.js?v=20261024-8839ad0";
+import { tileBasemapSource } from "./basemap-drape.js?v=20261024-8839ad0";
 
 const SIZE = 184;                 // CSS px, square
 const Z_MIN = 1, Z_MAX = 13;
@@ -157,7 +157,7 @@ function build() {
   box.id = "fs-locator-map";
   box.innerHTML = `
     <div class="fs-map-head">
-      <span class="fs-map-title">Locator</span>
+      <span class="fs-map-title">Map</span>
       <span class="fs-map-zoom" aria-live="polite"></span>
       <button type="button" class="fs-map-btn" data-step="-1" aria-label="Zoom the map out">−</button>
       <button type="button" class="fs-map-btn" data-step="1" aria-label="Zoom the map in">+</button>

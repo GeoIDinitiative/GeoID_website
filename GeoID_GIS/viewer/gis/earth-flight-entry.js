@@ -21,10 +21,10 @@
 //      frame): aim the globe there, then open pre-flight, whose centre
 //      crosshair takes the site from wherever the globe is aimed.
 
-import { startFlightLabels, stopFlightLabels } from "./flight-labels.js?v=20261024-c6fb513";
-import { showFlightMap, hideFlightMap } from "./flight-map.js?v=20261024-c6fb513";
-import { showFlightSky, hideFlightSky } from "./flight-sky.js?v=20261024-c6fb513";
-import { isEarth } from "./bodies.js?v=20261024-c6fb513";
+import { startFlightLabels, stopFlightLabels } from "./flight-labels.js?v=20261024-8839ad0";
+import { showFlightMap, hideFlightMap } from "./flight-map.js?v=20261024-8839ad0";
+import { showFlightSky, hideFlightSky } from "./flight-sky.js?v=20261024-8839ad0";
+import { isEarth } from "./bodies.js?v=20261024-8839ad0";
 
 /** `?flight=earth&lat=..&lon=..` -> { lat, lon } or { lat: null } or null. */
 export function parseFlightLink(search) {
@@ -52,12 +52,17 @@ function addEarthRows(section) {
   const rows = document.createElement("div");
   rows.className = "earth-flight-rows";
   rows.innerHTML = `
-    <div class="row"><label for="earth-buildings-toggle">3D buildings on the globe</label>
+    <div class="row"><label for="earth-buildings-toggle">3D buildings</label>
       <input id="earth-buildings-toggle" type="checkbox" checked></div>
-    <div class="row"><label for="earth-buildings-shadows">Building shadows</label>
+    <div class="row"><label for="earth-buildings-shadows">Shadows</label>
       <input id="earth-buildings-shadows" type="checkbox" checked></div>
-    <p class="compact-copy" id="earth-buildings-status"></p>`;
+    <p class="compact-copy" id="earth-buildings-status"
+       style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin:0.2rem 0 0;"></p>`;
   stack.appendChild(rows);
+  // One line each (owner, 2026-10-24): the shared panel's "Vertical
+  // exaggeration" took two lines in this column.
+  const vex = section.querySelector('label[for="fs-vex"]');
+  if (vex) vex.textContent = "Vertical scale";
   const bldg = rows.querySelector("#earth-buildings-toggle");
   const shadows = rows.querySelector("#earth-buildings-shadows");
   const status = rows.querySelector("#earth-buildings-status");
@@ -79,9 +84,14 @@ function addEarthRows(section) {
     if (!b.isEnabled()) status.textContent = "Buildings off.";
     else if (s.altitude == null) status.textContent = "";
     else if (s.altitude > b.thresholds.SHOW_BELOW_M && !s.tiles)
-      status.textContent = `Buildings appear below ${km(b.thresholds.SHOW_BELOW_M)} km — now ${km(s.altitude)} km up.`;
-    else status.textContent = `${s.buildings.toLocaleString()} buildings, ${(s.woods || 0).toLocaleString()} woods, ${(s.trees || 0).toLocaleString()} park trees in ${s.tiles} tiles`
-      + (s.shadows ? " · sun shadows" : "") + (b.pending() ? " · loading…" : "");
+      status.textContent = `Buildings below ${km(b.thresholds.SHOW_BELOW_M)} km (now ${km(s.altitude)} km)`;
+    else {
+      // One line: compact counts, the detail in the tooltip.
+      const n = (v) => (v >= 10000 ? `${Math.round(v / 1000)}k` : (v || 0).toLocaleString());
+      status.textContent = `${n(s.buildings)} buildings · ${n(s.woods)} woods · ${n(s.trees)} trees` + (b.pending() ? " · loading…" : "");
+      status.title = `${s.buildings.toLocaleString()} buildings, ${(s.woods || 0).toLocaleString()} woods and ${(s.trees || 0).toLocaleString()} park trees in ${s.tiles} tiles`
+        + (s.shadows ? ", with sun shadows" : "");
+    }
   }, 1000);
 }
 
