@@ -387,7 +387,17 @@ class Node {
     this.dropChildren();
     if (this.mesh) {
       this.t.group.remove(this.mesh);
-      this.mesh.geometry.dispose();
+      // The index and UV buffers are SHARED by every chunk. three's dispose
+      // deletes the GL buffer of every attribute the geometry holds at that
+      // moment, and the other chunks' cached vertex-array objects still point
+      // at the deleted buffers -- so they silently draw nothing. Found as
+      // tile-shaped "slabs" of sky over London after a minute of flying,
+      // which vanished whenever anything forced every program to rebuild.
+      // Detach the shared pair first; only this chunk's own buffers go.
+      const g = this.mesh.geometry;
+      g.setIndex(null);
+      g.deleteAttribute("uv");
+      g.dispose();
       if (this.mesh.material.map) this.mesh.material.map.dispose();
       this.mesh.material.dispose();
       this.mesh = null;
@@ -428,7 +438,7 @@ class Node {
     } else if (this.children) {
       this.dropChildren();
     }
-    if (this.mesh) { this.mesh.visible = true; t.stats.drawn++; }
+    if (this.mesh) { this.mesh.visible = true; t.stats.drawn++; if (this.z > t.stats.maxZ) t.stats.maxZ = this.z; }
   }
 
   hide() {
@@ -457,7 +467,7 @@ export class Terrain {
     this.group.name = "terrain";
     this.roots = new Map();
     this.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
-    this.stats = { built: 0, drawn: 0 };
+    this.stats = { built: 0, drawn: 0, maxZ: 0 };
     this.frustum = new THREE.Frustum();
   }
 

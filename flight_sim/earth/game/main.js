@@ -219,7 +219,7 @@ function tick() {
   camera.updateMatrixWorld();
 
   const camAgl = camera.position.y - ground(camera.position.x, camera.position.z);
-  terrain.stats.drawn = 0;
+  terrain.stats.drawn = 0; terrain.stats.maxZ = 0;
   terrain.update(camera.position, camera);
   buildings.update(camera.position, camAgl);
 
@@ -286,7 +286,7 @@ window.__earthFlight = {
     return {
       fps: Math.round(fps), calls: i.render.calls, triangles: i.render.triangles,
       textures: i.memory.textures, geometries: i.memory.geometries,
-      chunks: terrain.stats.drawn, buildingTiles: buildings.stats.tiles,
+      chunks: terrain.stats.drawn, deepestImageryZoom: terrain.stats.maxZ, buildingTiles: buildings.stats.tiles,
       buildings: buildings.stats.buildings, buildingVerts: buildings.stats.verts,
       tiles: { ...tileStats }, sunAlt: +sky.altitude.toFixed(1), sunAz: +sky.azimuth.toFixed(1),
     };

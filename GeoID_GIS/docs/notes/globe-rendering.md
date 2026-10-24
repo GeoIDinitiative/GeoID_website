@@ -1454,6 +1454,16 @@ catcher under each tile carries the ground shadows (the drapes are unlit).
 `renderer.shadowMap.enabled` is switched on once, at first use, and left on —
 toggling it recompiles every material in the globe.
 
+**The ground under the buildings is the tile's own Esri imagery.** The
+default basemap is Sentinel-2 at 10 m/px, soft from a few hundred metres, and
+the refine cannot go deeper than its source. Each building tile already
+fetches z17 (near, 2048 px, ~0.7 m/px) or z16 Esri imagery for its roofs, so
+the same CanvasTexture is laid flat under the tile in a group at renderOrder
+41 -- after the refine patch (40), before anything imported (50+), depth test
+off like every drape. The canvas starts transparent so unloaded parts show the
+globe; the roof shader paints grey where alpha is still zero. z18 would be
+4096 px and 256 requests per tile, which sixteen tiles cannot carry.
+
 The Explorer entry (`#earth-flight-section`, wired by `gis/earth-flight-entry.js`)
 holds the buildings/shadows switches and an Enter button that opens
 `/flight_sim/earth/` at the view centre, heading and (clamped) height, in the

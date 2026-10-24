@@ -31,7 +31,7 @@ import * as THREE from "../../../everest/vendor/three.module.js?v=84ebb99-a7f30c
 import { templateUrl } from "../../../everest/game/tiles.js?v=84ebb99-a7f30c15";
 import { tileLocal, tileNWLocal, localToTile } from "./geo.js?v=1";
 import { curve, getDem, sharedFetch, IMAGERY } from "./terrain.js?v=1";
-import { facade } from "./facade.js?v=1";
+import { facade, roof } from "./facade.js?v=1";
 
 export const BUILDINGS = {
   tilejson: "https://tiles.openfreemap.org/planet",
@@ -152,12 +152,13 @@ export class Buildings {
     geo.setAttribute("normal", new THREE.BufferAttribute(m.normal, 3, true));
     geo.setAttribute("uv", new THREE.BufferAttribute(m.uv, 2));
     geo.setAttribute("color", new THREE.BufferAttribute(m.color, 3, true));
+    geo.setAttribute("aStyle", new THREE.BufferAttribute(m.style, 1, true));
     geo.addGroup(0, m.roofCount, 0);
     geo.addGroup(m.roofCount, m.wallCount, 1);
     geo.computeBoundingSphere();
 
     t.roof = this.roofTexture(t);
-    const roofMat = curve(new THREE.MeshLambertMaterial({ map: t.roof.tex }), "roofs");
+    const roofMat = roof(curve(new THREE.MeshLambertMaterial({ map: t.roof.tex }), "roofs"));
     const mesh = new THREE.Mesh(geo, [roofMat, this.wallMat]);
     mesh.castShadow = true;
     mesh.receiveShadow = true;
@@ -176,8 +177,8 @@ export class Buildings {
     const canvas = document.createElement("canvas");
     canvas.width = canvas.height = px;
     const ctx = canvas.getContext("2d");
-    ctx.fillStyle = "#8d8a86";
-    ctx.fillRect(0, 0, px, px);
+    // Left transparent: the roof shader paints a dark neutral roof tone
+    // where no imagery has landed yet (a light grey read as a floating slab).
     const tex = new THREE.CanvasTexture(canvas);
     tex.colorSpace = THREE.SRGBColorSpace;
     tex.anisotropy = this.anisotropy;

@@ -68,7 +68,7 @@ function readValue(r) {
  * is most of the tile: in central London the building layer is about a third
  * of OpenFreeMap's z14 bytes.
  *
- * Features come back as `{ type, props, geometry }` with geometry the raw
+ * Features come back as `{ id, type, props, geometry }` with geometry the raw
  * command stream, decoded on demand by `rings()`.
  */
 export function decodeLayer(buf, wanted) {
@@ -101,10 +101,11 @@ function readLayer(r, end) {
     if (f === 1) name = r.string();
     else if (f === 2) {
       const fend = r.varint() + r.p;
-      const feat = { type: 0, tags: null, geometry: null };
+      const feat = { id: null, type: 0, tags: null, geometry: null };
       while (r.p < fend) {
         const t = r.varint(), ff = t >> 3, ww = t & 7;
-        if (ff === 2) feat.tags = r.packed();
+        if (ff === 1 && ww === 0) feat.id = r.varint();
+        else if (ff === 2) feat.tags = r.packed();
         else if (ff === 3) feat.type = r.varint();
         else if (ff === 4) feat.geometry = r.packed();
         else r.skip(ww);
@@ -119,7 +120,7 @@ function readLayer(r, end) {
   const features = raw.map((ft) => {
     const props = {};
     if (ft.tags) for (let i = 0; i + 1 < ft.tags.length; i += 2) props[keys[ft.tags[i]]] = values[ft.tags[i + 1]];
-    return { type: ft.type, props, geometry: ft.geometry || [] };
+    return { id: ft.id, type: ft.type, props, geometry: ft.geometry || [] };
   });
   return { name, extent, features };
 }

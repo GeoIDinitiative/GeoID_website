@@ -8,7 +8,7 @@
  */
 
 import { decodeLayer, rings, polygons, clipRing, ringArea } from "../game/mvt.js?v=1";
-import { extrudeTile } from "../game/extrude.js?v=1";
+import { extrudeTile, pitched } from "../game/extrude.js?v=1";
 import { ShapeUtils, Vector2 } from "../../../everest/vendor/three.module.js";
 
 let failed = 0;
@@ -126,5 +126,37 @@ check("facade UVs are metres up the wall", (() => {
   let maxV = 0; for (let t = m.roofCount; t < m.roofCount + m.wallCount; t++) maxV = Math.max(maxV, m.uv[I[t] * 2 + 1]);
   return Math.abs(maxV - 30) < 1e-3;
 })());
+
+/* ── Inferred roofs ───────────────────────────────────────────────────── */
+// pitched(ring in tile units, metres per unit, height, hash). hash % 6 === 0
+// is the "leave it flat" draw, so tests use hash 1.
+const rect = (w, l) => [[0, 0], [l, 0], [l, w], [0, w]];
+const g = pitched(rect(8, 20), 1, 8, 1);
+check("a 20 x 8 m house gets a gable along its length", g && g.kind === "gable"
+  && Math.abs(Math.hypot(g.ridge[1][0] - g.ridge[0][0], g.ridge[1][1] - g.ridge[0][1]) - 20) < 1e-9);
+check("rise is about 35 degrees, capped", g && Math.abs(g.rise - Math.min(5, 8 / 3, 4 * Math.tan(35 * Math.PI / 180))) < 1e-9);
+const h = pitched(rect(12, 14), 1, 9, 1);
+check("a squarer 14 x 12 m one gets a hip with a shortened ridge", h && h.kind === "hip"
+  && Math.abs(Math.hypot(h.ridge[1][0] - h.ridge[0][0], h.ridge[1][1] - h.ridge[0][1]) - 2) < 1e-9);
+check("towers keep flat roofs", pitched(rect(8, 20), 1, 30, 1) === null);
+check("large footprints keep flat roofs", pitched(rect(30, 40), 1, 8, 1) === null);
+check("an L-shape is not a rectangle", pitched([[0, 0], [20, 0], [20, 8], [10, 8], [10, 16], [0, 16]], 1, 8, 1) === null);
+check("one in six is left flat", pitched(rect(8, 20), 1, 8, 6) === null);
+check("a near-collinear extra vertex is ignored", pitched([[0, 0], [10, 0.05], [20, 0], [20, 8], [0, 8]], 1, 8, 1)?.kind === "gable");
+
+// A one-house tile end to end: roof faces up, walls stop at the eave.
+const houseTile = { extent: 4096, features: [{ id: 42, type: 3, props: { render_height: 8 },
+  geometry: geom([[[100, 100], [100 + 82, 100], [100 + 82, 100 + 33], [100, 100 + 33]]]) }] };
+const hm = extrudeTile(houseTile, null, 256, 1000, tri);
+let roofUp = true, maxWall = -Infinity;
+for (let t = 0; t < hm.roofCount; t += 3) {
+  const [a, b, c] = [0, 1, 2].map((k) => [hm.position[hm.index[t + k] * 3], hm.position[hm.index[t + k] * 3 + 1], hm.position[hm.index[t + k] * 3 + 2]]);
+  const ny = (b[2] - a[2]) * (c[0] - a[0]) - (b[0] - a[0]) * (c[2] - a[2]);
+  if (ny <= 0) roofUp = false;
+}
+for (let t = hm.roofCount; t < hm.roofCount + hm.wallCount; t++) maxWall = Math.max(maxWall, hm.position[hm.index[t] * 3 + 1]);
+check("the house's pitched roof faces up", hm.roofCount === 12 && roofUp, String(hm.roofCount));
+check("its ridge reaches the full height and its gables reach the ridge", Math.abs(maxWall - 8) < 1e-6, String(maxWall));
+check("a style byte per vertex (masonry here)", hm.style.length === hm.position.length / 3 && hm.style.every((v) => v === 0));
 
 process.exit(failed ? 1 : 0);
