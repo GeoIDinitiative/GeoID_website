@@ -417,10 +417,68 @@ body.fs-open-chrome #fs-hud-bar {
   gap: 0.2rem clamp(0.35rem, 1vw, 1.15rem);
   padding: 0.3rem 0 0.45rem;
 }
-body.fs-open-chrome .fs-cell { min-width: 0; }
-body.fs-open-chrome #fs-hud-bar { column-gap: clamp(0.3rem, 0.7vw, 1.15rem); }
-body.fs-open-chrome .fs-cell .fs-v { font-size: clamp(0.82rem, 1.05vw, 1.15rem); }
-body.fs-open-chrome .fs-cell .fs-k { font-size: clamp(0.5rem, 0.62vw, 0.62rem); letter-spacing: 0.1em; }
+/* EARTH FLIGHT'S INSTRUMENTS IN THE GEOHUB GUI'S OWN DRESS (owner,
+   2026-10-24: "the font is not similar to the GUI", and the readouts moved
+   as the numbers changed). The same Exo 2 the panels use, set the way the
+   panels set it: the row is a dark glass box with the accent edge the
+   Workspace and Explorer boxes wear, the labels are the section titles'
+   gold uppercase, the values semibold in near-white.
+   STABILITY: digits are tabular (every figure the same width) and every
+   cell has a FIXED width, so a number changing never moves its neighbours,
+   and a value changing length only re-centres within its own cell. */
+body.fs-open-chrome #fs-hud-bar {
+  background: rgba(8, 11, 18, 0.74);
+  border: 1px solid rgba(var(--nav-accent-rgb), 0.42);
+  border-radius: 0.3rem;
+  backdrop-filter: blur(4px);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+  text-shadow: none;
+  padding: 0.32rem 0.5rem 0.38rem;
+  column-gap: 0;
+  /* Centred, not spread: a narrow window wraps the row, and a centred second
+     line of fixed cells stays tidy where space-between scattered it. */
+  justify-content: center;
+}
+body.fs-open-chrome .fs-cell {
+  min-width: 0;
+  flex: 0 0 auto;
+  width: 5.6em;
+  font-size: clamp(0.78rem, 0.95vw, 1rem);
+  border-left: 1px solid rgba(var(--nav-accent-rgb), 0.16);
+}
+body.fs-open-chrome .fs-cell:first-child { border-left: 0; }
+body.fs-open-chrome .fs-cell:has(#fs-coord) { width: 8.6em; }
+body.fs-open-chrome .fs-cell .fs-k {
+  font-size: 0.6em;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  color: var(--nav-accent);
+  margin-bottom: 0.12em;
+}
+body.fs-open-chrome .fs-cell .fs-v {
+  font-size: 1em;
+  font-weight: 600;
+  color: #eef3fb !important;   /* temp/pressure no longer tinted red: one colour, as the panels */
+  font-variant-numeric: tabular-nums lining-nums;
+  font-feature-settings: "tnum" 1, "lnum" 1;
+  white-space: nowrap;
+  letter-spacing: 0.02em;
+}
+body.fs-open-chrome #fs-domain {
+  font-size: 0.56rem;
+  letter-spacing: 0.22em;
+  color: var(--nav-accent);
+  text-shadow: none;
+}
+body.fs-open-chrome #fs-meters {
+  background: rgba(8, 11, 18, 0.74);
+  border: 1px solid rgba(var(--nav-accent-rgb), 0.42);
+  border-radius: 0.3rem;
+  backdrop-filter: blur(4px);
+  padding: 0.35rem 0.5rem 0.45rem;
+  text-shadow: none;
+}
+body.fs-open-chrome #fs-meters .fs-k { font-variant-numeric: tabular-nums; }
 .fs-throttle-row { display: flex; align-items: center; gap: 0.3rem; }
 .fs-throttle-row .fs-meter-track { flex: 1; }
 /* Steppers: the meters live inside #fs-hud, which is pointer-events:none. */
@@ -512,6 +570,10 @@ body.fs-open-chrome .fs-tr-buttons {
 body.fs-open-chrome.fs-flying #surface-conditions { display: none !important; }
 /* ...and the compass rises onto the meters' baseline, clear of the HUD's
    bottom instrument row, which starts at the same left edge. */
+/* With the nav folded, its Mission Control tab holds the left edge at mid
+   height, and the locator map stands tall enough to reach it: the column
+   steps right of the tab. */
+body.fs-open-chrome.fs-flying #bottom-right-hud.nav-collapsed { left: 3.1rem !important; }
 body.fs-open-chrome.fs-flying #bottom-right-hud {
   bottom: calc(max(0.45rem, env(safe-area-inset-bottom)) + var(--fs-meters-h, 4.4rem) + 0.5rem) !important;
 }

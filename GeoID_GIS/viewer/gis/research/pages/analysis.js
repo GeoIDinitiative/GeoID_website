@@ -1,14 +1,14 @@
-import { compileScalar } from "../../field-calculator.js?v=20261024-04137ba";
-import { registerPage } from "../stages.js?v=20261024-04137ba";
-import * as store from "../project-store.js?v=20261024-04137ba";
-import { column } from "../table.js?v=20261024-04137ba";
-import { linePlot } from "../plot.js?v=20261024-04137ba";
-import * as dsp from "../dsp.js?v=20261024-04137ba";
+import { compileScalar } from "../../field-calculator.js?v=20261024-441b759";
+import { registerPage } from "../stages.js?v=20261024-441b759";
+import * as store from "../project-store.js?v=20261024-441b759";
+import { column } from "../table.js?v=20261024-441b759";
+import { linePlot } from "../plot.js?v=20261024-441b759";
+import * as dsp from "../dsp.js?v=20261024-441b759";
 import {
   el, card, field, input, textarea, selectOf, button, row, statGrid, statusLine,
   guard, crossPage, findTables, loadTable, inferSampling, seriesPicker,
   saveFigure, saveTable,
-} from "./common.js?v=20261024-04137ba";
+} from "./common.js?v=20261024-441b759";
 
 /**
  * The rest of the Postprocessing and Signal Analysis stage.
