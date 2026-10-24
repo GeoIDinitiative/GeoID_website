@@ -1,9 +1,9 @@
 /** #/messages, #/messages/:id and #/notifications. */
-import * as api from "../api.js?v=20261024-1f7e9a7";
-import { store, setUnread, myHandle } from "../store.js?v=20261024-1f7e9a7";
-import { h, clear, errorBox, loading, empty, timeEl, toast, confirmDialog, put } from "../dom.js?v=20261024-1f7e9a7";
-import { act, userChip, messageDialog, avatar, pagedList } from "../components.js?v=20261024-1f7e9a7";
-import { chatPanel } from "../chat.js?v=20261024-1f7e9a7";
+import * as api from "../api.js?v=20261024-ae031f8";
+import { store, setUnread, myHandle } from "../store.js?v=20261024-ae031f8";
+import { h, clear, errorBox, loading, empty, timeEl, toast, confirmDialog, put } from "../dom.js?v=20261024-ae031f8";
+import { act, userChip, messageDialog, avatar, pagedList } from "../components.js?v=20261024-ae031f8";
+import { chatPanel } from "../chat.js?v=20261024-ae031f8";
 
 function signedOut(root, title, what) {
   put(clear(root), h("h1", { class: "s-h1", text: title }), empty(`Sign in to see your ${what}.`),

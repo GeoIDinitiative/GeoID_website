@@ -29,7 +29,7 @@
 //   * Depth-tested: hills and buildings hide what is behind them. Night only
 //     (the ship's NIGHT from flight-tiles.js); nothing runs by day.
 
-import { NIGHT } from "./night-lights.js?v=20261024-1f7e9a7";
+import { NIGHT } from "./night-lights.js?v=20261024-ae031f8";
 
 const TILEJSON = "https://tiles.openfreemap.org/planet";
 const BM = "https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/VIIRS_Black_Marble/default/2016-01-01/GoogleMapsCompatible_Level8/{z}/{y}/{x}.png";
@@ -305,6 +305,7 @@ function pumpReady() {
     if (!t.want && t.state === "fetched") { readyQueue.splice(i, 1); t.state = null; t.buf = null; continue; }
     if (!ensureBM(t.z, t.x, t.y)) { i++; continue; }
     readyQueue.splice(i, 1);
+    t.queued = false;
     working++;
     stand(t);
   }
@@ -484,12 +485,13 @@ function tick() {
       // A change of the Vertical scale re-stands everything at once: lamps
       // left at the old scale floated kilometres up (or sank), and where two
       // rings overlap the same road showed twice, at two heights.
-      if (t.state === "built" && t.count && t.vex !== vexNow) { t.terrainVersion = tv; readyQueue.push(t); }
+      if (t.queued) { /* already waiting for the worker */ }
+      else if (t.state === "built" && t.count && t.vex !== vexNow) { t.terrainVersion = tv; t.queued = true; readyQueue.push(t); }
       else if (t.state === "built" && t.count && t.terrainVersion !== tv && restands < 20) {
         const sig = heightSig(t);
         const moved = !t.sig || sig.some((h, i) => Math.abs(h - t.sig[i]) / UNITS_PER_M > 3);
         t.terrainVersion = tv;
-        if (moved) { readyQueue.push(t); restands++; }
+        if (moved) { t.queued = true; readyQueue.push(t); restands++; }
       }
     }
   });
