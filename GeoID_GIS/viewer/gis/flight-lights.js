@@ -27,7 +27,7 @@
 //   * Depth-tested: hills and buildings hide what is behind them. Night only
 //     (the ship's NIGHT from flight-tiles.js); nothing runs by day.
 
-import { NIGHT } from "./night-lights.js?v=20261024-bc1cb01";
+import { NIGHT } from "./night-lights.js?v=20261024-f2934af";
 
 const TILEJSON = "https://tiles.openfreemap.org/planet";
 const BM = "https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/VIIRS_Black_Marble/default/2016-01-01/GoogleMapsCompatible_Level8/{z}/{y}/{x}.png";
@@ -49,7 +49,6 @@ export const LEVELS = [
   { z: 13, classes: ALL, centre: 1, reach: 14000, inFrom: 0, outFrom: 1, fade: [0, 0, 0, 0] },
 ];
 const FETCH_BUDGET = 10;          // OpenFreeMap is HTTP/2: one connection, many streams
-const BUILD_MS = 5;
 const MAX_KEPT = 420;
 
 const lonToX = (lon, z) => ((lon + 180) / 360) * 2 ** z;
@@ -250,6 +249,25 @@ function materials() {
   poolGeo = new THREE.PlaneGeometry(1, 1);
 }
 
+/*
+ * The worker takes tiles a few at a time, always the most urgent first: it
+ * works in arrival order, and big z11/z13 road tiles that landed early were
+ * keeping the close streets waiting ~10 s.
+ */
+const WORKER_BUDGET = 2;
+let working = 0;
+function pumpReady() {
+  readyQueue.sort((a, b) => priority(a) - priority(b));
+  for (let i = 0; i < readyQueue.length && working < WORKER_BUDGET;) {
+    const t = readyQueue[i];
+    if (!t.want && t.state === "fetched") { readyQueue.splice(i, 1); t.state = null; t.buf = null; continue; }
+    if (!ensureBM(t.z, t.x, t.y)) { i++; continue; }
+    readyQueue.splice(i, 1);
+    working++;
+    stand(t);
+  }
+}
+
 /** Hand a tile to the worker: its road tile (first time) and its ground heights. */
 function stand(t) {
   const id = nextJob++;
@@ -320,6 +338,7 @@ function pump() {
         t.buf = buf;
         t.state = "fetched";
         readyQueue.push(t);
+        pumpReady();
       })
       .catch(() => { t.state = null; })
       .finally(() => { fetching--; pump(); });
@@ -400,15 +419,7 @@ function tick() {
   // Hand what has arrived to the worker, nearest first, once its Black
   // Marble tile is there (a few ms here: the heights grid; the rest is off
   // the main thread).
-  readyQueue.sort((a, b) => priority(a) - priority(b));
-  const until = now + BUILD_MS;
-  for (let i = 0; i < readyQueue.length && performance.now() < until;) {
-    const t = readyQueue[i];
-    if (!t.want && t.state === "fetched") { readyQueue.splice(i, 1); t.state = null; t.buf = null; continue; }
-    if (!ensureBM(t.z, t.x, t.y)) { i++; continue; }
-    readyQueue.splice(i, 1);
-    stand(t);
-  }
+  pumpReady();
   // Forget the oldest beyond the budget.
   if (tiles.size > MAX_KEPT) {
     const old = [...tiles.values()].filter((t) => !t.want).sort((a, b) => a.used - b.used);
@@ -433,6 +444,8 @@ export async function startFlightLights() {
     worker.onmessage = (e) => {
       const t = jobs.get(e.data.id);
       jobs.delete(e.data.id);
+      working = Math.max(0, working - 1);
+      pumpReady();
       if (!t) return;
       if (e.data.refetch) { t.state = null; return; }            // the worker forgot it: fetch again
       if (e.data.error) { t.state = "built"; t.count = 0; return; }
@@ -452,7 +465,7 @@ export function stopFlightLights() {
   running = false;
   clearInterval(timer); timer = null;
   for (const t of tiles.values()) disposeMeshes(t);
-  tiles.clear(); fetchQueue.length = 0; readyQueue.length = 0; jobs.clear();
+  tiles.clear(); fetchQueue.length = 0; readyQueue.length = 0; jobs.clear(); working = 0;
   group?.parent?.remove(group); group = null;
   prevShip = null; lastDir = null;
 }
