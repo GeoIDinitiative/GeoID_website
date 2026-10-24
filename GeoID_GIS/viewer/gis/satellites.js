@@ -1301,6 +1301,27 @@ const _scratch = {
   world: new THREE.Vector3(),
 };
 
+/** The k-th lifted dot, at a double-precision position in the dots' frame. */
+function liftDot(k, at, colour) {
+  const dots = active.liftDots || (active.liftDots = []);
+  let dot = dots[k];
+  if (!dot) {
+    const g = new THREE.BufferGeometry();
+    g.setAttribute("position", new THREE.Float32BufferAttribute([0, 0, 0], 3));
+    dot = new THREE.Points(g, new THREE.PointsMaterial({
+      size: 5, sizeAttenuation: false, map: active.fill.material.map, alphaTest: 0.35,
+      transparent: true, depthWrite: false,
+    }));
+    dot.renderOrder = 1;
+    dot.frustumCulled = false;
+    active.fill.parent.add(dot);
+    dots[k] = dot;
+  }
+  dot.position.copy(at);
+  dot.material.color.copy(colour);
+  dot.visible = true;
+}
+
 /** The models, the lifted dots and the near plane, for this frame. */
 function modelStep(camera, date, gmst) {
   const models = active.models;
@@ -1397,14 +1418,24 @@ function modelStep(camera, date, gmst) {
     });
     count += 1;
 
-    // The colour-coded dot floats just over the model, on screen.
+    // The colour-coded dot floats just over the model, on screen. It is its
+    // OWN point, placed by its object position (double precision): in the
+    // shared dot buffer (32-bit floats, ~3.4 units from the centre: ~1.6 m
+    // steps) it jittered by pixels against the camera-relative model a few
+    // hundred metres away (reported: "very unstable in its positioning").
+    // The buffer keeps the true position, inside the model where the model
+    // hides it, so the next frame's nearness test still reads it.
     const lift = half * 1.3;
-    positions.setXYZ(i, pos.x + upLocal.x * lift, pos.y + upLocal.y * lift, pos.z + upLocal.z * lift);
+    const liftPos = (active.liftPos || (active.liftPos = new Map())).get(i) || new THREE.Vector3();
+    liftPos.set(pos.x + upLocal.x * lift, pos.y + upLocal.y * lift, pos.z + upLocal.z * lift);
+    active.liftPos.set(i, liftPos);
+    positions.setXYZ(i, pos.x, pos.y, pos.z);
+    liftDot(count - 1, liftPos, _scratch.colour);
     lifted.set(i, true);
     keep.add(i);
     dirty = true;
     const tag = active.labels.get(record.norad);
-    if (tag?.visible) tag.position.set(positions.getX(i), positions.getY(i), positions.getZ(i));
+    if (tag?.visible) tag.position.copy(liftPos);
     nearestClear = Math.min(nearestClear, distance - half * 1.6);
   }
   meshes.forEach((mesh) => {
@@ -1412,6 +1443,8 @@ function modelStep(camera, date, gmst) {
     mesh.instanceMatrix.needsUpdate = true;
     if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
   });
+  (active.liftDots || []).forEach((dot, k) => { dot.visible = k < count; });
+  active.liftPos?.forEach((_, i) => { if (!keep.has(i)) active.liftPos.delete(i); });
   restore(keep);
   if (dirty) positions.needsUpdate = true;
 
@@ -1773,10 +1806,14 @@ function syncPulseDot() {
   if (!active?.pulseDot || !record) return;
   const i = active.records.indexOf(record);
   if (i < 0 || record.dead) { active.pulseDot.visible = false; return; }
-  const positions = active.geometry.attributes.position;
-  const target = active.pulseDot.geometry.attributes.position;
-  target.setXYZ(0, positions.getX(i), positions.getY(i), positions.getZ(i));
-  target.needsUpdate = true;
+  // By its object position (double precision), as the lifted dots are: on
+  // the lifted dot while a model shows, else on the satellite's own dot.
+  const lifted = active.liftPos?.get(i);
+  if (lifted) active.pulseDot.position.copy(lifted);
+  else {
+    const positions = active.geometry.attributes.position;
+    active.pulseDot.position.set(positions.getX(i), positions.getY(i), positions.getZ(i));
+  }
   active.pulseDot.visible = true;
 }
 
@@ -2138,7 +2175,7 @@ function init() {
       say("Turn the tracker on first — symbology colours the live layer.");
       return;
     }
-    const dialog = await import("./symbology-dialog.js?v=20261024-15ddba3");
+    const dialog = await import("./symbology-dialog.js?v=20261024-6e2bde7");
     dialog.openSymbologyDialog(layer);
   });
   // The layer box can remove the layer without asking: the tracker must not
