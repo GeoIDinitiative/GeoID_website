@@ -26,7 +26,7 @@
 // Esri World Imagery (blankTile=false: a missing tile is a 404 and the
 // ancestor stays). Flight only.
 
-import { NIGHT } from "./night-lights.js?v=20261024-6c43adb";
+import { NIGHT } from "./night-lights.js?v=20261024-c7b9c8d";
 
 const URL_TEMPLATE = "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}?blankTile=false";
 const ROOT_Z = 7;
@@ -408,7 +408,11 @@ const NIGHT_FRAGMENT = /* glsl */`
     // the ground carries only their SKYGLOW -- the scattered light over a
     // town, from Black Marble, faint close to the ground and growing with
     // height, where it is what a city is from the stratosphere.
-    float glow = pow(rad, 1.6) * uSkyglow * (0.85 + 0.3 * paved);
+    // Only over genuinely bright town centres: Black Marble's faint village
+    // and suburb blobs, blurred, were the blotches across the countryside;
+    // there the lamps alone are the light.
+    float core = clamp((rad - 0.35) / 0.65, 0.0, 1.0);
+    float glow = pow(core, 1.4) * uSkyglow * (0.85 + 0.3 * paved);
     vec3 warm = vec3(1.0, 0.72, 0.42);
     vec3 moon = day * vec3(0.035, 0.045, 0.07);
     diffuseColor.rgb = mix(day, moon + warm * glow, uNight);
@@ -631,7 +635,7 @@ function tick() {
   }
   // Faint: the lamps (flight-lights.js) carry the light; this only fills
   // between them, a little more as the view widens.
-  SKYGLOW.value = 0.035 + 0.075 * Math.min(1, Math.max(0, (altM - 6000) / 24000));
+  SKYGLOW.value = 0.05 + 0.09 * Math.min(1, Math.max(0, (altM - 6000) / 24000));
   // The buildings' night (lit windows, dimmed walls) is the ship's.
   if (sunL) {
     const p = viewer.surfacePoint(f.shipLatLon.lat, f.shipLatLon.lon, 0);
