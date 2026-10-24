@@ -417,12 +417,8 @@ body.fs-open-chrome.fs-hud-lifted #fs-hud-dock {
   bottom: var(--fs-lift-bottom, 7rem);
 }
 body.fs-open-chrome #fs-hud-bar {
-  width: 100%;
   box-sizing: border-box;
   flex-wrap: wrap;
-  justify-content: space-evenly;
-  gap: 0.2rem clamp(0.35rem, 1vw, 1.15rem);
-  padding: 0.3rem 0 0.45rem;
 }
 /* EARTH FLIGHT'S INSTRUMENTS IN THE GEOHUB GUI'S OWN DRESS (owner,
    2026-10-24: "the font is not similar to the GUI", and the readouts moved
@@ -440,7 +436,13 @@ body.fs-open-chrome #fs-hud-bar {
   backdrop-filter: blur(4px);
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
   text-shadow: none;
-  padding: 0.32rem 0.5rem 0.38rem;
+  /* The outline HUGS its cells (it stretched the dock's whole width, with the
+     cells bunched in the middle) and holds them with even room inside: the
+     values sat on the bottom edge. A narrow window still wraps it. */
+  width: max-content;
+  max-width: 100%;
+  padding: 0.42rem 0.7rem 0.48rem;
+  row-gap: 0.4rem;
   column-gap: 0;
   /* Centred, not spread: a narrow window wraps the row, and a centred second
      line of fixed cells stays tidy where space-between scattered it. */
@@ -470,8 +472,11 @@ body.fs-open-chrome .fs-cell .fs-v {
   font-feature-settings: "tnum" 1, "lnum" 1;
   white-space: nowrap;
   letter-spacing: 0.02em;
+  line-height: 1.25;
 }
+body.fs-open-chrome .fs-cell .fs-k { line-height: 1.2; }
 body.fs-open-chrome #fs-domain {
+  margin-bottom: 0.3rem;      /* clear of the panel's top edge */
   font-size: 0.56rem;
   letter-spacing: 0.22em;
   color: var(--nav-accent);

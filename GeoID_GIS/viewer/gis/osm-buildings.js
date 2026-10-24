@@ -36,9 +36,9 @@
 // transparent pass in a group sorted at 190 (see GROUP_ORDER), still
 // depth-tested and depth-writing against the globe and each other.
 
-import { isEarth } from "./bodies.js?v=20261024-07cc760";
+import { isEarth } from "./bodies.js?v=20261024-92800fd";
 import { facade, roof } from "../../../flight_sim/earth/game/facade.js?v=1";
-import { NIGHT } from "./night-lights.js?v=20261024-07cc760";
+import { NIGHT } from "./night-lights.js?v=20261024-92800fd";
 
 const BUILDINGS_TILEJSON = "https://tiles.openfreemap.org/planet";
 // blankTile=false: a tile with no imagery is a 404, not Esri's grey "Map data
@@ -287,7 +287,7 @@ function heightAboveGround(viewer, eye) {
 
 function ensureWorker() {
   if (worker) return;
-  worker = new Worker(new URL("../../../flight_sim/earth/game/buildings-worker.js?v=2", import.meta.url), { type: "module" });
+  worker = new Worker(new URL("../../../flight_sim/earth/game/buildings-worker.js?v=3", import.meta.url), { type: "module" });
   worker.onmessage = (e) => {
     const job = jobs.get(e.data.id);
     if (!job) return;
@@ -540,7 +540,7 @@ function build(viewer, t, m, count, lat, sizeM) {
 const LAYER_NAME = "3D buildings & trees (OpenStreetMap)";
 const LAYER_INFO = {
   source: "OpenStreetMap via OpenFreeMap vector tiles (OpenMapTiles schema, z14): building, transportation, water, landcover; roof and ground imagery Esri World Imagery z16-z17",
-  citation: "Buildings, bridges, trees: © OpenStreetMap contributors, ODbL 1.0 (openstreetmap.org/copyright); tiles: OpenFreeMap (openfreemap.org), OpenMapTiles schema © OpenMapTiles. Imagery: Esri World Imagery — Source: Esri, Vantor, Earthstar Geographics, and the GIS User Community. Woods are drawn as a canopy at modelled crown heights (15-23 m) under the same imagery; facades, pitched roofs, canopy relief and park-tree placement are procedural.",
+  citation: "Buildings, bridges, trees: © OpenStreetMap contributors, ODbL 1.0 (openstreetmap.org/copyright); tiles: OpenFreeMap (openfreemap.org), OpenMapTiles schema © OpenMapTiles. Imagery: Esri World Imagery — Source: Esri, Vantor, Earthstar Geographics, and the GIS User Community. Woods are drawn as a canopy at modelled crown heights (15-23 m) under the same imagery; facades, pitched roofs and canopy relief are procedural.",
   crs: "EPSG:3857 tiles, drawn on the globe",
   licence: "ODbL 1.0 (OpenStreetMap data); Esri terms of use (imagery)",
 };
