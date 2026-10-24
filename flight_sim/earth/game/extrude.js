@@ -21,6 +21,7 @@
  */
 
 import { rings, polygons, clipRing } from "./mvt.js?v=1";
+import { bridgeOutlines, drawBridges, latticeClusters, drawWheel, inPolys } from "./structures.js?v=1";
 
 const SINK = 4;
 
@@ -77,8 +78,10 @@ function parseColour(c) {
  * @param dem         Float32Array of heights, demSize² row-major, north row first
  * @param sizeLocal   tile edge length in local metres
  * @param triangulate (contour[{x,y}], holes[[{x,y}]]) => [[a,b,c], ...]
+ * @param extra       { transport, water }: the same tile's decoded layers, for
+ *                    bridges and for keeping bridge outlines out (structures.js)
  */
-export function extrudeTile(layer, dem, demSize, sizeLocal, triangulate) {
+export function extrudeTile(layer, dem, demSize, sizeLocal, triangulate, extra = {}) {
   const ext = layer.extent || 4096;
   const s = sizeLocal / ext;
   const pos = [], nrm = [], uv = [], col = [], sty = [], roofIdx = [], wallIdx = [];
@@ -128,10 +131,73 @@ export function extrudeTile(layer, dem, demSize, sizeLocal, triangulate) {
     into.push(...ids);
   };
 
-  for (const f of layer.features) {
+  /* ── Generic drawing for structures.js, in metres ─────────────────── */
+  const toTile = (P) => [P[0] / s, P[1], P[2] / s];
+  const flatTri = (P, want, colour, group) => {
+    const e1 = [P[1][0] - P[0][0], P[1][1] - P[0][1], P[1][2] - P[0][2]];
+    const e2 = [P[2][0] - P[0][0], P[2][1] - P[0][1], P[2][2] - P[0][2]];
+    let n = [e1[1] * e2[2] - e1[2] * e2[1], e1[2] * e2[0] - e1[0] * e2[2], e1[0] * e2[1] - e1[1] * e2[0]];
+    let order = [0, 1, 2];
+    if (n[0] * want[0] + n[1] * want[1] + n[2] * want[2] < 0) { order = [0, 2, 1]; n = n.map((x) => -x); }
+    const l = Math.hypot(n[0], n[1], n[2]);
+    if (l < 1e-9) return;
+    const into = group === "roof" ? roofIdx : wallIdx;
+    for (const k of order) {
+      const [u, y, v] = toTile(P[k]);
+      into.push(group === "roof"
+        ? vert(u, y, v, n[0] / l, n[1] / l, n[2] / l, colour[0], colour[1], colour[2])
+        : vert(u, y, v, n[0] / l, n[1] / l, n[2] / l, colour[0], colour[1], colour[2], 0, 0));
+    }
+  };
+  const api = {
+    s, ext, triangulate,
+    ground,
+    tri: (P, n, colour, group) => { const keep = style; style = group === "roof" ? 0 : 0.5; flatTri(P, n, colour, group); style = keep; },
+    quad: (P, n, colour, group) => {
+      const keep = style; style = group === "roof" ? 0 : 0.5;
+      flatTri([P[0], P[1], P[2]], n, colour, group); flatTri([P[0], P[2], P[3]], n, colour, group);
+      style = keep;
+    },
+    box: (c, a, b, d, colour) => {
+      const P = (sa, sb, sd) => [c[0] + a[0] * sa + b[0] * sb + d[0] * sd, c[1] + a[1] * sa + b[1] * sb + d[1] * sd, c[2] + a[2] * sa + b[2] * sb + d[2] * sd];
+      for (const [ax, sgn] of [[0, 1], [0, -1], [1, 1], [1, -1], [2, 1], [2, -1]]) {
+        const m = [a, b, d][ax];
+        const corner = (s1, s2) => { const f = [0, 0, 0]; f[ax] = sgn; f[(ax + 1) % 3] = s1; f[(ax + 2) % 3] = s2; return P(f[0], f[1], f[2]); };
+        api.quad([corner(-1, -1), corner(1, -1), corner(1, 1), corner(-1, 1)], [m[0] * sgn, m[1] * sgn, m[2] * sgn], colour, "wall");
+      }
+    },
+    polygonsOf: (f) => polygons(rings(f.geometry)).map((p) => ({
+      outer: dedupe(clipRing(p.outer, ext)),
+      holes: p.holes.map((h) => dedupe(clipRing(h, ext))).filter((h) => h.length >= 3),
+    })).filter((p) => p.outer.length >= 3),
+    linesOf: (f) => rings(f.geometry),
+  };
+  const outlines = bridgeOutlines(extra.transport, api.polygonsOf);
+
+  // Lattice structures (the London Eye's ~150 parts): measured once, so the
+  // loop below can leave their parts out.
+  const parts = [];
+  layer.features.forEach((f, i) => {
+    if (f.type !== 3 || f.props.hide_3d) return;
+    const r = rings(f.geometry)[0];
+    if (!r || r.length < 3) return;
+    const cu = r.reduce((a, q) => a + q[0], 0) / r.length, cv = r.reduce((a, q) => a + q[1], 0) / r.length;
+    let a2 = 0;
+    for (let k = 0, j = r.length - 1; k < r.length; j = k++) a2 += r[j][0] * r[k][1] - r[k][0] * r[j][1];
+    parts.push({ i, cx: cu * s, cz: cv * s, cu, cv, lo: +f.props.render_min_height || 0,
+      hi: +f.props.render_height || 5, area: Math.abs(a2 / 2) * s * s });
+  });
+  const lattice = latticeClusters(parts);
+  const centreOf = new Map(parts.map((q) => [q.i, q]));
+
+  for (const [fi, f] of layer.features.entries()) {
     if (f.type !== 3) continue;
     const p = f.props;
     if (p.hide_3d) continue;
+    if (lattice.skip.has(fi)) continue;
+    // A footprint inside a bridge outline is part of the bridge, not a building.
+    const cq = centreOf.get(fi);
+    if (cq && outlines.length && inPolys([cq.cu, cq.cv], outlines)) continue;
     const height = +p.render_height || 5;
     const minH = +p.render_min_height || 0;
     if (height <= minH) continue;
@@ -234,6 +300,14 @@ export function extrudeTile(layer, dem, demSize, sizeLocal, triangulate) {
     }
   }
 
+  // Bridges, then any wheels the lattice pass recognised.
+  const bridges = drawBridges(api, extra.transport, extra.water, outlines);
+  for (const w of lattice.wheels) {
+    const g = ground(w.cx / s, w.cz / s);
+    if (w.cx < 0 || w.cz < 0 || w.cx > ext * s || w.cz > ext * s) continue;   // drawn by its own tile
+    drawWheel(api, { ...w, cy: w.cy + g });
+  }
+
   const index = new Uint32Array(roofIdx.length + wallIdx.length);
   index.set(roofIdx, 0);
   index.set(wallIdx, roofIdx.length);
@@ -245,6 +319,9 @@ export function extrudeTile(layer, dem, demSize, sizeLocal, triangulate) {
     style: new Uint8Array(sty),
     index,
     polygons: nPoly,
+    bridges,
+    wheels: lattice.wheels.length,
+    latticeParts: lattice.skip.size,
     roofCount: roofIdx.length,
     wallCount: wallIdx.length,
   };

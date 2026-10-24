@@ -16,9 +16,13 @@ const triangulate = (c, h) => ShapeUtils.triangulateShape(v2(c), h.map(v2));
 self.onmessage = (e) => {
   const { id, buf, dem, demSize, sizeLocal } = e.data;
   try {
-    const layer = decodeLayer(buf, "building");
-    if (!layer || !layer.features.length) { self.postMessage({ id, empty: true }); return; }
-    const m = extrudeTile(layer, dem, demSize, sizeLocal, triangulate);
+    const layer = decodeLayer(buf, "building") || { extent: 4096, features: [] };
+    // Bridges and the water they cross come from the same tile (structures.js).
+    const transport = decodeLayer(buf, "transportation");
+    const water = decodeLayer(buf, "water");
+    if (!layer.features.length && !transport) { self.postMessage({ id, empty: true }); return; }
+    const m = extrudeTile(layer, dem, demSize, sizeLocal, triangulate, { transport, water });
+    if (!m.index.length) { self.postMessage({ id, empty: true }); return; }
     self.postMessage({ id, mesh: m, buildings: m.polygons },
       [m.position.buffer, m.normal.buffer, m.uv.buffer, m.color.buffer, m.style.buffer, m.index.buffer]);
   } catch (err) {
