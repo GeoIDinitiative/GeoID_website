@@ -121,12 +121,35 @@ function localPoint(viewer, lat, lon) {
   return v;
 }
 
-/** The tile's grid on the terrain, relative to its centre, with skirts. */
-function liftGeometry(viewer, t) {
-  const N = t.z >= 15 ? 32 : t.z >= 11 ? 20 : 12;
-  const geo = t.mesh?.geometry || new THREE.BufferGeometry();
+const fullGrid = (z) => (z >= 15 ? 32 : z >= 11 ? 20 : 12);
+const FIRST_GRID = 6;
+
+/** A few heights across the tile: has the terrain under it actually changed? */
+function heightSignature(t) {
+  const T = window.GeoIDFlightTerrain;
+  let sig = "";
+  for (let j = 0; j <= 4; j++) for (let i = 0; i <= 4; i++) {
+    sig += ((T?.heightUnits?.(tileYToLat(t.y + j / 4, t.z), tileXToLon(t.x + i / 4, t.z)) || 0) / UNITS_PER_M).toFixed(1) + ",";
+  }
+  return sig;
+}
+
+/**
+ * The tile's grid of N x N cells on the terrain, relative to its centre, with
+ * skirts. A new tile goes up at once on a coarse grid (coverage first) and is
+ * refined to its full grid as the work budget allows.
+ */
+function liftGeometry(viewer, t, N) {
+  let geo = t.mesh?.geometry;
+  if (!geo || t.N !== N) {
+    geo?.dispose();
+    geo = new THREE.BufferGeometry();
+    if (t.mesh) t.mesh.geometry = geo;
+  }
+  t.N = N;
+  t.sig = heightSignature(t);
   const verts = (N + 1) * (N + 1);
-  const pos = geo.attributes?.position?.array?.length === verts * 2 * 3 ? geo.attributes.position.array : new Float32Array(verts * 2 * 3);
+  const pos = geo.attributes.position ? geo.attributes.position.array : new Float32Array(verts * 2 * 3);
   const centre = localPoint(viewer, tileYToLat(t.y + 0.5, t.z), tileXToLon(t.x + 0.5, t.z));
   const skirt = Math.max(30, tileSizeM(t.z, t.y) * 0.03) * UNITS_PER_M;
   const v = new THREE.Vector3();
@@ -314,14 +337,15 @@ function tileFor(z, x, y) {
 
 function ensureMesh(viewer, t) {
   if (t.mesh) return;
-  t.mesh = new THREE.Mesh(new THREE.BufferGeometry(), material(t));
+  t.mesh = new THREE.Mesh(undefined, material(t));
   t.mesh.name = "GeoID-FlightTile";
   t.mesh.renderOrder = 40.5;          // over the flat horizon patch (40), under every imported layer (50+)
   t.mesh.frustumCulled = true;
   t.mesh.userData.nonInteractive = true;
   t.mesh.userData.keepRenderOrder = true;
   t.mesh.raycast = () => {};
-  liftGeometry(viewer, t);
+  t.N = 0;
+  liftGeometry(viewer, t, FIRST_GRID);
   t.terrainVersion = window.GeoIDFlightTerrain?.getVersion?.() ?? 0;
   group.add(t.mesh);
 }
@@ -360,24 +384,32 @@ function tick() {
   const now = performance.now();
   for (const t of tiles.values()) { t.want = false; t.ancestorWanted = false; }
   const terrainVersion = window.GeoIDFlightTerrain?.getVersion?.() ?? 0;
-  // Building and re-lifting meshes reads the DEM per vertex: a few ms a tick,
-  // nearest first, so a new terrain version or a launch never stalls a frame
-  // and the ground under the aircraft is always done first.
-  const until = now + WORK_MS;
+  // Building and re-lifting meshes reads the DEM per vertex, so it is
+  // budgeted per tick, nearest first: every wanted tile first gets a coarse
+  // mesh (the ground is never missing), then the close ones their full grid;
+  // a new terrain version re-lifts only tiles whose heights really moved.
   const sunL = sunLocal(viewer);
-  for (const L of leaves) {
+  const wanted = leaves.map((L) => {
     const t = tileFor(L.z, L.x, L.y);
     t.want = true; t.d = L.d; t.used = now;
-    if (!t.mesh && performance.now() < until) ensureMesh(viewer, t);
-    else if (t.mesh && t.terrainVersion !== terrainVersion && performance.now() < until) {
-      liftGeometry(viewer, t); t.terrainVersion = terrainVersion;
+    return t;
+  });
+  for (const t of wanted) if (!t.mesh && performance.now() < now + WORK_MS) ensureMesh(viewer, t);
+  for (const t of wanted) {
+    if (!t.mesh || performance.now() > now + 2 * WORK_MS) continue;
+    if (t.terrainVersion !== terrainVersion) {
+      t.terrainVersion = terrainVersion;
+      if (heightSignature(t) !== t.sig) { liftGeometry(viewer, t, t.N); continue; }
     }
+    if (t.N < fullGrid(t.z)) liftGeometry(viewer, t, fullGrid(t.z));
+  }
+  for (const t of wanted) {
     request(t);
     // Ancestors two and five levels up, so a coarse image is there at once.
     for (const up of [2, 5]) {
       if (t.z - up < 1) continue;
       const a = tileFor(t.z - up, t.x >> up, t.y >> up);
-      a.ancestorWanted = true; a.used = now; a.d = Math.min(a.d, L.d);
+      a.ancestorWanted = true; a.used = now; a.d = Math.min(a.d, t.d);
       request(a);
     }
     applyTexture(t);
@@ -416,7 +448,7 @@ export async function startFlightTiles() {
   if (!THREE) THREE = await import("../vendor/three.module.js");
   if (!running || timer) return;
   tick();
-  timer = setInterval(tick, 200);
+  timer = setInterval(tick, 100);
 }
 
 /** Stop and free everything. */
