@@ -9,6 +9,7 @@
 
 import { decodeLayer, rings, polygons, clipRing, ringArea } from "../game/mvt.js?v=1";
 import { extrudeTile, pitched } from "../game/extrude.js?v=1";
+import { clipLine, pointInRing, fitWheel } from "../game/structures.js?v=1";
 import { ShapeUtils, Vector2 } from "../../../everest/vendor/three.module.js";
 
 let failed = 0;
@@ -158,5 +159,45 @@ for (let t = hm.roofCount; t < hm.roofCount + hm.wallCount; t++) maxWall = Math.
 check("the house's pitched roof faces up", hm.roofCount === 12 && roofUp, String(hm.roofCount));
 check("its ridge reaches the full height and its gables reach the ridge", Math.abs(maxWall - 8) < 1e-6, String(maxWall));
 check("a style byte per vertex (masonry here)", hm.style.length === hm.position.length / 3 && hm.style.every((v) => v === 0));
+
+/* ── Bridges and lattice structures ──────────────────────────────────── */
+check("clipLine keeps the inside", JSON.stringify(clipLine([[-100, 100], [200, 100]], 4096)) === JSON.stringify([[[0, 100], [200, 100]]]));
+check("clipLine splits a line that leaves and re-enters",
+  clipLine([[100, 100], [100, -100], [200, -100], [200, 100]], 4096).length === 2);
+check("pointInRing", pointInRing([5, 5], [[0, 0], [10, 0], [10, 10], [0, 10]]) && !pointInRing([15, 5], [[0, 0], [10, 0], [10, 10], [0, 10]]));
+
+// A ring of floating parts in a vertical plane is a wheel; a straight mast is not.
+const ring = [], mast = [];
+for (let k = 0; k < 60; k++) {
+  const t = k / 60 * Math.PI * 2;
+  ring.push({ cx: 500 + Math.cos(t) * 60 * 0.6, cz: 500 + Math.cos(t) * 60 * 0.8, lo: 65 + Math.sin(t) * 60 - 1, hi: 65 + Math.sin(t) * 60 + 1 });
+  mast.push({ cx: 500 + k * 0.1, cz: 500, lo: 5 + k * 2, hi: 7 + k * 2 });
+}
+const w = fitWheel(ring);
+check("a ring of parts is recognised as a wheel", w && Math.abs(w.r - 61) < 2 && Math.abs(w.cy - 65) < 2, JSON.stringify(w));
+check("a straight mast is not", fitWheel(mast) === null);
+
+// A tile with a river, a bridge line across it and a building sitting in a
+// bridge outline: the deck rises above the banks, the building is dropped.
+const river = { extent: 4096, features: [{ id: 1, type: 3, props: { class: "river" },
+  geometry: geom([[[0, 1500], [4096, 1500], [4096, 2500], [0, 2500]]]) }] };
+const roads = { extent: 4096, features: [
+  { id: 2, type: 2, props: { class: "primary", brunnel: "bridge", layer: 1 }, geometry: [9, zz(2000), zz(1000), 10, zz(0), zz(2000)] },
+  { id: 3, type: 3, props: { class: "bridge" }, geometry: geom([[[3000, 1400], [3100, 1400], [3100, 2600], [3000, 2600]]]) },
+] };
+const onBridge = { extent: 4096, features: [{ id: 9, type: 3, props: { render_height: 12 },
+  geometry: geom([[[3020, 1900], [3080, 1900], [3080, 1960], [3020, 1960]]]) }] };
+const bankDem = new Float32Array(256 * 256);
+for (let y = 0; y < 256; y++) for (let x = 0; x < 256; x++) bankDem[y * 256 + x] = (y < 94 || y > 156) ? 6 : 0;
+const bm = extrudeTile(onBridge, bankDem, 256, 1000, tri, { transport: roads, water: river });
+let deckTop = -Infinity;
+for (let k = 0; k < bm.position.length; k += 3) deckTop = Math.max(deckTop, bm.position[k + 1]);
+check("two bridges drawn (one line, one outline)", bm.bridges === 2, String(bm.bridges));
+check("the building inside the bridge outline is not extruded", bm.polygons === 0, String(bm.polygons));
+check("decks stand above the 6 m banks", deckTop >= 9.9 && deckTop < 12, String(deckTop));
+let piers = 0, patch = 0;
+for (let k = 0; k < bm.position.length; k += 3) { if (bm.position[k + 1] < -1.9) piers++; if (Math.abs(bm.position[k + 1] - 0.15) < 1e-4) patch++; }
+check("piers reach down into the river", piers > 0, String(piers));
+check("a water patch hides the photo's bridge under the deck", patch > 0, String(patch));
 
 process.exit(failed ? 1 : 0);

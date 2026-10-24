@@ -16,6 +16,7 @@
  *                      spandrel at each floor, plus a sky sheen that grows
  *                      toward grazing angles (a Fresnel term).
  *   both               contact occlusion: darkest at the ground, gone by 5 m.
+ *   plain (style 0.5)  none of the above: bridge decks and piers, wheels.
  *
  * Every pattern fades to its own average once a bay is smaller than about a
  * pixel and a half, so distant blocks do not shimmer. Cost per wall fragment:
@@ -31,12 +32,13 @@ float fHash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453)
 `;
 
 const WALL_COLOUR = /* glsl */`
-  {
+  // Style 0.5 is "plain": bridge concrete, wheels -- no windows, no base shading.
+  if (vStyle < 0.25 || vStyle > 0.75) {
     vec2 w = fwidth(vFacade);
     float px = max(w.x, w.y);
     float glassDark = 0.0;
     vec3 glass = vec3(0.10, 0.13, 0.17);
-    if (vStyle < 0.5) {
+    if (vStyle < 0.25) {
       // Masonry: 3 m bays, 3.3 m storeys.
       vec2 cell = vec2(vFacade.x / 3.0, vFacade.y / 3.3);
       vec2 f = fract(cell);

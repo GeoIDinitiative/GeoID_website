@@ -1468,3 +1468,12 @@ The Explorer entry (`#earth-flight-section`, wired by `gis/earth-flight-entry.js
 holds the buildings/shadows switches and an Enter button that opens
 `/flight_sim/earth/` at the view centre, heading and (clamped) height, in the
 TOP window — the viewer is GeoHUB's iframe.
+
+### Bridges and the London Eye on the globe
+
+The globe's building tiles come from the same worker as Earth Flight's, so they
+carry the same bridge decks (raised slabs and ribbons from the transportation
+layer, with piers and an under-deck water patch) and the same wheel for the
+London Eye in place of its ~150 floating parts. On the globe there is no DEM
+under a tile (the ground is drawn at the tapered relief), so decks stand at
+4–6 m above the tile plane. See `flight_sim/earth/game/structures.js`.
