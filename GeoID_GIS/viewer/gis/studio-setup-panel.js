@@ -29,10 +29,10 @@
 import {
   MATERIALS, MATERIAL_PROPS, PHYSICS, defaultSetup, domainProperties, materialsPlan, propsText,
   icBcHeader, studySpec, studyTimes, setupSummary, sweepParameters, sweepValues, sweepSetups, sweepManifest,
-} from "./fem-setup.js?v=20261024-0b5ae30";
-import { flagCheck } from "./mesh-flags.js?v=20261024-0b5ae30";
-import { requirementLines, GENERAL } from "./gales-contract.js?v=20261024-0b5ae30";
-import { parseTable, guessColumns, buildGrid, pointwiseText, orderCheck } from "./tomography.js?v=20261024-0b5ae30";
+} from "./fem-setup.js?v=20261024-ea1a29e";
+import { flagCheck } from "./mesh-flags.js?v=20261024-ea1a29e";
+import { requirementLines, GENERAL } from "./gales-contract.js?v=20261024-ea1a29e";
+import { parseTable, guessColumns, buildGrid, pointwiseText, orderCheck } from "./tomography.js?v=20261024-ea1a29e";
 import * as THREE from "../vendor/three.module.js";
 
 const STORE_KEY = "geoid-studio:fem-setup";

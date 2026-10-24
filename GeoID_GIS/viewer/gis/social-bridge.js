@@ -1,12 +1,12 @@
 import * as THREE from "../vendor/three.module.js";
-import { authService } from "./membership.js?v=20261024-0b5ae30";
-import { currentBodyId, currentBody, getBody, metresPerUnit } from "./bodies.js?v=20261024-0b5ae30";
-import { latLonToVector3 } from "./geo-utils.js?v=20261024-0b5ae30";
+import { authService } from "./membership.js?v=20261024-ea1a29e";
+import { currentBodyId, currentBody, getBody, metresPerUnit } from "./bodies.js?v=20261024-ea1a29e";
+import { latLonToVector3 } from "./geo-utils.js?v=20261024-ea1a29e";
 import { visibleBounds, viewFocus, altitudeUnits, onViewSettled, viewChangedEnough }
-  from "./view-extent.js?v=20261024-0b5ae30";
-import { DATASETS, layerNameOf, addDataset } from "./global-data.js?v=20261024-0b5ae30";
-import { paintByField } from "./symbology-dialog.js?v=20261024-0b5ae30";
-import * as projectStore from "./research/project-store.js?v=20261024-0b5ae30";
+  from "./view-extent.js?v=20261024-ea1a29e";
+import { DATASETS, layerNameOf, addDataset } from "./global-data.js?v=20261024-ea1a29e";
+import { paintByField } from "./symbology-dialog.js?v=20261024-ea1a29e";
+import * as projectStore from "./research/project-store.js?v=20261024-ea1a29e";
 import {
   socialBase, viewRequest, mapUrl, mapToFeatures, featuresKey, readDeepLink, worldUrl,
   cameraFromScene, layersToEnable, annotationsToFeatures, bannerText, buildSharePayload,
@@ -19,7 +19,7 @@ import {
   buildModelMeta, modelSettingsFromConfig, boxRing, describeModel, postWorld,
   interestRequest, interestUrl, interestToFeatures, communityLayerName, COMMUNITY_MODES,
   INTEREST_LAYER_NAME, INTEREST_SOURCE, TREND_COLOURS,
-} from "./social-core.js?v=20261024-0b5ae30";
+} from "./social-core.js?v=20261024-ea1a29e";
 
 /**
  * GeoID Network, inside the viewer.

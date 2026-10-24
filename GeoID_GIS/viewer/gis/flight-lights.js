@@ -27,7 +27,7 @@
 //   * Depth-tested: hills and buildings hide what is behind them. Night only
 //     (the ship's NIGHT from flight-tiles.js); nothing runs by day.
 
-import { NIGHT } from "./night-lights.js?v=20261024-0b5ae30";
+import { NIGHT } from "./night-lights.js?v=20261024-ea1a29e";
 
 const TILEJSON = "https://tiles.openfreemap.org/planet";
 const BM = "https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/VIIRS_Black_Marble/default/2016-01-01/GoogleMapsCompatible_Level8/{z}/{y}/{x}.png";
@@ -171,7 +171,12 @@ const LAMP_VERT = /* glsl */`
     float size = clamp(max(px * 2.0, diffusePx), 2.0, 32.0);
     gl_PointSize = size;
     vCore = clamp(1.6 / size, 0.03, 0.6);
-    vA = keep * uNight * mix(clamp(px, 0.35, 1.0), energy / (size * size) * 2.2, uDiffuse);
+    // Low down a lamp keeps a 2 px dot's light out to where its glow is a
+    // third of a pixel, and beyond that dims with distance (^1.5): with the
+    // streets lit 26 km ahead, a fixed floor stacked thousands of far lamps
+    // into an over-exposed white line along the horizon.
+    float lowA = px >= 0.35 ? min(px, 1.0) : 0.35 * pow(px / 0.35, 1.5);
+    vA = keep * uNight * mix(lowA, energy / (size * size) * 2.2, uDiffuse);
     vDiffuse = uDiffuse;
     vCol = color;
   }
@@ -462,6 +467,12 @@ export function creditNow() {
     crs: "EPSG:3857 tiles, drawn on the globe",
     licence: "ODbL 1.0 (OpenStreetMap); public domain (Black Marble)",
   };
+}
+
+// The road tiles' index is fetched as soon as this module loads (pre-flight),
+// so the first lamps do not wait on it after take-off.
+if (typeof window !== "undefined" && typeof fetch === "function") {
+  fetch(TILEJSON).then((r) => r.json()).then((tj) => { template = template || tj.tiles?.[0] || null; }).catch(() => {});
 }
 
 if (typeof window !== "undefined") {
