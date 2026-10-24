@@ -21,15 +21,15 @@
 //      frame): aim the globe there, then open pre-flight, whose centre
 //      crosshair takes the site from wherever the globe is aimed.
 
-import { startFlightTerrain, stopFlightTerrain, setVex, primeLaunchSite } from "./flight-terrain.js?v=20261024-ea1a29e";
-import { startFlightLabels, stopFlightLabels } from "./flight-labels.js?v=20261024-ea1a29e";
-import { showFlightMap, hideFlightMap } from "./flight-map.js?v=20261024-ea1a29e";
-import { showFlightSky, hideFlightSky } from "./flight-sky.js?v=20261024-ea1a29e";
-import { startFlightTiles, stopFlightTiles } from "./flight-tiles.js?v=20261024-ea1a29e";
-import { startFlightClouds, stopFlightClouds } from "./flight-clouds.js?v=20261024-ea1a29e";
-import { startFlightLights, stopFlightLights } from "./flight-lights.js?v=20261024-ea1a29e";
-import "./flight-place.js?v=20261024-ea1a29e";
-import { isEarth } from "./bodies.js?v=20261024-ea1a29e";
+import { startFlightTerrain, stopFlightTerrain, setVex, primeLaunchSite } from "./flight-terrain.js?v=20261024-bc1cb01";
+import { startFlightLabels, stopFlightLabels } from "./flight-labels.js?v=20261024-bc1cb01";
+import { showFlightMap, hideFlightMap } from "./flight-map.js?v=20261024-bc1cb01";
+import { showFlightSky, hideFlightSky } from "./flight-sky.js?v=20261024-bc1cb01";
+import { startFlightTiles, stopFlightTiles } from "./flight-tiles.js?v=20261024-bc1cb01";
+import { startFlightClouds, stopFlightClouds } from "./flight-clouds.js?v=20261024-bc1cb01";
+import { startFlightLights, stopFlightLights } from "./flight-lights.js?v=20261024-bc1cb01";
+import "./flight-place.js?v=20261024-bc1cb01";
+import { isEarth } from "./bodies.js?v=20261024-bc1cb01";
 
 /** `?flight=earth&lat=..&lon=..` -> { lat, lon } or { lat: null } or null. */
 export function parseFlightLink(search) {
@@ -115,6 +115,33 @@ async function aimAt(lat, lon, heightUnits = 0.02) {
   viewer.camera.position.copy(centre).addScaledVector(world, 3.2 + heightUnits);
   viewer.camera.lookAt(centre);
   viewer.controls?.update?.();
+}
+
+/**
+ * KEEP a deep link's aim for the first seconds of pre-flight. The launch site
+ * is the screen-centre reticle, and on a slow load something re-posed the
+ * camera after the aim (to the default 20 N 0 E view), so Launch flew from
+ * the Sahara. Re-aim while the camera has drifted more than half a degree,
+ * for ten seconds or until the user touches the globe themselves.
+ */
+function holdAim(lat, lon) {
+  const viewer = window.GeoIDViewer;
+  const canvas = viewer?.renderer?.domElement;
+  let stop = false;
+  const release = () => { stop = true; };
+  canvas?.addEventListener("pointerdown", release, { once: true });
+  canvas?.addEventListener("wheel", release, { once: true, passive: true });
+  const started = performance.now();
+  const timer = setInterval(async () => {
+    if (stop || performance.now() - started > 10000 || !document.body.classList.contains("fs-preflight")) { clearInterval(timer); return; }
+    const local = viewer.globe.worldToLocal(viewer.camera.position.clone());
+    local.set(-local.x, local.y, -local.z);
+    const r = local.length() || 1;
+    const cLat = Math.asin(Math.max(-1, Math.min(1, local.y / r))) * 180 / Math.PI;
+    const cLon = Math.atan2(local.z, -local.x) * 180 / Math.PI;
+    const dLon = ((cLon - lon + 540) % 360) - 180;
+    if (Math.abs(cLat - lat) > 0.5 || Math.abs(dLon) > 0.5) await aimAt(lat, lon);
+  }, 400);
 }
 
 /**
@@ -296,6 +323,7 @@ function wire() {
       window.GeoIDViewer.setSpinPaused?.(true);
       if (link.lat != null) await aimAt(link.lat, link.lon);
       setTimeout(() => window.__flightSim.enterPreflight(), 300);
+      if (link.lat != null) holdAim(link.lat, link.lon);
     });
 }
 

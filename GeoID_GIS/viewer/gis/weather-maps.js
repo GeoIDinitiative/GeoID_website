@@ -24,14 +24,14 @@
  * registry is the seam, and nothing else here would change.
  */
 
-import { drape } from "./gee.js?v=20261024-ea1a29e";
-import { currentBodyId } from "./bodies.js?v=20261024-ea1a29e";
-import { rectangleVertices } from "./draw-area.js?v=20261024-ea1a29e";
+import { drape } from "./gee.js?v=20261024-bc1cb01";
+import { currentBodyId } from "./bodies.js?v=20261024-bc1cb01";
+import { rectangleVertices } from "./draw-area.js?v=20261024-bc1cb01";
 import {
   signedLon, drawnPolygonLayers, layerBounds, capturedExtentBounds,
   promptDrawTool, hideAreaCard, persistExtent, refreshPolygonOptions,
   resolvePolygonExtent,
-} from "./extent-picker.js?v=20261024-ea1a29e";
+} from "./extent-picker.js?v=20261024-bc1cb01";
 
 const byId = (id) => document.getElementById(id);
 

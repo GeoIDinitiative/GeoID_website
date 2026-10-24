@@ -1,9 +1,9 @@
 /** #/teams and #/t/:slug — members and roles, invites, a task board, team chat and projects. */
-import * as api from "../api.js?v=20261024-ea1a29e";
-import { store, myHandle, refreshMe } from "../store.js?v=20261024-ea1a29e";
-import { h, clear, field, input, select, textarea, toast, busy, errorBox, loading, empty, confirmDialog, modal, put } from "../dom.js?v=20261024-ea1a29e";
-import { act, userChip, pagedList, requireSignIn } from "../components.js?v=20261024-ea1a29e";
-import { chatPanel } from "../chat.js?v=20261024-ea1a29e";
+import * as api from "../api.js?v=20261024-bc1cb01";
+import { store, myHandle, refreshMe } from "../store.js?v=20261024-bc1cb01";
+import { h, clear, field, input, select, textarea, toast, busy, errorBox, loading, empty, confirmDialog, modal, put } from "../dom.js?v=20261024-bc1cb01";
+import { act, userChip, pagedList, requireSignIn } from "../components.js?v=20261024-bc1cb01";
+import { chatPanel } from "../chat.js?v=20261024-bc1cb01";
 
 const TEAM_ROLES = [["lead", "Lead"], ["editor", "Editor"], ["member", "Member"], ["viewer", "Viewer (read-only)"]];
 
