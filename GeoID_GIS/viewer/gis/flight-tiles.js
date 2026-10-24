@@ -26,18 +26,18 @@
 // Esri World Imagery (blankTile=false: a missing tile is a 404 and the
 // ancestor stays). Flight only.
 
-import { NIGHT } from "./night-lights.js?v=20261024-7501960";
+import { NIGHT } from "./night-lights.js?v=20261024-596d060";
 
 const URL_TEMPLATE = "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}?blankTile=false";
 const ROOT_Z = 7;
 export const MAX_Z = 17;
-export const SPLIT = 2.4;            // split while closer than SPLIT x the tile's size
+export const SPLIT = 2.0;            // split while closer than SPLIT x the tile's size (~1.6 px per texel at the split)
 export const MAX_LEAVES = 800;
 const MAX_TILES_KEPT = 1500;
 const FETCH_BUDGET = 12;
 const UNITS_PER_M = 3.2 / 6371000;
 const EARTH_CIRC_M = 40075016.686;
-const VEG_FROM_Z = 15;
+const VEG_FROM_Z = 16;
 const VEG_HEIGHT_M = 7;
 const WORK_MS = 8;
 
@@ -123,7 +123,7 @@ function localPoint(viewer, lat, lon) {
   return v;
 }
 
-const fullGrid = (z) => (z >= 15 ? 32 : z >= 11 ? 20 : 12);
+const fullGrid = (z) => (z >= 16 ? 32 : z >= 12 ? 16 : 10);
 const FIRST_GRID = 6;
 
 /** A few heights across the tile: has the terrain under it actually changed? */
