@@ -26,7 +26,7 @@
 // Esri World Imagery (blankTile=false: a missing tile is a 404 and the
 // ancestor stays). Flight only.
 
-import { NIGHT } from "./night-lights.js?v=20261024-b351b46";
+import { NIGHT } from "./night-lights.js?v=20261024-86f01f1";
 
 const URL_TEMPLATE = "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}?blankTile=false";
 const ROOT_Z = 7;
@@ -39,6 +39,10 @@ const UNITS_PER_M = 3.2 / 6371000;
 const EARTH_CIRC_M = 40075016.686;
 const VEG_FROM_Z = 16;
 const VEG_HEIGHT_M = 7;
+const ROCK_FROM_Z = 15;            // vertices lifted by rock relief (needs a fine grid)
+const BUMP_FROM_Z = 13;            // per-pixel crag shading
+const ROCK_HEIGHT_M = 8;
+const BUMP_HEIGHT_M = 6;
 const WORK_MS = 8;
 
 /* ── Pure tile maths and selection (tested) ─────────────────────────────── */
@@ -123,7 +127,7 @@ function localPoint(viewer, lat, lon) {
   return v;
 }
 
-const fullGrid = (z) => (z >= 16 ? 32 : z >= 12 ? 16 : 10);
+const fullGrid = (z) => (z >= 16 ? 32 : z >= 15 ? 24 : z >= 12 ? 16 : 10);
 const FIRST_GRID = 6;
 
 /** A few heights across the tile: has the terrain under it actually changed? */
@@ -155,19 +159,37 @@ function liftGeometry(viewer, t, N) {
   const centre = localPoint(viewer, tileYToLat(t.y + 0.5, t.z), tileXToLon(t.x + 0.5, t.z));
   const skirt = Math.max(30, tileSizeM(t.z, t.y) * 0.03) * UNITS_PER_M;
   const v = new THREE.Vector3();
+  const T = window.GeoIDFlightTerrain;
+  const hM = new Float32Array(verts);
   for (let j = 0; j <= N; j++) {
     const lat = tileYToLat(t.y + j / N, t.z);
     for (let i = 0; i <= N; i++) {
       const lon = tileXToLon(t.x + i / N, t.z);
       v.copy(localPoint(viewer, lat, lon));
       const k = j * (N + 1) + i;
+      hM[k] = T?.active?.() ? (T.groundMetres(lat, lon) ?? 0) : 0;
       pos[k * 3] = v.x - centre.x; pos[k * 3 + 1] = v.y - centre.y; pos[k * 3 + 2] = v.z - centre.z;
       v.setLength(v.length() - skirt);                     // the skirt vertex, below
       const s = verts + k;
       pos[s * 3] = v.x - centre.x; pos[s * 3 + 1] = v.y - centre.y; pos[s * 3 + 2] = v.z - centre.z;
     }
   }
+  // How rocky the ground can be here: the terrain's slope (true metres),
+  // 0 below ~11 deg, 1 above ~31 deg. Cliffs and crags are on steep ground;
+  // grey city roofs, which look like rock in colour, are on flat ground.
+  const slope = geo.attributes.aSlope ? geo.attributes.aSlope.array : new Float32Array(verts * 2);
+  const cell = tileSizeM(t.z, t.y) / N;
+  for (let j = 0; j <= N; j++) for (let i = 0; i <= N; i++) {
+    const k = j * (N + 1) + i;
+    const e = hM[j * (N + 1) + Math.min(N, i + 1)], w = hM[j * (N + 1) + Math.max(0, i - 1)];
+    const so = hM[Math.min(N, j + 1) * (N + 1) + i], no = hM[Math.max(0, j - 1) * (N + 1) + i];
+    const gx = (e - w) / (cell * (Math.min(N, i + 1) - Math.max(0, i - 1)));
+    const gy = (so - no) / (cell * (Math.min(N, j + 1) - Math.max(0, j - 1)));
+    const g = Math.hypot(gx, gy), r = Math.min(1, Math.max(0, (g - 0.2) / 0.4));
+    slope[k] = slope[verts + k] = r * r * (3 - 2 * r);
+  }
   if (!geo.attributes.position) {
+    geo.setAttribute("aSlope", new THREE.BufferAttribute(slope, 1));
     geo.setAttribute("position", new THREE.BufferAttribute(pos, 3));
     const uv = new Float32Array(verts * 2 * 2);
     for (let j = 0; j <= N; j++) for (let i = 0; i <= N; i++) {
@@ -192,6 +214,7 @@ function liftGeometry(viewer, t, N) {
     geo.setIndex(idx);
   } else {
     geo.attributes.position.needsUpdate = true;
+    geo.attributes.aSlope.needsUpdate = true;
   }
   geo.computeBoundingSphere();
   t.centre = centre;
@@ -206,12 +229,15 @@ function material(t) {
     map: null, side: THREE.DoubleSide, transparent: true, depthWrite: true,
     polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -8,
   });
-  const veg = t.z >= VEG_FROM_Z;
-  const mPerPx = tileSizeM(t.z, t.y) / 256;
+  const veg = t.z >= VEG_FROM_Z, rocks = t.z >= ROCK_FROM_Z, bump = t.z >= BUMP_FROM_Z;
+  const sizeM = tileSizeM(t.z, t.y), mPerPx = sizeM / 256;
   t.uniforms = {
     uVegLod: { value: Math.max(0, Math.log2(25 / mPerPx)) },
     uVegH: { value: VEG_HEIGHT_M * UNITS_PER_M },
-    uVegSlope: { value: VEG_HEIGHT_M / tileSizeM(t.z, t.y) },
+    uVegSlope: { value: VEG_HEIGHT_M / sizeM },
+    uRockLod: { value: Math.max(0, Math.log2(20 / mPerPx)) },
+    uRockH: { value: ROCK_HEIGHT_M * UNITS_PER_M },
+    uBumpScale: { value: BUMP_HEIGHT_M / sizeM },
     uUp: { value: new THREE.Vector3() },
     uSunLocal: { value: new THREE.Vector3(0, 0, 1) },     // (east, north, up)
     uOwn: { value: 0 },
@@ -219,29 +245,44 @@ function material(t) {
     uLights: { value: null },
     uLightsXf: { value: new THREE.Vector3(0, 0, 1) },      // offset u, v, scale into the Black Marble tile
     uLightsOn: { value: 0 },
-    uLampCells: { value: tileSizeM(t.z, t.y) / 9 },        // a street lamp every ~9 m, at most
+    uLampCells: { value: sizeM / 9 },                      // a street lamp every ~9 m, at most
   };
+  const sampled = veg || rocks;
   m.onBeforeCompile = (shader) => {
     Object.assign(shader.uniforms, t.uniforms);
     shader.vertexShader = shader.vertexShader
       .replace("#include <common>", `#include <common>
 varying vec2 vTileUv;
-${veg ? VEG_VERTEX_PARS : ""}`)
+attribute float aSlope;
+varying float vSlope;
+${sampled ? SAMPLE_VERTEX_PARS + ROCK_FN : ""}
+${veg ? VEG_VERTEX_PARS : ""}
+${rocks ? ROCK_VERTEX_PARS : ""}`)
       .replace("#include <begin_vertex>", `#include <begin_vertex>
   vTileUv = uv;
-${veg ? VEG_VERTEX : ""}`);
+  vSlope = aSlope;
+${veg ? VEG_VERTEX : ""}
+${rocks ? ROCK_VERTEX : ""}`);
     shader.fragmentShader = shader.fragmentShader
       .replace("#include <common>", `#include <common>
 varying vec2 vTileUv;
+varying float vSlope;
 ${veg ? "varying float vVegShade;" : ""}
+${bump ? ROCK_FN + BUMP_PARS : ""}
 ${NIGHT_PARS}`)
       .replace("#include <map_fragment>", `#include <map_fragment>
 ${veg ? "  diffuseColor.rgb *= vVegShade;" : ""}
+${bump ? BUMP_FRAGMENT : ""}
 ${NIGHT_FRAGMENT}`);
   };
-  m.customProgramCacheKey = () => (veg ? "geoid-flight-tile-veg" : "geoid-flight-tile");
+  m.customProgramCacheKey = () => `geoid-flight-tile|${veg}|${rocks}|${bump}`;
   return m;
 }
+
+const SAMPLE_VERTEX_PARS = /* glsl */`
+uniform sampler2D map;
+uniform float uOwn;
+uniform vec3 uUp, uSunLocal;`;
 
 /*
  * The vegetation rises out of the tile's own imagery: blurred to ~25 m, a
@@ -251,9 +292,7 @@ ${NIGHT_FRAGMENT}`);
  * exact colour.
  */
 const VEG_VERTEX_PARS = /* glsl */`
-uniform sampler2D map;
-uniform float uVegLod, uVegH, uVegSlope, uOwn;
-uniform vec3 uUp, uSunLocal;
+uniform float uVegLod, uVegH, uVegSlope;
 varying float vVegShade;
 float vegAt(vec2 st) {
   vec3 c = sqrt(max(textureLod(map, st, uVegLod).rgb, 0.0));
@@ -272,6 +311,57 @@ const VEG_VERTEX = /* glsl */`
     float dy = (vegAt(st + vec2(0.0, e)) - vegAt(st - vec2(0.0, e))) * uVegSlope / (2.0 * e);
     vec3 n = normalize(vec3(-dx, -dy, 1.0));
     vVegShade = clamp(1.0 + 1.6 * (dot(n, uSunLocal) - uSunLocal.z) * step(0.0, uSunLocal.z), 0.72, 1.22) * (1.0 - 0.1 * h0);
+  }
+#endif`;
+
+/*
+ * Rock and cliffs (owner, 2026-10-24: "like the trees and buildings, can we
+ * use shadows to infer the protrusion of rocks/cliffs"). Shape from shading,
+ * kept where it can only be rock: the terrain is steep (aSlope, from the
+ * DEM: 0 below ~11 deg, 1 above ~31 deg -- so grey city roofs, on flat
+ * ground, are never touched) AND the photo is not vegetation or water there
+ * (rockFn). Inside that, the photo's own light and dark at ~20 m -- sunlit
+ * faces against shadowed gullies -- is read as height against its ~80 m
+ * surroundings and lifts the close tiles' vertices by up to ROCK_HEIGHT_M;
+ * per pixel, the same detail at ~3 m shades against today's sun, so crags
+ * catch the light. Both RELATIVE to the photo as it is: flat or open ground
+ * keeps its exact colour.
+ */
+const ROCK_FN = /* glsl */`
+float rockFn(vec3 c) {                  // c ~sRGB
+  float lum = dot(c, vec3(0.299, 0.587, 0.114));
+  float notGreen = smoothstep(0.05, -0.01, c.g - max(c.r, c.b));
+  float notWater = smoothstep(0.10, 0.18, lum) * (1.0 - smoothstep(0.03, 0.10, c.b - c.r));
+  return notGreen * notWater;
+}`;
+const ROCK_VERTEX_PARS = /* glsl */`
+uniform float uRockLod, uRockH;`;
+const ROCK_VERTEX = /* glsl */`
+#ifdef USE_MAP
+  if (uOwn > 0.5 && aSlope > 0.01) {
+    vec2 st = (mapTransform * vec3(uv, 1.0)).xy;
+    vec3 c1 = sqrt(max(textureLod(map, st, uRockLod).rgb, 0.0));
+    vec3 c2 = sqrt(max(textureLod(map, st, uRockLod + 2.0).rgb, 0.0));
+    float l1 = dot(c1, vec3(0.299, 0.587, 0.114)), l2 = dot(c2, vec3(0.299, 0.587, 0.114));
+    transformed += uUp * (clamp((l1 - l2) * 2.5, -1.0, 1.0) * aSlope * rockFn(c1) * uRockH);
+  }
+#endif`;
+const BUMP_PARS = /* glsl */`
+uniform float uOwn, uBumpScale;
+uniform vec3 uSunLocal;
+float lumOf(vec3 c) { return dot(sqrt(max(c, 0.0)), vec3(0.299, 0.587, 0.114)); }`;
+const BUMP_FRAGMENT = /* glsl */`
+#ifdef USE_MAP
+  if (vSlope > 0.01 && uOwn > 0.5 && uSunLocal.z > 0.0) {
+    float rock = vSlope * rockFn(sqrt(max(diffuseColor.rgb, 0.0)));
+    if (rock > 0.01) {
+      float e = 1.5 / 256.0;
+      float gx = (lumOf(texture2D(map, vMapUv + vec2(e, 0.0)).rgb) - lumOf(texture2D(map, vMapUv - vec2(e, 0.0)).rgb)) / (2.0 * e);
+      float gy = (lumOf(texture2D(map, vMapUv + vec2(0.0, e)).rgb) - lumOf(texture2D(map, vMapUv - vec2(0.0, e)).rgb)) / (2.0 * e);
+      vec3 n = normalize(vec3(-gx * uBumpScale, -gy * uBumpScale, 1.0));
+      float shade = clamp(1.0 + 1.3 * (dot(n, uSunLocal) - uSunLocal.z), 0.7, 1.3);
+      diffuseColor.rgb *= mix(1.0, shade, rock);
+    }
   }
 #endif`;
 
