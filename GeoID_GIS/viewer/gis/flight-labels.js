@@ -29,7 +29,7 @@
 // updateLabelVisibility) so the two never double up.
 
 import * as THREE from "../vendor/three.module.js";
-import { buildLabelLayer, updateLabelVisibility, updateLabelAnchors } from "../../../planet_explorer/mars/viewer/label-layer.js?v=20261024-e6d78e9";
+import { buildLabelLayer, updateLabelVisibility, updateLabelAnchors } from "../../../planet_explorer/mars/viewer/label-layer.js?v=20261024-0367919";
 
 /* ── What the Mars viewer's scope provided, from Earth ─────────────────── */
 
