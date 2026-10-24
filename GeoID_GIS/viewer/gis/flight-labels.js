@@ -50,7 +50,10 @@ function ensureLayer() {
     const st = document.createElement("style");
     st.id = "fs-place-labels-style";
     st.textContent = `
-#fs-place-labels { position: fixed; inset: 0; pointer-events: none; z-index: 11; }
+/* Just above the 3D canvas and UNDER all of GeoHUB's chrome (the nav is 10,
+   the Workspace 11, the HUD 30): a label belongs to the view, so a panel
+   covers it as it covers the ground. At 11 it was drawn over the nav. */
+#fs-place-labels { position: fixed; inset: 0; pointer-events: none; z-index: 1; }
 .fs-place { position: absolute; left: 0; top: 0; will-change: transform; transition: opacity 0.25s linear; }
 /* The Mars flight sim's chip (planet_explorer/mars/viewer/label-layer.js,
    makeLabelTexture), drawn in CSS: a pill with a dark glass fill, a thin

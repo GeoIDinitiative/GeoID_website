@@ -21,10 +21,10 @@
 //      frame): aim the globe there, then open pre-flight, whose centre
 //      crosshair takes the site from wherever the globe is aimed.
 
-import { startFlightLabels, stopFlightLabels } from "./flight-labels.js?v=20261024-6b767d8";
-import { showFlightMap, hideFlightMap } from "./flight-map.js?v=20261024-6b767d8";
-import { showFlightSky, hideFlightSky } from "./flight-sky.js?v=20261024-6b767d8";
-import { isEarth } from "./bodies.js?v=20261024-6b767d8";
+import { startFlightLabels, stopFlightLabels } from "./flight-labels.js?v=20261024-c6fb513";
+import { showFlightMap, hideFlightMap } from "./flight-map.js?v=20261024-c6fb513";
+import { showFlightSky, hideFlightSky } from "./flight-sky.js?v=20261024-c6fb513";
+import { isEarth } from "./bodies.js?v=20261024-c6fb513";
 
 /** `?flight=earth&lat=..&lon=..` -> { lat, lon } or { lat: null } or null. */
 export function parseFlightLink(search) {
@@ -186,6 +186,17 @@ function wire() {
     const mp = document.getElementById("fs-locator-map")?.getBoundingClientRect();
     const left = Math.min(sc && sc.width ? sc.left : Infinity, mp && mp.width ? mp.left : Infinity);
     if (Number.isFinite(left)) document.body.style.setProperty("--fs-right-reserve", `${Math.round(window.innerWidth - left)}px`);
+    // Too little room between the meters and the map for the row (a narrow
+    // window with the nav open stacked it one instrument per line): lift it
+    // above them and let it span the whole free width instead.
+    const free = r && r.width ? r.left : 0;
+    const gap = (Number.isFinite(left) ? left : window.innerWidth) - (free + (m?.width || 0) + 32);
+    document.body.classList.toggle("fs-hud-lifted", gap < 380);
+    // Above everything in the two bottom corners: the meters, the compass
+    // column over them, and the map.
+    const tops = [m?.height ? m.top : Infinity, r?.height ? r.top : Infinity, mp?.height ? mp.top : Infinity];
+    const top = Math.min(...tops);
+    if (Number.isFinite(top)) document.body.style.setProperty("--fs-lift-bottom", `${Math.round(window.innerHeight - top + 8)}px`);
   };
   if (hudColumn) {
     layoutHud();

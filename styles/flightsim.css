@@ -409,6 +409,13 @@ body.fs-open-chrome #fs-hud-dock {
   right: calc(var(--fs-right-reserve, 11rem) + 1rem);
   transform: none;
 }
+/* Lifted (earth-flight-entry.js sets it when the gap is too narrow): above
+   the meters and the map, across the free width, clear of the tool rail. */
+body.fs-open-chrome.fs-hud-lifted #fs-hud-dock {
+  left: var(--fs-free-left, 1rem);
+  right: 4.6rem;
+  bottom: var(--fs-lift-bottom, 7rem);
+}
 body.fs-open-chrome #fs-hud-bar {
   width: 100%;
   box-sizing: border-box;
