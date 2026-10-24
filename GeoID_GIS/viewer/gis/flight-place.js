@@ -16,7 +16,7 @@
 // Places come from the globe's own gazetteer (GeoIDViewer.getAllPlaceItems),
 // whether or not the Location labels switch is on. Looked up every 2 s.
 
-import { dataUrl } from "./data-base.js?v=20261024-64a34cf";
+import { dataUrl } from "./data-base.js?v=20261024-0da49f1";
 
 // A published dataset: local first, R2 when the local copy is not served (data-base.js).
 const COUNTRIES_PATH = "/data/global/countries_50m.geojson";

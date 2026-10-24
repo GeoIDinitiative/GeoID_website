@@ -28,7 +28,7 @@
 //   * Depth-tested: hills and buildings hide what is behind them. Night only
 //     (the ship's NIGHT from flight-tiles.js); nothing runs by day.
 
-import { NIGHT } from "./night-lights.js?v=20261024-64a34cf";
+import { NIGHT } from "./night-lights.js?v=20261024-0da49f1";
 
 const TILEJSON = "https://tiles.openfreemap.org/planet";
 const BM = "https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/VIIRS_Black_Marble/default/2016-01-01/GoogleMapsCompatible_Level8/{z}/{y}/{x}.png";
@@ -158,7 +158,11 @@ const LAMP_VERT = /* glsl */`
     // up, almost none drawn). Its depth is pulled toward the eye by a margin
     // growing with range (screen position unchanged); hills and buildings
     // still hide it.
-    float margin = max(30.0 * upm, 0.003 * dCam);
+    // Far off, the ground tiles are coarse: kilometre cells whose heights are
+    // interpolated straight across, so a valley (where the towns are) is
+    // bridged hundreds of metres above its floor. The margin follows that
+    // error, ~1.2% of the range.
+    float margin = max(30.0 * upm, 0.012 * dCam);
     gl_Position = projectionMatrix * vec4(mv.xyz * (1.0 - margin / dCam), 1.0);
     #include <logdepthbuf_vertex>
     float dShip = distance(wp.xyz, uShipW) / upm, dAhead = distance(wp.xyz, uAheadW) / upm;
