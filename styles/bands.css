@@ -208,57 +208,37 @@ body.bands :is(.section-panel, .cyan-tile, .photo-tile, .cta-tile) :is(.tile-tit
 }
 
 /* ── Text position: one rule for every band ─────────────────────────────
-   Everything starts on the column's left edge: no centred headings above
-   left-to-right grids, no descriptions boxed narrower than the cards under
-   them. A section head is a two-track row, the heading on the left and its
-   description on the right, so the pair runs margin to margin while the
-   lines stay a readable length; a note after the cards sits in the same
-   right-hand track as the description. Heroes are left-aligned too, as on
-   the dashboard and /consultancy/. (Audited 2026-10-24 at 1920px.) */
+   Everything starts on the column's left edge and runs to its right edge:
+   heading, then its description directly beneath, then the cards, then any
+   note. Nothing centred, nothing indented, no text boxed narrower than the
+   cards under it. Heroes are left-aligned too, as on the dashboard.
+   (A heading-left / description-right split was tried on 2026-10-24 and
+   rejected: it separated the description from its heading.) */
 body.bands :is(.hero-content, .photo-tile-content, .cyan-tile-content, .cta-content,
                .section-panel, .cx-inner, .tile-desc, .feature-body, .vision-left) {
   text-align: left !important;
 }
-body.bands .tile-desc { margin-left: 0 !important; margin-right: 0 !important; }
 body.bands :is(.hero-actions, .cx-btns, .involve-actions, .track-card-links) { justify-content: flex-start !important; }
 body.bands .hero-tile { justify-content: flex-start !important; }
 body.bands .hero-content { align-items: flex-start !important; }
 body.bands .hero-content > * { margin-left: 0 !important; margin-right: 0 !important; }
-body.bands .hero-content :is(p, .hero-desc, .hero-tagline, .hero-sub) { max-width: 46rem; }
 body.bands .vision-tile > .vision-left { padding: 0 !important; }
 
-body.bands :is(.photo-tile-content, .cyan-tile-content, .cta-content, .section-panel, .cx-inner):has(> :is(.tile-title, .section-title, h2)) {
-  display: grid !important;
-  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
-  column-gap: clamp(2.5rem, 6vw, 6rem);
-  align-items: end;
-}
-body.bands :is(.photo-tile-content, .cyan-tile-content, .cta-content, .section-panel, .cx-inner):has(> :is(.tile-title, .section-title, h2)) > * {
-  grid-column: 1 / -1;
-  min-width: 0;
-}
-body.bands :is(.photo-tile-content, .cyan-tile-content, .cta-content, .section-panel, .cx-inner) > :is(.tile-title, .section-title, h2) {
-  grid-column: 1;
-  margin-bottom: 0 !important;
-}
-body.bands :is(.photo-tile-content, .cyan-tile-content, .cta-content, .section-panel, .cx-inner) > :is(.tile-title, .section-title, h2) + :is(.tile-desc, p) {
-  grid-column: 2;
+/* Section text spans the column: the description under a heading, and a
+   note after the cards. */
+body.bands :is(.photo-tile-content, .cyan-tile-content, .cta-content, .section-panel, .cx-inner) > :is(.tile-desc, .section-title + p, .tile-title + p) {
   max-width: none !important;
-  margin: 0 !important;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
 }
-/* A note after the cards keeps to the description's track. */
+body.bands :is(.photo-tile-content, .cyan-tile-content, .cta-content, .section-panel, .cx-inner) > :is(.tile-title, .section-title) + :is(.tile-desc, p) {
+  margin-top: 0 !important;
+}
 body.bands :is(.photo-tile-content, .cyan-tile-content, .cta-content, .section-panel, .cx-inner) > :is([class*="grid"], [class*="-cols"]) ~ :is(.tile-desc, p) {
-  grid-column: 2;
   max-width: none !important;
-  margin: clamp(2rem, 4vw, 3rem) 0 0 !important;
+  margin-top: clamp(2rem, 4vw, 3rem) !important;
 }
-@media (max-width: 900px) {
-  body.bands :is(.photo-tile-content, .cyan-tile-content, .cta-content, .section-panel, .cx-inner):has(> :is(.tile-title, .section-title, h2)) {
-    grid-template-columns: 1fr;
-  }
-  body.bands :is(.photo-tile-content, .cyan-tile-content, .cta-content, .section-panel, .cx-inner) > * { grid-column: 1 !important; }
-  body.bands :is(.photo-tile-content, .cyan-tile-content, .cta-content, .section-panel, .cx-inner) > :is(.tile-title, .section-title, h2) { margin-bottom: 1rem !important; }
-}
+body.bands .tile-desc, body.bands .tile-desc p { font-size: 1.05rem; line-height: 1.75; }
 
 @media (max-width: 720px) {
   body.bands :is(.hero-tile, .photo-tile, .cyan-tile, .cta-tile, .section-panel) {
