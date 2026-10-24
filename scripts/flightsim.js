@@ -3936,6 +3936,7 @@
     const east = new THREE.Vector3().crossVectors(planetAxis(), up).normalize();
     const north = new THREE.Vector3().crossVectors(up, east).normalize();
     const hdg = (Math.atan2(fwd.dot(east), fwd.dot(north)) * 180 / Math.PI + 360) % 360;
+    fs.headingDeg = hdg;   // read by viewers that stream ground ahead of the ship
     if (hudHdg) hudHdg.textContent = String(Math.round(hdg)).padStart(3, "0") + "°";
     // Attitude for the compass: pitch is the nose above the local horizon, roll
     // is the ship's own up-vector rotated about the flight path. Both come from

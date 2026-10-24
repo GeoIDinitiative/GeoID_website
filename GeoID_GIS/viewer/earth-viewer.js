@@ -2,15 +2,15 @@ import * as THREE from "./vendor/three.module.js";
 // The polygon-area rule lives in one place, with a test. Stamped by hand
 // once: stamp.py only rewrites a ?v= that already exists.
 import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
-  from "./gis/geo-utils.js?v=20261024-f5d6e9f";
+  from "./gis/geo-utils.js?v=20261024-04137ba";
 import { attachReliefAttributes, followRelief }
-  from "./gis/vector-render.js?v=20261024-f5d6e9f";
+  from "./gis/vector-render.js?v=20261024-04137ba";
 import { rockClass, crustalSetting, rockClassLabel, classificationBasis }
-  from "./gis/rock-class.js?v=20261024-f5d6e9f";
+  from "./gis/rock-class.js?v=20261024-04137ba";
 import { lithologyLabel }
-  from "./gis/lithology-label.js?v=20261024-f5d6e9f";
+  from "./gis/lithology-label.js?v=20261024-04137ba";
 import { formatLatLon }
-  from "./gis/coord-format.js?v=20261024-f5d6e9f";
+  from "./gis/coord-format.js?v=20261024-04137ba";
 
 /**
  * This module's own cache stamp, read off its own URL.
@@ -7397,8 +7397,11 @@ function fmtProp(value) {
         color: 0xf3f7ff,
         size: 1.6,
         sizeAttenuation: true,
+        transparent: true,   // so Earth Flight's daylight sky can fade it (gis/flight-sky.js)
       });
-      return new THREERef.Points(geometry, material);
+      const stars = new THREERef.Points(geometry, material);
+      stars.name = "GeoID-Starfield";
+      return stars;
     }
 
     function createRenderer(THREERef) {
@@ -23820,6 +23823,8 @@ uniform float uViewportWidth;`,
         // for everything — the satellites read getSimulatedUtcMs, so they
         // follow whichever rate is chosen.
         setTimeRate,
+        // The sun's direction in world space, this frame (flight-sky.js).
+        getSunDirection: () => _SUN_DIR.clone(),
         getTimeRate,
         // Jump the one clock to any moment (ms UTC), keeping the current
         // rate — the scrubber's own seam, and the door forecast playback

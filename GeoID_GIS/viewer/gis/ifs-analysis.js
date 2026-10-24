@@ -31,14 +31,14 @@
 import * as THREE from "../vendor/three.module.js";
 import {
   WORLD, sampleScalar, rampPalette, wrapLon, compassPoint, beaufort, isGlobal,
-} from "./flow-field.js?v=20261024-f5d6e9f";
-import { shadingMesh, disposeMesh, layerShown, currentViewBox } from "./flow-layer.js?v=20261024-f5d6e9f";
-import { refreshPolygonOptions, resolvePolygonExtent } from "./extent-picker.js?v=20261024-f5d6e9f";
+} from "./flow-field.js?v=20261024-04137ba";
+import { shadingMesh, disposeMesh, layerShown, currentViewBox } from "./flow-layer.js?v=20261024-04137ba";
+import { refreshPolygonOptions, resolvePolygonExtent } from "./extent-picker.js?v=20261024-04137ba";
 import {
   IFS_REPO, IFS_REGISTRY, IFS_CREDIT, IFS_VARIABLES, T0_MS, LAST_MS, STEP_MS, POINTS,
   timeIndex, reducedGrid, latticeFor, regrid, rangeOf, decodeBlosc, asFloat32, levelOffset, windFrom,
   featherWeight, underAlpha,
-} from "./ifs-grid.js?v=20261024-f5d6e9f";
+} from "./ifs-grid.js?v=20261024-04137ba";
 
 const LAYER_NAME = "ECMWF IFS analysis";
 /** One opacity for the sheet wherever it is, patch or world (see `underAlpha`). */

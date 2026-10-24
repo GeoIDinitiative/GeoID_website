@@ -8,15 +8,15 @@
  * affiliation" on a member means their sign-in address belongs to one of a
  * verified organisation's domains -- the address itself is never shown.
  */
-import * as api from "../api.js?v=20261024-f5d6e9f";
-import { store, refreshMe } from "../store.js?v=20261024-f5d6e9f";
+import * as api from "../api.js?v=20261024-04137ba";
+import { store, refreshMe } from "../store.js?v=20261024-04137ba";
 import {
   h, clear, field, input, select, textarea, toast, busy, splitList, errorBox, loading, empty, extLink, modal,
   confirmDialog, dateToEpoch, put,
-} from "../dom.js?v=20261024-f5d6e9f";
+} from "../dom.js?v=20261024-04137ba";
 import {
   act, pagedList, postCard, userChip, followButton, requireSignIn, OPP_TYPES, plural,
-} from "../components.js?v=20261024-f5d6e9f";
+} from "../components.js?v=20261024-04137ba";
 
 export const ORG_KINDS = [["university", "University"], ["survey", "Geological survey"], ["agency", "Government agency"],
   ["company", "Company"], ["nonprofit", "Non-profit"], ["other", "Other"]];

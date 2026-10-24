@@ -21,7 +21,8 @@
 //      frame): aim the globe there, then open pre-flight, whose centre
 //      crosshair takes the site from wherever the globe is aimed.
 
-import { isEarth } from "./bodies.js?v=20261024-f5d6e9f";
+import { showFlightSky, hideFlightSky } from "./flight-sky.js?v=20261024-04137ba";
+import { isEarth } from "./bodies.js?v=20261024-04137ba";
 
 /** `?flight=earth&lat=..&lon=..` -> { lat, lon } or { lat: null } or null. */
 export function parseFlightLink(search) {
@@ -241,6 +242,13 @@ function wire() {
     // After the nav has slid in (0.32 s), so the scroller has its height.
     setTimeout(() => section.scrollIntoView({ block: "center", behavior: "smooth" }), 360);
   });
+
+  // A sky over the aircraft -- day, dusk or night from the real sun -- in
+  // place of the viewer's space backdrop, while flying (flight-sky.js).
+  window.addEventListener("flightsim:engaged", () => setTimeout(() => {
+    if (window.__flightSim?.active) showFlightSky();
+  }, 60));
+  window.addEventListener("flightsim:disengaged", () => hideFlightSky());
 
   // The aircraft is listed in the Workspace while it flies, so its credit is
   // in the Metadata tab with every other source on screen.

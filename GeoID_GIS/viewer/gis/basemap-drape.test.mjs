@@ -15,6 +15,7 @@ import { readFileSync } from "node:fs";
 import {
   clampLat, lonToPixelX, latToPixelY, pixelYToLat,
   chooseZoom, tileGrid, metresPerPixel, normaliseBbox, wholeGlobe, equirectRowToSourceY, MAX_LAT,
+  AHEAD_PATCHES, aheadBox,
 } from "./basemap-drape.js";
 
 let failures = 0;
@@ -241,6 +242,24 @@ check("60 N is pulled toward the equator by the reprojection",
     /OPENING_GRACE_MS/.test(drape) && /did not answer/.test(drape));
   check("and so does one that fails outright",
     /if \(opening\) select\.dispatchEvent/.test(drape));
+}
+
+// ── Earth Flight: the patches ahead of the aircraft ──────────────────────────
+{
+  const [mid, near] = AHEAD_PATCHES;
+  const ship = { lat: 54.5, lon: -5.8 };
+  const n = aheadBox(near, ship, 2.3, 0);                 // heading north, 2.3 km up
+  const cLat = (n.bbox.minLat + n.bbox.maxLat) / 2;
+  check("the near patch is pushed ahead along the heading", cLat > ship.lat && Math.abs((n.bbox.minLon + n.bbox.maxLon) / 2 - ship.lon) < 1e-9);
+  check("with the aircraft inside it, near its back", n.bbox.minLat < ship.lat && ship.lat - n.bbox.minLat < (n.bbox.maxLat - ship.lat) / 2);
+  close("near half-size at 2.3 km is 5 + 2.5 x 2.3 km", n.half, 10.75, 1e-9);
+  const east = aheadBox(near, ship, 2.3, 90);
+  check("turning east moves it east", (east.bbox.minLon + east.bbox.maxLon) / 2 > ship.lon);
+  check("half-sizes are clamped (near 6-25, mid 30-150 km)",
+    aheadBox(near, ship, 0, 0).half === 6 && aheadBox(near, ship, 99, 0).half === 25
+    && aheadBox(mid, ship, 0, 0).half === 30 && aheadBox(mid, ship, 99, 0).half === 150);
+  check("the mid patch is coarser ground further out", aheadBox(mid, ship, 2.3, 0).half > n.half);
+  check("the near patch draws over the mid one", near.order > mid.order);
 }
 
 console.log(failures ? `\n${failures} check(s) failed` : "\nall checks passed");

@@ -37,13 +37,13 @@
 // answers in -- no half-turn to bake in, unlike the Earth Engine drapes which
 // parent to the globe mesh itself.
 
-import { TILE_SOURCES, DEFAULT_SOURCE, tileUrl } from "./tile-sources.js?v=20261024-f5d6e9f";
-import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20261024-f5d6e9f";
-import { isEarth } from "./bodies.js?v=20261024-f5d6e9f";
-import { holdLaunch } from "./launch-ready.js?v=20261024-f5d6e9f";
-import { streamRings, cacheStats } from "./tile-streamer.js?v=20261024-f5d6e9f";
+import { TILE_SOURCES, DEFAULT_SOURCE, tileUrl } from "./tile-sources.js?v=20261024-04137ba";
+import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20261024-04137ba";
+import { isEarth } from "./bodies.js?v=20261024-04137ba";
+import { holdLaunch } from "./launch-ready.js?v=20261024-04137ba";
+import { streamRings, cacheStats } from "./tile-streamer.js?v=20261024-04137ba";
 import { visibleBounds, altitudeUnits, viewChangedEnough, onViewChange, viewFocus }
-  from "./view-extent.js?v=20261024-f5d6e9f";
+  from "./view-extent.js?v=20261024-04137ba";
 
 const TILE = 256;
 // Web Mercator cannot express the poles; this is where the projection is
@@ -1249,55 +1249,87 @@ async function refineOnce({ onStatus, motion = false } = {}) {
 }
 
 /**
- * THE GROUND UNDER THE AIRCRAFT, AT THE BEST ZOOM THERE IS (Earth Flight).
+ * THE GROUND AHEAD OF THE AIRCRAFT, SHARP BEFORE IT GETS THERE (Earth Flight).
  *
  * In flight the refine above covers a square reaching past the horizon, so a
- * single 4096 px canvas is 50-70 m a pixel at a few hundred metres up: right
- * for the ground 50 km out, soft for the ground going past underneath. This
- * second patch is a square of NEAR_HALF_KM round the aircraft at the finest
- * zoom the source serves that fits the canvas budget (Sentinel-2's 14, about
- * 10 m; Esri's 15-16), drawn just above the horizon patch. It re-centres when
- * the aircraft is a quarter of the way to its edge, and the old one stays
- * underneath until the new one is complete, so there is always sharp ground
- * under the aircraft and never a hole.
+ * single 4096 px canvas is ~125 m a pixel at a couple of kilometres up --
+ * right for the ground at the horizon, blurred for the ground being flown
+ * towards. A first version added one 8 km patch centred UNDER the aircraft,
+ * which left everything in front -- what a chase camera actually looks at --
+ * on the coarse patch (reported: "a poor job of mapping in front of the
+ * aircraft in good time").
+ *
+ * So two patches, both pushed AHEAD along the heading and sized to altitude,
+ * because the higher the aircraft, the further out the ground it sees:
+ *
+ *   near  half-size 6-25 km    at the finest zoom that fits (Sentinel-2's 14)
+ *   mid   half-size 30-150 km  a level or two coarser (z12-13 at 2 km up)
+ *
+ * each centred 0.6 of its half-size ahead, so the aircraft sits near the
+ * back of it with most of the patch in front. Each re-centres once the
+ * point it wants to be at has moved a fifth of its half-size -- by flying or
+ * by turning -- and the old one stays drawn underneath until the new one is
+ * complete: sharp ground ahead, never a hole. Drawn over the horizon patch,
+ * the near one over the mid one.
  *
  * Tiles a service has no imagery for (Esri answers 404 with blankTile=false,
  * tile-sources.js) are simply not painted: the rings are drawn coarsest first
  * into one canvas, so the best level that exists shows through.
  */
-const NEAR_HALF_KM = 8;
-const NEAR_ORDER = REFINE_ORDER + 0.05;   // above the horizon patch's 40.00-40.02
-let nearState = null;   // { bbox, zoom, source, mesh, pass }
-
-function disposeNear() {
-  if (!nearState) return;
-  nearState.pass?.cancel?.();
-  disposeMesh(nearState.pass?.live);
-  disposeMesh(nearState.mesh);
-  nearState = null;
+export const AHEAD_PATCHES = [
+  { key: "mid", min: 30, max: 150, perKm: 12, base: 20, order: REFINE_ORDER + 0.04 },
+  { key: "near", min: 6, max: 25, perKm: 2.5, base: 5, order: REFINE_ORDER + 0.05 },
+];
+/** Where a patch wants to be: its half-size and centre for this altitude and heading. */
+export function aheadBox(spec, ship, altKm, headingDeg) {
+  const half = Math.max(spec.min, Math.min(spec.max, spec.base + spec.perKm * Math.max(0, altKm)));
+  const ahead = Number.isFinite(headingDeg) ? 0.6 * half : 0;
+  const h = (Number(headingDeg) || 0) * Math.PI / 180;
+  const cosLat = Math.max(0.05, Math.cos(ship.lat * Math.PI / 180));
+  const lat = ship.lat + (ahead * Math.cos(h)) / 111.32;
+  const lon = ship.lon + (ahead * Math.sin(h)) / (111.32 * cosLat);
+  const dLat = half / 111.32, dLon = half / (111.32 * cosLat);
+  return { half, bbox: { minLat: Math.max(-85, lat - dLat), maxLat: Math.min(85, lat + dLat), minLon: lon - dLon, maxLon: lon + dLon } };
 }
+const aheadState = new Map();   // key -> { bbox, half, zoom, source, mesh, pass }
 
-async function refineNear() {
+function disposeAhead(key) {
+  const st = aheadState.get(key);
+  if (!st) return;
+  st.pass?.cancel?.();
+  disposeMesh(st.pass?.live);
+  disposeMesh(st.mesh);
+  aheadState.delete(key);
+}
+function disposeNear() { for (const k of [...aheadState.keys()]) disposeAhead(k); }
+
+async function refineAhead(spec) {
   const flight = window.__flightSim;
   const source = tileBasemapSource();
   const ship = flight?.active ? flight.shipLatLon : null;
-  if (!ship || !source || !Number.isFinite(ship.lat)) { disposeNear(); return; }
-  const dLat = NEAR_HALF_KM / 111.32;
-  const dLon = NEAR_HALF_KM / (111.32 * Math.max(0.05, Math.cos(ship.lat * Math.PI / 180)));
-  const bbox = { minLat: Math.max(-85, ship.lat - dLat), maxLat: Math.min(85, ship.lat + dLat), minLon: ship.lon - dLon, maxLon: ship.lon + dLon };
-  if (nearState?.source === source && nearState.bbox && (nearState.pass || nearState.mesh)
-    && !viewChangedEnough(nearState.bbox, bbox, { moveFraction: 0.25 })) return;
+  if (!ship || !source || !Number.isFinite(ship.lat)) { disposeAhead(spec.key); return; }
+  const kmPerUnit = 6371 / 3.2;
+  const altKm = (Number(flight.shipAltUnits) || 0) * kmPerUnit;
+  const { half, bbox } = aheadBox(spec, ship, altKm, flight.headingDeg);
+  let st = aheadState.get(spec.key);
+  if (st?.source === source && st.bbox && (st.pass || st.mesh)) {
+    const moved = Math.hypot(
+      ((bbox.minLat + bbox.maxLat) - (st.bbox.minLat + st.bbox.maxLat)) / 2 * 111.32,
+      ((bbox.minLon + bbox.maxLon) - (st.bbox.minLon + st.bbox.maxLon)) / 2 * 111.32 * Math.cos(ship.lat * Math.PI / 180));
+    const resized = Math.abs(half - st.half) / st.half > 0.35;
+    if (moved < 0.2 * st.half && !resized) return;
+  }
   const zoom = chooseZoom(bbox, { maxZoom: TILE_SOURCES[source].maxZoom });
   // The horizon patch is already this sharp (high up): nothing to add.
-  if (refineState?.zoom && zoom <= refineState.zoom) { disposeNear(); return; }
+  if (refineState?.zoom && zoom <= refineState.zoom) { disposeAhead(spec.key); return; }
   if (!THREE) THREE = await import("../vendor/three.module.js");
 
-  if (nearState?.source !== source) disposeNear();
-  nearState = nearState || { source };
-  nearState.pass?.cancel?.();
-  disposeMesh(nearState.pass?.live);
+  if (st && st.source !== source) { disposeAhead(spec.key); st = null; }
+  if (!st) { st = { source }; aheadState.set(spec.key, st); }
+  st.pass?.cancel?.();
+  disposeMesh(st.pass?.live);
   const pass = { live: null, cancel: null };
-  Object.assign(nearState, { bbox, zoom, source, pass });
+  Object.assign(st, { bbox, half, zoom, source, pass });
 
   const grid = tileGrid(bbox, zoom);
   const canvas = document.createElement("canvas");
@@ -1307,16 +1339,16 @@ async function refineNear() {
     targetZoom: zoom,
     grid,
     tileGridAt: tileGrid,
-    focus: ship,
-    shouldContinue: () => nearState?.pass === pass,
+    focus: ship,                       // nearest the aircraft first
+    shouldContinue: () => st.pass === pass && aheadState.get(spec.key) === st,
     onPaint: () => {
-      if (nearState?.pass !== pass) return;
+      if (st.pass !== pass) return;
       if (!pass.live) {
         const group = refineParent();
         if (!group) return;
         pass.live = buildMesh(canvas, bbox, { frame: "globe" });
-        pass.live.name = "GeoID-BasemapNearPending";
-        pass.live.renderOrder = NEAR_ORDER + 0.001;   // over the old one while it fills
+        pass.live.name = `GeoID-BasemapAhead-${spec.key}-pending`;
+        pass.live.renderOrder = spec.order + 0.001;   // over the old one while it fills
         group.add(pass.live);
       }
       pass.live.material.map.needsUpdate = true;
@@ -1324,13 +1356,19 @@ async function refineNear() {
   });
   pass.cancel = run.cancel;
   await run;
-  if (nearState?.pass !== pass) return;
-  if (!pass.live) { nearState.pass = null; return; }
-  disposeMesh(nearState.mesh);
-  pass.live.name = "GeoID-BasemapNear";
-  pass.live.renderOrder = NEAR_ORDER;
-  nearState.mesh = pass.live;
-  nearState.pass = null;
+  if (st.pass !== pass || aheadState.get(spec.key) !== st) return;
+  if (!pass.live) { st.pass = null; return; }
+  disposeMesh(st.mesh);
+  pass.live.name = `GeoID-BasemapAhead-${spec.key}`;
+  pass.live.renderOrder = spec.order;
+  st.mesh = pass.live;
+  st.pass = null;
+}
+
+function refineNear() {
+  // In list order, mid then near: the streamer serves the NEWEST pass first,
+  // so the near patch -- what the aircraft reaches next -- is asked for last.
+  return Promise.all(AHEAD_PATCHES.map((spec) => refineAhead(spec)));
 }
 
 /**
