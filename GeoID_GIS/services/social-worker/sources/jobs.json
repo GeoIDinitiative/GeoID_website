@@ -1,6 +1,12 @@
 {
- "_readme": "Job sources for the GeoID Network importer (importer.js). Seeded 2026-10-24 from the Atlas Career Scanner's watch list, keeping only the 75 of 200 employers whose pages have actually yielded a vacancy list (career_watch_stats.json ever_yielded). Add a source by adding a line; curating the URL to the real listing page matters more than parser code.",
+ "_readme": "Job sources for the GeoID Network importer (importer.js). Seeded 2026-10-24 from the Atlas Career Scanner's watch list, keeping only the 75 of 200 employers whose pages have actually yielded a vacancy list (career_watch_stats.json ever_yielded). Add a source by adding a line; curating the URL to the real listing page matters more than parser code. Job boards (group 'Job boards') are read through a discipline-filtered search; the employer on each post is the advert's, the credit the board's.",
  "sources": [
+  {
+   "id": "jobs-ac-uk-geo",
+   "name": "jobs.ac.uk",
+   "url": "https://www.jobs.ac.uk/search/?activeFacet=subDisciplineFacet&sortOrder=1&pageSize=25&startIndex=1&academicDisciplineFacet%5B0%5D=physical-and-environmental-sciences&subDisciplineFacet%5B0%5D=environmental-sciences&subDisciplineFacet%5B1%5D=geography&subDisciplineFacet%5B2%5D=geology",
+   "group": "Job boards"
+  },
   {
    "id": "british-geological-survey",
    "name": "British Geological Survey",

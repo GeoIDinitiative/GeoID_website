@@ -54,6 +54,7 @@ export function detectPlatform(url) {
   if (h.includes("recruitee.com")) return "recruitee";
   if (h.includes("workable.com")) return "workable";
   if (h.includes("jobs.personio") || h.includes("personio.de")) return "personio";
+  if (h.endsWith("jobs.ac.uk") && p.startsWith("/search")) return "jobsacuk";
   if (/\.ics(\?|$)/.test(p) || /webcal:/.test(url)) return "ics";
   return "html";
 }
@@ -118,6 +119,65 @@ const ADAPTERS = {
     }
     return out;
   },
+};
+
+// ── Job boards ─────────────────────────────────────────────────────────────
+
+const MONTHS = { jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5, jul: 6, aug: 7, sep: 8, oct: 9, nov: 10, dec: 11 };
+
+/** "22 Dec" (no year, as boards print it) -> the next 22 December on or after `from`, as YYYY-MM-DD. */
+export function dayMonthAhead(text, from = new Date()) {
+  const m = /(\d{1,2})\s+([A-Za-z]{3})[a-z]*\.?(?:\s+(\d{4}))?/.exec(String(text || ""));
+  if (!m || MONTHS[m[2].toLowerCase()] === undefined) return "";
+  const day = Number(m[1]), mon = MONTHS[m[2].toLowerCase()];
+  let year = m[3] ? Number(m[3]) : from.getUTCFullYear();
+  const today = Date.UTC(from.getUTCFullYear(), from.getUTCMonth(), from.getUTCDate());
+  if (!m[3] && Date.UTC(year, mon, day) < today) year += 1;
+  return new Date(Date.UTC(year, mon, day)).toISOString().slice(0, 10);
+}
+
+/**
+ * A jobs.ac.uk search results page. Each result is a block with the advert
+ * link and title, department, employer, location, salary and closing date.
+ * The board's own discipline filter (in the source URL) has already chosen
+ * the field, so postings carry `board` and the importer trusts that filter.
+ */
+export function parseJobsAcUk(html, base, from = new Date()) {
+  const out = [];
+  const blocks = String(html || "").split(/<div class="j-search-result__result\b/).slice(1);
+  for (const b of blocks) {
+    const a = /<a href="(\/job\/[^"]+)"[^>]*>([\s\S]*?)<\/a>/.exec(b);
+    if (!a) continue;
+    const pick = (re) => clean((re.exec(b) || [])[1]);
+    out.push({
+      title: clean(a[2]),
+      url: join(base, a[1]).split("?")[0],
+      org: pick(/j-search-result__employer">\s*(?:<b>)?([\s\S]*?)(?:<\/b>)?\s*<\/div>/),
+      department: pick(/j-search-result__department">([\s\S]*?)<\/div>/),
+      location: pick(/<div>\s*Location:([\s\S]*?)<\/div>/),
+      salary: pick(/Salary:\s*<\/strong>([\s\S]*?)<\/div>/).replace(/\s*-\s*please see advert/i, "").trim(),
+      deadline: dayMonthAhead(pick(/j-search-result__date--blue[^"]*">([\s\S]*?)<\/span>/), from),
+      posted: dayMonthAhead(pick(/Date Placed:\s*<\/strong>([\s\S]*?)<\/div>/), new Date(from.getTime() - 300 * 86400000)),
+      board: "jobs.ac.uk",
+    });
+  }
+  return out;
+}
+
+const BOARD_PAGES = 3;          // 25 a page: the newest 75, once a day
+
+ADAPTERS.jobsacuk = async (fetcher, url) => {
+  const out = [];
+  for (let page = 0; page < BOARD_PAGES; page += 1) {
+    const u = new URL(url);
+    u.searchParams.set("sortOrder", "1");
+    u.searchParams.set("startIndex", String(1 + page * 25));
+    const { body, url: final } = await getText(fetcher, u.toString());
+    const got = parseJobsAcUk(body, final);
+    out.push(...got);
+    if (got.length < 25) break;
+  }
+  return out;
 };
 
 // ── HTML fallback (the scanner's heuristics, verbatim in spirit) ───────────
