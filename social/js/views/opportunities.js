@@ -6,11 +6,11 @@
  * sessions a gallery of posters. eventPanel() is the block the post page
  * draws under an event post.
  */
-import * as api from "../api.js?v=20261024-3b234b0";
-import { store } from "../store.js?v=20261024-3b234b0";
-import { h, clear, field, input, select, dateToEpoch, epochToDate, put, toast, loading, errorBox, textarea, busy, empty } from "../dom.js?v=20261024-3b234b0";
-import { OPP_TYPES, postCard, pagedList, act, userChip, requireSignIn } from "../components.js?v=20261024-3b234b0";
-import { topicOf } from "../topics.js?v=20261024-3b234b0";
+import * as api from "../api.js?v=20261024-bbb7d0d";
+import { store } from "../store.js?v=20261024-bbb7d0d";
+import { h, clear, field, input, select, dateToEpoch, epochToDate, put, toast, loading, errorBox, textarea, busy, empty } from "../dom.js?v=20261024-bbb7d0d";
+import { OPP_TYPES, postCard, pagedList, act, userChip, requireSignIn } from "../components.js?v=20261024-bbb7d0d";
+import { topicOf } from "../topics.js?v=20261024-bbb7d0d";
 
 export function renderOpportunities(root, { query }) {
   const external = query.tab === "external";
