@@ -14,8 +14,8 @@
  *
  * Earth only: the page's own script tag loads it, the planets never do.
  */
-import { dataUrl } from "./data-base.js?v=20261024-c6848ce";
-import { holdLaunch } from "./launch-ready.js?v=20261024-c6848ce";
+import { dataUrl } from "./data-base.js?v=20261024-d1d958c";
+import { holdLaunch } from "./launch-ready.js?v=20261024-d1d958c";
 
 const PATH = "/data/global/earth-places.json";
 const ON_KEY = "geoid-gis:earth-places-on";   // what was switched ON — see note

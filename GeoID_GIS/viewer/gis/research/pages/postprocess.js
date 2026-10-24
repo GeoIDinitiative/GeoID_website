@@ -1,9 +1,9 @@
-import { registerPage } from "../stages.js?v=20261024-c6848ce";
-import * as store from "../project-store.js?v=20261024-c6848ce";
-import * as sidecar from "../sidecar.js?v=20261024-c6848ce";
-import { parseTable } from "../table.js?v=20261024-c6848ce";
-import { linePlot, toPngBlob } from "../plot.js?v=20261024-c6848ce";
-import { needProject } from "./common.js?v=20261024-c6848ce";
+import { registerPage } from "../stages.js?v=20261024-d1d958c";
+import * as store from "../project-store.js?v=20261024-d1d958c";
+import * as sidecar from "../sidecar.js?v=20261024-d1d958c";
+import { parseTable } from "../table.js?v=20261024-d1d958c";
+import { linePlot, toPngBlob } from "../plot.js?v=20261024-d1d958c";
+import { needProject } from "./common.js?v=20261024-d1d958c";
 
 /**
  * Post Processing: degree-of-freedom time series at probe points, and the DOF

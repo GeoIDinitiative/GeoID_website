@@ -21,12 +21,12 @@
 //      frame): aim the globe there, then open pre-flight, whose centre
 //      crosshair takes the site from wherever the globe is aimed.
 
-import { startFlightTerrain, stopFlightTerrain, setVex, primeLaunchSite } from "./flight-terrain.js?v=20261024-c6848ce";
-import { startFlightLabels, stopFlightLabels } from "./flight-labels.js?v=20261024-c6848ce";
-import { showFlightMap, hideFlightMap } from "./flight-map.js?v=20261024-c6848ce";
-import { showFlightSky, hideFlightSky } from "./flight-sky.js?v=20261024-c6848ce";
-import { startFlightTiles, stopFlightTiles } from "./flight-tiles.js?v=20261024-c6848ce";
-import { isEarth } from "./bodies.js?v=20261024-c6848ce";
+import { startFlightTerrain, stopFlightTerrain, setVex, primeLaunchSite } from "./flight-terrain.js?v=20261024-d1d958c";
+import { startFlightLabels, stopFlightLabels } from "./flight-labels.js?v=20261024-d1d958c";
+import { showFlightMap, hideFlightMap } from "./flight-map.js?v=20261024-d1d958c";
+import { showFlightSky, hideFlightSky } from "./flight-sky.js?v=20261024-d1d958c";
+import { startFlightTiles, stopFlightTiles } from "./flight-tiles.js?v=20261024-d1d958c";
+import { isEarth } from "./bodies.js?v=20261024-d1d958c";
 
 /** `?flight=earth&lat=..&lon=..` -> { lat, lon } or { lat: null } or null. */
 export function parseFlightLink(search) {

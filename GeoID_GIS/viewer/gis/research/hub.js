@@ -1,9 +1,9 @@
-import { STAGES, getPage, stageOf } from "./stages.js?v=20261024-c6848ce";
-import { openDrawer, closeDrawer, currentDrawer } from "./drawers.js?v=20261024-c6848ce";
-import { PAGE_BLURBS } from "./page-blurbs.js?v=20261024-c6848ce";
-import * as sidecar from "./sidecar.js?v=20261024-c6848ce";
-import * as store from "./project-store.js?v=20261024-c6848ce";
-import { install as installDocWindows } from "./gdoc-windows.js?v=20261024-c6848ce";
+import { STAGES, getPage, stageOf } from "./stages.js?v=20261024-d1d958c";
+import { openDrawer, closeDrawer, currentDrawer } from "./drawers.js?v=20261024-d1d958c";
+import { PAGE_BLURBS } from "./page-blurbs.js?v=20261024-d1d958c";
+import * as sidecar from "./sidecar.js?v=20261024-d1d958c";
+import * as store from "./project-store.js?v=20261024-d1d958c";
+import { install as installDocWindows } from "./gdoc-windows.js?v=20261024-d1d958c";
 
 /**
  * The Research Hub shell, laid out as the Qt app lays it out.

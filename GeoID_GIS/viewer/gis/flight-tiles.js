@@ -385,7 +385,7 @@ function tick() {
   const reach = Math.max(25000, Math.min(400000, 1.4 * horizonM));
   const leaves = selectLeaves(f.shipLatLon, altM, reach);
   const now = performance.now();
-  for (const t of tiles.values()) { t.want = false; t.ancestorWanted = false; t.cover = false; }
+  for (const t of tiles.values()) { t.want = false; t.ancestorWanted = false; t.cover = false; t.d = Infinity; }
   const terrainVersion = window.GeoIDFlightTerrain?.getVersion?.() ?? 0;
   // Building and re-lifting meshes reads the DEM per vertex, so it is
   // budgeted per tick, nearest first: every wanted tile first gets a coarse
