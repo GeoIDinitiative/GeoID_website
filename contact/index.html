@@ -53,6 +53,28 @@
   <!-- font link consolidated by v2 skin -->
   <link rel="stylesheet" href="/styles/shared.css?v=20261024-256a6da">
   <style>
+    /* ── On photo bands (bands.css): the tile is a band sized to its content,
+       the header over the info column and the form, which share the site's
+       0.9 : 1.1 two-track split. ── */
+    body.bands .contact-tile { height: auto !important; min-height: 0 !important; display: block !important; }
+    body.bands .contact-tile::before { display: none; }
+    body.bands .contact-tile-hero { padding: 0 !important; display: block; }
+    body.bands .contact-tile-logo { display: none; }
+    body.bands .contact-tile-hero h1 { font-size: clamp(2.6rem, 5.6vw, 4.6rem); letter-spacing: -0.035em; line-height: 1.02; }
+    body.bands .contact-tile-body {
+      grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr) !important;
+      gap: clamp(2.5rem, 6vw, 6rem);
+      margin-top: clamp(2.5rem, 5vw, 4rem);
+      overflow: visible !important;
+    }
+    body.bands .contact-info-col { padding: 0 !important; overflow: visible !important; }
+    body.bands .contact-form-col {
+      overflow: visible !important;
+      background: rgba(8, 0, 20, 0.80);
+      backdrop-filter: blur(16px);
+      padding: clamp(1.4rem, 3vw, 2.25rem) !important;
+    }
+
     /* ── Single contact tile — viewport-filling ── */
     .contact-tile {
       position: relative;
@@ -405,8 +427,10 @@
   <script src="/scripts/v2-site.js?v=20261024-256a6da" defer></script>
   <link rel="stylesheet" href="/styles/skins/synthwave.css">
   <link rel="stylesheet" href="/styles/site-nav.css?v=20261024-256a6da">
+  <link rel="stylesheet" href="/styles/site-unify.css?v=20261024-256a6da">
+  <link rel="stylesheet" href="/styles/bands.css?v=20261024-256a6da">
 </head>
-<body>
+<body class="bands">
 
   <nav class="site-nav" role="navigation" aria-label="Primary navigation">
     <a class="nav-wordmark" href="/" aria-label="GeoID Initiative Home">
@@ -441,7 +465,9 @@
     <div class="page-inner">
 
       <!-- Single merged contact tile -->
-      <div class="contact-tile glass-panel">
+      <div class="contact-tile glass-panel band-tile">
+          <img class="cx-bg" src="/assets/photos/mourne-reservoir.webp" alt="" fetchpriority="high" decoding="async">
+          <div class="cx-shade shade-even"></div>
 
         <!-- Hero strip -->
         <div class="contact-tile-hero">
@@ -554,6 +580,18 @@
       </div><!-- /contact-tile -->
 
       <!-- Footer -->
+      <section class="cx-band cx-plain cx-credits" aria-label="Photo credits">
+        <div class="cx-inner">
+          <details>
+            <summary>Photo credits</summary>
+            <ul>
+              <li><a href="https://commons.wikimedia.org/wiki/File:Silent_Valley_in_the_heart_of_the_Mourne_Mountains.jpg" target="_blank" rel="noopener">Silent Valley in the heart of the Mourne Mountains</a> &middot; Conall &middot; <a href="https://creativecommons.org/licenses/by/2.0" target="_blank" rel="noopener">CC BY 2.0</a></li>
+              <li>Photograph resized and cropped for this page; licence as listed on its Wikimedia Commons file page.</li>
+            </ul>
+          </details>
+        </div>
+      </section>
+
       <footer class="site-footer">
         <div class="footer-inner">
           <div class="footer-content">

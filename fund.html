@@ -249,6 +249,12 @@
     .cta-actions { display: flex; flex-wrap: wrap; gap: 0.7rem; }
 
     /* ── Responsive ── */
+    /* On photo bands the column is 90rem: the proof cards run four across. */
+    body.bands .page-inner { max-width: 1840px; padding: 0 1rem; }
+    body.bands .grid-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    body.bands .page-header h1 { font-size: clamp(2.4rem, 5vw, 4.2rem); letter-spacing: -0.035em; line-height: 1.04; max-width: 22ch; }
+    body.bands .status-note { max-width: none; }
+    @media (max-width: 1180px) { body.bands .grid-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
     @media (max-width: 960px) {
       .grid-2, .grid-3, .grid-4, .ask-grid { grid-template-columns: 1fr; }
     }
@@ -260,8 +266,10 @@
   <script src="/scripts/v2-site.js?v=20261024-256a6da" defer></script>
   <link rel="stylesheet" href="/styles/skins/synthwave.css">
   <link rel="stylesheet" href="/styles/site-nav.css?v=20261024-256a6da">
+  <link rel="stylesheet" href="/styles/site-unify.css?v=20261024-256a6da">
+  <link rel="stylesheet" href="/styles/bands.css?v=20261024-256a6da">
 </head>
-<body>
+<body class="bands">
   <nav class="site-nav" role="navigation" aria-label="Primary navigation">
     <a class="nav-wordmark" href="/" aria-label="GeoID Initiative Home">
       <img class="nav-brand-icon" src="/assets/GeoID_logo_icon.png" alt="">
@@ -293,7 +301,7 @@
     <div class="page-inner">
 
       <!-- PAGE HEADER -->
-      <header class="page-header">
+      <header class="page-header band-tile">
         <span class="page-header-label">Roadmap &amp; Partnerships</span>
         <h1>The models are live. Running them continuously is the next step.</h1>
         <p class="lede">GeoHUB is live and free, and its six hazard models are open to members today. The next goal — the same models running every forecast cycle on hosted compute, with saved locations and alerts — needs servers and HPC time. This page is the case for that step.</p>
@@ -303,27 +311,27 @@
       </header>
 
       <!-- WHAT EXISTS -->
-      <section class="panel" id="proof">
+      <section class="panel band-tile" id="proof">
         <span class="section-label">What exists today</span>
         <h2 class="section-title">Live, in use, and paying its way</h2>
         <p style="margin-bottom:1.2rem;">Working, publicly accessible tools built from the source catalogues, with a membership that already funds their hosting.</p>
-        <div class="grid-4">
-          <div class="mini">
+        <div class="grid-4 band-grid">
+          <div class="mini band-card">
             <span class="proof-tag proof-live">Live today</span>
             <h3>GeoHUB</h3>
             <p>A hazard GIS on a 3D globe: 312,500 earthquakes back to 1008, 13,513 cyclone tracks, world geology, live events, drawn study areas sampled to a table — and ten worlds in the same window.</p>
           </div>
-          <div class="mini">
+          <div class="mini band-card">
             <span class="proof-tag proof-live">Live today</span>
             <h3>Earth Explorer — Etna</h3>
             <p>A 3D geological viewer from published INGV data: seismicity catalogue (2011–2023), fault planes, geological map, magma plumbing, lava flows, interactive cross-section. A research GIS in a browser.</p>
           </div>
-          <div class="mini">
+          <div class="mini band-card">
             <span class="proof-tag proof-live">Live today</span>
             <h3>The hazard models — membership</h3>
             <p>Six modelled maps on the same globe: landslide, flood, cyclone, seismic, ashfall and sea level, with rock properties, the Model Builder and Earth Engine. £49.99 a year.</p>
           </div>
-          <div class="mini">
+          <div class="mini band-card">
             <span class="proof-tag proof-live">Published</span>
             <h3>The methods</h3>
             <p>Three technical notes in the Journal: the forecast landslide and flood model from GFS rainfall, probabilistic ashfall by eruption size, and the merged global earthquake record with its per-magnitude shaking maps.</p>
@@ -332,7 +340,7 @@
       </section>
 
       <!-- THE FIRST STEP -->
-      <section class="panel" id="nextstep">
+      <section class="panel band-tile" id="nextstep">
         <span class="section-label">The immediate goal</span>
         <h2 class="section-title">From on demand to continuous</h2>
         <p>NOAA GFS delivers global rainfall forecasts at 0.25° every six hours. Today a member picks an area and GeoHUB runs the landslide and flood models over it in the browser.</p>
@@ -340,11 +348,11 @@
         <p>The science is established and the models exist. A public, continuously running implementation is what remains.</p>
 
         <div class="grid-2" style="margin-top:1.3rem;">
-          <div class="mini">
+          <div class="mini band-card">
             <h3>Constraint 1 — Servers</h3>
             <p>Continuous ingestion and a public output need always-on infrastructure. The pipeline runs on demand today; persistent hosting for the continuous version does not yet exist.</p>
           </div>
-          <div class="mini">
+          <div class="mini band-card">
             <h3>Constraint 2 — Computational Capacity</h3>
             <p>Continuous FEM runs at useful resolution require HPC allocation or dedicated cluster time — the principal cost this prospectus addresses.</p>
           </div>
@@ -352,7 +360,7 @@
       </section>
 
       <!-- ROADMAP -->
-      <section class="panel" id="roadmap">
+      <section class="panel band-tile" id="roadmap">
         <span class="section-label">The plan</span>
         <h2 class="section-title">Phases of development</h2>
         <div class="roadmap">
@@ -404,24 +412,24 @@
       </section>
 
       <!-- THE ASK -->
-      <section class="panel" id="ask">
+      <section class="panel band-tile" id="ask">
         <span class="section-label">How to get involved</span>
         <h2 class="section-title">Engagement models</h2>
         <p style="margin-bottom:1.2rem;">A non-exclusive, open-science initiative. HPC access and funded research partnerships help most — all routes below are open.</p>
-        <div class="ask-grid">
-          <div class="ask">
+        <div class="ask-grid band-grid">
+          <div class="ask band-card">
             <h3>High Performance Computing (HPC) &amp; cloud in-kind</h3>
             <p>HPC allocations or cloud credits covering the Phase 1 FEM workloads.</p>
           </div>
-          <div class="ask">
+          <div class="ask band-card">
             <h3>Research grant co-application</h3>
             <p>Named partner or host institution on hazard, climate-resilience, or open-science calls.</p>
           </div>
-          <div class="ask">
+          <div class="ask band-card">
             <h3>University &amp; data partnership</h3>
             <p>HPC time, validation data, or supervision — in return, a live research testbed and open teaching resources.</p>
           </div>
-          <div class="ask">
+          <div class="ask band-card">
             <h3>Institutional sponsorship</h3>
             <p>Civil-protection agencies, NGOs, or foundations seeking public-benefit early warning in underserved regions.</p>
           </div>
@@ -430,7 +438,7 @@
       </section>
 
       <!-- PI -->
-      <section class="panel">
+      <section class="panel band-tile">
         <span class="section-label">Leadership</span>
         <h2 class="section-title">Who is building this</h2>
         <div class="pi">
@@ -446,7 +454,7 @@
       </section>
 
       <!-- CLOSING CTA -->
-      <section class="cta-section">
+      <section class="cta-section band-tile">
         <h2>The models are live and checkable. Running them continuously needs compute.</h2>
         <p>Talk to us if you want physics-based flood and landslide forecasting running every cycle, over your region, as a public resource.</p>
         <div class="cta-actions">
@@ -458,7 +466,7 @@
 
       <!-- FOOTER -->
       <footer class="site-footer" style="margin-top:2.5rem;border-top:1px solid var(--line);background:rgba(5,10,16,0.7);backdrop-filter:blur(12px);padding:3rem 0 1.5rem;">
-        <div style="max-width:820px;margin:0 auto;padding:0 1.5rem;">
+        <div style="max-width:1840px;margin:0 auto;padding:0 1rem;">
           <div style="display:grid;grid-template-columns:2fr repeat(3,1fr);gap:3rem;padding-bottom:2.5rem;border-bottom:1px solid var(--line);">
             <div>
               <div style="display:flex;align-items:center;gap:0.6rem;margin-bottom:1rem;">

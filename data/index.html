@@ -248,8 +248,10 @@
   <script src="/scripts/v2-site.js?v=20261024-256a6da" defer></script>
   <link rel="stylesheet" href="/styles/skins/synthwave.css">
   <link rel="stylesheet" href="/styles/site-nav.css?v=20261024-256a6da">
+  <link rel="stylesheet" href="/styles/site-unify.css?v=20261024-256a6da">
+  <link rel="stylesheet" href="/styles/bands.css?v=20261024-256a6da">
 </head>
-<body>
+<body class="bands">
   <nav class="site-nav" role="navigation" aria-label="Primary navigation">
     <a class="nav-wordmark" href="/" aria-label="GeoID Initiative Home">
       <img class="nav-brand-icon" src="/assets/GeoID_logo_icon.png" alt="">
@@ -294,7 +296,9 @@
         </div>
       </section>
 
-      <section class="hero" id="hazards">
+      <section class="hero band-tile" id="hazards">
+        <img class="cx-bg" src="/assets/photos/landsat-himalaya.webp" alt="" fetchpriority="high" decoding="async">
+        <div class="cx-shade shade-left"></div>
         <article class="hero-panel">
           <h1>What <span>GeoHUB</span> Is Built From</h1>
           <p>
@@ -318,18 +322,18 @@
       <section class="section-panel">
         <span class="section-label">What the models use</span>
         <h2 class="section-title">The Inputs Behind Each Hazard Model</h2>
-        <div class="hazards-grid">
-          <article class="hazard-card">
+        <div class="hazards-grid band-grid">
+          <article class="hazard-card band-card">
             <div class="hazard-icon">⛰️</div>
             <h3>Landslides &amp; slope stability</h3>
             <p>Streamed DEM for slope and drainage, Macrostrat lithology with a Geological Strength Index and the geotechnical database for strength, and sixteen days of hourly NOAA GFS rainfall for the water balance.</p>
           </article>
-          <article class="hazard-card">
+          <article class="hazard-card band-card">
             <div class="hazard-icon">🌧️</div>
             <h3>Flood, cyclone &amp; sea level</h3>
             <p>Mapped channels and the DEM for inundation by discharge; every IBTrACS best-track since 1842 for cyclone return periods; the real coastline for sea level.</p>
           </article>
-          <article class="hazard-card">
+          <article class="hazard-card band-card">
             <div class="hazard-icon">🌋</div>
             <h3>Seismic &amp; volcanic</h3>
             <p>USGS ComCat, ISC-GEM and GEM GHEC merged into 312,500 earthquakes for shaking by magnitude; the Smithsonian Holocene catalogue, with eruption sizes, for ashfall.</p>
@@ -340,23 +344,23 @@
       <section class="section-panel" id="catalog">
         <span class="section-label">Catalogues &amp; feeds</span>
         <h2 class="section-title">On the Globe Today</h2>
-        <div class="sources-grid">
-          <article class="source-card">
+        <div class="sources-grid band-grid">
+          <article class="source-card band-card">
             <div class="source-icon">🛰️</div>
             <h3>Earthquakes &amp; cyclones</h3>
             <p>USGS ComCat; ISC-GEM and GEM GHEC (CC BY-SA 3.0), M4.5+ from 1008. IBTrACS v04r01, NOAA NCEI (Knapp et al. 2010), 13,513 tracks from 1842.</p>
           </article>
-          <article class="source-card">
+          <article class="source-card band-card">
             <div class="source-icon">📡</div>
             <h3>Geology &amp; volcanoes</h3>
             <p>Macrostrat world geology as vector tiles (CC BY 4.0), with rock properties and GSI derived from lithology; Smithsonian GVP volcanoes with graduated hazard buffers; active faults and plate boundaries.</p>
           </article>
-          <article class="source-card">
+          <article class="source-card band-card">
             <div class="source-icon">☔</div>
             <h3>Live feeds</h3>
             <p>NASA EONET and USGS events by category; seismograms from the nearest FDSN station on click; CelesTrak orbital elements propagated every 1.5 seconds; RainViewer radar; NOAA GFS forecast rainfall.</p>
           </article>
-          <article class="source-card">
+          <article class="source-card band-card">
             <div class="source-icon">🌊</div>
             <h3>Terrain, imagery &amp; base data</h3>
             <p>Streamed elevation tiles and GEBCO bathymetry; Sentinel-2 cloudless 2025 by EOX (CC BY-NC-SA 4.0); Natural Earth coastlines, rivers and boundaries; Google Earth Engine's catalogue for members.</p>
@@ -392,20 +396,32 @@
         <span class="section-label">Why it matters</span>
         <h2 class="section-title">One Globe, Every Source Named</h2>
         <div class="catalog-grid">
-          <article class="catalog-card">
+          <article class="catalog-card band-card">
             <h3>Readable by non-specialists</h3>
             <p>A catalogue that took an afternoon of downloads and reprojection arrives symbolised on a globe, with a popup per feature.</p>
           </article>
-          <article class="catalog-card">
+          <article class="catalog-card band-card">
             <h3>Useful for researchers</h3>
             <p>Draw an area and sample every layer into one table, export it, or extract the DEM and carry it into the Meshing Studio and the Research Hub inside <a href="/" style="color:inherit;">GeoHUB</a>.</p>
           </article>
-          <article class="catalog-card">
+          <article class="catalog-card band-card">
             <h3>Checkable</h3>
             <p>The models built on these inputs state their method beside the map and are written up in the Journal, so a result can be challenged against its sources.</p>
           </article>
         </div>
       </section>
+      <section class="cx-band cx-plain cx-credits" aria-label="Photo credits">
+        <div class="cx-inner">
+          <details>
+            <summary>Photo credits</summary>
+            <ul>
+              <li><a href="https://commons.wikimedia.org/wiki/File:First_Light_from_Landsat_9_(SVS31172_-_l9_himalaya_hyperwall_rgb_labels).png" target="_blank" rel="noopener">First Light from Landsat 9 (SVS31172 - l9 himalaya hyperwall rgb labels)</a> &middot; NASA&#x27;s Scientific Visualization Studio - Global Science and Technology, Inc./Amy Moran &middot; Public domain</li>
+              <li>Photograph resized and cropped for this page; licence as listed on its Wikimedia Commons file page.</li>
+            </ul>
+          </details>
+        </div>
+      </section>
+
     </div>
   </div>
 

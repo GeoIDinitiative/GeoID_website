@@ -81,7 +81,7 @@ body.bands {
   --band-rule: rgba(255, 255, 255, 0.14);
 }
 
-body.bands :is(.hero-tile, .photo-tile, .cyan-tile, .cta-tile, .section-panel) {
+body.bands :is(.hero-tile, .photo-tile, .cyan-tile, .cta-tile, .section-panel, .band-tile) {
   position: relative;
   width: 100vw !important;
   max-width: none !important;
@@ -97,8 +97,8 @@ body.bands :is(.hero-tile, .photo-tile, .cyan-tile, .cta-tile, .section-panel) {
   isolation: isolate;
   overflow: hidden;
 }
-body.bands :is(.hero-tile, .photo-tile, .cyan-tile, .cta-tile, .section-panel)
-  + :is(.hero-tile, .photo-tile, .cyan-tile, .cta-tile, .section-panel) {
+body.bands :is(.hero-tile, .photo-tile, .cyan-tile, .cta-tile, .section-panel, .band-tile)
+  + :is(.hero-tile, .photo-tile, .cyan-tile, .cta-tile, .section-panel, .band-tile) {
   border-top: 1px solid rgba(255, 255, 255, 0.06) !important;
 }
 /* The tile now carries the padding; its old content wrappers do not. */
@@ -130,9 +130,9 @@ body.bands .hero-tile .hero-overlay {
 }
 /* A band can also take a photo directly (an <img class="cx-bg">) with a
    .cx-shade over it; inside a tile they sit under the content. */
-body.bands :is(.cyan-tile, .section-panel, .cta-tile, .photo-tile) > .cx-bg { z-index: 0; }
-body.bands :is(.cyan-tile, .section-panel, .cta-tile, .photo-tile) > .cx-shade { z-index: 1; }
-body.bands :is(.cyan-tile, .section-panel) > :not(.cx-bg):not(.cx-shade) { position: relative; z-index: 2; }
+body.bands :is(.cyan-tile, .section-panel, .cta-tile, .photo-tile, .band-tile) > .cx-bg { z-index: 0; }
+body.bands :is(.cyan-tile, .section-panel, .cta-tile, .photo-tile, .band-tile) > .cx-shade { z-index: 1; }
+body.bands :is(.cyan-tile, .section-panel, .band-tile) > :not(.cx-bg):not(.cx-shade) { position: relative; z-index: 2; }
 
 /* The Earth Explorer blocks (earth-explorers.css) are a section around a
    framed article: the section becomes the band, the article loses its frame. */
@@ -158,7 +158,7 @@ body.bands :is(.about-explorer-header, .earth-info-header) { padding-top: 0 !imp
 
 /* ── Cards lose their boxes: a hairline above each, no frame ── */
 body.bands :is(.solution-card, .track-card, .involve-card, .collab-card, .team-card,
-               .program-card, .shot-card, .world-card, .support-card, .donate-panel) {
+               .program-card, .shot-card, .world-card, .support-card, .donate-panel, .band-card, .catalog-row, .stack-item) {
   background: transparent !important;
   border: 0 !important;
   border-top: 1px solid var(--band-rule) !important;
@@ -171,14 +171,14 @@ body.bands :is(.solution-card, .track-card, .involve-card, .collab-card, .team-c
   text-align: left;
 }
 body.bands :is(.solution-card, .track-card, .involve-card, .collab-card, .team-card,
-               .program-card, .shot-card, .world-card, .support-card, .donate-panel):hover {
+               .program-card, .shot-card, .world-card, .support-card, .donate-panel, .band-card, .catalog-row, .stack-item):hover {
   background: transparent !important;
   box-shadow: none !important;
   border-color: var(--band-rule) !important;
   border-top-color: var(--accent) !important;
 }
 body.bands :is(.cards-grid-3, .two-tracks-grid, .involve-grid, .collab-grid, .team-grid,
-               .shot-grid, .worlds-grid, .support-grid) {
+               .shot-grid, .worlds-grid, .support-grid, .band-grid) {
   background: transparent !important;
   border: 0 !important;
   gap: clamp(2rem, 4vw, 3.5rem) clamp(1.5rem, 3.5vw, 3rem) !important;
@@ -207,6 +207,47 @@ body.bands :is(.section-panel, .cyan-tile, .photo-tile, .cta-tile) :is(.tile-tit
   font-family: "Archivo", system-ui, sans-serif;
 }
 
+/* Panels nested inside a band are content, not bands of their own. */
+body.bands :is(.band-tile, .section-panel, .cyan-tile, .photo-tile) :is(.section-panel, .band-tile) {
+  width: auto !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  overflow: visible;
+  border-top: 0 !important;
+}
+
+/* The Data / For Researchers template: a .hero of a text panel and a side
+   panel, then a two-column row of panels. The panels lose their frames; the
+   hero's photograph is the band's own .cx-bg. */
+body.bands .band-tile:is(.hero, .two-col) {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
+  gap: clamp(2.5rem, 5vw, 5rem) !important;
+}
+body.bands .band-tile.hero { min-height: min(calc(100vh - var(--nav-h) - 2.6rem), 46rem); align-items: end; }
+body.bands .band-tile :is(.hero-panel, .hero-side, .hero-image) {
+  background: none !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  padding: 0 !important;
+}
+body.bands .band-tile .hero-image { display: none; }
+body.bands .band-tile .hero-panel h1 {
+  text-transform: none;
+  font-family: "Archivo", system-ui, sans-serif;
+  font-size: clamp(2.6rem, 5.6vw, 4.8rem);
+  letter-spacing: -0.035em;
+  line-height: 1.02;
+  max-width: 15ch;
+}
+body.bands .band-tile .hero-panel p { max-width: 46rem; color: rgba(236, 232, 248, 0.82); }
+body.bands .band-tile .hero-side { border-top: 1px solid var(--band-rule) !important; padding-top: 1.5rem !important; }
+@media (max-width: 900px) {
+  body.bands .band-tile:is(.hero, .two-col) { grid-template-columns: 1fr; }
+}
+
 /* ── Text position: one rule for every band ─────────────────────────────
    Everything starts on the column's left edge and runs to its right edge:
    heading, then its description directly beneath, then the cards, then any
@@ -215,7 +256,7 @@ body.bands :is(.section-panel, .cyan-tile, .photo-tile, .cta-tile) :is(.tile-tit
    (A heading-left / description-right split was tried on 2026-10-24 and
    rejected: it separated the description from its heading.) */
 body.bands :is(.hero-content, .photo-tile-content, .cyan-tile-content, .cta-content,
-               .section-panel, .cx-inner, .tile-desc, .feature-body, .vision-left) {
+               .section-panel, .band-tile, .cx-inner, .tile-desc, .feature-body, .vision-left) {
   text-align: left !important;
 }
 body.bands :is(.hero-actions, .cx-btns, .involve-actions, .track-card-links) { justify-content: flex-start !important; }
@@ -226,22 +267,22 @@ body.bands .vision-tile > .vision-left { padding: 0 !important; }
 
 /* Section text spans the column: the description under a heading, and a
    note after the cards. */
-body.bands :is(.photo-tile-content, .cyan-tile-content, .cta-content, .section-panel, .cx-inner) > :is(.tile-desc, .section-title + p, .tile-title + p) {
+body.bands :is(.photo-tile-content, .cyan-tile-content, .cta-content, .section-panel, .band-tile, .cx-inner) > :is(.tile-desc, .section-title + p, .tile-title + p) {
   max-width: none !important;
   margin-left: 0 !important;
   margin-right: 0 !important;
 }
-body.bands :is(.photo-tile-content, .cyan-tile-content, .cta-content, .section-panel, .cx-inner) > :is(.tile-title, .section-title) + :is(.tile-desc, p) {
+body.bands :is(.photo-tile-content, .cyan-tile-content, .cta-content, .section-panel, .band-tile, .cx-inner) > :is(.tile-title, .section-title) + :is(.tile-desc, p) {
   margin-top: 0 !important;
 }
-body.bands :is(.photo-tile-content, .cyan-tile-content, .cta-content, .section-panel, .cx-inner) > :is([class*="grid"], [class*="-cols"]) ~ :is(.tile-desc, p) {
+body.bands :is(.photo-tile-content, .cyan-tile-content, .cta-content, .section-panel, .band-tile, .cx-inner) > :is([class*="grid"], [class*="-cols"]) ~ :is(.tile-desc, p) {
   max-width: none !important;
   margin-top: clamp(2rem, 4vw, 3rem) !important;
 }
 body.bands .tile-desc, body.bands .tile-desc p { font-size: 1.05rem; line-height: 1.75; }
 
 @media (max-width: 720px) {
-  body.bands :is(.hero-tile, .photo-tile, .cyan-tile, .cta-tile, .section-panel) {
+  body.bands :is(.hero-tile, .photo-tile, .cyan-tile, .cta-tile, .section-panel, .band-tile) {
     padding: clamp(3.5rem, 12vw, 5rem) clamp(1.1rem, 5vw, 1.5rem) !important;
   }
   body.bands .hero-tile { min-height: 32rem; }

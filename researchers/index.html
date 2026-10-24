@@ -190,8 +190,10 @@
   <script src="/scripts/v2-site.js?v=20261024-256a6da" defer></script>
   <link rel="stylesheet" href="/styles/skins/synthwave.css">
   <link rel="stylesheet" href="/styles/site-nav.css?v=20261024-256a6da">
+  <link rel="stylesheet" href="/styles/site-unify.css?v=20261024-256a6da">
+  <link rel="stylesheet" href="/styles/bands.css?v=20261024-256a6da">
 </head>
-<body>
+<body class="bands">
   <nav class="site-nav" role="navigation" aria-label="Primary navigation">
     <a class="nav-wordmark" href="/" aria-label="GeoID Initiative Home">
       <img class="nav-brand-icon" src="/assets/GeoID_logo_icon.png" alt="">
@@ -238,7 +240,9 @@
         </div>
       </section>
 
-      <section class="hero">
+      <section class="hero band-tile">
+        <img class="cx-bg" src="/assets/photos/volcano-station.webp" alt="" fetchpriority="high" decoding="async">
+        <div class="cx-shade shade-left"></div>
         <article class="hero-panel">
           <h1>GeoID For <span>Researchers</span></h1>
           <p>
@@ -276,26 +280,26 @@
       <section class="section-panel">
         <span class="section-label">Entry Points</span>
         <h2 class="section-title">Start Here</h2>
-        <div class="action-grid">
-          <article class="action-card">
+        <div class="action-grid band-grid">
+          <article class="action-card band-card">
             <div class="action-icon">🧪</div>
             <h3>Research Hub</h3>
             <p>The Research mode of GeoHUB: project setup, ingest, signal processing, statistics, event correlation, GALES decks and results, figures — as files in a folder you own.</p>
             <a href="/">Open GeoHUB →</a>
           </article>
-          <article class="action-card">
+          <article class="action-card band-card">
             <div class="action-icon">🗃️</div>
             <h3>Study areas and export</h3>
             <p>Draw a polygon, sample every active layer inside it, and take the table away as CSV, GeoJSON or shapefile — or extract the DEM under it for modelling.</p>
             <a href="/about_geohub/#study-area">How sampling works →</a>
           </article>
-          <article class="action-card">
+          <article class="action-card band-card">
             <div class="action-icon">🌍</div>
             <h3>Data sources</h3>
             <p>Every catalogue, feed and basemap GeoHUB is built from, with its licence and where to read the original.</p>
             <a href="/data/">The sources →</a>
           </article>
-          <article class="action-card">
+          <article class="action-card band-card">
             <div class="action-icon">📄</div>
             <h3>The methods</h3>
             <p>Technical notes for the landslide and flood model, probabilistic ashfall and the merged seismic record, with citations.</p>
@@ -304,22 +308,22 @@
         </div>
       </section>
 
-      <section class="two-col">
+      <section class="two-col band-tile">
         <article class="section-panel">
           <span class="section-label">Suggested Flow</span>
           <h2 class="section-title">A Practical Route Through GeoID</h2>
-          <div class="workflow-grid">
-            <article class="workflow-card">
+          <div class="workflow-grid band-grid">
+            <article class="workflow-card band-card">
               <div class="workflow-icon">01</div>
               <h3>Frame the problem</h3>
               <p>Put the record, the geology and the forecast on the globe over your region, and draw the study area.</p>
             </article>
-            <article class="workflow-card">
+            <article class="workflow-card band-card">
               <div class="workflow-icon">02</div>
               <h3>Sample and mesh</h3>
               <p>Sample every layer into a table, extract the DEM, and build the domain in the Meshing Studio — or the Model Builder, as a member.</p>
             </article>
-            <article class="workflow-card">
+            <article class="workflow-card band-card">
               <div class="workflow-icon">03</div>
               <h3>Solve and write up</h3>
               <p>Configure the GALES deck in the Research Hub, run it locally or on a server over SSH, and keep results, figures and notes in the project folder.</p>
@@ -342,6 +346,18 @@
           </div>
         </aside>
       </section>
+      <section class="cx-band cx-plain cx-credits" aria-label="Photo credits">
+        <div class="cx-inner">
+          <details>
+            <summary>Photo credits</summary>
+            <ul>
+              <li><a href="https://commons.wikimedia.org/wiki/File:ReunionFournaise_GPSMonitoringStation.JPG" target="_blank" rel="noopener">ReunionFournaise GPSMonitoringStation</a> &middot; B.navez &middot; <a href="https://creativecommons.org/licenses/by-sa/3.0" target="_blank" rel="noopener">CC BY-SA 3.0</a></li>
+              <li>Photograph resized and cropped for this page; licence as listed on its Wikimedia Commons file page.</li>
+            </ul>
+          </details>
+        </div>
+      </section>
+
     </div>
   </div>
 
