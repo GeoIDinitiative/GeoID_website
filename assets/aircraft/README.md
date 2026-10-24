@@ -34,5 +34,5 @@ picker, made by the same script.
 | Frame | Metres; nose toward −Z, up +Y. Each rotor is built about its own hub (main rotor axis +Y, tail rotor axis +X); `scripts/flightsim.js` places them at `HELI_MAIN_HUB` and `HELI_TAIL_HUB` and spins them |
 
 It flies as a helicopter (`HELICOPTER FLIGHT` in `scripts/flightsim.js`): up/down
-arrows are the collective (±8 m/s), it is held level and yaws on the spot, hovers
+arrows are the collective (+20 / −25 m/s, doubled on boost), it is held level and yaws on the spot, hovers
 at zero throttle, and tops out at 70 m/s (85 on the boost ramp) with no warp.

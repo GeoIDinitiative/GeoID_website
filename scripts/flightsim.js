@@ -2030,7 +2030,12 @@
   const HELI_TAIL_HUB = [0.24, 1.32, 6.30];
   const HELI_MAX_MS = 70;        // full throttle, ~135 kt: a light helicopter's cruise
   const HELI_BOOST_MS = 85;      // never-exceed, ~165 kt, on the boost ramp
-  const HELI_VZ_MS = 8;          // collective: climb and descent rate
+  // Collective: climb and descent rates. Real light helicopters climb at ~8
+  // m/s, which from a kilometre up read as nothing happening at all (a 3 s hold
+  // moved it 13 m; reported "can't move up/down"). So the game rates are
+  // livelier, reached in about a third of a second, and doubled on boost.
+  const HELI_CLIMB_MS = 20;
+  const HELI_DESCENT_MS = 25;
   function buildHelicopter() {
     const group = new THREE.Group();
     group.userData.nominalLength = 10.5;
@@ -3533,7 +3538,7 @@
       roll = Math.max(-ROLL_RATE, Math.min(ROLL_RATE, roll + ROLL_RATE * pad.roll));
     }
     // HELICOPTER FLIGHT. Up/down arrows (and the stick's pitch) are the
-    // COLLECTIVE -- climb and descend at up to HELI_VZ_MS -- not the nose;
+    // COLLECTIVE -- climb at up to HELI_CLIMB_MS, descend at up to HELI_DESCENT_MS -- not the nose;
     // left/right yaw it, on the spot if need be; it is held level, with only
     // the tilt a helicopter shows: nose down with forward speed, banked into a
     // turn. It hovers (no gravity sink) and tops out at HELI_MAX_MS, or
@@ -3541,7 +3546,8 @@
     const heli = Boolean(ship?.userData?.heli);
     if (heli) {
       const collective = Math.max(-1, Math.min(1, (pitch / PITCH_RATE) || 0));
-      s.vzMs = (s.vzMs || 0) + (collective * HELI_VZ_MS - (s.vzMs || 0)) * Math.min(1, 2 * dts);
+      const vzMax = (collective >= 0 ? HELI_CLIMB_MS : HELI_DESCENT_MS) * (s.boosting ? 2 : 1);
+      s.vzMs = (s.vzMs || 0) + (collective * vzMax - (s.vzMs || 0)) * Math.min(1, 7 * dts);
       pitch = 0; roll = 0;
     }
     const dq = new THREE.Quaternion().setFromEuler(new THREE.Euler(pitch * dts, yaw * dts, roll * dts, "XYZ"));

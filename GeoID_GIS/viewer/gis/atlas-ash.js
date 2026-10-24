@@ -13,13 +13,13 @@ import {
   simulate, depositGrid, depositExtent, concentrationGrid, ERUPTION_SIZES,
   eruptionDuration, massEruptionRate, DEPOSIT_CLASSES, depositClass, aviationClass,
   AVIATION_CLASSES, grainClasses,
-} from "./ash-plume.js?v=20261024-92800fd";
-import { windRequest, profilesFrom, windSummary, compass } from "./ash-wind.js?v=20261024-92800fd";
-import { matchVolcano } from "./atlas-intent.js?v=20261024-92800fd";
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20261024-92800fd";
-import { startPlayer, stopPlayer } from "./timelapse-player.js?v=20261024-92800fd";
-import { dataUrl } from "./data-base.js?v=20261024-92800fd";
-import { vtuParts, pvdText } from "./vtk-export.js?v=20261024-92800fd";
+} from "./ash-plume.js?v=20261024-58e15bb";
+import { windRequest, profilesFrom, windSummary, compass } from "./ash-wind.js?v=20261024-58e15bb";
+import { matchVolcano } from "./atlas-intent.js?v=20261024-58e15bb";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20261024-58e15bb";
+import { startPlayer, stopPlayer } from "./timelapse-player.js?v=20261024-58e15bb";
+import { dataUrl } from "./data-base.js?v=20261024-58e15bb";
+import { vtuParts, pvdText } from "./vtk-export.js?v=20261024-58e15bb";
 
 const LAYER = "Ash deposit — Atlas model";
 const R = 6371008.8;
