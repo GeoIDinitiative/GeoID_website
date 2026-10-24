@@ -63,6 +63,15 @@ async function getToken(force = false) {
   pending = (async () => {
     try {
       const res = await fetch(`${auth}/auth/social-token`, { method: "POST", credentials: "include" });
+      if (res.status === 401 && !devUser()) {
+        // THE SERVICE SAYS THERE IS NO SESSION, while this browser still holds
+        // the display copy of one (membership.js): the cookie expired, was
+        // signed out elsewhere, or never travels from this origin (localhost,
+        // where it is a third-party cookie). Left alone, the site nav says
+        // "Sign out" beside the Network's "Sign in". Drop the stale copy so
+        // both say the same thing.
+        try { if (membership.state().signedIn) membership.signOut(); } catch (error) { /* fine */ }
+      }
       if (!res.ok) { token = ""; tokenExp = 0; return ""; }
       const data = await res.json();
       token = String(data.token || "");
