@@ -38,7 +38,7 @@
  */
 const SHELF_NAMES = { geoprocess: "Geoprocessing", analysis: "Analysis" };
 
-import { isParked } from "./parked.js?v=20261024-256a6da";
+import { isParked } from "./parked.js?v=20261024-154e7f1";
 const PANELS = [
   {
     id: "preprocess",
@@ -1123,6 +1123,9 @@ const TOOL_ICONS = {
 // The planets name the same section "Inspect" where Earth says "Inspect and
 // pin": one subject, one glyph.
 TOOL_ICONS.inspect = TOOL_ICONS["inspect and pin"];
+// The landslide forest's free-preview section: the Landslides glyph, because
+// it is the same subject sold separately from the forecast in the subtab above.
+TOOL_ICONS["landslide susceptibility (preview)"] = TOOL_ICONS.landslides;
 
 const NO_TOOL_ICON = new Set(["ni prototype"]);
 

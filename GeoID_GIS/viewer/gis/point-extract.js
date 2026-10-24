@@ -20,7 +20,7 @@
  * not, which is the same class of fault as writing a null down as zero.
  */
 
-import { rowsToCsv, rowsToGeoJson, downloadText } from "./extraction.js?v=20261024-256a6da";
+import { rowsToCsv, rowsToGeoJson, downloadText } from "./extraction.js?v=20261024-154e7f1";
 
 /* ── parsing ────────────────────────────────────────────────────────────── */
 

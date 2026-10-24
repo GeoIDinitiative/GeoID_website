@@ -14,9 +14,9 @@
  */
 
 import { floodState, dischargeState, dischargeMean, rebuildSheet, sheetLayer }
-  from "./dem-layer.js?v=20261024-256a6da";
+  from "./dem-layer.js?v=20261024-154e7f1";
 import { SCENARIOS, DEFAULTS, stageRise, meanFlowFromWidth, flowRatio }
-  from "./inundation.js?v=20261024-256a6da";
+  from "./inundation.js?v=20261024-154e7f1";
 
 const byId = (id) => document.getElementById(id);
 const say = (message) => { const n = byId("flood-status"); if (n) n.textContent = message || ""; };
@@ -278,10 +278,9 @@ function initDischarge() {
  * imported on the press so the page pays for it only when it is asked for.
  */
 function initFloodMl() {
-  // The landslide forest's button is the same shape and is wired here too:
-  // one helper, two forests, rather than a second panel module for one button.
-  for (const [buttonId, statusId, module] of [["flood-ml-rerun", "flood-ml-status", "flood-ml-run.js"],
-    ["landslide-ml-rerun", "landslide-ml-status", "landslide-ml-run.js"]]) {
+  // A list so a second forest's button can join it; the landslide forest's 250 m
+  // run was here and is hidden by the owner's call (its held-out skill was weak).
+  for (const [buttonId, statusId, module] of [["flood-ml-rerun", "flood-ml-status", "flood-ml-run.js"]]) {
     const button = byId(buttonId);
     if (!button) continue;
     const status = (m) => { const n = byId(statusId); if (n) n.textContent = m || ""; };

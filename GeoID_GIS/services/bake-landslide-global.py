@@ -79,6 +79,7 @@ NEAR_COARSE_CELLS = 3        # ~30 km at 0.1°
 FOREST = dict(F.FOREST)
 NEG_PER_POS = 2
 LS_FEATURES = None
+FINE_ENTRY = WORK / "landslide-susceptibility-fine.entry.json"
 
 REGIONS = [
     ("great-britain", lambda lon, lat: -8.7 <= lon < 2.0 and 49.8 <= lat < 61.0),
@@ -395,8 +396,8 @@ INPUTS = [
     {"name": "Landslides, Great Britain", "source": "BGS National Landslide Database (index)",
      "licence": "Open Government Licence v3 — Contains British Geological Survey materials © UKRI"},
     {"name": "Landslides, global", "source": "NASA Global Landslide Catalog 1997–2016 (data.gov export)",
-     "licence": "US Government work; export subject to NASA's Terms and Conditions (text not published with the "
-                "catalogue — TO CONFIRM before commercial use)"},
+     "licence": "NASA terms: pending owner confirmation (a US Government work; the data.gov export asks the user "
+                "to accept NASA's Terms and Conditions, whose text is not published with the catalogue)"},
     {"name": "Lithology", "source": "GLiM v1.0 gridded 0.5° (Hartmann & Moosdorf 2012, doi:10.1594/PANGAEA.788537)",
      "licence": "CC BY 3.0"},
     {"name": "Elevation", "source": "Terrarium DEM (AWS Open Data)", "licence": "public domain / attribution by source"},
@@ -433,7 +434,7 @@ def entry(tier, per, pooled, rf, thr, n_rows, groups, fills, product, grid):
     })
     return {
         "id": "landslide-susceptibility-global" if tier == "coarse" else "landslide-susceptibility-fine",
-        "name": ("Landslide susceptibility — global (random forest, 0.1°)" if tier == "coarse"
+        "name": ("Landslide susceptibility — global preview (random forest, 0.1°)" if tier == "coarse"
                  else "Landslide susceptibility — on demand (random forest, ~250 m)"),
         "hazard": "landslide", "product": product,
         "model": {
@@ -455,6 +456,7 @@ def entry(tier, per, pooled, rf, thr, n_rows, groups, fills, product, grid):
                           for k, v in (fills or {}).items()},
         },
         "validation": val, "limits": LIMITS, "script": "GeoID_GIS/services/bake-landslide-global.py",
+        "membership": "preview: free, not part of membership (until the owner confirms NASA's catalogue terms)",
     }
 
 
@@ -509,8 +511,11 @@ def train():
     results["fine"] = entry("fine", per, pooled, rf, thr, len(y), len(set(key)), fills,
                             "computed in the page over the view or a drawn area narrower than 1.5° (landslide-ml-run.js)",
                             "0.0025° (~250 m) lattice over the view; Terrarium zoom 10")
-    for tier in ("coarse", "fine"):
-        say("   wrote", hazard_metrics.write_entry(results[tier]))
+    say("   wrote", hazard_metrics.write_entry(results["coarse"]))
+    # The 250 m tier is HIDDEN by the owner's call (weak held-out skill): its
+    # entry is kept beside the bake's cache, not in the file the hub publishes.
+    FINE_ENTRY.write_text(json.dumps(results["fine"], indent=1))
+    say("   kept (unpublished)", FINE_ENTRY)
 
 
 def wales():
@@ -528,11 +533,9 @@ def wales():
     rep.update({"windows": int(len({k for k, h in zip(key, held) if h})),
                 "compare": "Recipe A on Mid/North Wales: AUC 0.534 (validate-landslide.py; absences drawn 1:1 at random "
                            "from the region, here from the same windows >= 1 km from any slide)"})
-    path = REPO / "data/global/hazard-validation/landslide-susceptibility-fine.json"
-    e = json.loads(path.read_text())
+    e = json.loads(FINE_ENTRY.read_text())
     e["validation"].setdefault("extra", {})["mid_north_wales_holdout"] = rep
-    e.pop("generated", None)
-    hazard_metrics.write_entry(e)
+    FINE_ENTRY.write_text(json.dumps(e, indent=1))
     say(f"   Mid/North Wales held out: AUC {rep['auc']} (Recipe A 0.534), F1 {rep['f1']}, n {rep['n']}")
 
 

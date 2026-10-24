@@ -76,9 +76,15 @@ check("the published file holds all six maps, each scored or explicitly unassess
   ok(existsSync(PUBLISHED), "data/global/hazard-validation.json missing");
   const data = JSON.parse(readFileSync(PUBLISHED, "utf8"));
   const ids = data.maps.map((m) => m.id);
-  for (const id of ["flood-susceptibility", "flood-susceptibility-fine", "flood-susceptibility-wales", "landslide-susceptibility-global", "landslide-susceptibility-fine", "landslide-susceptibility", "cyclone-risk", "seismic-risk",
+  for (const id of ["flood-susceptibility", "flood-susceptibility-fine", "flood-susceptibility-wales", "landslide-susceptibility-global", "landslide-susceptibility", "cyclone-risk", "seismic-risk",
     "volcanic-risk", "volcanic-risk-holocene"]) ok(ids.includes(id), `no entry for ${id}`);
-  for (const id of ["flood-susceptibility", "flood-susceptibility-fine", "landslide-susceptibility-global", "landslide-susceptibility-fine"]) {
+  // The 250 m landslide tier is hidden by the owner's call; its card must not come back by a re-bake.
+  ok(!ids.includes("landslide-susceptibility-fine"), "the hidden 250 m landslide tier is published again");
+  const ls = data.maps.find((x) => x.id === "landslide-susceptibility-global");
+  ok(/not part of membership/.test(ls.membership || ""), "the landslide preview does not say it is outside membership");
+  ok(ls.model.inputs.some((i) => /pending owner confirmation/.test(i.licence || "")), "NASA's terms not recorded as pending");
+  ok(renderCard(ls).includes("not part of membership"), "the card does not show the preview status");
+  for (const id of ["flood-susceptibility", "flood-susceptibility-fine", "landslide-susceptibility-global"]) {
     const m = data.maps.find((x) => x.id === id);
     ok((m.model.inputs || []).every((i) => i.licence), `${id}: an input without a licence`);
     ok(Object.keys(m.validation.regions || {}).length >= 5, `${id}: fewer than five held-out regions`);
