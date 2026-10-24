@@ -874,6 +874,85 @@
   <link rel="stylesheet" href="/styles/earth-explorers.css?v=20261024-256a6da">
   <link rel="stylesheet" href="/styles/site-unify.css?v=20261024-256a6da">
   <link rel="stylesheet" href="/styles/bands.css?v=20261024-256a6da">
+  <style>
+    /* ── About GeoHUB on photo bands: wider rows, bigger captures ──────────
+       Loaded after bands.css. The feature rows were a narrow column of text
+       beside a letterboxed capture in a dark frame; now the capture runs
+       large to the edge of the screen and the cards spread across the
+       wider column, so a 1920px screen is not two-thirds empty. */
+    body.bands .feature-tile {
+      grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.3fr) !important;
+      column-gap: clamp(2.5rem, 5vw, 5.5rem);
+      align-items: center;
+    }
+    body.bands .feature-tile .feature-body { padding: 0 !important; }
+    body.bands .feature-tile .feature-shot {
+      background: none;
+      border-radius: 4px 0 0 4px;
+      margin-right: calc(-1 * var(--band-gut));
+      box-shadow: 0 30px 90px rgba(0, 0, 0, 0.55);
+      line-height: 0;
+    }
+    body.bands .feature-tile.is-flipped .feature-shot {
+      border-radius: 0 4px 4px 0;
+      margin-right: 0;
+      margin-left: calc(-1 * var(--band-gut));
+    }
+    body.bands .feature-tile .feature-shot img { height: auto; object-fit: cover; }
+    body.bands .feature-tile .feature-shot::after { display: none; }
+    body.bands .feature-tile .tile-desc p { font-size: 1.08rem; line-height: 1.7; }
+    body.bands .feature-list { gap: 0.8rem; margin-top: 1.5rem; }
+    body.bands .feature-list li { font-size: 1rem; line-height: 1.65; }
+
+    body.bands .shot-grid { grid-template-columns: repeat(4, minmax(0, 1fr)) !important; text-align: left; }
+    body.bands .shot-card img { background: none; aspect-ratio: 16 / 10; }
+    body.bands .cards-grid-4 { grid-template-columns: repeat(4, minmax(0, 1fr)) !important; }
+    body.bands .worlds-grid { grid-template-columns: repeat(5, minmax(0, 1fr)) !important; }
+
+    /* Etna and ASCENT: a photograph behind each, the six notes three across. */
+    body.bands .earth-section { position: relative; isolation: isolate; overflow: hidden; }
+    body.bands .earth-section > .cx-bg { z-index: 0; }
+    body.bands .earth-section > .cx-shade { z-index: 1; }
+    body.bands .earth-section > .earth-info-tile { position: relative; z-index: 2; }
+    body.bands .earth-info-header { padding-left: 0 !important; padding-right: 0 !important; }
+    body.bands .earth-info-body {
+      grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+      gap: clamp(1.75rem, 3vw, 2.75rem) clamp(1.5rem, 3vw, 2.5rem) !important;
+      padding: 1.5rem 0 0 !important;
+    }
+    body.bands .earth-info-block {
+      background: none !important;
+      border: 0 !important;
+      border-top: 1px solid var(--band-rule) !important;
+      border-radius: 0 !important;
+      padding: 1.25rem 0 0 !important;
+    }
+    body.bands .earth-info-lede { font-size: 1.1rem; max-width: 52rem; }
+
+    @media (max-width: 1280px) {
+      body.bands .shot-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+      body.bands .cards-grid-4 { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+      body.bands .earth-info-body { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+    }
+    @media (max-width: 1100px) {
+      body.bands .worlds-grid { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; }
+    }
+    @media (max-width: 1080px) {
+      body.bands .feature-tile { grid-template-columns: 1fr !important; row-gap: 2.5rem; }
+      body.bands .feature-tile .feature-shot,
+      body.bands .feature-tile.is-flipped .feature-shot {
+        order: -1;
+        margin: 0 calc(-1 * var(--band-gut)) !important;
+        border-radius: 0;
+      }
+    }
+    @media (max-width: 720px) {
+      body.bands .feature-tile .feature-shot,
+      body.bands .feature-tile.is-flipped .feature-shot { margin: 0 calc(-1 * clamp(1.1rem, 5vw, 1.5rem)) !important; }
+      body.bands :is(.shot-grid, .cards-grid-4, .earth-info-body) { grid-template-columns: 1fr !important; }
+      body.bands .worlds-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+    }
+  </style>
 </head>
 <body class="bands">
   <nav class="site-nav" role="navigation" aria-label="Primary navigation">
@@ -1438,6 +1517,8 @@
 
     <!-- ── Etna viewer tile ─────────────────────────────────────────────────── -->
     <section class="earth-section" id="etna-viewer" aria-labelledby="flagship-heading">
+      <img class="cx-bg" src="/assets/photos/etna-flank.webp" alt="" loading="lazy" decoding="async">
+      <div class="cx-shade shade-even"></div>
 
       <article class="earth-info-tile">
 
@@ -1500,6 +1581,8 @@
 
     <!-- ── Everest / ASCENT tile ────────────────────────────────────────────── -->
     <section class="earth-section" id="everest-ascent" aria-labelledby="ascent-heading">
+      <img class="cx-bg" src="/assets/opt/hero_everest_ascent.webp" alt="" loading="lazy" decoding="async">
+      <div class="cx-shade shade-even"></div>
 
       <article class="earth-info-tile">
 
@@ -1567,6 +1650,7 @@
               <li><a href="https://commons.wikimedia.org/wiki/File:Jupiter_Southern_Hemisphere_-_Juno_(34724022251).png" target="_blank" rel="noopener">Jupiter Southern Hemisphere - Juno (34724022251)</a> &middot; NASA/JPL-Caltech/MSSS/SwRI/Gerald Eichstädt/Justin Cowart &middot; Public domain</li>
               <li><a href="https://commons.wikimedia.org/wiki/File:Dramatic_Views_of_Hurricane_Florence_from_the_International_Space_Station_From_9_12_(42828603210)_(cropped).jpg" target="_blank" rel="noopener">Dramatic Views of Hurricane Florence from the International Space Station From 9 12 (42828603210) (cropped)</a> &middot; NASA/Goddard Space Flight Center &middot; <a href="https://creativecommons.org/licenses/by/2.0" target="_blank" rel="noopener">CC BY 2.0</a></li>
               <li><a href="https://commons.wikimedia.org/wiki/File:Paw_Hole_(8138360146).jpg" target="_blank" rel="noopener">Paw Hole (8138360146)</a> &middot; John Fowler from Placitas, NM, USA &middot; <a href="https://creativecommons.org/licenses/by/2.0" target="_blank" rel="noopener">CC BY 2.0</a></li>
+              <li><a href="https://commons.wikimedia.org/wiki/File:Eruzione_Etna_31-05-2019_(48036773048).jpg" target="_blank" rel="noopener">Eruzione Etna 31-05-2019 (48036773048)</a> &middot; andrea &middot; <a href="https://creativecommons.org/licenses/by-sa/2.0" target="_blank" rel="noopener">CC BY-SA 2.0</a></li>
               <li>Photographs resized and cropped for this page; licences as listed on each Wikimedia Commons file page.</li>
             </ul>
           </details>

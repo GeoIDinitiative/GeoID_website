@@ -47,7 +47,7 @@
 .shade-heavy  { background: rgba(8,0,20,0.90); }
 
 .cx-inner {
-  max-width: 76rem;
+  max-width: 90rem;
   margin: 0 auto;
   padding: clamp(5rem, 9vw, 8.5rem) clamp(1.25rem, 5vw, 3rem);
 }
@@ -74,9 +74,10 @@ body.bands .page-wrap { overflow-x: clip; }
 body.bands .page-utility { margin-bottom: 0 !important; }
 
 body.bands {
-  /* Same edge as a .cx-inner column: centred 76rem, then its own padding. */
-  --band-gut: calc(max(0px, 50vw - 38rem) + clamp(1.25rem, 5vw, 3rem));
-  --band-pad: clamp(5rem, 9vw, 8.5rem);
+  /* Same edge as a .cx-inner column: centred 90rem, then its own padding.
+     (76rem left a third of a 1920px screen empty.) */
+  --band-gut: calc(max(0px, 50vw - 45rem) + clamp(1.25rem, 5vw, 3rem));
+  --band-pad: clamp(4rem, 7vw, 6.5rem);
   --band-rule: rgba(255, 255, 255, 0.14);
 }
 
