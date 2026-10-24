@@ -26,8 +26,7 @@
 //   * Depth-tested: hills and buildings hide what is behind them. Night only
 //     (the ship's NIGHT from flight-tiles.js); nothing runs by day.
 
-import { NIGHT } from "./night-lights.js?v=20261024-af6707d";
-import { litPower, radianceAboveBackground, CLASS_BY_CODE } from "../../../flight_sim/earth/game/lamps.js?v=1";
+import { NIGHT } from "./night-lights.js?v=20261024-05d24f9";
 
 const TILEJSON = "https://tiles.openfreemap.org/planet";
 const BM = "https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/VIIRS_Black_Marble/default/2016-01-01/GoogleMapsCompatible_Level8/{z}/{y}/{x}.png";
@@ -45,8 +44,8 @@ export const LEVELS = [
   // is its whole street network glowing, not just its arterials.
   { z: 13, reach: 0, classes: ALL, fade: [0, 0, 0, 0] },
 ];
-const FETCH_BUDGET = 6;
-const BUILD_MS = 6;
+const FETCH_BUDGET = 10;          // OpenFreeMap is HTTP/2: one connection, many streams
+const BUILD_MS = 5;
 const MAX_KEPT = 260;
 
 const lonToX = (lon, z) => ((lon + 180) / 360) * 2 ** z;
@@ -82,7 +81,7 @@ export function tilesFor(level, lat, lon) {
 let THREE = null, group = null, timer = null, running = false, template = null, worker = null;
 let lampMat = null, poolMat = null, poolGeo = null;
 const tiles = new Map();          // "L/z/x/y" -> { level, z, x, y, state, lamps, points, pools, used, d }
-const fetchQueue = [], buildQueue = [];
+const fetchQueue = [], readyQueue = [];
 let fetching = 0, nextJob = 1;
 const jobs = new Map();
 const bm = new Map();             // "x/y" (z8) -> Uint8ClampedArray | "loading" | "missing"
@@ -91,39 +90,41 @@ const shared = {
 };
 export const stats = { tiles: 0, lamps: 0, lit: 0 };
 
-function radianceAt(lat, lon) {
-  const fx = lonToX(lon, 8), fy = latToY(lat, 8);
-  const k = `${Math.floor(fx)}/${Math.floor(fy)}`;
-  const d = bm.get(k);
-  if (!(d instanceof Uint8ClampedArray)) return null;
-  const px = Math.min(255, Math.floor((fx % 1) * 256)), py = Math.min(255, Math.floor((fy % 1) * 256));
-  const i = (py * 256 + px) * 4;
-  return radianceAboveBackground(d[i], d[i + 1], d[i + 2]);
-}
+/** The z8 Black Marble tile a lamp tile's lamps fall in, handed to the worker once. */
 function ensureBM(z, x, y) {
-  // The z8 Black Marble tiles a tile's lamps fall in (one, or a few for z9).
   const s = 8 - z;
-  const keys = s >= 0 ? [[x << s, y << s, 1 << s]] : [[x >> -s, y >> -s, 1]];
-  let ready = true;
-  for (const [bx, by, n] of keys) for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) {
-    const k = `${bx + i}/${by + j}`;
-    const have = bm.get(k);
-    if (have instanceof Uint8ClampedArray || have === "missing") continue;
-    ready = false;
-    if (have === "loading") continue;
-    bm.set(k, "loading");
-    const img = new Image();
-    img.crossOrigin = "anonymous";
-    img.onload = () => {
-      const c = document.createElement("canvas"); c.width = c.height = 256;
-      const cx = c.getContext("2d", { willReadFrequently: true });
-      cx.drawImage(img, 0, 0);
-      bm.set(k, cx.getImageData(0, 0, 256, 256).data);
-    };
-    img.onerror = () => bm.set(k, "missing");
-    img.src = BM.replace("{z}", 8).replace("{y}", by + j).replace("{x}", bx + i);
+  const bx = s >= 0 ? x << s : x >> -s, by = s >= 0 ? y << s : y >> -s;
+  const k = `${bx}/${by}`;
+  const have = bm.get(k);
+  if (have === "sent" || have === "missing") return true;
+  if (have === "loading") return false;
+  bm.set(k, "loading");
+  const img = new Image();
+  img.crossOrigin = "anonymous";
+  img.onload = () => {
+    const c = document.createElement("canvas"); c.width = c.height = 256;
+    const cx = c.getContext("2d", { willReadFrequently: true });
+    cx.drawImage(img, 0, 0);
+    const data = cx.getImageData(0, 0, 256, 256).data;
+    worker.postMessage({ bm: data, bmKey: k }, [data.buffer]);
+    bm.set(k, "sent");
+  };
+  img.onerror = () => bm.set(k, "missing");
+  img.src = BM.replace("{z}", 8).replace("{y}", by).replace("{x}", bx);
+  return false;
+}
+
+/** The tile's ground heights (scene units, at the Vertical scale) on a 33 x 33 grid, for the worker. */
+const DEM_N = 33;
+function demGrid(t) {
+  const T = window.GeoIDFlightTerrain;
+  if (!T?.active?.()) return null;
+  const dem = new Float32Array(DEM_N * DEM_N);
+  for (let j = 0; j < DEM_N; j++) {
+    const lat = yToLat(t.y + j / (DEM_N - 1), t.z);
+    for (let i = 0; i < DEM_N; i++) dem[j * DEM_N + i] = T.heightUnits(lat, xToLon(t.x + i / (DEM_N - 1), t.z)) || 0;
   }
-  return ready;
+  return dem;
 }
 
 const LAMP_VERT = /* glsl */`
@@ -236,77 +237,52 @@ function materials() {
   poolGeo = new THREE.PlaneGeometry(1, 1);
 }
 
-const LED = [1.0, 0.9, 0.78], SODIUM = [1.0, 0.56, 0.2];
-function lampColour(code, hash, power) {
-  // More LED on the main roads; minor streets keep more sodium.
-  const ledShare = code <= 2 ? 0.8 : 0.6;
-  const c = hash < ledShare ? LED : SODIUM;
-  const k = power * (code <= 1 ? 1.15 : code >= 5 ? 0.85 : 1.0);
-  return [c[0] * k, c[1] * k, c[2] * k];
+/** Hand a tile to the worker: its road tile (first time) and its ground heights. */
+function stand(t) {
+  const id = nextJob++;
+  jobs.set(id, t);
+  t.state = "standing";
+  const msg = { id, key: t.key, z: t.z, x: t.x, y: t.y, tileSizeM: tileSizeM(t.z, t.y), classes: t.level.classes, dem: demGrid(t), pools: !!t.level.pools };
+  const transfer = [];
+  if (t.buf) { msg.buf = t.buf; transfer.push(t.buf); t.buf = null; }
+  if (msg.dem) transfer.push(msg.dem.buffer);
+  t.terrainVersion = window.GeoIDFlightTerrain?.getVersion?.() ?? 0;
+  worker.postMessage(msg, transfer);
 }
 
-/** Lamps of one tile stood on the terrain: a Points (and pools) at the tile's centre. */
-function build(viewer, t) {
-  const T = window.GeoIDFlightTerrain;
-  const L = t.lamps, n = L.length / 4;
-  const centreP = viewer.surfacePoint(yToLat(t.y + 0.5, t.z), xToLon(t.x + 0.5, t.z), 0);
-  const centre = new THREE.Vector3(-centreP.x, centreP.y, -centreP.z);
-  const pos = [], col = [], poolM = [], poolC = [];
-  const v = new THREE.Vector3(), up = new THREE.Vector3(), q = new THREE.Quaternion(), m = new THREE.Matrix4(), sc = new THREE.Vector3();
-  const Z = new THREE.Vector3(0, 0, 1);
-  let lit = 0;
-  for (let i = 0; i < n; i++) {
-    const u = L[i * 4], vv = L[i * 4 + 1], code = L[i * 4 + 2], hash = L[i * 4 + 3];
-    const lat = yToLat(t.y + vv, t.z), lon = xToLon(t.x + u, t.z);
-    const rad = radianceAt(lat, lon);
-    const power = rad == null ? 0 : litPower(code, rad);
-    if (power <= 0) continue;
-    lit++;
-    const p = viewer.surfacePoint(lat, lon, 0);
-    v.set(-p.x, p.y, -p.z);
-    const ground = (T?.heightUnits?.(lat, lon) || 0);
-    up.copy(v).normalize();
-    v.setLength(v.length() + ground + LAMP_HEIGHT_M * UNITS_PER_M);
-    const [r, g, b] = lampColour(code, hash, power);
-    pos.push(v.x - centre.x, v.y - centre.y, v.z - centre.z);
-    col.push(r, g, b);
-    if (t.level.pools) {
-      const cls = CLASS_BY_CODE[code];
-      const diam = (cls.offset * 1.5 + 9) * UNITS_PER_M;
-      const gp = v.clone().addScaledVector(up, -LAMP_HEIGHT_M * UNITS_PER_M + 0.15 * UNITS_PER_M).sub(centre);
-      q.setFromUnitVectors(Z, up);
-      m.compose(gp, q, sc.set(diam, diam, 1));
-      poolM.push(m.clone());
-      poolC.push(r, g, b);
-    }
-  }
+/** The worker's lamps for a tile, as a Points (and pools) at the tile's centre. */
+function meshes(t, r) {
   disposeMeshes(t);
-  if (!lit) { t.state = "built"; t.count = 0; return; }
+  const n = r.positions.length / 3;
+  t.count = n;
+  t.state = "built";
+  if (!n || !group) return;
+  const centre = new THREE.Vector3(...r.centre);
   const geo = new THREE.BufferGeometry();
-  geo.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
-  geo.setAttribute("color", new THREE.Float32BufferAttribute(col, 3));
+  geo.setAttribute("position", new THREE.BufferAttribute(r.positions, 3));
+  geo.setAttribute("color", new THREE.BufferAttribute(r.colours, 3));
   geo.computeBoundingSphere();
   const mat = lampMat.clone();
   mat.uniforms = { ...shared, uFade: { value: new THREE.Vector4(...t.level.fade) } };
   t.points = new THREE.Points(geo, mat);
   t.points.position.copy(centre);
   t.points.renderOrder = 195;          // after the ground and the buildings (190)
-  t.points.frustumCulled = true;
   t.points.raycast = () => {};
+  t.points.visible = !!t.want;
   group.add(t.points);
-  if (poolM.length) {
-    t.pools = new THREE.InstancedMesh(poolGeo, poolMat, poolM.length);
-    poolM.forEach((mm, i) => t.pools.setMatrixAt(i, mm));
-    t.pools.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(poolC), 3);
+  if (r.pools && r.pools.length) {
+    const np = r.pools.length / 16;
+    t.pools = new THREE.InstancedMesh(poolGeo, poolMat, np);
+    t.pools.instanceMatrix.array.set(r.pools);
+    t.pools.instanceMatrix.needsUpdate = true;
+    t.pools.instanceColor = new THREE.InstancedBufferAttribute(r.colours, 3);
     t.pools.position.copy(centre);
     t.pools.renderOrder = 41;          // on the ground, under the buildings
     t.pools.frustumCulled = false;
     t.pools.raycast = () => {};
+    t.pools.visible = !!t.want;
     group.add(t.pools);
   }
-  t.count = lit;
-  t.state = "built";
-  t.terrainVersion = window.GeoIDFlightTerrain?.getVersion?.() ?? 0;
 }
 
 function disposeMeshes(t) {
@@ -324,9 +300,9 @@ function pump() {
       .then((r) => (r.ok ? r.arrayBuffer() : null))
       .then((buf) => {
         if (!buf) { t.state = "built"; t.count = 0; return; }
-        const id = nextJob++;
-        jobs.set(id, t);
-        worker.postMessage({ id, buf, tileSizeM: tileSizeM(t.z, t.y), classes: t.level.classes }, [buf]);
+        t.buf = buf;
+        t.state = "fetched";
+        readyQueue.push(t);
       })
       .catch(() => { t.state = null; })
       .finally(() => { fetching--; pump(); });
@@ -378,25 +354,27 @@ function tick() {
     for (const w of tilesFor(level, lat, lon)) {
       const key = `${li}/${w.z}/${w.x}/${w.y}`;
       let t = tiles.get(key);
-      if (!t) { t = { level, z: w.z, x: w.x, y: w.y, state: null }; tiles.set(key, t); }
+      if (!t) { t = { level, key, z: w.z, x: w.x, y: w.y, state: null }; tiles.set(key, t); }
       t.want = true; t.d = w.d; t.used = now;
       if (!t.state) { t.state = "fetch"; fetchQueue.push(t); }
       if (t.points) { t.points.visible = true; t.points.material.uniforms.uFade.value.set(...level.fade); }
       if (t.pools) t.pools.visible = true;
       // The close lamps follow the terrain as finer heights stream in.
-      if (t.state === "built" && li === 0 && t.count && t.terrainVersion !== tv && t.lamps && !buildQueue.includes(t)) buildQueue.push(t);
+      if (t.state === "built" && li === 0 && t.count && t.terrainVersion !== tv) readyQueue.push(t);
     }
   });
   for (const t of tiles.values()) if (!t.want) { if (t.points) t.points.visible = false; if (t.pools) t.pools.visible = false; }
-  // Build what has decoded, nearest first, within a few ms.
-  buildQueue.sort((a, b) => a.d - b.d);
+  // Hand what has arrived to the worker, nearest first, once its Black
+  // Marble tile is there (a few ms here: the heights grid; the rest is off
+  // the main thread).
+  readyQueue.sort((a, b) => a.d - b.d);
   const until = now + BUILD_MS;
-  for (let i = 0; i < buildQueue.length && performance.now() < until;) {
-    const t = buildQueue[i];
-    if (!t.want) { buildQueue.splice(i, 1); continue; }
+  for (let i = 0; i < readyQueue.length && performance.now() < until;) {
+    const t = readyQueue[i];
+    if (!t.want && t.state === "fetched") { readyQueue.splice(i, 1); t.state = null; t.buf = null; continue; }
     if (!ensureBM(t.z, t.x, t.y)) { i++; continue; }
-    buildQueue.splice(i, 1);
-    build(viewer, t);
+    readyQueue.splice(i, 1);
+    stand(t);
   }
   // Forget the oldest beyond the budget.
   if (tiles.size > MAX_KEPT) {
@@ -417,15 +395,14 @@ export async function startFlightLights() {
   materials();
   shared.uShipW.value = new THREE.Vector3();
   if (!worker) {
-    worker = new Worker(new URL("../../../flight_sim/earth/game/lights-worker.js?v=1", import.meta.url), { type: "module" });
+    worker = new Worker(new URL("../../../flight_sim/earth/game/lights-worker.js?v=2", import.meta.url), { type: "module" });
     worker.onmessage = (e) => {
       const t = jobs.get(e.data.id);
       jobs.delete(e.data.id);
       if (!t) return;
-      if (e.data.error || !e.data.lamps?.length) { t.state = "built"; t.count = 0; return; }
-      t.lamps = e.data.lamps;
-      t.state = "decoded";
-      buildQueue.push(t);
+      if (e.data.refetch) { t.state = null; return; }            // the worker forgot it: fetch again
+      if (e.data.error) { t.state = "built"; t.count = 0; return; }
+      meshes(t, e.data);
     };
   }
   if (!template) {
@@ -441,7 +418,7 @@ export function stopFlightLights() {
   running = false;
   clearInterval(timer); timer = null;
   for (const t of tiles.values()) disposeMeshes(t);
-  tiles.clear(); fetchQueue.length = 0; buildQueue.length = 0; jobs.clear();
+  tiles.clear(); fetchQueue.length = 0; readyQueue.length = 0; jobs.clear();
   group?.parent?.remove(group); group = null;
 }
 

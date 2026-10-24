@@ -26,15 +26,22 @@
 // Esri World Imagery (blankTile=false: a missing tile is a 404 and the
 // ancestor stays). Flight only.
 
-import { NIGHT } from "./night-lights.js?v=20261024-af6707d";
+import { NIGHT } from "./night-lights.js?v=20261024-05d24f9";
 
-const URL_TEMPLATE = "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}?blankTile=false";
+// Esri serves World Imagery over HTTP/1.1, so a browser opens only ~6
+// connections per host: measured, 12 requests on one host ran at ~20 tiles/s.
+// The same tiles come from two hosts; tiles alternate between them.
+const URL_TEMPLATES = [
+  "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}?blankTile=false",
+  "https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}?blankTile=false",
+];
 const ROOT_Z = 7;
 export const MAX_Z = 17;
 export const SPLIT = 2.0;            // split while closer than SPLIT x the tile's size (~1.6 px per texel at the split)
 export const MAX_LEAVES = 800;
 const MAX_TILES_KEPT = 1500;
-const FETCH_BUDGET = 12;
+const FETCH_BUDGET = 12;            // 6 per host x 2 hosts
+const AHEAD_S = 6;                 // prefetch where the aircraft will be this far ahead
 const UNITS_PER_M = 3.2 / 6371000;
 const EARTH_CIRC_M = 40075016.686;
 const VEG_FROM_Z = 16;
@@ -115,6 +122,7 @@ let timer = null;
 const tiles = new Map();           // "z/x/y" -> { z, x, y, mesh, image: Texture|"missing"|null, loading, used }
 const queue = [];
 let inflight = 0;
+let prevShip = null;
 const SUN = { value: null };
 // The ground's share of the night light (skyglow), by the aircraft's height.
 const SKYGLOW = { value: 0.05 };
@@ -466,11 +474,12 @@ function request(t) {
 function pump() {
   // The few coarse ancestors first (each covers dozens of leaves at once),
   // then the leaves, nearest first.
-  const rank = (t) => (t.cover ? 0 : t.want ? 1 : 2);
+  // ...and what the aircraft is about to reach, after everything it needs now.
+  const rank = (t) => (t.cover ? 0 : t.want ? 1 : t.ahead ? 3 : 2);
   queue.sort((a, b) => rank(a) - rank(b) || a.d - b.d);
   while (inflight < FETCH_BUDGET && queue.length) {
     const t = queue.shift();
-    if (!t.want && !t.ancestorWanted) { t.loading = false; continue; }
+    if (!t.want && !t.ancestorWanted && !t.ahead) { t.loading = false; continue; }
     inflight++;
     const img = new Image();
     img.crossOrigin = "anonymous";
@@ -496,7 +505,7 @@ function pump() {
       else t.image = "missing";
       pump();
     };
-    img.src = URL_TEMPLATE.replace("{z}", t.z).replace("{y}", t.y).replace("{x}", t.x);
+    img.src = URL_TEMPLATES[(t.x + t.y) & 1].replace("{z}", t.z).replace("{y}", t.y).replace("{x}", t.x);
   }
 }
 
@@ -592,7 +601,22 @@ function tick() {
   const reach = Math.max(25000, Math.min(400000, 1.4 * horizonM));
   const leaves = selectLeaves(f.shipLatLon, altM, reach);
   const now = performance.now();
-  for (const t of tiles.values()) { t.want = false; t.ancestorWanted = false; t.cover = false; t.d = Infinity; }
+  for (const t of tiles.values()) { t.want = false; t.ancestorWanted = false; t.cover = false; t.ahead = false; t.d = Infinity; }
+  // AHEAD: where the aircraft will be in AHEAD_S, from its own movement since
+  // the last tick; the sharp tiles there are fetched (images only) once
+  // everything needed now is in hand, so flying on finds them ready.
+  if (prevShip && now > prevShip.t) {
+    const k = AHEAD_S * 1000 / (now - prevShip.t);
+    const ahead = { lat: f.shipLatLon.lat + (f.shipLatLon.lat - prevShip.lat) * k, lon: f.shipLatLon.lon + (f.shipLatLon.lon - prevShip.lon) * k };
+    if (Math.abs(ahead.lat - f.shipLatLon.lat) + Math.abs(ahead.lon - f.shipLatLon.lon) > 1e-4) {
+      for (const L of selectLeaves(ahead, altM, Math.min(reach, 12000), { maxLeaves: 220 })) {
+        const t = tileFor(L.z, L.x, L.y);
+        t.ahead = true; t.used = now; t.d = Math.min(t.d, 1e6 + L.d);
+        if (!t.image) request(t);
+      }
+    }
+  }
+  prevShip = { lat: f.shipLatLon.lat, lon: f.shipLatLon.lon, t: now };
   const terrainVersion = window.GeoIDFlightTerrain?.getVersion?.() ?? 0;
   // Building and re-lifting meshes reads the DEM per vertex, so it is
   // budgeted per tick, nearest first: every wanted tile first gets a coarse
@@ -630,7 +654,7 @@ function tick() {
   stats.built = leaves.filter((L) => tiles.get(key(L.z, L.x, L.y))?.mesh).length;
   // Forget the oldest beyond the budget.
   if (tiles.size > MAX_TILES_KEPT) {
-    const old = [...tiles.values()].filter((t) => !t.want && !t.ancestorWanted).sort((a, b) => a.used - b.used);
+    const old = [...tiles.values()].filter((t) => !t.want && !t.ancestorWanted && !t.ahead).sort((a, b) => a.used - b.used);
     for (const t of old.slice(0, tiles.size - MAX_TILES_KEPT)) dispose(t);
   }
   // Faint: the lamps (flight-lights.js) carry the light; this only fills
@@ -694,6 +718,7 @@ export function stopFlightTiles() {
   timer = null;
   for (const t of [...tiles.values()]) dispose(t);
   queue.length = 0;
+  prevShip = null;
   NIGHT.value = 0;
   group?.parent?.remove(group);
   group = null;

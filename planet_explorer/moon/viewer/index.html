@@ -6,14 +6,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>Moon</title>
   <meta name="robots" content="noindex, follow">
-  <link rel="icon" href="../../../assets/moon_icon.png?v=20261024-af6707d" type="image/png">
+  <link rel="icon" href="../../../assets/moon_icon.png?v=20261024-05d24f9" type="image/png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;600;700&family=Exo+2:wght@300;400;500&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=20261024-af6707d">
-  <link rel="stylesheet" href="/styles/flightsim.css?v=20261024-af6707d">
-  <link rel="stylesheet" href="/styles/viewer-skin.css?v=20261024-af6707d">
-  <link rel="stylesheet" href="/styles/viewer-themes.css?v=20261024-af6707d">
+  <link rel="stylesheet" href="styles.css?v=20261024-05d24f9">
+  <link rel="stylesheet" href="/styles/flightsim.css?v=20261024-05d24f9">
+  <link rel="stylesheet" href="/styles/viewer-skin.css?v=20261024-05d24f9">
+  <link rel="stylesheet" href="/styles/viewer-themes.css?v=20261024-05d24f9">
   <!-- THE LIVE SITE HAS ONE DOOR TO THIS WORLD, AND IT IS GEOHUB. This file
        is the viewer GeoHUB frames (via /transit/) when the Moon is chosen from
        the planet strip or asked for as /?world=moon; inside the shell
@@ -23,12 +23,12 @@
        the shell frames this page where it works. Before theme.js, so nothing
        is painted first. -->
   <script>if (window.self === window.top) { var c = ""; try { var q = new URLSearchParams(window.location.search); ["post", "project"].forEach(function (k) { var v = q.get(k); if (v && /^[A-Za-z0-9_-]{1,64}$/.test(v)) c += "&" + k + "=" + encodeURIComponent(v); }); } catch (_e) {} window.location.replace("/?world=moon" + c + window.location.hash); }</script>
-  <script src="/scripts/theme.js?v=20261024-af6707d"></script>
-  <script src="/scripts/gamepad.js?v=20261024-af6707d" defer></script>
-  <script src="/scripts/tour-enter.js?v=20261024-af6707d" defer></script>
-  <script src="/scripts/ui-sound.js?v=20261024-af6707d" defer></script>
+  <script src="/scripts/theme.js?v=20261024-05d24f9"></script>
+  <script src="/scripts/gamepad.js?v=20261024-05d24f9" defer></script>
+  <script src="/scripts/tour-enter.js?v=20261024-05d24f9" defer></script>
+  <script src="/scripts/ui-sound.js?v=20261024-05d24f9" defer></script>
   <!-- The GIS layer: shared shell markup, styling and modules. -->
-  <link rel="stylesheet" href="/GeoID_GIS/viewer/gis/shell.css?v=20261024-af6707d">
+  <link rel="stylesheet" href="/GeoID_GIS/viewer/gis/shell.css?v=20261024-05d24f9">
 </head>
 <body class="viewer-page">
   <div id="app"></div>
@@ -50,7 +50,7 @@
     <div class="brand-hero">
       <div class="brand">
         <button class="brand-logo-button" id="brand-reset-button" type="button" aria-label="Reset view" title="Reset view">
-          <img class="brand-logo" id="brand-logo" src="../../../assets/moon_icon.png?v=20261024-af6707d" alt="Moon">
+          <img class="brand-logo" id="brand-logo" src="../../../assets/moon_icon.png?v=20261024-05d24f9" alt="Moon">
         </button>
         <h1 class="brand-title">Moon</h1>
         <button class="info-btn" id="info-btn" aria-label="About this viewer" title="About this viewer">i</button>
@@ -1180,7 +1180,7 @@
     </div>
   </div>
 
-<script src="moon-manifest.js?v=20261024-af6707d" defer></script>
+<script src="moon-manifest.js?v=20261024-05d24f9" defer></script>
 <script>
   const statusNode = document.getElementById("status");
 
@@ -1258,8 +1258,8 @@
 
   void bootMoonViewer();
 </script>
-<script src="ui-controls.js?v=20261024-af6707d" defer></script>
-<script src="music.js?v=20261024-af6707d" defer></script>
+<script src="ui-controls.js?v=20261024-05d24f9" defer></script>
+<script src="music.js?v=20261024-05d24f9" defer></script>
 
   <div id="portrait-advisory" role="status" aria-live="polite">
     <img src="../../../assets/tilt_phone.png" alt="Rotate device" id="portrait-advisory-icon">
@@ -1279,8 +1279,8 @@
       });
     })();
   </script>
-<script src="/scripts/flightsim.js?v=20261024-af6707d-atmos2" defer></script>
+<script src="/scripts/flightsim.js?v=20261024-05d24f9-atmos2" defer></script>
   <script>if (window.self !== window.top) document.body.classList.add("is-embedded");</script>
-  <script type="module" src="/GeoID_GIS/viewer/gis/boot.js?v=20261024-af6707d"></script>
+  <script type="module" src="/GeoID_GIS/viewer/gis/boot.js?v=20261024-05d24f9"></script>
 </body>
 </html>
