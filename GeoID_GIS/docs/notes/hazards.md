@@ -5980,3 +5980,28 @@ modules), the global flood and landslide layers loaded from
 `data.geoidinitiative.com` with 200s and landed in the Workspace. JSON is
 stored gzipped (`content-encoding: gzip`, strong length), the TIFs plain for
 range reads.
+
+### The landslide forest after the owner's review: 250 m hidden, the map a free preview
+
+Two calls by the owner, both applied:
+
+- **"Hide it entirely"** — the 250 m on-demand landslide tier. Its row, its
+  drawer ("Run here again") and its button wiring are gone; `window.GeoIDLandslideML`
+  exposes only `showGlobal`; no Atlas tool ever reached it. The code stays
+  (`landslide-ml-run.js runArea/showArea`), and the bake now keeps the tier's
+  entry beside its cache (`.landslide-work/landslide-susceptibility-fine.entry.json`)
+  instead of in the published `hazard-validation.json`, so a re-bake cannot put
+  the card back — `hazard-models.test.mjs` fails if it reappears.
+- **"I'll check NASA's terms"** — until then the global 0.1° map is **outside
+  membership**. The membership feature called `landslides` is the FORECAST
+  pipeline (GFS rainfall, water balance, slope stability), which uses no NASA
+  data and stays sold; the forest's map moved OUT of that locked subtab into its
+  own section, **Hazards ▸ Landslide susceptibility (preview)** (not in
+  `feature-locks.js`, not in `MEMBER_MODELS`), labelled "global preview". The
+  membership page says "Preview: free, not part of membership"
+  (`#member-preview-landslide`); the Models card carries the same line; the
+  NASA input's licence reads "NASA terms: pending owner confirmation", which
+  the hub's Metadata licence table lists.
+
+The card's headline is the MEAN held-out-region AUC (0.810, "good"); the
+pooled 0.686 ("weak", what the first screenshot showed) is printed beside it.

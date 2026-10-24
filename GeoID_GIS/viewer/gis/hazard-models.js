@@ -99,6 +99,7 @@ export function renderCard(entry) {
       <h3>${esc(entry.name)}</h3>
       <span class="hm-skill" data-skill="${esc(skillWord(v.auc).replace(/ /g, "-"))}">${assessable ? `AUC ${formatMetric(v.auc)} · ${skillWord(v.auc)}` : "NOT ASSESSABLE"}</span>
     </header>
+    ${entry.membership ? `<p class="hm-membership">${esc(entry.membership)}</p>` : ""}
     <p class="hm-method">${esc(m.method)}</p>
     <div class="hm-cols">
       <section class="hm-validation">
@@ -208,6 +209,8 @@ const CSS = `
 .hm-card details { margin-top: 0.4rem; font-size: 0.76rem; }
 .hm-card summary { cursor: pointer; color: rgba(255,255,255,0.6); }
 .hm-card ul { margin: 0.3rem 0 0; padding-left: 1.1rem; }
+.hm-membership { display: inline-block; margin: 0.35rem 0 0; padding: 0.1rem 0.5rem; border-radius: 999px;
+  font-size: 0.7rem; background: rgba(253,174,97,0.18); color: #fdae61; }
 .hm-compare { font-size: 0.76rem; margin: 0.2rem 0 0.4rem; }
 .hm-licence { font-size: 0.68rem; color: rgba(255,255,255,0.5); }
 .hm-licences { margin-top: 0.8rem; }

@@ -11,7 +11,7 @@
 // flyable. The viewer runs inside GeoHUB's iframe, so the page that changes
 // is the top one; the flight page's back link returns to GeoHUB.
 
-import { isEarth } from "./bodies.js?v=20261024-154e7f1";
+import { isEarth } from "./bodies.js?v=20261024-a3a897b";
 
 const FLIGHT_URL = "/flight_sim/earth/";
 const DEG = 180 / Math.PI;

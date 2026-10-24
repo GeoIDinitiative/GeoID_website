@@ -1,6 +1,6 @@
 {
  "id": "landslide-susceptibility-global",
- "name": "Landslide susceptibility \u2014 global (random forest, 0.1\u00b0)",
+ "name": "Landslide susceptibility \u2014 global preview (random forest, 0.1\u00b0)",
  "hazard": "landslide",
  "product": "data/global/landslide-ml/landslide-susceptibility-0p1.hotlink-ok.tif",
  "model": {
@@ -152,7 +152,7 @@
    {
     "name": "Landslides, global",
     "source": "NASA Global Landslide Catalog 1997\u20132016 (data.gov export)",
-    "licence": "US Government work; export subject to NASA's Terms and Conditions (text not published with the catalogue \u2014 TO CONFIRM before commercial use)"
+    "licence": "NASA terms: pending owner confirmation (a US Government work; the data.gov export asks the user to accept NASA's Terms and Conditions, whose text is not published with the catalogue)"
    },
    {
     "name": "Lithology",
@@ -401,5 +401,6 @@
   "NASA's export terms are not published with the catalogue; until confirmed, regions other than Great Britain rest on data whose commercial terms are unknown."
  ],
  "script": "GeoID_GIS/services/bake-landslide-global.py",
- "generated": "2026-10-23T23:30:46Z"
+ "membership": "preview: free, not part of membership (until the owner confirms NASA's catalogue terms)",
+ "generated": "2026-10-24T01:07:30Z"
 }

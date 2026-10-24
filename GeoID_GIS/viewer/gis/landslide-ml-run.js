@@ -1,5 +1,8 @@
 /**
- * The landslide forest on the globe: the baked 0.1° world and a ~250 m run
+ * The landslide forest on the globe: the baked 0.1° world (a FREE PREVIEW, not
+ * part of membership, until NASA's catalogue terms are confirmed). The ~250 m
+ * run below is HIDDEN -- no row, button or Atlas path reaches it -- and kept
+ * for when its skill earns a place. Originally: a ~250 m run
  * over the view -- flood-ml-run.js's two tiers, with landslide-ml.js's
  * features (relief and GLiM lithology on top of the flood stack) and no
  * storm rain, because susceptibility here is where ground fails, not when.
@@ -9,11 +12,11 @@
  */
 
 import { TIERS, makeGrid, demOnGrid, latticeOnGrid, decodeForest, predictForest }
-  from "./flood-ml.js?v=20261024-154e7f1";
-import { buildLandslideStack, landslideRows, LS_FEATURES } from "./landslide-ml.js?v=20261024-154e7f1";
+  from "./flood-ml.js?v=20261024-a3a897b";
+import { buildLandslideStack, landslideRows, LS_FEATURES } from "./landslide-ml.js?v=20261024-a3a897b";
 import { json, loadNormal, demMosaic, landCoverClasses, soil, chooseBox, checkBox, layerNamed, replace, manager,
-  MAX_SPAN_DEG } from "./flood-ml-run.js?v=20261024-154e7f1";
-import { dataUrl } from "./data-base.js?v=20261024-154e7f1";
+  MAX_SPAN_DEG } from "./flood-ml-run.js?v=20261024-a3a897b";
+import { dataUrl } from "./data-base.js?v=20261024-a3a897b";
 
 export const GLOBAL_NAME = "Landslide susceptibility — global (random forest).tif";
 export const AREA_NAME = "Landslide susceptibility — here (random forest, 250 m).tif";
@@ -56,7 +59,7 @@ export async function runArea(box, { onProgress = () => {} } = {}) {
   const p = predictForest(forest, rows, LS_FEATURES.length);
   const band = new Float32Array(grid.width * grid.height).fill(NaN);
   kept.forEach((i, k) => { band[i] = p[k]; });
-  const { writeGeoTiff } = await import("./geotiff-writer.js?v=20261024-154e7f1");
+  const { writeGeoTiff } = await import("./geotiff-writer.js?v=20261024-a3a897b");
   const bytes = writeGeoTiff({ band, width: grid.width, height: grid.height, noData: NaN,
     bounds: { minX: grid.west, maxX: grid.east, minY: grid.south, maxY: grid.north } });
   let over = 0;
@@ -82,13 +85,13 @@ export async function showGlobal({ onProgress = () => {} } = {}) {
   onProgress("Fetching the global landslide susceptibility map…");
   const response = await fetch(await dataUrl(`${ASSETS}landslide-susceptibility-0p1.hotlink-ok.tif`));
   if (!response.ok) throw new Error(`global map: HTTP ${response.status}`);
-  const { loadGeoTiffLibrary } = await import("./geotiff-adapter.js?v=20261024-154e7f1");
+  const { loadGeoTiffLibrary } = await import("./geotiff-adapter.js?v=20261024-a3a897b");
   const GeoTIFF = await loadGeoTiffLibrary();
   const image = await (await GeoTIFF.fromArrayBuffer(await response.arrayBuffer())).getImage();
   const [raw] = await image.readRasters();
   const [west, south, east, north] = image.getBoundingBox();
   const band = Float32Array.from(raw, (v) => (v === 255 ? NaN : v / 250));
-  const { writeGeoTiff } = await import("./geotiff-writer.js?v=20261024-154e7f1");
+  const { writeGeoTiff } = await import("./geotiff-writer.js?v=20261024-a3a897b");
   const bytes = writeGeoTiff({ band, width: image.getWidth(), height: image.getHeight(), noData: NaN,
     bounds: { minX: west, maxX: east, minY: south, maxY: north } });
   replace(GLOBAL_NAME);
@@ -100,5 +103,7 @@ export async function showGlobal({ onProgress = () => {} } = {}) {
 }
 
 if (typeof window !== "undefined") {
-  window.GeoIDLandslideML = { showGlobal, showArea, runArea };
+  // Only the global map is reachable: the 250 m tier is hidden by the owner's
+  // call, so runArea/showArea stay in the module and on no surface.
+  window.GeoIDLandslideML = { showGlobal };
 }
