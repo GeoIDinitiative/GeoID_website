@@ -6,21 +6,43 @@
  * a scene post with that view. The key is removed once the post is published
  * or the reader discards it.
  */
-import { play } from "../sounds.js?v=20261024-36652d4";
-import * as api from "../api.js?v=20261024-36652d4";
-import { store } from "../store.js?v=20261024-36652d4";
+import { play } from "../sounds.js?v=20261024-ef0852d";
+import * as api from "../api.js?v=20261024-ef0852d";
+import { store } from "../store.js?v=20261024-ef0852d";
 import {
   h, clear, field, input, select, textarea, checkbox, toast, busy, splitList,
   dateToEpoch, epochToDate, errorBox, loading, put,
-} from "../dom.js?v=20261024-36652d4";
+} from "../dom.js?v=20261024-ef0852d";
 import {
   KINDS, PROVENANCE, LICENCES, VISIBILITY, OPP_TYPES, EVENT_FORMATS, WORLDS, requireSignIn, kindLabel,
   hasProvenance,
-} from "../components.js?v=20261024-36652d4";
-import { parseVideoLink } from "../embed.js?v=20261024-36652d4";
-import { createMap } from "../mapcore.js?v=20261024-36652d4";
+} from "../components.js?v=20261024-ef0852d";
+import { parseVideoLink } from "../embed.js?v=20261024-ef0852d";
+import { createMap } from "../mapcore.js?v=20261024-ef0852d";
+import { linkCard, sizeText } from "../files.js?v=20261024-ef0852d";
 
 const SHARE_KEY = "geoid:social-share";
+
+// What a post can carry here (media.js sniffs the bytes, whatever the browser says).
+const ACCEPT = "image/png,image/jpeg,image/webp,image/gif,video/mp4,video/webm,application/pdf,"
+  + "audio/mpeg,audio/mp4,.mp3,.m4a,text/plain,.txt,.md,text/csv,.csv,"
+  + ".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+/** The Worker's per-file limit in MB (media.js limitFor). */
+function limitMb(f) {
+  const name = String(f.name || "").toLowerCase();
+  if (/^video\//.test(f.type)) return 40;
+  if (/^audio\//.test(f.type) || /\.(mp3|m4a)$/.test(name)) return 15;
+  if (/^text\//.test(f.type) || /\.(txt|md|csv)$/.test(name)) return 5;
+  return 8;
+}
+function fileLabel(type) {
+  if (type === "application/pdf") return "PDF";
+  if (type.startsWith("audio/")) return "Audio";
+  if (type === "text/csv") return "CSV";
+  if (type === "text/plain") return "Text";
+  if (/wordprocessingml/.test(type)) return "Word";
+  return "File";
+}
 
 function readShare() {
   try {
@@ -72,7 +94,7 @@ function buildForm(root, { existing, handed, initialKind, query }) {
   if (target?.type === "team") query = { ...query, team: String(target.id || "") };
   if (target?.type === "community") query = { ...query, community: String(target.id || "") };
   if (target?.type === "project") query = { ...query, project: String(target.id || "") };
-  const media = Array.isArray(p.media) ? p.media.map((x) => ({ key: x.key, alt: x.alt || "", url: x.url, type: x.type })) : [];
+  const media = Array.isArray(p.media) ? p.media.map((x) => ({ key: x.key, alt: x.alt || "", url: x.url, type: x.type, name: x.name || "", bytes: x.bytes || 0 })) : [];
 
   // ── Kind picker ──
   const kindGroup = h("fieldset", { class: "s-kinds" }, h("legend", {}, "What are you sharing?"),
@@ -248,6 +270,25 @@ function buildForm(root, { existing, handed, initialKind, query }) {
   const mediaList = h("ul", { class: "s-media-edit" });
   const handedLinks = Array.isArray(p.links) ? p.links : [];
   const otherLinks = handedLinks.filter((l) => l?.url && !parseVideoLink(l.url));
+  // Files kept elsewhere: the post carries a card, the bytes stay on Dropbox, Drive, OSF...
+  const fileLinksBox = textarea("file-links", { rows: 2, placeholder: "https://www.dropbox.com/s/…   https://osf.io/…   https://doi.org/10.5281/zenodo.…",
+    value: otherLinks.map((l) => l.url).join("\n") });
+  const fileCards = h("div", { class: "s-linkcards", "aria-live": "polite" });
+  const unfurled = new Map(otherLinks.map((l) => [l.url, l]));
+  const readFileLinks = () => fileLinksBox.value.split(/\s+/).map((x) => x.trim()).filter((u) => /^https?:\/\//i.test(u));
+  let unfurlTimer = 0;
+  const drawFileCards = async () => {
+    const urls = readFileLinks().slice(0, 20);
+    for (const u of urls) {
+      if (unfurled.has(u)) continue;
+      unfurled.set(u, { url: u, label: u, provider: "web" });
+      try { unfurled.set(u, { ...(await api.post("/v1/unfurl", { url: u })), url: u }); } catch { /* the card stays plain */ }
+    }
+    clear(fileCards);
+    put(fileCards, urls.map((u) => { const c = unfurled.get(u); return linkCard({ ...c, label: c.title || c.label }); }));
+  };
+  fileLinksBox.addEventListener("input", () => { clearTimeout(unfurlTimer); unfurlTimer = setTimeout(drawFileCards, 600); });
+  if (otherLinks.length) put(fileCards, otherLinks.map(linkCard));
   const videoLinksBox = textarea("video-links", { rows: 2, placeholder: "https://www.youtube.com/watch?v=…",
     value: handedLinks.filter((l) => l?.url && parseVideoLink(l.url)).map((l) => l.url).join("\n") });
   const drawMedia = () => {
@@ -255,35 +296,39 @@ function buildForm(root, { existing, handed, initialKind, query }) {
     kf.pair?.refresh();
     clear(mediaList);
     media.forEach((item, i) => {
+      const type = String(item.type || "");
+      const visual = type.startsWith("image/") || type.startsWith("video/");
       const alt = input("alt", { value: item.alt || "", placeholder: "Describe the image for people who cannot see it", "aria-label": "Alt text" });
       alt.addEventListener("input", () => { item.alt = alt.value; });
       alt.addEventListener("change", () => kf.pair?.refresh());
       put(mediaList, h("li", {},
-        item.type === "application/pdf" ? h("span", {}, "PDF attached")
-          : String(item.type || "").startsWith("video/") ? h("video", { src: item.url, class: "s-thumb", preload: "metadata", muted: true, "aria-hidden": "true" })
+        !visual ? h("span", { class: "s-filechip" }, h("strong", { text: fileLabel(type) }), " ", item.name || "", item.bytes ? ` · ${sizeText(item.bytes)}` : "")
+          : type.startsWith("video/") ? h("video", { src: item.url, class: "s-thumb", preload: "metadata", muted: true, "aria-hidden": "true" })
           : (item.url ? h("img", { src: item.url, alt: "", class: "s-thumb" }) : h("span", {}, "Image")),
-        item.type === "application/pdf" ? null : alt,
+        visual ? alt : null,
         h("button", { type: "button", class: "s-icon-btn", "aria-label": "Remove attachment", onClick: () => { media.splice(i, 1); drawMedia(); } }, "×")));
     });
   };
   drawMedia();
   // Several at once: a field visit is a set of photos, shown as a gallery.
-  const file = h("input", { type: "file", multiple: true, accept: "image/png,image/jpeg,image/webp,image/gif,video/mp4,video/webm,application/pdf" });
+  const file = h("input", { type: "file", multiple: true, accept: ACCEPT });
   file.addEventListener("change", async () => {
     const files = [...(file.files || [])];
     file.value = "";
     for (const f of files) {
       if (media.length >= 12) { toast("A post can carry up to 12 files.", "error"); break; }
-      // The Worker's limits (media.js): 40 MB for a video, 8 MB for anything else.
+      // The Worker's limits (media.js). Bigger files belong on Dropbox, Drive, OSF or Zenodo, linked below.
       const isVid = /^video\//.test(f.type);
-      if (f.size > (isVid ? 40 : 8) * 1024 * 1024) {
-        toast(isVid ? `${f.name} is over 40 MB — trim it, or post a YouTube or Vimeo link instead.` : `${f.name} is over 8 MB.`, "error");
+      const mb = limitMb(f);
+      if (f.size > mb * 1024 * 1024) {
+        toast(isVid ? `${f.name} is over 40 MB — trim it, or post a YouTube or Vimeo link instead.`
+          : `${f.name} is over ${mb} MB. Share it from Dropbox, Google Drive, OSF or Zenodo and paste the link under “Files kept elsewhere”.`, "error");
         continue;
       }
       if (isVid) toast(`Uploading ${f.name}…`);
       try {
         const out = await api.upload(f, { scope: "public" });
-        media.push({ key: out.key, alt: "", url: out.url, type: out.type });
+        media.push({ key: out.key, alt: "", url: out.url, type: out.type, name: out.name || f.name, bytes: out.bytes });
         drawMedia();
       } catch (error) { toast(error.message, "error"); }
     }
@@ -332,8 +377,11 @@ function buildForm(root, { existing, handed, initialKind, query }) {
       field("Software and versions", methodSoftware),
       field("Limitations", limitations, "What this does not show, and where it may be wrong.")),
     h("fieldset", {}, h("legend", {}, "Pictures, video and files"),
-      field("Attach files (images up to 8 MB, MP4/WebM video up to 40 MB, PDF up to 8 MB; 12 in all)", file,
-        "Several images are shown as a gallery. Describe each image and video for people who cannot see it."), mediaList,
+      field("Attach files (12 in all)", file,
+        "Images, PDF and Word up to 8 MB; MP3/M4A audio 15 MB; text and CSV 5 MB; MP4/WebM video 40 MB. Several images show as a gallery; describe each image and video for people who cannot see it."), mediaList,
+      field("Files kept elsewhere (optional)", fileLinksBox,
+        "Links to Dropbox, Google Drive, OneDrive, Box, OSF, Figshare, Zenodo or GitHub, one per line. Big datasets, theses and recordings belong there: the post shows a card and the file stays where it is."),
+      fileCards,
       field("Video links (optional)", videoLinksBox,
         "YouTube or Vimeo addresses, one per line. They play in the post, and load nothing from those sites until a reader presses play.")),
     h("fieldset", {}, h("legend", {}, "Who can see it"),
@@ -355,7 +403,7 @@ function buildForm(root, { existing, handed, initialKind, query }) {
     if (vis.value === "community" && !commSel.value) return say("Choose which community can see it.");
     if (vis.value === "project" && !projSel.value) return say("Choose which project's people can see it.");
     if (kind === "event" && !kf.starts?.value) return say("Give the event a start time.");
-    if (media.some((x) => x.type !== "application/pdf" && !String(x.alt || "").trim())) return say("Add a description (alt text) to every image and video.");
+    if (media.some((x) => /^(image|video)\//.test(String(x.type || "")) && !String(x.alt || "").trim())) return say("Add a description (alt text) to every image and video.");
     const videoUrls = videoLinksBox.value.split(/\s+/).map((x) => x.trim()).filter(Boolean);
     const badVideo = videoUrls.find((u) => !parseVideoLink(u));
     if (badVideo) return say(`“${badVideo.slice(0, 60)}” is not a YouTube or Vimeo address.`);
@@ -401,8 +449,9 @@ function buildForm(root, { existing, handed, initialKind, query }) {
       world: scene?.world || kf.world?.value || p.world || "earth",
       scene: kind === "scene" ? scene : null,
       media: media.map((x) => ({ key: x.key, alt: x.alt || "" })),
-      // Video links are the post's links; any other links it had are kept.
-      links: [...videoUrls.map((url) => ({ url, label: "video" })), ...otherLinks],
+      // Video links and file links are the post's links.
+      links: [...videoUrls.map((url) => ({ url, label: "video" })),
+        ...readFileLinks().map((url) => ({ url, label: otherLinks.find((l) => l.url === url)?.label || "" }))],
       licence: licence.value, provenance: prov ? prov.value : "unverified", sources,
       method: { summary: methodSummary.value, software: methodSoftware.value },
       limitations: limitations.value, meta,
@@ -473,7 +522,7 @@ function pairPicker(m, media) {
     sel.addEventListener("change", () => { chosen = sel.value === OTHER ? other.value : sel.value; sync(); });
     other.addEventListener("input", () => { chosen = other.value; });
     const refresh = () => {
-      const images = media.filter((x) => x.type !== "application/pdf");
+      const images = media.filter((x) => String(x.type || "").startsWith("image/"));
       clear(sel);
       put(sel, h("option", { value: "" }, "Not set"));
       images.forEach((x, i) => put(sel, h("option", { value: x.key }, `Image ${i + 1}${x.alt ? ` — ${x.alt.slice(0, 60)}` : ""}`)));

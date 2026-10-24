@@ -109,6 +109,8 @@ function hostOf(link) {
 
 function cleanMeta(kind, raw) {
   const meta = cleanObject(raw, "meta");
+  // Only the importer marks a post as imported (and credits its source).
+  for (const k of ["imported", "source_id", "source_name", "source_url"]) delete meta[k];
   if (kind === "opportunity") {
     if (meta.type != null) meta.type = enumOf(meta.type, OPPORTUNITY_TYPES, "meta.type");
     if ("org" in meta) meta.org = str(meta.org, 200);
@@ -301,7 +303,8 @@ async function postFields(env, user, body, base) {
       const row = await env.DB.prepare("SELECT * FROM media WHERE key = ?").bind(key).first();
       // Somebody else's key would make their private file part of this post.
       if (!row || row.owner_id !== user.id) fail(400, "Attach only files you uploaded.");
-      media.push({ key, type: row.type, alt: str(m?.alt, 500) });
+      // Name and size go with it, so a reader sees "survey.csv, 120 KB" before fetching anything.
+      media.push({ key, type: row.type, alt: str(m?.alt, 500), name: str(row.name, 120), bytes: row.bytes || 0 });
     }
     out.media_json = JSON.stringify(media);
   }
@@ -314,7 +317,11 @@ async function postFields(env, user, body, base) {
   if (!base || has("method")) out.method_json = JSON.stringify(cleanObject(body.method, "method"));
   if (!base || has("limitations")) out.limitations = str(body.limitations, 5000);
   if (!base || has("meta") || has("kind")) {
-    out.meta_json = JSON.stringify(cleanMeta(kind, has("meta") ? body.meta : parse(base?.meta_json, {})));
+    const was = parse(base?.meta_json, {});
+    const meta = cleanMeta(kind, has("meta") ? body.meta : was);
+    // An edit keeps the importer's credit.
+    if (was.imported) Object.assign(meta, { imported: true, source_id: was.source_id, source_name: was.source_name, source_url: was.source_url });
+    out.meta_json = JSON.stringify(meta);
   }
   if (!base || has("allow_fork")) out.allow_fork = body.allow_fork === undefined ? 1 : (body.allow_fork ? 1 : 0);
   if (!base || has("sponsored_by")) out.sponsored_by = str(body.sponsored_by, 200);

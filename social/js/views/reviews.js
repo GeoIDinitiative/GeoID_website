@@ -1,11 +1,11 @@
 /** #/reviews, #/reviews/new and #/r/:id — peer review of draft papers. */
-import * as api from "../api.js?v=20261024-36652d4";
-import { store, myHandle } from "../store.js?v=20261024-36652d4";
+import * as api from "../api.js?v=20261024-ef0852d";
+import { store, myHandle } from "../store.js?v=20261024-ef0852d";
 import {
   h, clear, field, input, select, textarea, toast, busy, splitList, errorBox, loading, empty, confirmDialog,
   timeEl, dateToEpoch, dateText, extLink, epochToDate, put,
-} from "../dom.js?v=20261024-36652d4";
-import { act, pagedList, userChip, requireSignIn } from "../components.js?v=20261024-36652d4";
+} from "../dom.js?v=20261024-ef0852d";
+import { act, pagedList, userChip, requireSignIn } from "../components.js?v=20261024-ef0852d";
 
 const RECS = [["accept", "Accept as is"], ["minor", "Minor revisions"], ["major", "Major revisions"], ["reject", "Reject / not ready"]];
 // The Worker's severities (reviews.js SEVERITIES); any other value is a 400.
@@ -111,8 +111,26 @@ export async function renderOne(root, { params }) {
     } catch (error) { toast(error.message, "error"); }
   };
 
+  const comments = commentsSection(id, data.comments || [], role, closed, reload);
+  // The PDF read in the page, each comment pinned to its place on it; a click
+  // on a page starts a comment pinned there.
+  const docBox = h("section", { class: "s-section s-review-doc", hidden: true, "aria-label": "The draft" });
+  const readHere = async (btn) => {
+    btn.disabled = true;
+    try {
+      const src = String(r.doc || api.mediaUrl(r.doc_key));
+      const res = src.startsWith(api.base()) ? await api.request("GET", src.slice(api.base().length), { raw: true }) : await fetch(src);
+      const buf = await res.arrayBuffer();
+      const { renderPdf } = await import("../pdfview.js?v=20261024-ef0852d");
+      docBox.hidden = false;
+      clear(docBox);
+      await renderPdf(docBox, buf, { pins: comments.pins, onPin: comments.canComment ? comments.pinTo : null });
+      btn.remove();
+    } catch (error) { toast(error.message || "The draft didn't load.", "error"); btn.disabled = false; }
+  };
   const actions = h("div", { class: "s-actions" },
-    r.doc_key || r.doc_url ? h("button", { type: "button", class: "btn-primary", onClick: openDoc }, r.doc_key ? "Open the draft (PDF)" : "Open the draft") : null);
+    r.doc_key ? h("button", { type: "button", class: "btn-primary", onClick: (e) => readHere(e.currentTarget) }, "Read the draft here") : null,
+    r.doc_key || r.doc_url ? h("button", { type: "button", class: r.doc_key ? "btn-ghost" : "btn-primary", onClick: openDoc }, r.doc_key ? "Open the PDF in a new tab" : "Open the draft") : null);
   if (meAsReviewer?.status === "invited") {
     put(actions, h("button", { type: "button", class: "btn-ghost", onClick: () => act(async () => { await api.post(`/v1/reviews/${encodeURIComponent(id)}/respond`, { accept: true }); reload(); }) }, "Accept the invitation"),
       h("button", { type: "button", class: "btn-ghost", onClick: () => act(async () => { await api.post(`/v1/reviews/${encodeURIComponent(id)}/respond`, { accept: false }); location.hash = "#/reviews"; }) }, "Decline"));
@@ -140,7 +158,8 @@ export async function renderOne(root, { params }) {
       role === "requester" && !closed ? requesterTools(r, reload) : null,
       role === "reviewer" && meAsReviewer?.status === "accepted" && !closed ? submitForm(id, meAsReviewer, reload) : null,
       role !== "requester" && !closed ? h("p", { class: "s-hint", text: "Reviewers' summaries are visible to the author, and to everyone else once the review is closed." }) : null),
-    commentsSection(id, data.comments || [], role, closed, reload));
+    docBox,
+    comments.el);
 }
 
 function requesterTools(r, reload) {
@@ -171,38 +190,69 @@ function commentsSection(id, comments, role, closed, reload) {
   const canComment = (role === "reviewer" || role === "requester") && !closed;
   const top = comments.filter((c) => !c.parent_id);
   const replies = (cid) => comments.filter((c) => c.parent_id === cid);
-  const draw = (c, depth) => h("li", { class: `s-comment s-sev-${c.severity || "note"}${c.resolved ? " is-resolved" : ""}` },
+  // Pinned comments are numbered in reading order, here and on the page.
+  const pinned = top.filter((c) => c.pin).sort((a, b) => a.pin.page - b.pin.page || a.pin.y - b.pin.y);
+  const pinNo = new Map(pinned.map((c, i) => [c.id, i + 1]));
+  const draw = (c, depth) => h("li", { id: `rc-${c.id}`, class: `s-comment s-sev-${c.severity || "note"}${c.resolved ? " is-resolved" : ""}` },
     h("div", { class: "s-comment-head" }, userChip(c.author, { sub: false }), timeEl(c.created_at),
+      pinNo.has(c.id) ? h("span", { class: "s-pin-no", title: `Pinned on page ${c.pin.page}` }, String(pinNo.get(c.id))) : null,
       c.anchor ? h("span", { class: "s-anchor", title: "Where in the draft" }, `§ ${c.anchor}`) : null,
       depth === 0 ? h("span", { class: "s-kind", text: SEVERITY.find(([v]) => v === c.severity)?.[1] || "General" }) : null,
       c.resolved ? h("span", { class: "s-accepted", text: "Resolved" }) : null),
+    c.pin?.quote ? h("blockquote", { class: "s-pin-quote", text: c.pin.quote }) : null,
     h("div", { class: "s-prose" }, String(c.body || "").split(/\n{2,}/).map((t) => h("p", {}, t))),
     h("div", { class: "s-comment-tools" },
       role === "requester" && !c.resolved && depth === 0 && !closed ? h("button", { type: "button", class: "s-link-btn", onClick: () => act(async () => { await api.post(`/v1/review-comments/${encodeURIComponent(c.id)}/resolve`, {}); reload(); }) }, "Mark resolved") : null,
       canComment && depth === 0 ? h("button", { type: "button", class: "s-link-btn", onClick: (e) => {
         const li = e.target.closest("li");
-        if (!li.querySelector("form")) put(li, commentForm(id, c.id, reload));
+        if (!li.querySelector("form")) put(li, commentForm(id, c.id, reload).el);
       } }, "Reply") : null),
     replies(c.id).length ? h("ol", { class: "s-comments s-replies" }, replies(c.id).map((k) => draw(k, 1))) : null);
-  return h("section", { class: "s-section" }, h("h2", { class: "s-h2", text: "Comments on the draft" }),
-    top.length ? h("ol", { class: "s-comments" }, top.map((c) => draw(c, 0))) : empty("No comments yet.", canComment ? "Anchor each comment to a page, section or line so the author can find it." : ""),
-    canComment ? commentForm(id, null, reload) : null);
+  const form = canComment ? commentForm(id, null, reload) : null;
+  const el = h("section", { class: "s-section" }, h("h2", { class: "s-h2", text: "Comments on the draft" }),
+    top.length ? h("ol", { class: "s-comments" }, top.map((c) => draw(c, 0))) : empty("No comments yet.", canComment ? "Anchor each comment to a page, section or line, or read the draft here and click the place it is about." : ""),
+    form?.el);
+  return {
+    el, canComment,
+    pins: pinned.map((c) => ({ ...c.pin, n: pinNo.get(c.id), id: c.id, label: String(c.body || "").slice(0, 120) })),
+    pinTo: (pin) => form?.pinTo(pin),
+  };
 }
 
 function commentForm(id, parentId, reload) {
   const anchor = input("anchor", { placeholder: "e.g. p. 4, §2.3, Fig. 2, line 112" });
   const severity = select("severity", SEVERITY, "general");
   const body = textarea("body", { rows: parentId ? 2 : 4, required: true, maxlength: 10000 });
+  const quote = input("quote", { maxlength: 300, placeholder: "Optional: the words it is about" });
+  let pin = null;
+  const pinNote = h("p", { class: "s-hint s-pin-note", hidden: true });
+  const clearPin = h("button", { type: "button", class: "s-link-btn", hidden: true, onClick: () => setPin(null) }, "Unpin");
+  const quoteField = field("Quote", quote);
+  quoteField.hidden = true;
+  const setPin = (p) => {
+    pin = p;
+    pinNote.hidden = clearPin.hidden = quoteField.hidden = !p;
+    pinNote.textContent = p ? `Pinned to page ${p.page}, ${Math.round(p.y * 100)}% down.` : "";
+    if (p && !anchor.value) anchor.value = `p. ${p.page}`;
+  };
   const form = h("form", { class: "s-comment-form" },
     parentId ? null : h("div", { class: "s-row-fields" }, field("Where in the draft", anchor), field("Severity", severity)),
+    parentId ? null : h("div", { class: "s-pin-row" }, pinNote, clearPin),
+    parentId ? null : quoteField,
     field(parentId ? "Reply" : "Comment", body),
     h("button", { type: "submit", class: "btn-primary s-btn-sm" }, parentId ? "Reply" : "Add comment"));
   form.addEventListener("submit", (e) => {
     e.preventDefault();
     act(async () => {
-      await api.post(`/v1/reviews/${encodeURIComponent(id)}/comments`, { body: body.value, anchor: parentId ? "" : anchor.value, severity: parentId ? "note" : severity.value, parent_id: parentId });
+      await api.post(`/v1/reviews/${encodeURIComponent(id)}/comments`, {
+        body: body.value, anchor: parentId ? "" : anchor.value, severity: parentId ? "note" : severity.value, parent_id: parentId,
+        ...(pin && !parentId ? { pin: { ...pin, quote: quote.value } } : {}),
+      });
       reload();
     });
   });
-  return form;
+  return {
+    el: form,
+    pinTo: (p) => { setPin(p); form.scrollIntoView({ block: "center", behavior: "smooth" }); body.focus({ preventScroll: true }); },
+  };
 }

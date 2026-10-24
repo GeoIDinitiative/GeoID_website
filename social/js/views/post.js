@@ -1,20 +1,21 @@
 /** #/post/:id — one post in full, its provenance, the interaction bar and the thread. */
-import { play } from "../sounds.js?v=20261024-36652d4";
-import * as api from "../api.js?v=20261024-36652d4";
-import { store, myHandle } from "../store.js?v=20261024-36652d4";
+import { play } from "../sounds.js?v=20261024-ef0852d";
+import * as api from "../api.js?v=20261024-ef0852d";
+import { store, myHandle } from "../store.js?v=20261024-ef0852d";
 import {
   h, clear, timeEl, toast, modal, field, select, textarea, busy, extLink, errorBox, loading,
   confirmDialog, empty, dateText, put,
-} from "../dom.js?v=20261024-36652d4";
+} from "../dom.js?v=20261024-ef0852d";
 import {
   userChip, kindBadge, provenanceBadge, hasProvenance, verificationBadge, geohubHref, tagList, REACTIONS, LICENCES, VISIBILITY,
-  PROVENANCE, act, requireSignIn, followButton, reportDialog, share, postUrl, citeDialog, bookmarkDialog,
+  PROVENANCE, act, requireSignIn, followButton, reportDialog, share, postUrl, sharePageUrl, importedBadge, citeDialog, bookmarkDialog,
   reshareButton, quoteDialog, sendPostDialog,
   postCard, kindLabel,
-} from "../components.js?v=20261024-36652d4";
-import { compareSlider, resolveImageRef, timeChart, measurementsBlock, gallery } from "../rich.js?v=20261024-36652d4";
-import { parseVideoLink, videoEmbed } from "../embed.js?v=20261024-36652d4";
-import { eventPanel } from "./opportunities.js?v=20261024-36652d4";
+} from "../components.js?v=20261024-ef0852d";
+import { compareSlider, resolveImageRef, timeChart, measurementsBlock, gallery } from "../rich.js?v=20261024-ef0852d";
+import { parseVideoLink, videoEmbed } from "../embed.js?v=20261024-ef0852d";
+import { eventPanel } from "./opportunities.js?v=20261024-ef0852d";
+import { linkCard } from "../files.js?v=20261024-ef0852d";
 
 export async function render(root, { params, query }) {
   const id = params.id;
@@ -34,6 +35,7 @@ export async function render(root, { params, query }) {
           p.kind === "observation" ? verificationBadge(p.verification) : null,
           p.visibility !== "public" ? h("span", { class: "s-vis", text: VISIBILITY[p.visibility] || p.visibility }) : null,
           p.sponsored_by ? h("span", { class: "s-sponsor", text: `Sponsored by ${p.sponsored_by}` }) : null,
+          importedBadge(p),
           p.forked_from ? h("a", { class: "s-vis", href: `#/post/${encodeURIComponent(p.forked_from)}` }, "Forked from another post") : null),
         h("h1", { class: "s-h1", text: p.title || kindLabel(p.kind) }),
         h("div", { class: "s-byline" }, userChip(p.author),
@@ -72,7 +74,8 @@ function body(p) {
 }
 
 /**
- * The post's images as a gallery with a lightbox, and its PDFs as links. An
+ * The post's images as a gallery with a lightbox, its other files with
+ * previews, and its links as cards (files kept on Dropbox, OSF...). An
  * analysis whose before/after pair is drawn as the comparison slider leaves
  * those two out here, so the same picture is not shown twice.
  */
@@ -85,7 +88,7 @@ function mediaBlock(p) {
   const others = links.filter((l) => !parseVideoLink(l.url));
   if (!files && !videos.length && !others.length) return null;
   return h("div", {}, files, videos.map(({ v }) => videoEmbed(v, { title: p.title })),
-    others.length ? h("ul", { class: "s-plain s-links" }, others.map((l) => h("li", {}, extLink(l.url, l.label || l.url)))) : null);
+    others.length ? h("div", { class: "s-linkcards" }, others.map(linkCard)) : null);
 }
 
 /** Both sides of an analysis's before/after, when both are images it can draw. */
@@ -246,7 +249,8 @@ function actionBar(p, mine, focusComment) {
     reshareButton(p),
     p.visibility === "public" && store.me && !mine ? h("button", { type: "button", class: "s-act", onClick: () => quoteDialog(p) }, "Quote") : null,
     h("button", { type: "button", class: "s-act", onClick: () => (store.me ? sendPostDialog(p) : requireSignIn("send posts")) }, "Send to…"),
-    h("button", { type: "button", class: "s-act", onClick: () => share(postUrl(p.id), p.title || "GeoID Network") }, "Share link"),
+    // A public post shares its preview page (title, summary and card on any site); others the app link.
+    h("button", { type: "button", class: "s-act", onClick: () => share(p.visibility === "public" ? sharePageUrl("p", p.id) : postUrl(p.id), p.title || "GeoID Network") }, "Share link"),
     h("button", { type: "button", class: "s-act", onClick: () => citeDialog(p.id) }, "Cite"));
   // Collaboration track: ask specialists for help with (or about) this post.
   put(bar, h("a", { class: "s-act", href: `#/requests?new=1&post=${encodeURIComponent(p.id)}` }, "Ask for help…"));
@@ -261,6 +265,9 @@ function actionBar(p, mine, focusComment) {
       toast("Forked. It is private until you change it.");
       location.hash = `#/post/${encodeURIComponent(fork.id)}`;
     }, "fork posts") }, "Fork"));
+  }
+  if (mine && p.visibility === "public" && (p.media || []).length) {
+    put(bar, h("button", { type: "button", class: "s-act", onClick: () => zenodoDialog(p) }, "Zenodo…"));
   }
   if (mine) {
     put(bar, h("a", { class: "s-act", href: `#/compose?edit=${encodeURIComponent(p.id)}` }, "Edit"),
@@ -399,4 +406,48 @@ function commentForm(p, parentId, onDone) {
     } catch (error) { toast(error.message, "error"); done(); }
   });
   return form;
+}
+
+/**
+ * Deposit the post's files on Zenodo under the author's own account: a DOI,
+ * and the bytes leave our storage for a permanent home. A draft by default
+ * -- publishing on Zenodo cannot be undone, so it takes a second, explicit yes.
+ */
+async function zenodoDialog(p) {
+  let z;
+  try { z = await api.get("/v1/zenodo", { post: p.id }); } catch (error) { toast(error.message, "error"); return; }
+  const dep = z.deposit;
+  if (dep?.status === "published") {
+    modal("On Zenodo", () => h("div", {},
+      h("p", {}, "This post's files are published on Zenodo."),
+      dep.doi ? h("p", {}, "DOI: ", h("code", { text: dep.doi })) : null,
+      dep.url ? extLink(dep.url, "Open on Zenodo") : null));
+    return;
+  }
+  if (!z.configured) { toast("Publishing to Zenodo isn't set up on this server yet.", "error"); return; }
+  if (!z.connected) {
+    if (await confirmDialog("Connect Zenodo", "Your files go to your own Zenodo account, under your name. Connect it in Settings first.", "Go to Settings")) location.hash = "#/settings";
+    return;
+  }
+  modal("Publish to Zenodo", (close) => {
+    const status = h("p", { class: "s-form-status", role: "status", "aria-live": "polite" });
+    const go = async (publish) => {
+      if (publish && !(await confirmDialog("Publish now?", "A published Zenodo record is permanent: the files cannot be changed or removed, only versioned. Make a draft if you want to check it on Zenodo first.", "Publish"))) return;
+      status.textContent = "Sending the files to Zenodo…";
+      try {
+        const out = await api.post(`/v1/posts/${encodeURIComponent(p.id)}/zenodo`, { publish });
+        close?.();
+        toast(out.status === "published" ? `Published. DOI ${out.doi}` : "Draft made in your Zenodo account.");
+        location.reload();
+      } catch (error) { status.textContent = error.message; status.classList.add("is-error"); }
+    };
+    return h("div", {},
+      h("p", {}, `${(p.media || []).length} file${(p.media || []).length === 1 ? "" : "s"} from this post, with its title, description, licence (${p.licence || "CC-BY-4.0"}), tags and sources, go to your Zenodo account${z.sandbox ? " (the Zenodo sandbox)" : ""}.`),
+      h("p", { class: "s-hint", text: "A draft can be checked and edited on Zenodo before it is published. Once it is published, the DOI goes on this post." }),
+      dep?.url ? h("p", { class: "s-hint" }, "You already made a draft: ", extLink(dep.url, "open it on Zenodo"), ". Another press makes a new one.") : null,
+      status,
+      h("div", { class: "s-actions" },
+        h("button", { type: "button", class: "btn-primary", onClick: () => go(false) }, "Make a draft"),
+        h("button", { type: "button", class: "btn-ghost", onClick: () => go(true) }, "Publish with a DOI")));
+  });
 }

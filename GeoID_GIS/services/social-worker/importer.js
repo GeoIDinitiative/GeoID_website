@@ -114,7 +114,7 @@ function jobPost(bot, source, p, hits, t) {
     sources_json: JSON.stringify([{ label: `Imported from ${source.name}`, url: p.url, doi: "", licence: "" }]),
     method_json: "{}", limitations: "Gathered automatically from the employer's own listing; check the advert for the details that matter.",
     meta_json: JSON.stringify({ type: /phd|studentship/i.test(p.title) ? "studentship" : /fellow/i.test(p.title) ? "fellowship" : /intern/i.test(p.title) ? "internship" : "job",
-      org: str(source.name, 200), apply_url: p.url, ...(deadline ? { deadline } : {}), imported: true, source_id: source.id }),
+      org: str(source.name, 200), apply_url: p.url, ...(deadline ? { deadline } : {}), imported: true, source_id: source.id, source_name: str(source.name, 120), source_url: source.url }),
     visibility: "public", team_id: null, community_id: null, project_id: null, allow_fork: 0, forked_from: null,
     sponsored_by: "", created_at: t, updated_at: t,
   };
@@ -133,7 +133,7 @@ function eventPost(bot, source, e, hits, t) {
     method_json: "{}", limitations: "Gathered automatically from the organiser's calendar; check their page for changes.",
     meta_json: JSON.stringify({ starts_at: e.startsAt, ...(e.endsAt ? { ends_at: e.endsAt } : {}), where: str(e.location, 200),
       url: e.url || source.url, format: /workshop/i.test(e.title) ? "workshop" : /webinar/i.test(e.title) ? "webinar" : /school|course|training/i.test(e.title) ? "field-course" : "conference",
-      online, imported: true, source_id: source.id }),
+      online, imported: true, source_id: source.id, source_name: str(source.name, 120), source_url: source.url }),
     visibility: "public", team_id: null, community_id: null, project_id: null, allow_fork: 0, forked_from: null,
     sponsored_by: "", created_at: t, updated_at: t,
   };
