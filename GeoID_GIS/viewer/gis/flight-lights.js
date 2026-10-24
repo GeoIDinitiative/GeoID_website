@@ -14,10 +14,11 @@
 //     countryside is unlit, a town's residential streets are lit, service
 //     roads only in bright centres. LED white or low-pressure sodium by a
 //     stable hash of the lamp's place, more LED on the main roads.
-//   * AT EVERY RANGE, centred AHEAD of the aircraft: every lit street close
-//     round it (z14) and out to 26-80 km ahead (z12, by height), the main
-//     roads to ~70-150 km (z11), motorways and trunk roads to 200-300 km
-//     (z9), cross-fading between them. Black Marble is never drawn: it only
+//   * AT EVERY RANGE, centred AHEAD of the aircraft and growing with height,
+//     coarser outward: every lit street close round it (z14) and out to
+//     26-80 km ahead (z12), town and main roads to 70-170 km (z11), from 8 km
+//     up motorway-secondary to ~180 km more (z10), motorways and trunk roads
+//     to 200-400 km (z9), with wide crossfades between them. Black Marble is never drawn: it only
 //     decides which lamps are lit. From ~1.5 km up the lamps turn from sharp
 //     lanterns into a soft glow (their light spread over a few pixels, so the
 //     sum follows the roads), and the every-street ring hands over to the
@@ -28,7 +29,7 @@
 //   * Depth-tested: hills and buildings hide what is behind them. Night only
 //     (the ship's NIGHT from flight-tiles.js); nothing runs by day.
 
-import { NIGHT } from "./night-lights.js?v=20261024-0da49f1";
+import { NIGHT } from "./night-lights.js?v=20261024-0020891";
 
 const TILEJSON = "https://tiles.openfreemap.org/planet";
 const BM = "https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/VIIRS_Black_Marble/default/2016-01-01/GoogleMapsCompatible_Level8/{z}/{y}/{x}.png";
@@ -43,16 +44,19 @@ const ALL = ["motorway", "trunk", "primary", "secondary", "tertiary", "minor", "
 // Reaches and fades are set each tick from the aircraft's height (tick()).
 export const LEVELS = [
   { z: 14, classes: ALL, pools: true, centre: 0, reach: 4500, inFrom: 0, outFrom: 0, fade: [0, 0, 3500, 4500] },
-  { z: 11, classes: ["motorway", "trunk", "primary", "secondary"], centre: 1, reach: 70000, inFrom: 1, outFrom: 1, fade: [0, 0, 0, 0] },
-  { z: 9, classes: ["motorway", "trunk", "primary"], centre: 1, reach: 200000, inFrom: 1, outFrom: 1, fade: [0, 0, 0, 0] },
+  { z: 11, classes: ["motorway", "trunk", "primary", "secondary", "tertiary"], centre: 1, reach: 70000, inFrom: 1, outFrom: 1, fade: [0, 0, 0, 0], thin: 2 },
+  { z: 9, classes: ["motorway", "trunk", "primary"], centre: 1, reach: 200000, inFrom: 1, outFrom: 1, fade: [0, 0, 0, 0], thin: 3 },
   // Every street, coarser (z12 carries the minor roads too, at a quarter of
   // z13's tiles), far out ahead: a town 20-80 km away is its whole street
   // network glowing, not just its arterials -- every second lamp, each twice
   // as bright, which reads the same at that range.
   { z: 12, classes: ALL, centre: 1, reach: 14000, inFrom: 0, outFrom: 1, fade: [0, 0, 0, 0], thin: 2 },
+  // From ~8 km up, a ring between the main roads and the motorways (z10:
+  // motorway to secondary), so the lit country reaches ~180 km.
+  { z: 10, classes: ["motorway", "trunk", "primary", "secondary"], centre: 1, reach: 0, inFrom: 1, outFrom: 1, fade: [0, 0, 0, 0], thin: 3 },
 ];
 const FETCH_BUDGET = 10;          // OpenFreeMap is HTTP/2: one connection, many streams
-const MAX_KEPT = 520;
+const MAX_KEPT = 900;
 
 const lonToX = (lon, z) => ((lon + 180) / 360) * 2 ** z;
 const latToY = (lat, z) => { const r = lat * Math.PI / 180; return (1 - Math.log(Math.tan(r) + 1 / Math.cos(r)) / Math.PI) / 2 * 2 ** z; };
@@ -180,7 +184,7 @@ const LAMP_VERT = /* glsl */`
     // distance, the light SPREAD over it (energy / area), so thousands of
     // lamps add up to a diffuse glow that still follows the roads, rather
     // than a scatter of sub-pixel sparks.
-    float diffusePx = mix(2.0, 9.0, uDiffuse);
+    float diffusePx = mix(2.0, 13.0, uDiffuse);
     float size = clamp(max(px * 2.0, diffusePx), 2.0, 32.0);
     gl_PointSize = size;
     vCore = clamp(1.6 / size, 0.03, 0.6);
@@ -337,7 +341,7 @@ function disposeMeshes(t) {
 
 // Fetch order: the close streets first, then the wider rings (the ship sits
 // inside the big z9/z11 tiles too, and they were competing as equals).
-const LEVEL_PENALTY_M = [0, 8000, 30000, 2500];
+const LEVEL_PENALTY_M = [0, 8000, 40000, 2500, 25000];
 const priority = (t) => t.d + LEVEL_PENALTY_M[LEVELS.indexOf(t.level)];
 function pump() {
   fetchQueue.sort((a, b) => priority(a) - priority(b));
@@ -405,13 +409,21 @@ function tick() {
   // motorways and A-roads to 200-300 km. Each fades in where the last fades
   // out. From ~2.5 km up the close ring hands over to the z13 one.
   const high = Math.min(1, Math.max(0, (altM - 2500) / 2500)), hand = 1 - high;
+  // Radii grow with height, the tiles coarsening outward ("lower resolution
+  // with height"); crossfades are wide (a fifth of a ring) so no band of
+  // light sweeps visibly across the ground as the aircraft moves.
   const r13 = Math.min(40000, 14000 + 1.3 * altM);
-  const r11 = Math.min(110000, 70000 + 2 * altM);
-  const r9 = Math.min(320000, Math.max(200000, 5 * altM));
+  const r11 = Math.min(90000, 70000 + 1.0 * altM);
+  const useZ10 = altM > 8000;
+  const r10 = useZ10 ? Math.min(180000, 100000 + 4 * altM) : 0;
+  const r9 = Math.min(400000, Math.max(200000, 12 * altM));
+  const band = (r) => 0.2 * r;
   LEVELS[0].fade = [0, 0, 3500 * hand, 4500 * hand + 1];
-  LEVELS[3].reach = r13; LEVELS[3].fade = [3500 * hand, 4500 * hand, r13 - 2500, r13];
-  LEVELS[1].reach = r11; LEVELS[1].fade = [r13 - 2500, r13, r11 * 0.88, r11];
-  LEVELS[2].reach = r9; LEVELS[2].fade = [r11 * 0.88, r11, r9 * 0.88, r9];
+  LEVELS[3].reach = r13; LEVELS[3].fade = [3500 * hand, 4500 * hand, r13 - band(r13), r13];
+  LEVELS[1].reach = r11; LEVELS[1].fade = [r13 - band(r13), r13, r11 - band(r11), r11];
+  LEVELS[4].reach = r10; LEVELS[4].fade = [r11 - band(r11), r11, r10 - band(r10), r10];
+  const r9in = useZ10 ? r10 : r11;
+  LEVELS[2].reach = r9; LEVELS[2].fade = [r9in - band(r9in), r9in, r9 - band(r9), r9];
   const now = performance.now();
   for (const t of tiles.values()) t.want = false;
   const tv = window.GeoIDFlightTerrain?.getVersion?.() ?? 0;
