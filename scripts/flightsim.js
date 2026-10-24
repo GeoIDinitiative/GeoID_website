@@ -215,7 +215,7 @@
         <button type="button" class="fs-tbtn fs-t-wide" data-key="KeyD" aria-label="Roll right">Roll &#8631;</button>
       </div>
       <div class="fs-touch-row">
-        <button type="button" class="fs-tbtn fs-t-wide fs-t-boost" id="fs-boost-btn" data-key="ShiftLeft">Boost</button>
+        <button type="button" class="fs-tbtn fs-t-wide fs-t-boost fs-boost-only" id="fs-boost-btn" data-key="ShiftLeft">Boost</button>
         <button type="button" class="fs-tbtn fs-t-wide fs-t-brake" data-key="Space">Brake</button>
 
       </div>
@@ -241,7 +241,7 @@
       <dt><kbd>&uarr;</kbd> <kbd>&darr;</kbd><span class="fs-pad-eq"><kbd>L stick &varr;</kbd></span></dt><dd>Pitch<span class="fs-pad-eq fs-pad-note"> (right stick &varr; = fine)</span></dd>
       <dt><kbd>&larr;</kbd> <kbd>&rarr;</kbd><span class="fs-pad-eq"><kbd>R stick &harr;</kbd></span></dt><dd>Yaw — turn left / right</dd>
       <dt><kbd>A</kbd> <kbd>D</kbd><span class="fs-pad-eq"><kbd>L stick &harr;</kbd></span></dt><dd>Roll — bank left / right</dd>
-      <dt><kbd>Shift</kbd><span class="fs-pad-eq"><kbd>R2</kbd></span></dt><dd>Boost<span class="fs-pad-eq fs-pad-note"> (squeeze for less)</span></dd>
+      <dt class="fs-boost-only"><kbd>Shift</kbd><span class="fs-pad-eq"><kbd>R2</kbd></span></dt><dd class="fs-boost-only">Boost<span class="fs-pad-eq fs-pad-note"> (squeeze for less)</span></dd>
       <dt><kbd>Space</kbd><span class="fs-pad-eq"><kbd>R1</kbd></span></dt><dd>Brake</dd>
       <dt><kbd>C</kbd><span class="fs-pad-eq"><kbd>&#9633;</kbd></span></dt><dd>Camera — chase / cockpit</dd>
       <dt><kbd>R</kbd><span class="fs-pad-eq"><kbd>L3</kbd></span></dt><dd>Re-level</dd>
@@ -280,7 +280,7 @@
         <button type="button" class="fs-step" id="fs-thr-up" aria-label="Increase throttle">+</button>
       </div>
     </div>
-    <div class="fs-meter"><span class="fs-k" id="fs-boost-label">Boost</span>
+    <div class="fs-meter fs-boost-only"><span class="fs-k" id="fs-boost-label">Boost</span>
       <div class="fs-meter-track"><div class="fs-meter-fill" id="fs-boost-fill"></div></div>
     </div>
   </div>
@@ -3709,8 +3709,10 @@
     // ceiling from cruise up to the altitude-allowed maximum. The existing HUD
     // bar reads as "how far up the speed range you are" instead of "how much
     // boost is left", which is the same bar showing something more useful.
-    const keyBoost = Boolean(keys.ShiftLeft || keys.ShiftRight);
-    s.boosting = keyBoost || pad.boost > 0;
+    // Earth Flight has no boost (owner, 2026-10-24): real aircraft, real speeds.
+    const noBoost = Boolean(bodyProfile().openChrome);
+    const keyBoost = !noBoost && Boolean(keys.ShiftLeft || keys.ShiftRight);
+    s.boosting = keyBoost || (!noBoost && pad.boost > 0);
     // R2 is analogue, and the ramp makes that mean something: the trigger sets
     // HOW FAR UP the ramp boost may climb. Fully squeezed is exactly Shift
     // (and is the only way into warp, which needs the ramp full); half
