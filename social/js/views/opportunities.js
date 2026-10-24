@@ -45,51 +45,18 @@ function postedHere(query) {
       { emptyTitle: "No opportunities match.", emptyDetail: "Clear a filter, or post one yourself." }));
 }
 
-/**
- * Job boards searched with the field already chosen. Their newest adverts
- * come in with the daily scan (importer.js); the board itself has the rest,
- * and its own alerts. Keyed by the import source id.
- */
-const JOB_BOARDS = {
-  "jobs:jobs-ac-uk-geo": {
-    filters: "Environmental sciences, geography and geology",
-    url: "https://www.jobs.ac.uk/search/?activeFacet=subDisciplineFacet&sortOrder=1&pageSize=25&startIndex=1&academicDisciplineFacet%5B0%5D=physical-and-environmental-sciences&subDisciplineFacet%5B0%5D=environmental-sciences&subDisciplineFacet%5B1%5D=geography&subDisciplineFacet%5B2%5D=geology",
-  },
-  "jobs:egu-jobs": { filters: "European Geosciences Union", url: "https://www.egu.eu/jobs/" },
-  "jobs:agu-career-center": { filters: "American Geophysical Union", url: "https://findajob.agu.org/jobs/" },
-};
-
 const shortDate = (s) => (s ? new Date(s * 1000).toLocaleDateString(undefined, { day: "numeric", month: "short", year: new Date(s * 1000).getFullYear() === new Date().getFullYear() ? undefined : "numeric" }) : "");
 
 /**
- * The daily scan, packaged: what it reads and when it last ran, a filter by
- * source, then the open adverts -- the latest scan's first, under their own
- * heading -- each a compact listing that links to its post and to the advert.
+ * Adverts gathered from elsewhere (importer.js), deliberately unexplained:
+ * no list of sources, counts or scan times, only the listings -- the newest
+ * under their own heading -- each crediting where it came from. The summary
+ * is read only for when the latest batch arrived. ?source=<id> still filters.
  */
 function externalBoard(query) {
   const source = query.source || "";
-  const head = h("div", { class: "s-scan" }, h("p", { class: "s-muted", text: "Loading the latest scan…" }));
-  const listBox = h("div", {});
-  const boards = h("aside", { class: "s-boards", "aria-label": "Job boards" });
-  const chip = (id, label, n) => h("a", { class: `s-chip${source === id ? " is-on" : ""}`, href: `#/opportunities?tab=external${id ? `&source=${encodeURIComponent(id)}` : ""}`,
-    "aria-current": source === id ? "true" : null }, label, n != null ? h("span", { class: "s-chip-n", text: String(n) }) : null);
+  const box = h("div", {}, loading());
   api.get("/v1/imports/summary").then((sum) => {
-    clear(boards);
-    put(boards, h("span", { class: "s-label", text: "More on the boards" }),
-      sum.boards.map((b) => JOB_BOARDS[b.id] ? h("a", { class: "s-board", href: JOB_BOARDS[b.id].url, target: "_blank", rel: "noopener noreferrer" },
-        h("strong", { text: b.name }), h("span", { class: "s-muted", text: ` · ${JOB_BOARDS[b.id].filters}` }), " ↗") : null));
-    const names = sum.boards.map((b) => b.name);
-    put(clear(head),
-      h("p", { class: "s-scan-line" },
-        h("strong", {}, "Scanned daily"), ` from ${names.join(", ")} and ${sum.employers.sources} employers' own careers pages. `,
-        sum.last_scan_at ? `Last scan ${shortDate(sum.last_scan_at)}, ${new Date(sum.last_scan_at * 1000).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })}: ` : "Not scanned yet. ",
-        h("strong", { text: `${sum.open} open` }), sum.new_in_last_scan ? `, ${sum.new_in_last_scan} new.` : "."),
-      h("p", { class: "s-hint", text: "Each advert is credited to where it was found and links to the original. Apply there: details and deadlines on the original are the authority." }),
-      h("nav", { class: "s-chips", "aria-label": "Filter by source" },
-        chip("", "All", sum.open),
-        sum.boards.map((b) => chip(b.id, b.name, b.open)),
-        chip("employers", "Employers' pages", sum.employers.open)));
-    // Group by scan: the latest scan's adverts first, under their own heading.
     let section = "";
     const row = (p) => {
       const fresh = sum.last_scan_at && p.created_at >= sum.last_scan_at;
@@ -97,26 +64,18 @@ function externalBoard(query) {
       const out = [];
       if (want !== section) {
         section = want;
-        out.push(h("h2", { class: "s-h3 s-scan-group", text: fresh ? "New in the latest scan" : "Still open" }));
+        out.push(h("h2", { class: "s-h3 s-scan-group", text: fresh ? "New" : "Still open" }));
       }
       out.push(listingCard(p));
       return out;
     };
-    put(clear(listBox), pagedList((cursor) => api.get("/v1/feed", { tab: "opportunities", origin: "external", source, cursor }), row,
-      { emptyTitle: "No open adverts from this source.", emptyDetail: "The scan runs once a day.", listClass: "s-list s-listings" }));
-  }).catch((error) => {
-    // An older server has no scan at all: say so, rather than "Not found".
-    if (error?.status === 404) {
-      put(clear(head), empty("The external scan isn't running on this server yet.",
-        "Adverts from jobs.ac.uk, EGU, AGU and employers' pages appear here once the server with the daily scan is deployed."));
-      return;
-    }
-    put(clear(head), errorBox(error));
-  });
-  return h("div", {}, head, boards, listBox);
+    put(clear(box), pagedList((cursor) => api.get("/v1/feed", { tab: "opportunities", origin: "external", source, cursor }), row,
+      { emptyTitle: "Nothing here yet.", emptyDetail: "Check back soon.", listClass: "s-list s-listings" }));
+  }).catch((error) => put(clear(box), error?.status === 404 ? empty("Nothing here yet.", "Check back soon.") : errorBox(error)));
+  return box;
 }
 
-/** One scanned advert: what, who, where, when it closes, where it came from, and the way to apply. */
+/** One gathered advert: what, who, where, when it closes, where it came from, and the way to apply. */
 function listingCard(p) {
   const m = p.meta || {};
   const advert = m.apply_url || p.links?.[0]?.url || "";
@@ -135,7 +94,7 @@ function listingCard(p) {
         salary ? h("span", { class: "s-muted", text: salary }) : null,
         h("span", { class: "s-vis s-imported", text: `via ${via}` }))),
     h("div", { class: "s-listing-side" },
-      closes ? h("span", { class: "s-listing-closes", text: closes }) : h("span", { class: "s-muted", text: `Found ${shortDate(p.created_at)}` }),
+      closes ? h("span", { class: "s-listing-closes", text: closes }) : h("span", { class: "s-muted", text: `Added ${shortDate(p.created_at)}` }),
       h("div", { class: "s-listing-acts" },
         h("a", { class: "s-act", href: `#/post/${encodeURIComponent(p.id)}` }, "Details"),
         advert ? h("a", { class: "btn-primary s-btn-sm", href: advert, target: "_blank", rel: "noopener noreferrer" }, `Apply on ${via.replace(/ (Jobs|Career Center)$/, "")} ↗`) : null)));
