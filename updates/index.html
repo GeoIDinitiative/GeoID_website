@@ -63,7 +63,9 @@
     .journal { max-width: 72rem; margin: 0 auto; padding: 2.5rem 1.5rem 4.5rem; }
     .journal-hero { margin-bottom: 1.6rem; }
     /* On the photo-band pages the header is a full-width band (bands.css). */
-    .bands .journal { padding-top: 0; }
+    /* On the photo-band page the list shares the header's column (bands.css
+       .cx-inner: 90rem, same side padding), so their left edges line up. */
+    .bands .journal { padding-top: 0; max-width: 90rem; padding-inline: clamp(1.25rem, 5vw, 3rem); }
     .bands .journal-hero { margin-bottom: 2.5rem; }
     .bands .journal-hero .cx-inner { padding-top: clamp(4.5rem, 8vw, 7rem); padding-bottom: clamp(3.5rem, 6vw, 5rem); }
     .bands .journal-lead { color: rgba(236, 232, 248, 0.82); }

@@ -881,11 +881,17 @@
        large to the edge of the screen and the cards spread across the
        wider column, so a 1920px screen is not two-thirds empty. */
     body.bands .feature-tile {
-      grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.3fr) !important;
+      grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.25fr) !important;
       column-gap: clamp(2.5rem, 5vw, 5.5rem);
       align-items: center;
     }
-    body.bands .feature-tile .feature-body { padding: 0 !important; }
+    /* Flipped rows put the capture first, so the tracks swap with it: the
+       capture always gets the wide one. */
+    body.bands .feature-tile.is-flipped {
+      grid-template-columns: minmax(0, 1.25fr) minmax(0, 0.85fr) !important;
+    }
+    body.bands .feature-tile .feature-body { padding: 0 !important; max-width: 36rem; }
+    body.bands .feature-tile.is-flipped .feature-body { justify-self: end; }
     body.bands .feature-tile .feature-shot {
       background: none;
       border-radius: 4px 0 0 4px;
@@ -903,6 +909,7 @@
     body.bands .feature-tile .tile-desc p { font-size: 1.08rem; line-height: 1.7; }
     body.bands .feature-list { gap: 0.8rem; margin-top: 1.5rem; }
     body.bands .feature-list li { font-size: 1rem; line-height: 1.65; }
+    body.bands .feature-body .hero-actions { flex-direction: row !important; flex-wrap: wrap; justify-content: flex-start !important; gap: 0.75rem; }
 
     body.bands .shot-grid { grid-template-columns: repeat(4, minmax(0, 1fr)) !important; text-align: left; }
     body.bands .shot-card img { background: none; aspect-ratio: 16 / 10; }
@@ -938,7 +945,9 @@
       body.bands .worlds-grid { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; }
     }
     @media (max-width: 1080px) {
-      body.bands .feature-tile { grid-template-columns: 1fr !important; row-gap: 2.5rem; }
+      body.bands .feature-tile,
+      body.bands .feature-tile.is-flipped { grid-template-columns: 1fr !important; row-gap: 2.5rem; }
+      body.bands .feature-tile.is-flipped .feature-body { justify-self: start; }
       body.bands .feature-tile .feature-shot,
       body.bands .feature-tile.is-flipped .feature-shot {
         order: -1;

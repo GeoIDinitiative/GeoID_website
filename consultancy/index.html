@@ -329,7 +329,19 @@
     .cx-figs span { display: block; margin-top: 0.4rem; max-width: 12rem; color: rgba(236, 232, 248, 0.70); font-size: 0.82rem; line-height: 1.45; }
     .cx-lesson { border-left: 2px solid var(--accent); padding-left: 1rem; color: var(--text) !important; margin-bottom: 0 !important; }
 
-    .cx-scores { margin-top: clamp(2.5rem, 5vw, 4rem); max-width: 60rem; }
+    /* Intro beside the chart: one balanced band instead of a near-empty
+       heading band and a chart stranded on the left of a wide screen. */
+    .cx-record { display: grid; grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr); gap: clamp(2.5rem, 6vw, 6rem); align-items: center; }
+    .cx-scores-title {
+      font-family: "Public Sans", sans-serif;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin: 0 0 1rem;
+    }
+    .cx-scores { margin-top: 0; }
     .cx-score {
       display: grid;
       grid-template-columns: 13rem 1fr 3.5rem;
@@ -613,6 +625,7 @@
       .legal-toc ol { grid-template-columns: 1fr 1fr; column-gap: 1.5rem; }
       .cx-split { grid-template-columns: 1fr; }
       .cx-split > div:first-child { position: static; }
+      .cx-record { grid-template-columns: 1fr; }
     }
     @media (max-width: 820px) {
       .cx-cols, .cx-cols[style*="--n:4"] { grid-template-columns: 1fr; row-gap: 0; }
@@ -854,9 +867,22 @@
 
       <!-- Track record -->
       <section class="cx-band cx-plain" id="record">
-        <div class="cx-inner" style="padding-bottom:clamp(3rem,5vw,4.5rem);">
-          <h2 class="tile-title">Track record: scored, not asserted</h2>
-          <p class="tile-desc">The models behind the assessments are tested against events they were not built from, and the results are reported whether they flatter the model or not &mdash; including one where the answer was &ldquo;this does not transfer&rdquo;.</p>
+        <div class="cx-inner cx-record">
+          <div>
+            <h2 class="tile-title">Track record: scored, not asserted</h2>
+            <p class="tile-desc">The models behind the assessments are tested against events they were not built from, and the results are reported whether they flatter the model or not &mdash; including one where the answer was &ldquo;this does not transfer&rdquo;.</p>
+            <p class="cx-fine" style="margin-top:1.5rem;">Area under the ROC curve on events after each model's training period: 0.5 is no skill, 1 a perfect ranking, and the bars run from 0.5 to 1. These are the screening models an assessment starts from, not the site-specific models it builds. Three cases follow.</p>
+          </div>
+          <div>
+            <h3 class="cx-scores-title">Held-out scores for the GeoHUB screening models</h3>
+            <div class="cx-scores">
+            <div class="cx-score"><span class="name">Seismic<small>M&ge;5, 2006&ndash;2025</small></span><span class="cx-bar" aria-hidden="true"><i style="width:92%"></i></span><span class="val">0.960</span></div>
+            <div class="cx-score"><span class="name">Flood<small>events 2005&ndash;2025</small></span><span class="cx-bar" aria-hidden="true"><i style="width:91.8%"></i></span><span class="val">0.959</span></div>
+            <div class="cx-score"><span class="name">Tropical cyclone<small>seasons 2010&ndash;2025</small></span><span class="cx-bar" aria-hidden="true"><i style="width:88.2%"></i></span><span class="val">0.941</span></div>
+            <div class="cx-score"><span class="name">Volcanic<small>Holocene record, eruptions 2000&ndash;2025</small></span><span class="cx-bar" aria-hidden="true"><i style="width:69.4%"></i></span><span class="val">0.847</span></div>
+            <div class="cx-score"><span class="name">Landslide<small>held-out Mid &amp; North Wales</small></span><span class="cx-bar weak" aria-hidden="true"><i style="width:6.8%"></i></span><span class="val">0.534</span></div>
+          </div>
+          </div>
         </div>
       </section>
 
@@ -914,19 +940,6 @@
         </div>
       </article>
 
-      <section class="cx-band cx-plain" aria-label="Held-out model scores">
-        <div class="cx-inner">
-          <h2 class="tile-title" style="font-size:clamp(1.4rem,2.4vw,1.9rem)!important;">Held-out scores for the GeoHUB screening models</h2>
-          <p class="tile-desc">Area under the ROC curve on events after each model's training period (0.5 is no skill, 1 is a perfect ranking; bars run from 0.5 to 1). These are the screening models an assessment starts from, not the site-specific models it builds.</p>
-          <div class="cx-scores">
-            <div class="cx-score"><span class="name">Seismic<small>M&ge;5, 2006&ndash;2025</small></span><span class="cx-bar" aria-hidden="true"><i style="width:92%"></i></span><span class="val">0.960</span></div>
-            <div class="cx-score"><span class="name">Flood<small>events 2005&ndash;2025</small></span><span class="cx-bar" aria-hidden="true"><i style="width:91.8%"></i></span><span class="val">0.959</span></div>
-            <div class="cx-score"><span class="name">Tropical cyclone<small>seasons 2010&ndash;2025</small></span><span class="cx-bar" aria-hidden="true"><i style="width:88.2%"></i></span><span class="val">0.941</span></div>
-            <div class="cx-score"><span class="name">Volcanic<small>Holocene record, eruptions 2000&ndash;2025</small></span><span class="cx-bar" aria-hidden="true"><i style="width:69.4%"></i></span><span class="val">0.847</span></div>
-            <div class="cx-score"><span class="name">Landslide<small>held-out Mid &amp; North Wales</small></span><span class="cx-bar weak" aria-hidden="true"><i style="width:6.8%"></i></span><span class="val">0.534</span></div>
-          </div>
-        </div>
-      </section>
 
       <!-- Scope -->
       <section class="cx-band" id="scope">
