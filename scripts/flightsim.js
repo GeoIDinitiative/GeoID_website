@@ -2792,6 +2792,13 @@
     // a moon is flown, not the planet's it was set to at boot.
     const domainNode = document.getElementById("fs-domain");
     if (domainNode) domainNode.textContent = bodyProfile().domain || "Atmosphere";
+    // Earth's panel (open chrome): the ground readout is the surface's height
+    // above sea level, said so; the position cell is hidden there (owner,
+    // 2026-10-24) -- the MAP and the place readout already say where you are.
+    {
+      const k = document.getElementById("fs-ground")?.previousElementSibling;
+      if (k) k.textContent = bodyProfile().openChrome ? "Surface Elev." : "Ground";
+    }
     // A moon viewer opens on the moon's info card; in the cockpit it sits
     // over the instruments. Put it away through the viewer's own closer.
     if (flightMoon) { try { window.GeoIDViewer?.closeCards?.(); } catch (_e) {} }
@@ -3517,14 +3524,46 @@
     return altAboveTerrainM + minM + norm * reliefM;
   }
 
+  /*
+   * Earth's readouts, colour-coded by what the number means rather than by
+   * where it sits in the planet's range (the other worlds keep their ramps):
+   *   altitude above the ground -- red under 100 m, amber under 300 m, then by
+   *     layer: teal troposphere, gold stratosphere (>12 km), magenta
+   *     mesosphere (>50 km), violet above 85 km;
+   *   speed -- green slow, white cruise, amber fast, red from Mach 1;
+   *   temperature -- the meteorological scale, blue below freezing through
+   *     white at 0 C to yellow, orange and red;
+   *   pressure -- white at sea level through cyan and blue to violet as the
+   *     air thins.
+   */
+  const mixHex = (a, b, t) => {
+    const p = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
+    const A = p(a), B = p(b), k = Math.max(0, Math.min(1, t));
+    return "#" + A.map((v, i) => Math.round(v + (B[i] - v) * k).toString(16).padStart(2, "0")).join("");
+  };
+  const scale = (v, stops) => {
+    if (v <= stops[0][0]) return stops[0][1];
+    for (let i = 1; i < stops.length; i++) {
+      if (v <= stops[i][0]) return mixHex(stops[i - 1][1], stops[i][1], (v - stops[i - 1][0]) / (stops[i][0] - stops[i - 1][0]));
+    }
+    return stops[stops.length - 1][1];
+  };
+  const EARTH_COLOURS = {
+    alt: [[0, "#ff4d4d"], [100, "#ff4d4d"], [300, "#ffb347"], [600, "#7fe3d0"], [12000, "#7fe3d0"], [14000, "#ffd166"], [50000, "#ffd166"], [55000, "#ff7ad9"], [85000, "#ff7ad9"], [90000, "#a98bff"]],
+    spd: [[0, "#7ee787"], [40, "#7ee787"], [70, "#eef3fb"], [180, "#eef3fb"], [260, "#ffb347"], [330, "#ff7a45"], [343, "#ff4d6d"]],
+    temp: [[-60, "#6f8cff"], [-30, "#5ec8ff"], [-5, "#bfe9ff"], [0, "#eef3fb"], [12, "#d8f5a2"], [22, "#ffe066"], [30, "#ffa94d"], [40, "#ff5c5c"]],
+    press: [[1000, "#a98bff"], [10000, "#6f8cff"], [40000, "#5ec8ff"], [80000, "#bfe9ff"], [101325, "#eef3fb"]],
+  };
+  const earthColours = () => bodyProfile().openChrome && (hooks?.bodyId === "earth" || !hooks?.bodyId);
+
   function updateFlightAtmosphere(altAboveDatumM) {
     if (!hudTemp || !hudPress) return;
     const { tempC, pressurePa } = bodyProfile().atmosphere(altAboveDatumM);
     const ramps = rampsForBody();
     hudTemp.textContent = `${tempC > 0 ? "+" : ""}${Math.round(tempC)} °C`;
-    hudTemp.style.color = rampFor(tempC, ramps.temp);
+    hudTemp.style.color = earthColours() ? scale(tempC, EARTH_COLOURS.temp) : rampFor(tempC, ramps.temp);
     hudPress.textContent = formatPressure(pressurePa);
-    hudPress.style.color = rampFor(pressurePa, ramps.press);
+    hudPress.style.color = earthColours() ? scale(pressurePa, EARTH_COLOURS.press) : rampFor(pressurePa, ramps.press);
   }
 
   // ---- per-frame update (called from the viewer render loop) ----
@@ -4071,6 +4110,10 @@
     }
     if (hudAlt) hudAlt.textContent = altM >= 10000 ? (altM / 1000).toFixed(1) + " km" : Math.round(altM) + " m";
     if (hudSpd) hudSpd.textContent = spdMs >= 1000 ? (spdMs / 1000).toFixed(2) + " km/s" : Math.round(spdMs) + " m/s";
+    if (earthColours()) {
+      if (hudAlt) hudAlt.style.color = scale(altM, EARTH_COLOURS.alt);
+      if (hudSpd) hudSpd.style.color = scale(spdMs, EARTH_COLOURS.spd);
+    }
     // VERTICAL SPEED. Taken as the radial component of the actual velocity
     // vector rather than by differencing altitude frame to frame: `s.vel` is
     // already the true velocity (`fwd * speed + gravity`), so this is exact and

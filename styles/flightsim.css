@@ -456,7 +456,6 @@ body.fs-open-chrome .fs-cell {
   border-left: 1px solid rgba(var(--nav-accent-rgb), 0.16);
 }
 body.fs-open-chrome .fs-cell:first-child { border-left: 0; }
-body.fs-open-chrome .fs-cell:has(#fs-coord) { width: 8.6em; }
 body.fs-open-chrome .fs-cell .fs-k {
   font-size: 0.6em;
   font-weight: 600;
@@ -467,7 +466,7 @@ body.fs-open-chrome .fs-cell .fs-k {
 body.fs-open-chrome .fs-cell .fs-v {
   font-size: 1em;
   font-weight: 600;
-  color: #eef3fb !important;   /* temp/pressure no longer tinted red: one colour, as the panels */
+  color: #eef3fb;
   font-variant-numeric: tabular-nums lining-nums;
   font-feature-settings: "tnum" 1, "lnum" 1;
   white-space: nowrap;
@@ -475,6 +474,11 @@ body.fs-open-chrome .fs-cell .fs-v {
   line-height: 1.25;
 }
 body.fs-open-chrome .fs-cell .fs-k { line-height: 1.2; }
+/* The rest stay one colour; altitude, speed, temperature and pressure are
+   colour-coded by meaning (flightsim.js EARTH_COLOURS), set inline. */
+body.fs-open-chrome .fs-cell .fs-v:not(#fs-alt):not(#fs-spd):not(#fs-temp):not(#fs-press) { color: #eef3fb !important; }
+/* No position cell on Earth's panel: the MAP and the place readout say where. */
+body.fs-open-chrome .fs-cell:has(#fs-coord) { display: none; }
 body.fs-open-chrome #fs-domain {
   margin-bottom: 0.3rem;      /* clear of the panel's top edge */
   font-size: 0.56rem;
