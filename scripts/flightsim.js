@@ -2091,6 +2091,13 @@
   // moved it 13 m; reported "can't move up/down"). So the game rates are
   // livelier, reached in about a third of a second, and doubled on boost.
   const HELI_CLIMB_MS = 20;
+  // Service ceiling: a Bell 206B JetRanger's is 13,500 ft (4,115 m). The
+  // climb fades over the last HELI_CEILING_FADE_M as the air thins, it will
+  // not hold height above the ceiling (it settles back down), and a launch
+  // asked for higher starts at the ceiling. Measured above SEA LEVEL from the
+  // true ground height, so the Vertical scale does not move it.
+  const HELI_CEILING_M = 4115;
+  const HELI_CEILING_FADE_M = 600;
   const HELI_DESCENT_MS = 25;
   function buildHelicopter() {
     const group = new THREE.Group();
@@ -2840,7 +2847,12 @@
     const here = (spec && Number.isFinite(spec.lat) && Number.isFinite(spec.lon))
       ? { lat: spec.lat, lon: spec.lon }
       : worldToLatLon(cam.position);
-    const startAltM = Number(startAltSelect?.value || 30000);
+    let startAltM = Number(startAltSelect?.value || 30000);
+    // A helicopter starts no higher than its service ceiling (above sea level).
+    if (shipModelSelect?.value === "helicopter") {
+      const g = hooks.flightGroundMetres ? Number(hooks.flightGroundMetres(here.lat, here.lon)) : 0;
+      startAltM = Math.max(50, Math.min(startAltM, HELI_CEILING_M - 150 - (Number.isFinite(g) ? g : 0)));
+    }
     // The ground is read where the camera WILL be, not where pre-flight left
     // it: on Earth the drawn relief tapers with camera height
     // (getEffectiveTerrainRelief), so a radius computed from the pre-flight
@@ -3483,6 +3495,15 @@
   // MOVED the weather. Take the altimeter's own height above the terrain instead
   // and add the true ground elevation from the DEM's metre range, so the answer
   // depends only on where the ship actually is.
+  /** A position's height above sea level in true metres: above the drawn
+   *  ground, plus that ground's true height (where the world knows it). */
+  function heliSeaLevelAltitudeM(pos) {
+    const ll = worldToLatLon(pos);
+    const aboveGround = (pos.length() - surfaceRadiusAt(ll.lat, ll.lon)) * METERS_PER_UNIT;
+    const ground = hooks.flightGroundMetres ? Number(hooks.flightGroundMetres(ll.lat, ll.lon)) : 0;
+    return aboveGround + (Number.isFinite(ground) ? ground : 0);
+  }
+
   function datumAltitudeM(altAboveTerrainM, lat, lonE) {
     const dem = hooks.manifest && hooks.manifest.elevation;
     if (!dem || !hooks.elevationSampler || !hooks.sampleElevationNormalized) {
@@ -3609,7 +3630,13 @@
     if (heli) {
       const collective = Math.max(-1, Math.min(1, (pitch / PITCH_RATE) || 0));
       const vzMax = (collective >= 0 ? HELI_CLIMB_MS : HELI_DESCENT_MS) * (s.boosting ? 2 : 1);
-      s.vzMs = (s.vzMs || 0) + (collective * vzMax - (s.vzMs || 0)) * Math.min(1, 7 * dts);
+      let vzWant = collective * vzMax;
+      const mslM = heliSeaLevelAltitudeM(s.pos);
+      if (Number.isFinite(mslM)) {
+        if (vzWant > 0) vzWant *= Math.max(0, Math.min(1, (HELI_CEILING_M - mslM) / HELI_CEILING_FADE_M));
+        if (mslM > HELI_CEILING_M) vzWant = Math.min(vzWant, -Math.min(6, 1 + (mslM - HELI_CEILING_M) / 100));
+      }
+      s.vzMs = (s.vzMs || 0) + (vzWant - (s.vzMs || 0)) * Math.min(1, 7 * dts);
       pitch = 0; roll = 0;
     }
     const dq = new THREE.Quaternion().setFromEuler(new THREE.Euler(pitch * dts, yaw * dts, roll * dts, "XYZ"));

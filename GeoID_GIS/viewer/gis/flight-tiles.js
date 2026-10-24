@@ -26,7 +26,7 @@
 // Esri World Imagery (blankTile=false: a missing tile is a 404 and the
 // ancestor stays). Flight only.
 
-import { NIGHT } from "./night-lights.js?v=20261024-d21ca2f";
+import { NIGHT } from "./night-lights.js?v=20261024-691ac00";
 
 const URL_TEMPLATE = "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}?blankTile=false";
 const ROOT_Z = 7;
@@ -415,7 +415,9 @@ const NIGHT_FRAGMENT = /* glsl */`
     // grey capture in Esri's mosaic reads as paved from edge to edge, and
     // with the photo in charge it lit up as a bright rectangle (seen at 7 km
     // over Shropshire); Black Marble is one consistent picture of the lights.
-    float carpet = rad * (0.17 + 0.08 * paved);
+    // Contrast on the radiance, so a town's dim fringe falls away and its
+    // centre stays bright (linear, a conurbation read as one tan wash).
+    float carpet = pow(rad, 1.6) * (0.26 + 0.08 * paved);
     vec3 warm = vec3(1.0, 0.72, 0.40);
     float glow = carpet;
     if (near > 0.0 && paved * rad > 0.0) {

@@ -15,8 +15,8 @@
 // 2026-10-24), re-measured as the bar resizes. Flight only: built on launch, taken
 // down on Exit. Redrawn four times a second -- a map, not an instrument.
 
-import { TILE_SOURCES, DEFAULT_SOURCE, tileUrl } from "./tile-sources.js?v=20261024-d21ca2f";
-import { tileBasemapSource } from "./basemap-drape.js?v=20261024-d21ca2f";
+import { TILE_SOURCES, DEFAULT_SOURCE, tileUrl } from "./tile-sources.js?v=20261024-691ac00";
+import { tileBasemapSource } from "./basemap-drape.js?v=20261024-691ac00";
 
 const SIZE = 184;                 // CSS px, square
 const Z_MIN = 1, Z_MAX = 13;
