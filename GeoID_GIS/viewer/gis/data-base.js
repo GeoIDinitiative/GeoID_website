@@ -1,4 +1,4 @@
-import { gatedData, dataPass } from "./membership.js?v=20261024-5bd657d";
+import { gatedData, dataPass } from "./membership.js?v=20261024-843c3f7";
 /**
  * Where a shipped data file is read from — the site, or the bucket.
  *

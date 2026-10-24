@@ -37,13 +37,13 @@
 // answers in -- no half-turn to bake in, unlike the Earth Engine drapes which
 // parent to the globe mesh itself.
 
-import { TILE_SOURCES, DEFAULT_SOURCE, tileUrl } from "./tile-sources.js?v=20261024-5bd657d";
-import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20261024-5bd657d";
-import { isEarth } from "./bodies.js?v=20261024-5bd657d";
-import { holdLaunch } from "./launch-ready.js?v=20261024-5bd657d";
-import { streamRings, cacheStats } from "./tile-streamer.js?v=20261024-5bd657d";
+import { TILE_SOURCES, DEFAULT_SOURCE, tileUrl } from "./tile-sources.js?v=20261024-843c3f7";
+import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20261024-843c3f7";
+import { isEarth } from "./bodies.js?v=20261024-843c3f7";
+import { holdLaunch } from "./launch-ready.js?v=20261024-843c3f7";
+import { streamRings, cacheStats } from "./tile-streamer.js?v=20261024-843c3f7";
 import { visibleBounds, altitudeUnits, viewChangedEnough, onViewChange, viewFocus }
-  from "./view-extent.js?v=20261024-5bd657d";
+  from "./view-extent.js?v=20261024-843c3f7";
 
 const TILE = 256;
 // Web Mercator cannot express the poles; this is where the projection is
@@ -502,7 +502,11 @@ export function buildMesh(canvas, bbox, { frame = "geo" } = {}) {
     side: facing >= 0 ? THREE.FrontSide : THREE.BackSide,
     depthWrite: false,
     depthTest: false,
-  }), LIFT));
+    // The globe's own imagery is the BACKDROP under Earth Flight's ground
+    // (flight-tiles.js), not an overlay on it: it is not lifted onto the
+    // flight terrain nor depth-tested there, or it paints over the sharp
+    // tiles (seen: smeared imagery across the whole view).
+  }), LIFT, { flightTerrain: false }));
   mesh.frustumCulled = false;
   mesh.name = "GeoID-BasemapDrape";
   return mesh;

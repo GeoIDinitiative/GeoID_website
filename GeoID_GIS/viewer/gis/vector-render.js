@@ -1,12 +1,12 @@
 import * as THREE from "../vendor/three.module.js";
 import { latLonToVector3, drapedRadius, looksLikeGeographic, sphericalPolygonAreaKm2 }
-  from "./geo-utils.js?v=20261024-5bd657d";
-import { collectionBounds, geometryCoords, polygonsOf, linesOf } from "./geoprocessing.js?v=20261024-5bd657d";
-import { pointInPolygon } from "./geometry.js?v=20261024-5bd657d";
-import { paintOpacity } from "./layer-opacity.js?v=20261024-5bd657d";
-import { applyCutaway } from "./cutaway.js?v=20261024-5bd657d";
-import { categoricalSymbology, suggestCategoryField } from "./symbology.js?v=20261024-5bd657d";
-import { flightGpuUniforms } from "./flight-terrain-gpu.js?v=20261024-5bd657d";
+  from "./geo-utils.js?v=20261024-843c3f7";
+import { collectionBounds, geometryCoords, polygonsOf, linesOf } from "./geoprocessing.js?v=20261024-843c3f7";
+import { pointInPolygon } from "./geometry.js?v=20261024-843c3f7";
+import { paintOpacity } from "./layer-opacity.js?v=20261024-843c3f7";
+import { applyCutaway } from "./cutaway.js?v=20261024-843c3f7";
+import { categoricalSymbology, suggestCategoryField } from "./symbology.js?v=20261024-843c3f7";
+import { flightGpuUniforms } from "./flight-terrain-gpu.js?v=20261024-843c3f7";
 
 // Single renderer for every vector source. Each parser produces a GeoJSON
 // FeatureCollection and this turns it into draped globe geometry, so shapefile,
@@ -665,6 +665,12 @@ export function followRelief(material, drape, {
    * Pluto's brown at all. A per-material uniform, so the program is shared.
    */
   ribbonScale = 1,
+  /**
+   * Whether the layer lies on Earth Flight's terrain and is depth-tested
+   * against it in flight (the default for every overlay). False for the
+   * globe's own basemap imagery, the backdrop UNDER the flight ground.
+   */
+  flightTerrain = true,
 } = {}) {
   // Following the relief is what installs the thing that drives it.
   ensureReliefSync();
@@ -675,11 +681,11 @@ export function followRelief(material, drape, {
   // altitude-scaled one; anything else the fixed drape it was built with.
   const drapeUniform = lifted === "marker" ? MARKER_DRAPE_UNIFORM
     : lifted ? LINE_DRAPE_UNIFORM : { value: drape };
-  FLIGHT_FOLLOWERS.add(new WeakRef(material));
+  if (flightTerrain) FLIGHT_FOLLOWERS.add(new WeakRef(material));
   material.onBeforeCompile = (shader) => {
     shader.uniforms.uRelief = RELIEF_UNIFORM;
     shader.uniforms.uDrape = drapeUniform;
-    Object.assign(shader.uniforms, FLIGHT);
+    if (flightTerrain) Object.assign(shader.uniforms, FLIGHT);
     if (ribbon) {
       shader.uniforms.uRibbon = SEAL_RIBBON_UNIFORM;
       shader.uniforms.uRibbonScale = { value: Number(ribbonScale) > 0 ? Number(ribbonScale) : 1 };
@@ -697,10 +703,10 @@ uniform float uDrape;
 ${ribbon ? "attribute vec3 aPerp;\nattribute float aSide;\nuniform float uRibbon;\nuniform float uRibbonScale;" : ""}
 ${cullFarSide ? "varying float vFacing;" : ""}
 ${hole ? "varying vec3 vDir;" : ""}
-${FLIGHT_VERTEX_PARS}
+${flightTerrain ? FLIGHT_VERTEX_PARS : ""}
 ${shader.vertexShader}`.replace(
       "#include <begin_vertex>",
-      `vec3 transformed = aDir * (${base.toFixed(4)} + aDisp * uRelief + uDrape + geoidFlightHeight(aDir));`
+      `vec3 transformed = aDir * (${base.toFixed(4)} + aDisp * uRelief + uDrape${flightTerrain ? " + geoidFlightHeight(aDir)" : ""});`
       // The ribbon is laid in the TANGENT plane, so widening it never lifts a
       // vertex off the surface however wide the view makes it.
       + (ribbon ? "\n  transformed += aPerp * (aSide * uRibbon * uRibbonScale);" : "")
@@ -714,8 +720,10 @@ ${shader.vertexShader}`.replace(
   }`
         : ""),
     );
-    shader.vertexShader = shader.vertexShader.replace(
-      "#include <project_vertex>", `#include <project_vertex>${FLIGHT_DEPTH_MARGIN}`);
+    if (flightTerrain) {
+      shader.vertexShader = shader.vertexShader.replace(
+        "#include <project_vertex>", `#include <project_vertex>${FLIGHT_DEPTH_MARGIN}`);
+    }
     /**
      * BACKFACE CULLING, FOR SOMETHING THAT HAS NO FACES.
      *
@@ -784,7 +792,7 @@ ${shader.fragmentShader}`.replace(
   // Found by bisection: the same injection inlined with a unique key drew
   // perfectly.
   material.customProgramCacheKey = () =>
-    `geoid-relief-flight1-${material.type}-${lifted === "marker" ? "marker" : lifted ? "live" : drape}-${ribbon ? "ribbon" : "flat"}`
+    `geoid-relief-${flightTerrain ? "flight1" : "noflight"}-${material.type}-${lifted === "marker" ? "marker" : lifted ? "live" : drape}-${ribbon ? "ribbon" : "flat"}`
     + `${cullFarSide ? `-cull${facingLimit}` : ""}${hole ? "-hole" : ""}`;
   return material;
 }
