@@ -32,10 +32,10 @@
  *   top[i]    max(solid, water): the floor of the atmosphere
  */
 
-import { channelDepth } from "./inundation.js?v=20261024-1786912";
+import { channelDepth } from "./inundation.js?v=20261024-f4b48b2";
 
 /** A TIN with a different z array, and its own extremes. */
-import { faultScriptLines } from "./fault-planes.js?v=20261024-1786912";
+import { faultScriptLines } from "./fault-planes.js?v=20261024-f4b48b2";
 
 /** The weathered skin allowed over rock the bedrock map shows at the surface, in metres. */
 export const REGOLITH_ON_ROCK_M = 2;
