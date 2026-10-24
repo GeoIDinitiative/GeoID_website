@@ -5,7 +5,8 @@
  *
  * THE MODEL (from ~/atlas-ai/hub/builtin_agents/career_scanner.py):
  *   - a curated list of sources (sources/jobs.json: the 75 employer pages that
- *     have actually yielded vacancies in Atlas's scans; sources/events.json:
+ *     have actually yielded vacancies in Atlas's scans, plus job boards such as
+ *     jobs.ac.uk read through a discipline-filtered search; sources/events.json:
  *     the calendars that returned events when probed);
  *   - each source read on a ROTA -- a few per 15-minute tick, oldest first, so
  *     no tick is long and every source is read about daily;
@@ -35,6 +36,7 @@ export const MIN_SCORE = 4;
 const PER_TICK = 4;                 // sources read per 15-minute tick
 const REREAD = 20 * 3600;           // a source is due again after ~a day
 const MAX_NEW_PER_SOURCE = 12;      // a first read posts at most this many
+const MAX_NEW_FROM_BOARD = 75;      // a board's discipline-filtered pages (ats.js BOARD_PAGES)
 const BOT = { handle: "geoidnetwork", name: "GeoID Network", email: "network-bot@geoid.invalid" };
 
 /** The scanner's weights: how strongly a term implies a role this Network should see. */
@@ -56,7 +58,8 @@ export const EXCLUDE = ["nurse", "cleaner", "janitor", "security guard", "recept
 
 const term = (k) => new RegExp(`\\b${k.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`, "i");
 const TERMS = Object.fromEntries(Object.keys(KEYWORDS).map((k) => [k, term(k)]));
-const EXCLUDE_TERMS = EXCLUDE.map(term);
+// "Drivers of change" is science; "HGV drivers" is not. Every other exclusion is a plain word start.
+const EXCLUDE_TERMS = EXCLUDE.map((k) => (k === "driver" ? /\bdrivers?\b(?!\s+(?:of|and|behind|for)\b)/i : term(k)));
 
 /** [score, hits]: -1 for an excluded title. Anchored at a word start, as the scanner does. */
 export function scorePosting(text) {
@@ -100,10 +103,13 @@ export async function seedSources(env) {
 
 function jobPost(bot, source, p, hits, t) {
   const deadline = p.deadline ? Math.floor(Date.parse(p.deadline) / 1000) || null : null;
+  // A board lists many employers: the employer is the posting's, the credit the board's.
+  const org = p.org || source.name;
   const body = [
-    `${p.title}${source.name ? ` at ${source.name}` : ""}.`,
+    `${p.title}${org ? ` at ${org}` : ""}${p.department ? `, ${p.department}` : ""}.`,
     p.location ? `Location: ${p.location}.` : "",
-    `Imported from ${source.name}'s careers page. Read the full advert and apply there.`,
+    p.salary ? `Salary: ${p.salary}.` : "",
+    p.board ? `Listed on ${source.name}. Read the full advert and apply there.` : `Imported from ${source.name}'s careers page. Read the full advert and apply there.`,
   ].filter(Boolean).join("\n");
   return {
     id: id("p"), author_id: bot.id, kind: "opportunity", title: str(p.title, 200), body,
@@ -114,7 +120,7 @@ function jobPost(bot, source, p, hits, t) {
     sources_json: JSON.stringify([{ label: `Imported from ${source.name}`, url: p.url, doi: "", licence: "" }]),
     method_json: "{}", limitations: "Gathered automatically from the employer's own listing; check the advert for the details that matter.",
     meta_json: JSON.stringify({ type: /phd|studentship/i.test(p.title) ? "studentship" : /fellow/i.test(p.title) ? "fellowship" : /intern/i.test(p.title) ? "internship" : "job",
-      org: str(source.name, 200), apply_url: p.url, ...(deadline ? { deadline } : {}), imported: true, source_id: source.id, source_name: str(source.name, 120), source_url: source.url }),
+      org: str(org, 200), apply_url: p.url, ...(deadline ? { deadline } : {}), imported: true, source_id: source.id, source_name: str(source.name, 120), source_url: source.url }),
     visibility: "public", team_id: null, community_id: null, project_id: null, allow_fork: 0, forked_from: null,
     sponsored_by: "", created_at: t, updated_at: t,
   };
@@ -166,10 +172,13 @@ export async function readSource(env, source, t = now(), { fetcher = fetch } = {
       await run(env, "UPDATE imported SET last_seen = ?, gone_at = NULL WHERE url_key = ?", t, item.key);
       continue;
     }
-    const text = source.kind === "events" ? `${item.title} ${item.description || ""}` : `${item.title} ${item.location || ""}`;
+    const text = source.kind === "events" ? `${item.title} ${item.description || ""}`
+      : `${item.title} ${item.department || ""} ${item.location || ""}`;
     const [score, hits] = scorePosting(text);
+    // A board's discipline filter has already chosen the field: anything not excluded is in.
+    const enough = item.board ? score >= 0 : score >= MIN_SCORE;
     let postId = null;
-    if (score >= MIN_SCORE && posted < MAX_NEW_PER_SOURCE) {
+    if (enough && posted < (item.board ? MAX_NEW_FROM_BOARD : MAX_NEW_PER_SOURCE)) {
       const row = source.kind === "events" ? eventPost(bot, source, item, hits, t) : jobPost(bot, source, item, hits, t);
       await env.DB.batch(insertStatements(env.DB, row));
       postId = row.id;

@@ -9,7 +9,7 @@ import { sharePage, weeklyLines, sendWeekly, weeklyDue } from "../reach.js";
 import { depositMetadata, seal, unseal } from "../zenodo.js";
 import { slotIcs, checkins } from "../officehours.js";
 import { cleanPin } from "../reviews.js";
-import { detectPlatform, harvestJobs, jsonLd, jobsFromJsonLd, eventsFromJsonLd, parseIcs, fetchJobs, fetchEvents, looksLikeDetail, plausibleTitle } from "../ats.js";
+import { detectPlatform, harvestJobs, jsonLd, jobsFromJsonLd, eventsFromJsonLd, parseIcs, fetchJobs, fetchEvents, looksLikeDetail, plausibleTitle, parseJobsAcUk, dayMonthAhead } from "../ats.js";
 import { scorePosting, readSource, runImports, seedSources } from "../importer.js";
 
 const ANA = "ana@example.com", BEN = "ben@example.com", ADMIN = "admin@example.com";
@@ -295,6 +295,8 @@ test("importer: scores like the scanner; posts relevant jobs and future events, 
   assert.ok(hits.includes("insar"));
   assert.equal(scorePosting("Strategist")[0], 0, "gis must not match inside a word");
   assert.equal(scorePosting("Night nurse, volcano ward")[0], -1);
+  assert.equal(scorePosting("HGV Drivers wanted")[0], -1);
+  assert.ok(scorePosting("PhD Studentship: Drivers and Consequences of Recent Changes in Climate")[0] > 0, "drivers of change are science");
 
   const env = await world();
   await seedSources(env);
@@ -331,4 +333,49 @@ test("importer: scores like the scanner; posts relevant jobs and future events, 
   // the rota reads at most a few per tick
   const tick = await runImports(env, Math.floor(Date.now() / 1000) + 86400 * 2, { fetcher: async () => new Response("", { status: 404 }), perTick: 3 });
   assert.equal(tick.read, 3);
+});
+
+test("jobs.ac.uk: a discipline-filtered search is read as a board, employer kept, board credited", async () => {
+  // The board's result markup, with made-up adverts.
+  const block = (code, title, dept, org, loc, closes) => `<div class="j-search-result__result ie-border-left" data-advert-id="1">
+    <div class="j-search-result__text"><a href="/job/${code}/x">\n ${title}\n </a>
+    <div class="j-search-result__department">\n ${dept}\n </div>
+    <div class="j-search-result__employer">\n <b>${org}</b>\n </div>
+    <div>Location:\n ${loc}\n </div>
+    <div class="j-search-result__info"><strong>Salary: </strong> £38,249 to £45,413 - please see advert </div>
+    <div><strong>Date Placed: </strong>23 Oct</div></div>
+    <div class="j-search-result__date-logos"><div class="j-search-result__date">
+      <span class="j-search-result__date-span j-search-result__date">Closes</span>
+      <span class="j-search-result__date-span j-search-result__date--blue ">${closes}</span></div></div></div>`;
+  const page = block("AB1", "Lecturer in Physical Geography", "School of Geography", "University of Leeds", "Leeds", "22 Dec")
+    + block("AB2", "Research Associate in Volcano Geodesy", "Earth Sciences", "University of Bristol", "Bristol", "3 Jan")
+    + block("AB3", "Graduation Ceremony Assistant", "Events", "Some University", "York", "1 Nov");
+  const url = "https://www.jobs.ac.uk/search/?activeFacet=subDisciplineFacet&sortOrder=1&pageSize=25&startIndex=1&subDisciplineFacet%5B0%5D=geology";
+  assert.equal(detectPlatform(url), "jobsacuk");
+  const from = new Date(Date.UTC(2026, 9, 24));
+  assert.equal(dayMonthAhead("22 Dec", from), "2026-12-22");
+  assert.equal(dayMonthAhead("3 Jan", from), "2027-01-03", "a month already past is next year's");
+  const list = parseJobsAcUk(page, "https://www.jobs.ac.uk/search/", from);
+  assert.equal(list.length, 3);
+  assert.deepEqual(
+    { title: list[0].title, url: list[0].url, org: list[0].org, department: list[0].department, location: list[0].location, salary: list[0].salary, deadline: list[0].deadline },
+    { title: "Lecturer in Physical Geography", url: "https://www.jobs.ac.uk/job/AB1/x", org: "University of Leeds", department: "School of Geography",
+      location: "Leeds", salary: "£38,249 to £45,413", deadline: "2026-12-22" });
+
+  const env = await world();
+  const source = { id: "jobs:jacuk", kind: "jobs", name: "jobs.ac.uk", url };
+  await env.DB.prepare("INSERT INTO import_sources (id, kind, name, url) VALUES (?, ?, ?, ?)").bind(source.id, source.kind, source.name, source.url).run();
+  const asked = [];
+  const fetcher = async (u) => { asked.push(u); return new Response(page); };
+  const r = await readSource(env, source, Math.floor(Date.now() / 1000), { fetcher });
+  assert.equal(asked.length, 1, "a short page is the last page");
+  assert.equal(r.listed, 3);
+  assert.equal(r.posted, 2, "the board's filter is trusted (a geography lectureship scores 0 but goes in); exclusions still apply");
+  const opp = await call(env, "GET", "/v1/feed?tab=opportunities");
+  const post = opp.body.items.find((p) => /Physical Geography/.test(p.title));
+  assert.ok(post);
+  assert.equal(post.meta.org, "University of Leeds", "the employer is the advert's");
+  assert.equal(post.meta.source_name, "jobs.ac.uk", "the credit is the board's");
+  assert.match(post.body, /Listed on jobs\.ac\.uk/);
+  assert.ok(post.meta.deadline > 0);
 });
