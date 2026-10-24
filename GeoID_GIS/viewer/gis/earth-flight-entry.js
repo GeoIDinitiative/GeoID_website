@@ -21,7 +21,7 @@
 //      frame): aim the globe there, then open pre-flight, whose centre
 //      crosshair takes the site from wherever the globe is aimed.
 
-import { isEarth } from "./bodies.js?v=20261024-191fd43";
+import { isEarth } from "./bodies.js?v=20261024-804d6d6";
 
 /** `?flight=earth&lat=..&lon=..` -> { lat, lon } or { lat: null } or null. */
 export function parseFlightLink(search) {
@@ -186,6 +186,32 @@ function wire() {
     // The nav slides over 0.32 s; follow it closely while flying.
     setInterval(() => { if (document.body.classList.contains("fs-flying")) layoutHud(); }, 250);
   }
+
+  // A launch gives the view the screen: the nav, Events and Legend fold away
+  // (owner, 2026-10-24), and each is put back as it was on Exit. Every one
+  // is still a click away -- the Mission Control tab, the two dropdowns.
+  // Not at pre-flight: Launch lives in the nav panel.
+  let folded = null;
+  const isOpen = (panelId) => { const p = document.getElementById(panelId); return !!p && !p.hidden; };
+  window.addEventListener("flightsim:engaged", () => {
+    const ui = document.getElementById("ui");
+    folded = {
+      nav: !!ui && !ui.classList.contains("is-collapsed"),
+      events: isOpen("events-panel"),
+      legend: isOpen("map-legend-panel"),
+    };
+    if (folded.nav) document.getElementById("nav-collapse-btn")?.click();
+    if (folded.events) document.getElementById("events-panel-toggle")?.click();
+    if (folded.legend) document.getElementById("map-legend-toggle")?.click();
+  });
+  window.addEventListener("flightsim:disengaged", () => {
+    if (!folded) return;
+    const ui = document.getElementById("ui");
+    if (folded.nav && ui?.classList.contains("is-collapsed")) document.getElementById("nav-tab")?.click();
+    if (folded.events && !isOpen("events-panel")) document.getElementById("events-panel-toggle")?.click();
+    if (folded.legend && !isOpen("map-legend-panel")) document.getElementById("map-legend-toggle")?.click();
+    folded = null;
+  });
 
   // The aircraft is listed in the Workspace while it flies, so its credit is
   // in the Metadata tab with every other source on screen.

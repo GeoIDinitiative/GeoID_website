@@ -73,6 +73,11 @@ export function claim(id) {
  * always honoured.
  */
 export function mayAutoOpen(id) {
+  // In flight neither card springs open by itself (owner, 2026-10-24): a
+  // launch folds both away (earth-flight-entry.js) and then adopts the
+  // aircraft and the buildings into the Workspace -- arrivals that would
+  // otherwise reopen the legend over the view at once. A press still opens it.
+  if (globalThis.document?.body?.classList.contains("fs-flying")) return false;
   return !claimStands() || claimed === id;
 }
 

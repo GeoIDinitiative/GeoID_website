@@ -181,6 +181,9 @@ const STYLE = `
   border-color: rgba(255, 255, 255, 0.18) !important;
 }
 :root #time-rate-toggle.is-live, :root #time-rate-toggle.is-paused { border-color: rgba(255, 255, 255, 0.07) !important; }
+/* Locked to real time while flying (earth-viewer.js syncTimeRateBtn): no hover lift, no pointer. */
+:root #time-rate-toggle.is-locked { cursor: not-allowed !important; opacity: 0.85; }
+:root #time-rate-toggle.is-locked:hover { background: inherit !important; }
 #scrub-clock-canvas { filter: drop-shadow(0 0 5px rgba(var(--skin-data-rgb, 0, 229, 255), 0.5)); }
 #time-scrub-toggle .scrub-date, #time-scrub-toggle .scrub-utc { text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8); }
 /* Settings rows: a label, a field, its actions, and what it is for. */

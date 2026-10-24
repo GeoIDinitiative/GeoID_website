@@ -3851,9 +3851,16 @@
     // near-plane management: keep the surface out of the near frustum without
     // clipping the ship (which sits ~2.6 ship-lengths from the chase camera).
     const camAltUnits = Math.max(1e-6, camera.position.length() - surfR);
-    const nearCap = s.cam === "chase" ? Math.max(1.5e-5, 0.5 * L) : 0.1;
+    // A craft drawn at its true size (Earth's 8.75 m aircraft, realShipScale)
+    // sits ~23 m from the chase camera -- inside the 24-30 m floors below,
+    // which were sized for the cinematic ships, hundreds of metres long. The
+    // near plane clipped the whole aircraft away. For true-scale craft the
+    // floors follow the craft's own length instead.
+    const trueScale = !!bodyProfile().realShipScale;
+    const minNear = trueScale ? 0.25 * L : 1.2e-5;
+    const nearCap = s.cam === "chase" ? Math.max(trueScale ? minNear : 1.5e-5, 0.5 * L) : 0.1;
     camera.near = Math.min(0.1, Math.min(nearCap, camAltUnits * 0.4));
-    camera.near = Math.max(camera.near, 1.2e-5);
+    camera.near = Math.max(camera.near, minNear);
     camera.updateProjectionMatrix();
 
     // ---- HUD ----

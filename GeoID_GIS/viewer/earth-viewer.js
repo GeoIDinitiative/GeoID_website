@@ -2,15 +2,15 @@ import * as THREE from "./vendor/three.module.js";
 // The polygon-area rule lives in one place, with a test. Stamped by hand
 // once: stamp.py only rewrites a ?v= that already exists.
 import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
-  from "./gis/geo-utils.js?v=20261024-191fd43";
+  from "./gis/geo-utils.js?v=20261024-804d6d6";
 import { attachReliefAttributes, followRelief }
-  from "./gis/vector-render.js?v=20261024-191fd43";
+  from "./gis/vector-render.js?v=20261024-804d6d6";
 import { rockClass, crustalSetting, rockClassLabel, classificationBasis }
-  from "./gis/rock-class.js?v=20261024-191fd43";
+  from "./gis/rock-class.js?v=20261024-804d6d6";
 import { lithologyLabel }
-  from "./gis/lithology-label.js?v=20261024-191fd43";
+  from "./gis/lithology-label.js?v=20261024-804d6d6";
 import { formatLatLon }
-  from "./gis/coord-format.js?v=20261024-191fd43";
+  from "./gis/coord-format.js?v=20261024-804d6d6";
 
 /**
  * This module's own cache stamp, read off its own URL.
@@ -1446,6 +1446,28 @@ function fmtProp(value) {
     function syncTimeRateBtn() {
       const btn = document.getElementById("time-rate-toggle");
       if (!btn) return;
+      /**
+       * LOCKED IN FLIGHT. Earth Flight paces the spin itself: it measures the
+       * display's spin rate once at launch, then pauses and resumes the spin
+       * every frame to turn the globe at the true sidereal rate under the
+       * aircraft (scripts/flightsim.js, startRealSpin). A switch to x720
+       * mid-flight would make every slice it lets through 720 times too long
+       * and the planet would race past; a pause would fight its resumes. So
+       * the pill holds real time while flying, says so, and takes no clicks --
+       * and it reads LIVE steadily rather than flickering to the paused glyph
+       * on each of the sim's per-frame pauses.
+       */
+      const flying = !!window.__flightSim?.active;
+      btn.disabled = flying;
+      btn.classList.toggle("is-locked", flying);
+      if (flying) {
+        const atNow = Math.abs(getSimulatedUtcMs() - Date.now()) < 60000;
+        btn.classList.remove("is-paused");
+        btn.classList.toggle("is-live", atNow);
+        btn.innerHTML = atNow ? '<span class="live-dot"></span><span>LIVE</span>' : "×1";
+        btn.title = "Real time is locked while flying: the globe turns at its true rate under the aircraft. Exit flight to change it.";
+        return;
+      }
       if (spinPaused) {
         btn.classList.remove("is-live");
         btn.classList.add("is-paused");
@@ -1469,6 +1491,7 @@ function fmtProp(value) {
         : "Time-lapse: a day every two minutes. Click to pause the rotation; a second click returns to live.";
     }
     document.getElementById("time-rate-toggle")?.addEventListener("click", () => {
+      if (window.__flightSim?.active) { syncTimeRateBtn(); return; }   // locked in flight, see syncTimeRateBtn
       if (spinPaused) {
         resumeSpin();
         // "Reverts to live" means NOW, not wherever the clock froze.
@@ -1482,6 +1505,14 @@ function fmtProp(value) {
       syncTimeRateBtn();
     });
     syncTimeRateBtn();
+    // Flight takes real time. `flightsim:engaged` fires before the sim measures
+    // the spin rate it will pace, so a time-lapse is put back to real rate
+    // first; a moment scrubbed at the real rate keeps its moment.
+    window.addEventListener("flightsim:engaged", () => {
+      if (timeRateFactor === 1) setTimeRate("real");
+      syncTimeRateBtn();
+    });
+    window.addEventListener("flightsim:disengaged", () => syncTimeRateBtn());
     /**
      * The scrubber: jump the one clock to any moment, keeping the current
      * rate. Same rebase as entering real time, with an arbitrary target —
