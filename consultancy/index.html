@@ -331,7 +331,7 @@
 
     /* Intro beside the chart: one balanced band instead of a near-empty
        heading band and a chart stranded on the left of a wide screen. */
-    .cx-record { display: grid; grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr); gap: clamp(2.5rem, 6vw, 6rem); align-items: center; }
+    .cx-record { display: grid; grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr); gap: clamp(2.5rem, 6vw, 6rem); align-items: center; }
     .cx-scores-title {
       font-family: "Public Sans", sans-serif;
       font-size: 12px;
@@ -367,7 +367,8 @@
     .cx-yes .cx-ticks li::before { background: #5ee6a0; }
 
     /* ── FAQ: heading beside the questions ── */
-    .cx-split { display: grid; grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.6fr); gap: clamp(2rem, 6vw, 6rem); align-items: start; }
+    /* Two-track layouts share the section heads' split (bands.css): 0.9 : 1.1. */
+    .cx-split { display: grid; grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr); gap: clamp(2.5rem, 6vw, 6rem); align-items: start; }
     .cx-split > div:first-child { position: sticky; top: calc(var(--nav-h) + 4rem); }
     .faq { border-top: 1px solid var(--line); }
     .faq details { border-bottom: 1px solid var(--line); }
@@ -500,7 +501,7 @@
     .legal-meta { color: var(--muted); font-size: 0.82rem; margin: 0.75rem 0 0; }
 
     /* ── Enquiry form, on the closing photograph ── */
-    .cx-enq { display: grid; grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr); gap: clamp(2rem, 5vw, 4.5rem); align-items: start; }
+    .cx-enq { display: grid; grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr); gap: clamp(2.5rem, 6vw, 6rem); align-items: start; }
     .cx-enq ol { margin: 1.75rem 0 0; padding-left: 1.2rem; color: rgba(236, 232, 248, 0.86); line-height: 1.8; }
     .cx-enq ol a { color: var(--text); }
     .enq-form {
@@ -656,7 +657,7 @@
   <link rel="stylesheet" href="/styles/site-unify.css?v=20261024-256a6da">
   <link rel="stylesheet" href="/styles/bands.css?v=20261024-256a6da">
 </head>
-<body>
+<body class="bands">
   <nav class="site-nav" role="navigation" aria-label="Primary navigation">
     <a class="nav-wordmark" href="/" aria-label="GeoID Initiative Home">
       <img class="nav-brand-icon" src="/assets/GeoID_logo_icon.png" alt="">
