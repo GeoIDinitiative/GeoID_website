@@ -28,7 +28,7 @@
  * for the 2 km above), and the stratosphere.
  */
 
-import { vtuParts } from "./vtk-export.js?v=20261024-4aa0c10";
+import { vtuParts } from "./vtk-export.js?v=20261024-6c43adb";
 
 export const LEVELS = [1000, 950, 925, 900, 850, 800, 750, 700, 650, 600, 550, 500,
   450, 400, 350, 300, 250, 200, 150, 100, 70, 50, 30, 20, 10];

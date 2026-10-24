@@ -32,9 +32,9 @@
  * disc stays its own feature, so a click still names its volcano.
  */
 
-import { renderFeatureCollection } from "./vector-render.js?v=20261024-4aa0c10";
-import { layerForDataset } from "./global-data.js?v=20261024-4aa0c10";
-import { filterVolcanoes, yearRankOf, yearWords, inTimeFrame } from "./volcano-filter.js?v=20261024-4aa0c10";
+import { renderFeatureCollection } from "./vector-render.js?v=20261024-6c43adb";
+import { layerForDataset } from "./global-data.js?v=20261024-6c43adb";
+import { filterVolcanoes, yearRankOf, yearWords, inTimeFrame } from "./volcano-filter.js?v=20261024-6c43adb";
 
 const search = new URL(import.meta.url).search;
 
