@@ -1010,6 +1010,16 @@
       padding: 1.25rem 0 0 !important;
     }
     body.bands .earth-info-lede { font-size: 1.1rem; max-width: 52rem; }
+    /* The demo video (Etna) and in-game capture (ASCENT) sit clear of the
+       notes, framed like the feature sections' media. */
+    body.bands .earth-info-tile > :is(video, a) {
+      margin-top: clamp(3.5rem, 6vw, 5.5rem) !important;
+      border: 1px solid rgba(255, 255, 255, 0.12) !important;
+      border-radius: 10px;
+      overflow: hidden;
+      box-shadow: 0 30px 80px rgba(0, 0, 0, 0.55);
+    }
+    body.bands .earth-info-tile > a img { border-radius: 10px; }
 
     @media (max-width: 1280px) {
       body.bands .shot-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
@@ -1739,6 +1749,10 @@
           <div class="earth-info-block">
             <p class="earth-info-heading">The Guide</p>
             <p>Gio, the expedition guide, warns you at each hazard's ground, teaches the first ladder, meets you at every camp, and writes it all into the field journal.</p>
+          </div>
+          <div class="earth-info-block">
+            <p class="earth-info-heading">The Real Sky &amp; Air</p>
+            <p>A real solar and lunar ephemeris for 27.99&deg;N, so the summit window follows the moon. Air pressure comes from the barometric formula &mdash; 33.7 kPa on the summit &mdash; and drives the oxygen, while avalanche loading follows each slope's aspect against the live wind.</p>
           </div>
           <div class="earth-info-block">
             <p class="earth-info-heading">Data Sources</p>
