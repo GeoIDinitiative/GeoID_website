@@ -13,7 +13,7 @@
  * build already running rather than dropping the request).
  */
 
-import { seaLevel, rebuildSheet, sheetLayer } from "./dem-layer.js?v=20261024-fb177d7";
+import { seaLevel, rebuildSheet, sheetLayer } from "./dem-layer.js?v=20261024-2dc6cd0";
 
 const byId = (id) => document.getElementById(id);
 const say = (message) => { const n = byId("sea-level-status"); if (n) n.textContent = message || ""; };

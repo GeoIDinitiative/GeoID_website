@@ -26,6 +26,8 @@
 // Esri World Imagery (blankTile=false: a missing tile is a 404 and the
 // ancestor stays). Flight only.
 
+import { NIGHT } from "./night-lights.js?v=20261024-2dc6cd0";
+
 const URL_TEMPLATE = "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}?blankTile=false";
 const ROOT_Z = 7;
 export const MAX_Z = 17;
@@ -204,31 +206,51 @@ function material(t) {
     map: null, side: THREE.DoubleSide, transparent: true, depthWrite: true,
     polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -8,
   });
-  if (t.z >= VEG_FROM_Z) vegetation(m, t);
-  return m;
-}
-
-/**
- * The vegetation rises out of the tile's own imagery: blurred to ~25 m, a
- * mask of dark, green-dominant pixels (tree crowns; grass, water and shadow
- * stay flat) lifts each vertex up to VEG_HEIGHT_M along the local vertical,
- * shaded against the sun RELATIVE to flat ground so open ground keeps its
- * exact colour.
- */
-function vegetation(m, t) {
+  const veg = t.z >= VEG_FROM_Z;
   const mPerPx = tileSizeM(t.z, t.y) / 256;
-  t.vegUniforms = {
+  t.uniforms = {
     uVegLod: { value: Math.max(0, Math.log2(25 / mPerPx)) },
     uVegH: { value: VEG_HEIGHT_M * UNITS_PER_M },
     uVegSlope: { value: VEG_HEIGHT_M / tileSizeM(t.z, t.y) },
     uUp: { value: new THREE.Vector3() },
     uSunLocal: { value: new THREE.Vector3(0, 0, 1) },     // (east, north, up)
     uOwn: { value: 0 },
+    uNight: { value: 0 },
+    uLights: { value: null },
+    uLightsXf: { value: new THREE.Vector3(0, 0, 1) },      // offset u, v, scale into the Black Marble tile
+    uLightsOn: { value: 0 },
+    uLampCells: { value: tileSizeM(t.z, t.y) / 9 },        // a street lamp every ~9 m, at most
   };
   m.onBeforeCompile = (shader) => {
-    Object.assign(shader.uniforms, t.vegUniforms);
+    Object.assign(shader.uniforms, t.uniforms);
     shader.vertexShader = shader.vertexShader
       .replace("#include <common>", `#include <common>
+varying vec2 vTileUv;
+${veg ? VEG_VERTEX_PARS : ""}`)
+      .replace("#include <begin_vertex>", `#include <begin_vertex>
+  vTileUv = uv;
+${veg ? VEG_VERTEX : ""}`);
+    shader.fragmentShader = shader.fragmentShader
+      .replace("#include <common>", `#include <common>
+varying vec2 vTileUv;
+${veg ? "varying float vVegShade;" : ""}
+${NIGHT_PARS}`)
+      .replace("#include <map_fragment>", `#include <map_fragment>
+${veg ? "  diffuseColor.rgb *= vVegShade;" : ""}
+${NIGHT_FRAGMENT}`);
+  };
+  m.customProgramCacheKey = () => (veg ? "geoid-flight-tile-veg" : "geoid-flight-tile");
+  return m;
+}
+
+/*
+ * The vegetation rises out of the tile's own imagery: blurred to ~25 m, a
+ * mask of dark, green-dominant pixels (tree crowns; grass, water and shadow
+ * stay flat) lifts each vertex up to VEG_HEIGHT_M along the local vertical,
+ * shaded against the sun RELATIVE to flat ground so open ground keeps its
+ * exact colour.
+ */
+const VEG_VERTEX_PARS = /* glsl */`
 uniform sampler2D map;
 uniform float uVegLod, uVegH, uVegSlope, uOwn;
 uniform vec3 uUp, uSunLocal;
@@ -237,8 +259,8 @@ float vegAt(vec2 st) {
   vec3 c = sqrt(max(textureLod(map, st, uVegLod).rgb, 0.0));
   float lum = dot(c, vec3(0.299, 0.587, 0.114));
   return smoothstep(0.50, 0.22, lum) * smoothstep(-0.01, 0.08, c.g - c.b) * smoothstep(-0.04, 0.03, c.g - c.r);
-}`)
-      .replace("#include <begin_vertex>", `#include <begin_vertex>
+}`;
+const VEG_VERTEX = /* glsl */`
   vVegShade = 1.0;
 #ifdef USE_MAP
   if (uOwn > 0.5) {
@@ -251,13 +273,52 @@ float vegAt(vec2 st) {
     vec3 n = normalize(vec3(-dx, -dy, 1.0));
     vVegShade = clamp(1.0 + 1.6 * (dot(n, uSunLocal) - uSunLocal.z) * step(0.0, uSunLocal.z), 0.72, 1.22) * (1.0 - 0.1 * h0);
   }
-#endif`);
-    shader.fragmentShader = shader.fragmentShader
-      .replace("#include <common>", "#include <common>\nvarying float vVegShade;")
-      .replace("#include <map_fragment>", "#include <map_fragment>\n  diffuseColor.rgb *= vVegShade;");
-  };
-  m.customProgramCacheKey = () => "geoid-flight-tile-veg";
-}
+#endif`;
+
+/*
+ * Night (owner, 2026-10-24: "darkened imagery, and Black Marble to infer
+ * streetlights / city lights"). The photograph is a daytime one, so by night
+ * it is taken down to faint moonlight, and the light comes from two things
+ * multiplied together:
+ *
+ *   * WHERE there is light, and how much: NASA's VIIRS Black Marble
+ *     radiance (z8, ~0.4-0.6 km/px), cropped to the tile;
+ *   * WHAT is lit inside that: the daytime photo's own streets and paving --
+ *     grey, unsaturated, mid-bright pixels -- glow sodium/LED warm, with
+ *     point lamps scattered along them (a hash per ~9 m cell), fading to an
+ *     even glow where the cells are smaller than a pixel. Fields, woods and
+ *     water inside a bright city stay dark, as they do from a real cockpit.
+ *
+ * uNight is per tile, from the sun's elevation over it (twilight sweeps
+ * across the ground as it does), 0 by day: nothing here costs anything then.
+ */
+const NIGHT_PARS = /* glsl */`
+uniform float uNight, uLightsOn, uLampCells;
+uniform sampler2D uLights;
+uniform vec3 uLightsXf;
+float nHash(vec2 p) { return fract(sin(dot(p, vec2(41.3, 289.1))) * 43758.5453); }`;
+const NIGHT_FRAGMENT = /* glsl */`
+  if (uNight > 0.001) {
+    vec3 day = diffuseColor.rgb;
+    vec3 c = sqrt(max(day, 0.0));                                   // ~sRGB, for the masks
+    float lum = dot(c, vec3(0.299, 0.587, 0.114));
+    float sat = max(max(c.r, c.g), c.b) - min(min(c.r, c.g), c.b);
+    float paved = smoothstep(0.16, 0.06, sat) * smoothstep(0.22, 0.42, lum);
+    float rad = 0.0;
+    if (uLightsOn > 0.5) {
+      vec3 bm = texture2D(uLights, uLightsXf.xy + vTileUv * uLightsXf.z).rgb;
+      rad = clamp(dot(bm, vec3(0.35, 0.45, 0.20)) * 1.8, 0.0, 1.0);
+    }
+    vec2 cell = vTileUv * uLampCells;
+    float px = max(fwidth(cell.x), fwidth(cell.y));
+    float near = clamp(1.0 - px * 1.2, 0.0, 1.0);
+    vec2 f = fract(cell) - 0.5;
+    float lamp = step(0.72, nHash(floor(cell))) * smoothstep(0.30, 0.05, length(f));
+    float glow = rad * (0.10 + paved * mix(0.55, 0.35 + 2.2 * lamp, near));
+    vec3 warm = mix(vec3(1.0, 0.62, 0.28), vec3(1.0, 0.90, 0.75), nHash(floor(cell * 0.25)));
+    vec3 moon = day * vec3(0.05, 0.065, 0.09);
+    diffuseColor.rgb = mix(day, moon + warm * glow, uNight);
+  }`;
 
 /**
  * The best image this tile can show now: its own, or the nearest loaded
@@ -294,7 +355,7 @@ function applyTexture(t) {
     if (first) m.needsUpdate = true;             // USE_MAP switches on once; later swaps are uniforms
     if (best.own && t.crop) { t.crop.tex.dispose(); t.crop = null; }
   }
-  if (t.vegUniforms) t.vegUniforms.uOwn.value = best.own ? 1 : 0;
+  t.uniforms.uOwn.value = best.own ? 1 : 0;
   t.mesh.visible = t.want;
 }
 
@@ -370,15 +431,51 @@ function sunLocal(viewer) {
   return sunW.clone().normalize().transformDirection(new THREE.Matrix4().copy(viewer.globe.matrixWorld).invert());
 }
 
-/** The vegetation's sun, in the tile's east/north/up. */
+/** The tile's sun (vegetation shading) and how dark it is over it. */
 function updateSun(t, sunL) {
-  if (!t.vegUniforms || !t.centre) return;
+  if (!t.uniforms || !t.centre) return;
   const up = t.centre.clone().normalize();
-  t.vegUniforms.uUp.value.copy(up);
+  t.uniforms.uUp.value.copy(up);
   if (!sunL) return;
   const east = new THREE.Vector3(0, 1, 0).cross(up).normalize();
   const north = up.clone().cross(east).normalize();
-  t.vegUniforms.uSunLocal.value.set(sunL.dot(east), sunL.dot(north), sunL.dot(up));
+  t.uniforms.uSunLocal.value.set(sunL.dot(east), sunL.dot(north), sunL.dot(up));
+  t.uniforms.uNight.value = nightFor(sunL.dot(up));
+  if (t.uniforms.uNight.value > 0.01) lightsFor(t);
+}
+
+/** 0 by day .. 1 by night, from the sine of the sun's elevation (as night-lights.js). */
+const nightFor = (sinSun) => Math.min(1, Math.max(0, (0.10 - sinSun) / 0.22));
+
+/* Black Marble, z8 at most (GIBS's Level8), one texture per z8 tile, shared. */
+const GIBS = "https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/VIIRS_Black_Marble/default/2016-01-01/GoogleMapsCompatible_Level8/{z}/{y}/{x}.png";
+const LIGHTS_Z = 8;
+const lights = new Map();           // "z/x/y" -> Texture | "loading" | "missing"
+function lightsFor(t) {
+  const zl = Math.min(t.z, LIGHTS_Z), up = t.z - zl;
+  const xl = t.x >> up, yl = t.y >> up, k = key(zl, xl, yl);
+  const have = lights.get(k);
+  if (have instanceof THREE.Texture) {
+    if (t.uniforms.uLights.value !== have) {
+      const [ou, ov, sc] = ancestorCrop(t.z, t.x, t.y, zl, xl, yl);
+      t.uniforms.uLights.value = have;
+      t.uniforms.uLightsXf.value.set(ou, ov, sc);
+      t.uniforms.uLightsOn.value = 1;
+    }
+    return;
+  }
+  if (have) return;
+  lights.set(k, "loading");
+  const img = new Image();
+  img.crossOrigin = "anonymous";
+  img.onload = () => {
+    const tex = new THREE.Texture(img);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    tex.needsUpdate = true;
+    lights.set(k, tex);
+  };
+  img.onerror = () => lights.set(k, "missing");
+  img.src = GIBS.replace("{z}", zl).replace("{y}", yl).replace("{x}", xl);
 }
 
 function tick() {
@@ -436,6 +533,11 @@ function tick() {
     const old = [...tiles.values()].filter((t) => !t.want && !t.ancestorWanted).sort((a, b) => a.used - b.used);
     for (const t of old.slice(0, tiles.size - MAX_TILES_KEPT)) dispose(t);
   }
+  // The buildings' night (lit windows, dimmed walls) is the ship's.
+  if (sunL) {
+    const p = viewer.surfacePoint(f.shipLatLon.lat, f.shipLatLon.lon, 0);
+    NIGHT.value = nightFor(new THREE.Vector3(-p.x, p.y, -p.z).normalize().dot(sunL));
+  }
   pump();
   stats.leaves = leaves.length; stats.tiles = tiles.size; stats.inflight = inflight;
   stats.own = leaves.filter((L) => tiles.get(key(L.z, L.x, L.y))?.image instanceof THREE.Texture).length;
@@ -453,6 +555,21 @@ function dispose(t) {
 }
 
 export const stats = { leaves: 0, built: 0, tiles: 0, inflight: 0, own: 0 };
+
+/** For the Metadata window while flying: what the ground is made of. */
+export function creditNow() {
+  if (!running) return null;
+  const night = [...lights.values()].some((v) => v instanceof THREE.Texture);
+  return {
+    title: "Earth Flight ground",
+    source: "Esri World Imagery tiles z7-z17 on the streamed elevation (flight-terrain.js)"
+      + (night ? "; at night NASA GIBS VIIRS_Black_Marble (2016) z8 radiance, with street lights placed on the imagery's paved surfaces" : ""),
+    citation: "Imagery: Esri World Imagery — Source: Esri, Vantor, Earthstar Geographics, and the GIS User Community. Vegetation relief up to 7 m from the imagery's colour (procedural)."
+      + (night ? " Night lights: NASA Earth Observatory / NASA Goddard Space Flight Center, VIIRS Black Marble (Suomi NPP), 2016, via NASA EOSDIS GIBS, public domain; street-light placement is inferred (procedural)." : ""),
+    crs: "EPSG:3857 tiles, drawn on the globe",
+    licence: "Esri terms of use (imagery)" + (night ? "; public domain (Black Marble)" : ""),
+  };
+}
 
 /** Start the flight ground (idempotent). */
 let running = false;
@@ -472,10 +589,11 @@ export function stopFlightTiles() {
   timer = null;
   for (const t of [...tiles.values()]) dispose(t);
   queue.length = 0;
+  NIGHT.value = 0;
   group?.parent?.remove(group);
   group = null;
 }
 
 if (typeof window !== "undefined") {
-  window.GeoIDFlightTiles = { active: () => running, stats, startFlightTiles, stopFlightTiles };
+  window.GeoIDFlightTiles = { active: () => running, stats, creditNow, startFlightTiles, stopFlightTiles };
 }

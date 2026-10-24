@@ -36,9 +36,9 @@
 // transparent pass in a group sorted at 190 (see GROUP_ORDER), still
 // depth-tested and depth-writing against the globe and each other.
 
-import { isEarth } from "./bodies.js?v=20261024-fb177d7";
+import { isEarth } from "./bodies.js?v=20261024-2dc6cd0";
 import { facade, roof } from "../../../flight_sim/earth/game/facade.js?v=2";
-import { NIGHT } from "./night-lights.js?v=20261024-fb177d7";
+import { NIGHT } from "./night-lights.js?v=20261024-2dc6cd0";
 
 const BUILDINGS_TILEJSON = "https://tiles.openfreemap.org/planet";
 // blankTile=false: a tile with no imagery is a 404, not Esri's grey "Map data
@@ -651,8 +651,8 @@ function build(viewer, t, m, count, lat, sizeM) {
    ground layer (190). */
 const LAYER_NAME = "3D buildings & trees (OpenStreetMap)";
 const LAYER_INFO = {
-  source: "OpenStreetMap via OpenFreeMap vector tiles (OpenMapTiles schema, z14): building, transportation, water, landcover; roof and ground imagery Esri World Imagery z16-z17",
-  citation: "Buildings, bridges, trees: © OpenStreetMap contributors, ODbL 1.0 (openstreetmap.org/copyright); tiles: OpenFreeMap (openfreemap.org), OpenMapTiles schema © OpenMapTiles. Imagery: Esri World Imagery — Source: Esri, Vantor, Earthstar Geographics, and the GIS User Community. In flight the vegetation rises up to 7 m out of the same imagery, from its colour; facades, pitched roofs and that relief are procedural.",
+  source: "OpenStreetMap via OpenFreeMap vector tiles (OpenMapTiles schema, z14): building, transportation, water, landcover; roof imagery Esri World Imagery z16-z17",
+  citation: "Buildings, bridges, trees: © OpenStreetMap contributors, ODbL 1.0 (openstreetmap.org/copyright); tiles: OpenFreeMap (openfreemap.org), OpenMapTiles schema © OpenMapTiles. Imagery: Esri World Imagery — Source: Esri, Vantor, Earthstar Geographics, and the GIS User Community. Facades and pitched roofs are procedural.",
   crs: "EPSG:3857 tiles, drawn on the globe",
   licence: "ODbL 1.0 (OpenStreetMap data); Esri terms of use (imagery)",
 };
