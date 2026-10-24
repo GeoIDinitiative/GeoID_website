@@ -8,8 +8,8 @@
  *     have actually yielded vacancies in Atlas's scans, plus job boards such as
  *     jobs.ac.uk read through a discipline-filtered search; sources/events.json:
  *     the calendars that returned events when probed);
- *   - each source read on a ROTA -- a few per 15-minute tick, oldest first, so
- *     no tick is long and every source is read about daily;
+ *   - every source read once a day, in the daily cron, a few at a time; one
+ *     scan's posts share its time, so the board can say what is new;
  *   - NO SCORES. The scanner's weighted keywords rank roles for one person;
  *     here a posting only has to be in a geoscience field (FIELDS, a plain
  *     yes/no), or come from a board whose discipline filter already chose
@@ -28,13 +28,12 @@
  */
 import { now, str, id, fail, requireUser, isAdmin, readJson } from "./lib.js";
 import { all, one, run } from "./collab.js";
-import { insertStatements } from "./posts.js";
-import { fetchJobs, fetchEvents, normUrl } from "./ats.js";
+import { insertStatements, openListingSql } from "./posts.js";
+import { fetchJobs, fetchEvents, normUrl, BOARD_PLATFORMS } from "./ats.js";
 import JOB_SOURCES from "./sources/jobs.json" with { type: "json" };
 import EVENT_SOURCES from "./sources/events.json" with { type: "json" };
 
 const DAY = 86400;
-const PER_TICK = 4;                 // sources read per 15-minute tick
 const REREAD = 20 * 3600;           // a source is due again after ~a day
 const MAX_NEW_PER_SOURCE = 12;      // a first read posts at most this many
 const MAX_NEW_FROM_BOARD = 75;      // a board's discipline-filtered pages (ats.js BOARD_PAGES)
@@ -106,7 +105,9 @@ export async function botUser(env) {
 export async function seedSources(env) {
   for (const [kind, list] of [["jobs", JOB_SOURCES.sources], ["events", EVENT_SOURCES.sources]]) {
     for (const s of list) {
-      await run(env, "INSERT OR IGNORE INTO import_sources (id, kind, name, url, grp) VALUES (?, ?, ?, ?, ?)",
+      // Names and groups follow the file; a URL an admin re-pointed is kept.
+      await run(env, `INSERT INTO import_sources (id, kind, name, url, grp) VALUES (?, ?, ?, ?, ?)
+        ON CONFLICT(id) DO UPDATE SET name = excluded.name, grp = excluded.grp`,
         `${kind}:${s.id}`, kind, str(s.name, 120), s.url, str(s.group, 80));
     }
   }
@@ -120,6 +121,7 @@ function jobPost(bot, source, p, hits, t) {
     `${p.title}${org ? ` at ${org}` : ""}${p.department ? `, ${p.department}` : ""}.`,
     p.location ? `Location: ${p.location}.` : "",
     p.salary ? `Salary: ${p.salary}.` : "",
+    p.description ? `\n${p.description}` : "",
     p.board ? `Listed on ${source.name}. Read the full advert and apply there.` : `Imported from ${source.name}'s careers page. Read the full advert and apply there.`,
   ].filter(Boolean).join("\n");
   return {
@@ -198,8 +200,12 @@ export async function readSource(env, source, t = now(), { fetcher = fetch } = {
     await run(env, "INSERT INTO imported (url_key, source_id, post_id, first_seen, last_seen) VALUES (?, ?, ?, ?, ?)",
       item.key, source.id, postId, t, t);
   }
-  // Three reads without a posting it used to list: it has gone.
-  await run(env, "UPDATE imported SET gone_at = ? WHERE source_id = ? AND gone_at IS NULL AND last_seen < ?", t, source.id, t - 3 * REREAD);
+  // Three reads without a posting it used to list: it has gone. Not for a board,
+  // which is read only for its newest pages -- an older advert drops off them
+  // while still open; its deadline (or age) retires it instead.
+  if (!BOARD_PLATFORMS.includes(platform)) {
+    await run(env, "UPDATE imported SET gone_at = ? WHERE source_id = ? AND gone_at IS NULL AND last_seen < ?", t, source.id, t - 3 * REREAD);
+  }
   await run(env,
     `UPDATE import_sources SET last_run_at = ?, platform = ?, last_count = ?, last_new = ?, last_error = '',
        ever_yielded = CASE WHEN ? > 0 THEN 1 ELSE ever_yielded END,
@@ -208,14 +214,52 @@ export async function readSource(env, source, t = now(), { fetcher = fetch } = {
   return { id: source.id, listed: items.length, posted };
 }
 
-/** The 15-minute tick: the next few sources that are due. */
-export async function runImports(env, t = now(), { fetcher = fetch, perTick = PER_TICK } = {}) {
+/**
+ * The daily scan (cron.js DAILY): every enabled source that is due, a few at
+ * a time. Everything one scan posts carries the same created_at, the scan's
+ * own time, so "new in the latest scan" is a plain comparison.
+ */
+export async function runImports(env, t = now(), { fetcher = fetch, perTick = 1000, concurrency = 6 } = {}) {
   await seedSources(env);
   const due = await all(env,
     "SELECT * FROM import_sources WHERE enabled = 1 AND last_run_at < ? ORDER BY last_run_at LIMIT ?", t - REREAD, perTick);
   const out = [];
-  for (const s of due) out.push(await readSource(env, s, t, { fetcher }));
+  for (let i = 0; i < due.length; i += concurrency) {
+    out.push(...await Promise.all(due.slice(i, i + concurrency).map((s) => readSource(env, s, t, { fetcher }))));
+  }
   return { read: out.length, results: out };
+}
+
+/**
+ * GET /v1/imports/summary -- public: when the last daily scan ran, what it
+ * reads (the boards by name, employers' pages as a count), how many adverts
+ * are open, and how many the latest scan added.
+ */
+async function summary(ctx) {
+  const env = ctx.env;
+  await seedSources(env);
+  const t = now();
+  const sources = await all(env, "SELECT id, name, grp, last_run_at FROM import_sources WHERE kind = 'jobs' AND enabled = 1");
+  const last = sources.reduce((m, s) => Math.max(m, s.last_run_at || 0), 0);
+  const open = openListingSql(t);
+  const counts = await all(env,
+    `SELECT json_extract(p.meta_json, '$.source_id') AS source_id, COUNT(*) AS n,
+            SUM(CASE WHEN p.created_at >= ? THEN 1 ELSE 0 END) AS fresh
+       FROM posts p WHERE p.kind = 'opportunity' AND ${open.sql} GROUP BY source_id`,
+    last || t, ...open.binds);
+  const by = Object.fromEntries(counts.map((c) => [c.source_id, c]));
+  // In the order sources/jobs.json lists them.
+  const order = new Map(JOB_SOURCES.sources.map((s, i) => [`jobs:${s.id}`, i]));
+  const boards = sources.filter((s) => s.grp === "Job boards").sort((a, b) => (order.get(a.id) ?? 999) - (order.get(b.id) ?? 999))
+    .map((s) => ({ id: s.id, name: s.name, open: by[s.id]?.n || 0 }));
+  const employers = sources.filter((s) => s.grp !== "Job boards");
+  return {
+    last_scan_at: last || null,
+    boards,
+    employers: { sources: employers.length, open: employers.reduce((n, s) => n + (by[s.id]?.n || 0), 0) },
+    open: counts.reduce((n, c) => n + c.n, 0),
+    new_in_last_scan: counts.reduce((n, c) => n + (c.fresh || 0), 0),
+  };
 }
 
 // ── Admin routes ───────────────────────────────────────────────────────────
@@ -259,6 +303,7 @@ async function runOne(ctx) {
 }
 
 export const routes = [
+  ["GET", "/v1/imports/summary", summary],
   ["GET", "/v1/imports", listSources],
   ["PATCH", "/v1/imports/:id", patchSource],
   ["POST", "/v1/imports/:id/run", runOne],

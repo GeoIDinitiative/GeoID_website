@@ -10,8 +10,21 @@ import * as api from "../api.js?v=20261024-3b234b0";
 import { store } from "../store.js?v=20261024-3b234b0";
 import { h, clear, field, input, select, dateToEpoch, epochToDate, put, toast, loading, errorBox, textarea, busy, empty } from "../dom.js?v=20261024-3b234b0";
 import { OPP_TYPES, postCard, pagedList, act, userChip, requireSignIn } from "../components.js?v=20261024-3b234b0";
+import { topicOf } from "../topics.js?v=20261024-3b234b0";
 
 export function renderOpportunities(root, { query }) {
+  const external = query.tab === "external";
+  const tabLink = (on, href, label) => h("a", { href, class: on ? "is-active" : "", "aria-current": on ? "page" : null }, label);
+  put(clear(root),
+    h("div", { class: "s-title-row" }, h("h1", { class: "s-h1", text: "Opportunities" }), h("a", { class: "btn-primary", href: "#/compose?kind=opportunity" }, "Post an opportunity")),
+    h("nav", { class: "s-tabs", "aria-label": "Where the opportunities come from" },
+      tabLink(!external, "#/opportunities", "Posted here"),
+      tabLink(external, "#/opportunities?tab=external", "External")),
+    external ? externalBoard(query) : postedHere(query));
+}
+
+/** Members' own posts: jobs, grants, fieldwork, expertise wanted and offered, challenges. */
+function postedHere(query) {
   const type = select("type", [["", "Any type"], ...OPP_TYPES.map((t) => [t, t[0].toUpperCase() + t.slice(1)])], query.type || "");
   const skill = input("skill", { value: query.skill || "", placeholder: "e.g. python" });
   const kind = select("kind", [["", "Opportunities, events and challenges"], ["opportunity", "Opportunities only"], ["event", "Events only"], ["challenge", "Challenges only"]], query.kind || "");
@@ -25,33 +38,99 @@ export function renderOpportunities(root, { query }) {
     if (skill.value.trim()) q.set("skill", skill.value.trim());
     location.hash = `#/opportunities?${q.toString()}`;
   });
-  put(clear(root),
-    h("div", { class: "s-title-row" }, h("h1", { class: "s-h1", text: "Opportunities" }), h("a", { class: "btn-primary", href: "#/compose?kind=opportunity" }, "Post an opportunity")),
-    h("p", { class: "s-muted", text: "Jobs, grants, studentships, fellowships, fieldwork, expertise wanted and offered. Sponsored challenges are always labelled." }),
+  return h("div", {},
+    h("p", { class: "s-muted", text: "Posted by members: jobs, grants, studentships, fellowships, fieldwork, expertise wanted and offered. Sponsored challenges are always labelled." }),
     form,
-    boardLinks(),
-    pagedList((cursor) => api.get("/v1/feed", { tab: "opportunities", kind: kind.value, type: query.type || "", skill: query.skill || "", cursor }), postCard,
+    pagedList((cursor) => api.get("/v1/feed", { tab: "opportunities", origin: "here", kind: kind.value, type: query.type || "", skill: query.skill || "", cursor }), postCard,
       { emptyTitle: "No opportunities match.", emptyDetail: "Clear a filter, or post one yourself." }));
 }
 
 /**
- * Job boards searched with the field already chosen. Their newest adverts are
- * imported here (credited, "Imported from jobs.ac.uk"); the board itself has
- * the rest, and its own alerts.
+ * Job boards searched with the field already chosen. Their newest adverts
+ * come in with the daily scan (importer.js); the board itself has the rest,
+ * and its own alerts. Keyed by the import source id.
  */
-const JOB_BOARDS = [
-  {
-    name: "jobs.ac.uk",
+const JOB_BOARDS = {
+  "jobs:jobs-ac-uk-geo": {
     filters: "Environmental sciences, geography and geology",
     url: "https://www.jobs.ac.uk/search/?activeFacet=subDisciplineFacet&sortOrder=1&pageSize=25&startIndex=1&academicDisciplineFacet%5B0%5D=physical-and-environmental-sciences&subDisciplineFacet%5B0%5D=environmental-sciences&subDisciplineFacet%5B1%5D=geography&subDisciplineFacet%5B2%5D=geology",
   },
-];
+  "jobs:egu-jobs": { filters: "European Geosciences Union", url: "https://www.egu.eu/jobs/" },
+  "jobs:agu-career-center": { filters: "American Geophysical Union", url: "https://findajob.agu.org/jobs/" },
+};
 
-function boardLinks() {
-  return h("aside", { class: "s-boards", "aria-label": "Job boards" },
-    h("span", { class: "s-label", text: "More on job boards" }),
-    JOB_BOARDS.map((b) => h("a", { class: "s-board", href: b.url, target: "_blank", rel: "noopener noreferrer" },
-      h("strong", { text: b.name }), h("span", { class: "s-muted", text: ` · ${b.filters}` }), " ↗")));
+const shortDate = (s) => (s ? new Date(s * 1000).toLocaleDateString(undefined, { day: "numeric", month: "short", year: new Date(s * 1000).getFullYear() === new Date().getFullYear() ? undefined : "numeric" }) : "");
+
+/**
+ * The daily scan, packaged: what it reads and when it last ran, a filter by
+ * source, then the open adverts -- the latest scan's first, under their own
+ * heading -- each a compact listing that links to its post and to the advert.
+ */
+function externalBoard(query) {
+  const source = query.source || "";
+  const head = h("div", { class: "s-scan" }, h("p", { class: "s-muted", text: "Loading the latest scan…" }));
+  const listBox = h("div", {});
+  const boards = h("aside", { class: "s-boards", "aria-label": "Job boards" });
+  const chip = (id, label, n) => h("a", { class: `s-chip${source === id ? " is-on" : ""}`, href: `#/opportunities?tab=external${id ? `&source=${encodeURIComponent(id)}` : ""}`,
+    "aria-current": source === id ? "true" : null }, label, n != null ? h("span", { class: "s-chip-n", text: String(n) }) : null);
+  api.get("/v1/imports/summary").then((sum) => {
+    clear(boards);
+    put(boards, h("span", { class: "s-label", text: "More on the boards" }),
+      sum.boards.map((b) => JOB_BOARDS[b.id] ? h("a", { class: "s-board", href: JOB_BOARDS[b.id].url, target: "_blank", rel: "noopener noreferrer" },
+        h("strong", { text: b.name }), h("span", { class: "s-muted", text: ` · ${JOB_BOARDS[b.id].filters}` }), " ↗") : null));
+    const names = sum.boards.map((b) => b.name);
+    put(clear(head),
+      h("p", { class: "s-scan-line" },
+        h("strong", {}, "Scanned daily"), ` from ${names.join(", ")} and ${sum.employers.sources} employers' own careers pages. `,
+        sum.last_scan_at ? `Last scan ${shortDate(sum.last_scan_at)}, ${new Date(sum.last_scan_at * 1000).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })}: ` : "Not scanned yet. ",
+        h("strong", { text: `${sum.open} open` }), sum.new_in_last_scan ? `, ${sum.new_in_last_scan} new.` : "."),
+      h("p", { class: "s-hint", text: "Each advert is credited to where it was found and links to the original. Apply there: details and deadlines on the original are the authority." }),
+      h("nav", { class: "s-chips", "aria-label": "Filter by source" },
+        chip("", "All", sum.open),
+        sum.boards.map((b) => chip(b.id, b.name, b.open)),
+        chip("employers", "Employers' pages", sum.employers.open)));
+    // Group by scan: the latest scan's adverts first, under their own heading.
+    let section = "";
+    const row = (p) => {
+      const fresh = sum.last_scan_at && p.created_at >= sum.last_scan_at;
+      const want = fresh ? "new" : "open";
+      const out = [];
+      if (want !== section) {
+        section = want;
+        out.push(h("h2", { class: "s-h3 s-scan-group", text: fresh ? "New in the latest scan" : "Still open" }));
+      }
+      out.push(listingCard(p));
+      return out;
+    };
+    put(clear(listBox), pagedList((cursor) => api.get("/v1/feed", { tab: "opportunities", origin: "external", source, cursor }), row,
+      { emptyTitle: "No open adverts from this source.", emptyDetail: "The scan runs once a day.", listClass: "s-list s-listings" }));
+  }).catch((error) => put(clear(head), errorBox(error)));
+  return h("div", {}, head, boards, listBox);
+}
+
+/** One scanned advert: what, who, where, when it closes, where it came from, and the way to apply. */
+function listingCard(p) {
+  const m = p.meta || {};
+  const advert = m.apply_url || p.links?.[0]?.url || "";
+  const via = m.source_name || "an external listing";
+  const topic = topicOf(p);
+  const closes = m.deadline ? `Closes ${shortDate(m.deadline)}` : "";
+  const pay = (/^Salary: (.+)\.$/m.exec(p.body || "") || [])[1] || "";
+  const salary = pay.length > 70 ? `${pay.slice(0, 68).replace(/\s+\S*$/, "")}…` : pay;
+  return h("article", { class: "s-card s-listing", "data-topic": topic?.id || null, "aria-labelledby": `lt-${p.id}` },
+    h("div", { class: "s-listing-main" },
+      h("h3", { class: "s-listing-title", id: `lt-${p.id}` }, h("a", { href: `#/post/${encodeURIComponent(p.id)}` }, p.title)),
+      h("p", { class: "s-listing-org" }, m.org ? h("strong", { text: m.org }) : null, p.place_name ? h("span", { class: "s-muted", text: ` · ${p.place_name}` }) : null),
+      h("p", { class: "s-listing-meta" },
+        m.type ? h("span", { class: "s-kind", text: m.type }) : null,
+        topic ? h("span", { class: "s-topic", text: topic.label }) : null,
+        salary ? h("span", { class: "s-muted", text: salary }) : null,
+        h("span", { class: "s-vis s-imported", text: `via ${via}` }))),
+    h("div", { class: "s-listing-side" },
+      closes ? h("span", { class: "s-listing-closes", text: closes }) : h("span", { class: "s-muted", text: `Found ${shortDate(p.created_at)}` }),
+      h("div", { class: "s-listing-acts" },
+        h("a", { class: "s-act", href: `#/post/${encodeURIComponent(p.id)}` }, "Details"),
+        advert ? h("a", { class: "btn-primary s-btn-sm", href: advert, target: "_blank", rel: "noopener noreferrer" }, `Apply on ${via.replace(/ (Jobs|Career Center)$/, "")} ↗`) : null)));
 }
 
 export function renderEvents(root, { query }) {

@@ -132,6 +132,8 @@ export async function runJobs(cron, env, t = now(), { fetchImpl = fetch, mod = e
     await job(report, "badges", () => refreshBadges(env, t));
     await job(report, "orphans", () => sweepOrphans(env, t));
     await job(report, "checkins", () => checkins(env, t));
+    // The daily scan of job boards, employers' pages and calendars (IMPORTS=0 turns it off).
+    if (String(env.IMPORTS ?? "1") !== "0") await job(report, "imports", () => runImports(env, t, { fetcher: fetchImpl }));
     return report;
   }
   await job(report, "reminders", () => reminders(env, t, mod));
@@ -139,8 +141,6 @@ export async function runJobs(cron, env, t = now(), { fetchImpl = fetch, mod = e
   const hour = new Date(t * 1000).getUTCHours();
   if (hour >= int(env.DIGEST_HOUR_UTC, 7)) await job(report, "digests", () => sendDigests(env, t, { fetchImpl }));
   if (weeklyDue(t, int(env.DIGEST_HOUR_UTC, 7))) await job(report, "weekly", () => sendWeekly(env, t, { fetchImpl }));
-  // Imported opportunities and events: a few sources per tick (IMPORTS=0 turns it off).
-  if (String(env.IMPORTS ?? "1") !== "0") await job(report, "imports", () => runImports(env, t, { fetcher: fetchImpl }));
   return report;
 }
 

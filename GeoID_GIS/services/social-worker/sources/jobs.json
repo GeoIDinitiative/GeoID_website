@@ -8,6 +8,18 @@
    "group": "Job boards"
   },
   {
+   "id": "egu-jobs",
+   "name": "EGU Jobs",
+   "url": "https://www.egu.eu/jobs/",
+   "group": "Job boards"
+  },
+  {
+   "id": "agu-career-center",
+   "name": "AGU Career Center",
+   "url": "https://findajob.agu.org/jobs/",
+   "group": "Job boards"
+  },
+  {
    "id": "british-geological-survey",
    "name": "British Geological Survey",
    "url": "https://www.bgs.ac.uk/about-bgs/working-with-us/job-vacancies/",
@@ -419,18 +431,6 @@
    "id": "nature-careers",
    "name": "Nature Careers",
    "url": "https://www.nature.com/naturecareers",
-   "group": "Job boards / aggregators"
-  },
-  {
-   "id": "egu-jobs",
-   "name": "EGU Jobs",
-   "url": "https://www.egu.eu/jobs/",
-   "group": "Job boards / aggregators"
-  },
-  {
-   "id": "agu-career-center",
-   "name": "AGU Career Center",
-   "url": "https://findajob.agu.org/",
    "group": "Job boards / aggregators"
   },
   {

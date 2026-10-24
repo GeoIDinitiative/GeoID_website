@@ -9,7 +9,7 @@ import { sharePage, weeklyLines, sendWeekly, weeklyDue } from "../reach.js";
 import { depositMetadata, seal, unseal } from "../zenodo.js";
 import { slotIcs, checkins } from "../officehours.js";
 import { cleanPin } from "../reviews.js";
-import { detectPlatform, harvestJobs, jsonLd, jobsFromJsonLd, eventsFromJsonLd, parseIcs, fetchJobs, fetchEvents, looksLikeDetail, plausibleTitle, parseJobsAcUk, dayMonthAhead } from "../ats.js";
+import { detectPlatform, harvestJobs, jsonLd, jobsFromJsonLd, eventsFromJsonLd, parseIcs, fetchJobs, fetchEvents, looksLikeDetail, plausibleTitle, parseJobsAcUk, dayMonthAhead, parseEgu, parseAgu } from "../ats.js";
 import { classifyPosting, readSource, runImports, seedSources } from "../importer.js";
 
 const ANA = "ana@example.com", BEN = "ben@example.com", ADMIN = "admin@example.com";
@@ -380,4 +380,66 @@ test("jobs.ac.uk: a discipline-filtered search is read as a board, employer kept
   assert.equal(post.meta.source_name, "jobs.ac.uk", "the credit is the board's");
   assert.match(post.body, /Listed on jobs\.ac\.uk/);
   assert.ok(post.meta.deadline > 0);
+});
+
+test("EGU and AGU boards; Opportunities splits into posted here and external; the scan is daily", async () => {
+  const egu = `<article class="media"><div class="media-body">
+    <h2 class="h4"><a href="/jobs/9001/postdoc-in-glacier-dynamics/">Postdoc in Glacier Dynamics</a></h2>
+    <ul class="list-inline"><li class="list-inline-item"><i class="fas fa-university"></i> <a href="https://uni.example">University of Oslo</a></li>
+    <li class="list-inline-item"><i class="fas fa-globe"></i> Oslo, Norway</li>
+    <li class="list-inline-item"><i class="far fa-calendar-plus"></i><time data-js-timeago datetime="2026-10-23T16:48:33+02:00">23 October</time></li></ul>
+    <p>Two years on Svalbard glaciers.</p></div></article>`;
+  const agu = `<li class="lister__item cf" id="item-1"><div class="lister__details cf js-clickable">
+    <h3 class="lister__header"><a \n href=" \n /job/7001/hydrologist/ \n " class="js-clickable-area-link"><span>Hydrologist</span></a></h3>
+    <ul class="lister__meta"><li class="lister__meta-item lister__meta-item--location">Denver, Colorado</li>
+    <li class="lister__meta-item lister__meta-item--salary">$80,000</li>
+    <li class="lister__meta-item lister__meta-item--recruiter">USGS</li></ul>
+    <p class="lister__description js-clamp-2">Surface water modelling.</p></div></li>`;
+  assert.equal(detectPlatform("https://www.egu.eu/jobs/"), "egu");
+  assert.equal(detectPlatform("https://findajob.agu.org/jobs/"), "agu");
+  const e = parseEgu(egu, "https://www.egu.eu/jobs/")[0];
+  assert.deepEqual([e.title, e.org, e.location, e.posted, e.url], ["Postdoc in Glacier Dynamics", "University of Oslo", "Oslo, Norway", "2026-10-23",
+    "https://www.egu.eu/jobs/9001/postdoc-in-glacier-dynamics/"]);
+  const a = parseAgu(agu, "https://findajob.agu.org/jobs/")[0];
+  assert.deepEqual([a.title, a.org, a.location, a.salary, a.url], ["Hydrologist", "USGS", "Denver, Colorado", "$80,000", "https://findajob.agu.org/job/7001/hydrologist/"]);
+
+  const env = await world();
+  await seedSources(env);
+  const t0 = Math.floor(Date.now() / 1000);
+  const fetcher = async (u) => new Response(String(u).includes("egu.eu") ? egu : String(u).includes("agu.org") ? agu : "<html></html>");
+  const eguSrc = await env.DB.prepare("SELECT * FROM import_sources WHERE id = 'jobs:egu-jobs'").first();
+  assert.equal(eguSrc.grp, "Job boards");
+  assert.equal((await readSource(env, eguSrc, t0, { fetcher })).posted, 1, "a board is trusted: a short page is the last page");
+  const aguSrc = await env.DB.prepare("SELECT * FROM import_sources WHERE id = 'jobs:agu-career-center'").first();
+  assert.equal((await readSource(env, aguSrc, t0, { fetcher })).posted, 1);
+  // A member's own opportunity.
+  const mine = await call(env, "POST", "/v1/posts", { as: ANA, body: { kind: "opportunity", title: "Field assistant, Etna", body: "Two weeks in June.", visibility: "public", provenance: "observed" } });
+  assert.equal(mine.status, 200, JSON.stringify(mine.body));
+
+  const here = await call(env, "GET", "/v1/feed?tab=opportunities&origin=here");
+  assert.ok(here.body.items.some((p) => p.id === mine.body.id));
+  assert.ok(!here.body.items.some((p) => p.meta?.imported), "posted here is members' posts only");
+  const ext = await call(env, "GET", "/v1/feed?tab=opportunities&origin=external");
+  const titles = ext.body.items.map((p) => p.title);
+  assert.ok(titles.includes("Postdoc in Glacier Dynamics") && titles.includes("Hydrologist"));
+  assert.ok(!titles.includes("Field assistant, Etna"));
+  const onlyEgu = await call(env, "GET", "/v1/feed?tab=opportunities&origin=external&source=jobs:egu-jobs");
+  assert.deepEqual(onlyEgu.body.items.map((p) => p.title), ["Postdoc in Glacier Dynamics"]);
+  const glacier = ext.body.items.find((p) => p.title === "Postdoc in Glacier Dynamics");
+  assert.equal(glacier.meta.org, "University of Oslo");
+  assert.equal(glacier.meta.source_name, "EGU Jobs");
+  assert.ok(glacier.links.some((l) => l.url === "https://www.egu.eu/jobs/9001/postdoc-in-glacier-dynamics/"), "the advert is linked");
+
+  const sum = await call(env, "GET", "/v1/imports/summary");
+  assert.equal(sum.status, 200);
+  assert.equal(sum.body.last_scan_at, t0);
+  assert.equal(sum.body.open, 2);
+  assert.equal(sum.body.new_in_last_scan, 2);
+  assert.ok(sum.body.boards.some((b) => b.name === "EGU Jobs" && b.open === 1));
+  assert.ok(sum.body.employers.sources >= 70);
+
+  // A board advert that drops off the newest pages is not "gone"; its age retires it.
+  await readSource(env, eguSrc, t0 + 4 * 86400, { fetcher: async () => new Response("") });
+  const still = await call(env, "GET", "/v1/feed?tab=opportunities&origin=external&source=jobs:egu-jobs");
+  assert.equal(still.body.items.length, 1);
 });

@@ -1138,3 +1138,23 @@ a.s-stat:focus-visible, button.s-stat:focus-visible { color: var(--text); outlin
 .s-boards .s-label { margin: 0; display: inline; }
 .s-boards a.s-board { display: inline-flex; flex: 0 0 auto; width: auto; align-items: baseline; gap: 0.3rem; }
 .s-board strong { color: var(--text); }
+
+/* Opportunities → External: the daily scan, packaged. */
+.s-scan { margin: 0.2rem 0 0.9rem; }
+.s-scan-line { margin: 0 0 0.25rem; }
+.s-scan .s-chips { margin-top: 0.7rem; }
+.s-chip-n { margin-left: 0.4rem; font-size: 0.78em; color: var(--muted); font-variant-numeric: tabular-nums; }
+.s-scan-group { margin: 1.4rem 0 0.6rem; color: var(--muted); font-size: 0.8rem; letter-spacing: 0.08em; text-transform: uppercase; }
+.s-listings { gap: 0.6rem; }
+.s-listing { display: grid; grid-template-columns: 1fr auto; gap: 0.5rem 1.5rem; align-items: center; padding: 0.85rem 1.1rem; }
+.s-listing-title { margin: 0; font-size: 1.05rem; line-height: 1.3; }
+.s-listing-title a { color: var(--text) !important; }
+.s-listing-org { margin: 0.2rem 0 0; }
+.s-listing-meta { display: flex; flex-wrap: wrap; gap: 0.4rem 0.6rem; align-items: center; margin: 0.45rem 0 0; font-size: 0.85rem; }
+.s-listing-side { display: grid; justify-items: end; gap: 0.5rem; text-align: right; }
+.s-listing-closes { font-weight: 600; color: var(--text); white-space: nowrap; }
+.s-listing-acts { display: flex; gap: 0.5rem; align-items: center; }
+@media (max-width: 720px) {
+  .s-listing { grid-template-columns: 1fr; }
+  .s-listing-side { justify-items: start; text-align: left; }
+}
