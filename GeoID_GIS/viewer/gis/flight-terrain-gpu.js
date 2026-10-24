@@ -42,10 +42,11 @@ export function flightGpuUniforms() {
 
 /** A grid's box round a point, snapped to a quarter of its span so it does not crawl. */
 export function boxFor(lat, lon, halfKm) {
-  const dLat = halfKm / 111.32;
-  const dLon = halfKm / (111.32 * Math.max(0.05, Math.cos(lat * Math.PI / 180)));
-  const sLat = dLat / 2, sLon = dLon / 2;
-  const cLat = Math.round(lat / sLat) * sLat, cLon = Math.round(lon / sLon) * sLon;
+  const dLat = halfKm / 111.32, sLat = dLat / 2;
+  const cLat = Math.round(lat / sLat) * sLat;
+  // The longitude span from the SNAPPED latitude, so it too holds still.
+  const dLon = halfKm / (111.32 * Math.max(0.05, Math.cos(cLat * Math.PI / 180))), sLon = dLon / 2;
+  const cLon = Math.round(lon / sLon) * sLon;
   return { lon0: cLon - dLon, lat0: Math.max(-85, cLat - dLat), dLon: 2 * dLon, dLat: Math.min(170, 2 * dLat) };
 }
 
