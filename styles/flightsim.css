@@ -565,6 +565,20 @@ body.fs-open-chrome .fs-tr-buttons {
   z-index: 39;
   pointer-events: auto;
 }
+/* ...and what they open opens from them: the control pad and the Help panel
+   drop down on the LEFT, under the buttons, instead of from the old top-right
+   anchor, where they landed on GeoHUB's tool rail (reported: "help and
+   controls pop up clash with the gis tools and open on wrong side"). Clear of
+   the folded nav's Mission Control tab. */
+body.fs-open-chrome #fs-topright,
+body.fs-open-chrome #fs-controls-panel {
+  position: fixed;
+  right: auto;
+  left: max(var(--fs-clock-left, 26rem), 3.2rem);
+  top: calc(var(--fs-clock-bottom, 4.6rem) + 1.75rem);
+}
+body.fs-open-chrome #fs-topright { align-items: flex-start; }
+body.fs-open-chrome #fs-controls-panel { max-height: calc(100vh - var(--fs-clock-bottom, 4.6rem) - 3rem); }
 /* The HUD carries TEMP and PRESSURE in its own row; GeoHUB's surface readout
    beside the compass printed the same two numbers over the HUD's V/SPEED. */
 body.fs-open-chrome.fs-flying #surface-conditions { display: none !important; }

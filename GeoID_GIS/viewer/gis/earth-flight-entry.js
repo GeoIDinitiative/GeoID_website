@@ -21,9 +21,10 @@
 //      frame): aim the globe there, then open pre-flight, whose centre
 //      crosshair takes the site from wherever the globe is aimed.
 
-import { showFlightMap, hideFlightMap } from "./flight-map.js?v=20261024-441b759";
-import { showFlightSky, hideFlightSky } from "./flight-sky.js?v=20261024-441b759";
-import { isEarth } from "./bodies.js?v=20261024-441b759";
+import { startFlightLabels, stopFlightLabels } from "./flight-labels.js?v=20261024-6b767d8";
+import { showFlightMap, hideFlightMap } from "./flight-map.js?v=20261024-6b767d8";
+import { showFlightSky, hideFlightSky } from "./flight-sky.js?v=20261024-6b767d8";
+import { isEarth } from "./bodies.js?v=20261024-6b767d8";
 
 /** `?flight=earth&lat=..&lon=..` -> { lat, lon } or { lat: null } or null. */
 export function parseFlightLink(search) {
@@ -179,8 +180,12 @@ function wire() {
       document.body.style.setProperty("--fs-meters-w", `${Math.round(m.width)}px`);
     }
     // The scale bar keeps the bottom-right corner; the instrument row stops short of it.
+    // ...and the locator map stands above the bar, wider than it, low enough
+    // to share the row's height: the row stops short of whichever is wider.
     const sc = document.getElementById("scale-readout")?.getBoundingClientRect();
-    if (sc && sc.width) document.body.style.setProperty("--fs-right-reserve", `${Math.round(window.innerWidth - sc.left)}px`);
+    const mp = document.getElementById("fs-locator-map")?.getBoundingClientRect();
+    const left = Math.min(sc && sc.width ? sc.left : Infinity, mp && mp.width ? mp.left : Infinity);
+    if (Number.isFinite(left)) document.body.style.setProperty("--fs-right-reserve", `${Math.round(window.innerWidth - left)}px`);
   };
   if (hudColumn) {
     layoutHud();
@@ -247,9 +252,9 @@ function wire() {
   // A sky over the aircraft -- day, dusk or night from the real sun -- in
   // place of the viewer's space backdrop, while flying (flight-sky.js).
   window.addEventListener("flightsim:engaged", () => setTimeout(() => {
-    if (window.__flightSim?.active) { showFlightSky(); showFlightMap(); }
+    if (window.__flightSim?.active) { showFlightSky(); showFlightMap(); startFlightLabels(); }
   }, 60));
-  window.addEventListener("flightsim:disengaged", () => { hideFlightSky(); hideFlightMap(); });
+  window.addEventListener("flightsim:disengaged", () => { hideFlightSky(); hideFlightMap(); stopFlightLabels(); });
 
   // The aircraft is listed in the Workspace while it flies, so its credit is
   // in the Metadata tab with every other source on screen.

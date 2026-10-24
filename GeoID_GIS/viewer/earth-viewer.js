@@ -2,15 +2,15 @@ import * as THREE from "./vendor/three.module.js";
 // The polygon-area rule lives in one place, with a test. Stamped by hand
 // once: stamp.py only rewrites a ?v= that already exists.
 import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
-  from "./gis/geo-utils.js?v=20261024-441b759";
+  from "./gis/geo-utils.js?v=20261024-6b767d8";
 import { attachReliefAttributes, followRelief }
-  from "./gis/vector-render.js?v=20261024-441b759";
+  from "./gis/vector-render.js?v=20261024-6b767d8";
 import { rockClass, crustalSetting, rockClassLabel, classificationBasis }
-  from "./gis/rock-class.js?v=20261024-441b759";
+  from "./gis/rock-class.js?v=20261024-6b767d8";
 import { lithologyLabel }
-  from "./gis/lithology-label.js?v=20261024-441b759";
+  from "./gis/lithology-label.js?v=20261024-6b767d8";
 import { formatLatLon }
-  from "./gis/coord-format.js?v=20261024-441b759";
+  from "./gis/coord-format.js?v=20261024-6b767d8";
 
 /**
  * This module's own cache stamp, read off its own URL.
@@ -23825,6 +23825,13 @@ uniform float uViewportWidth;`,
         setTimeRate,
         // The sun's direction in world space, this frame (flight-sky.js).
         getSunDirection: () => _SUN_DIR.clone(),
+        // The place labels the Location labels switch shows, as data, and the
+        // card a click on one opens (Earth Flight's anchored labels,
+        // gis/flight-labels.js).
+        getPlaceLabels: () => (labelsToggle.checked && !coreToggle.checked && labelLayer?.entries
+          ? labelLayer.entries.map((e) => e.item).filter((i) => i && Number.isFinite(i.lat) && Number.isFinite(i.lon) && i.name)
+          : []),
+        openPlace: (item) => openFeature(item, false),
         getTimeRate,
         // Jump the one clock to any moment (ms UTC), keeping the current
         // rate — the scrubber's own seam, and the door forecast playback

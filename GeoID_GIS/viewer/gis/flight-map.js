@@ -8,20 +8,22 @@
 // OpenStreetMap, when the basemap is not a tile service): the aircraft an
 // arrow at the centre turned to its heading,
 // the track flown so far, a scale bar and the position, and - / + to zoom
-// from a few kilometres out to the whole Earth (zoom 1).
+// from a few kilometres out to the whole Earth (zoom 1); it folds to its
+// title bar and back.
 //
-// It sits at the top of the bottom-left column, above the compass, so it
-// follows the nav as that column does. Flight only: built on launch, taken
+// It sits in the bottom-right corner, directly above the scale bar (owner,
+// 2026-10-24), re-measured as the bar resizes. Flight only: built on launch, taken
 // down on Exit. Redrawn four times a second -- a map, not an instrument.
 
-import { TILE_SOURCES, DEFAULT_SOURCE, tileUrl } from "./tile-sources.js?v=20261024-441b759";
-import { tileBasemapSource } from "./basemap-drape.js?v=20261024-441b759";
+import { TILE_SOURCES, DEFAULT_SOURCE, tileUrl } from "./tile-sources.js?v=20261024-6b767d8";
+import { tileBasemapSource } from "./basemap-drape.js?v=20261024-6b767d8";
 
 const SIZE = 184;                 // CSS px, square
 const Z_MIN = 1, Z_MAX = 13;
 const TRACK_MAX = 3000;
 const TRACK_STEP_M = 150;
 const R_EARTH = 6378137;
+const FOLD_KEY = "geoid-gis:flight-map-folded";
 
 let box = null, canvas = null, ctx = null, posLine = null, zLabel = null;
 let zoom = 9;
@@ -159,6 +161,7 @@ function build() {
       <span class="fs-map-zoom" aria-live="polite"></span>
       <button type="button" class="fs-map-btn" data-step="-1" aria-label="Zoom the map out">−</button>
       <button type="button" class="fs-map-btn" data-step="1" aria-label="Zoom the map in">+</button>
+      <button type="button" class="fs-map-btn fs-map-fold" aria-expanded="true" aria-label="Collapse the map">▾</button>
     </div>
     <canvas width="${SIZE * 2}" height="${SIZE * 2}" aria-label="Map of the aircraft's position"></canvas>
     <div class="fs-map-pos"></div>`;
@@ -166,7 +169,20 @@ function build() {
   ctx = canvas.getContext("2d");
   posLine = box.querySelector(".fs-map-pos");
   zLabel = box.querySelector(".fs-map-zoom");
-  box.querySelectorAll(".fs-map-btn").forEach((b) => b.addEventListener("click", () => {
+  // Collapse to the title bar and back, remembered for this browser.
+  const fold = box.querySelector(".fs-map-fold");
+  const setFolded = (folded) => {
+    box.classList.toggle("is-collapsed", folded);
+    fold.textContent = folded ? "▴" : "▾";
+    fold.setAttribute("aria-expanded", String(!folded));
+    fold.setAttribute("aria-label", folded ? "Expand the map" : "Collapse the map");
+    try { localStorage.setItem(FOLD_KEY, folded ? "1" : "0"); } catch (e) { /* private mode */ }
+  };
+  let startFolded = false;
+  try { startFolded = localStorage.getItem(FOLD_KEY) === "1"; } catch (e) { /* private mode */ }
+  setFolded(startFolded);
+  fold.addEventListener("click", () => setFolded(!box.classList.contains("is-collapsed")));
+  box.querySelectorAll(".fs-map-btn[data-step]").forEach((b) => b.addEventListener("click", () => {
     zoom = Math.max(Z_MIN, Math.min(Z_MAX, zoom + Number(b.dataset.step)));
     draw();
   }));
@@ -175,6 +191,10 @@ function build() {
     st.id = "fs-locator-map-style";
     st.textContent = `
 #fs-locator-map {
+  position: fixed;
+  right: var(--fs-map-right, 1rem);
+  bottom: var(--fs-map-bottom, 3.4rem);
+  z-index: 13;
   width: ${SIZE}px;
   background: rgba(8, 11, 18, 0.78);
   border: 1px solid rgba(var(--nav-accent-rgb, 255, 214, 92), 0.42);
@@ -186,6 +206,9 @@ function build() {
   pointer-events: auto;
 }
 #fs-locator-map canvas { display: block; width: 100%; height: auto; border-radius: 0.2rem; }
+#fs-locator-map.is-collapsed canvas, #fs-locator-map.is-collapsed .fs-map-pos,
+#fs-locator-map.is-collapsed .fs-map-btn[data-step], #fs-locator-map.is-collapsed .fs-map-zoom { display: none; }
+#fs-locator-map.is-collapsed .fs-map-head { margin: 0; }
 #fs-locator-map .fs-map-head { display: flex; align-items: center; gap: 0.3rem; margin: 0 0 0.25rem; }
 #fs-locator-map .fs-map-title {
   flex: 1; font-size: 0.56rem; font-weight: 600; letter-spacing: 0.18em; text-transform: uppercase;
@@ -209,19 +232,29 @@ function build() {
   }
 }
 
-/** Show the map (idempotent): at the top of the bottom-left column. */
+/** Above the scale bar, right-aligned with it. */
+function place() {
+  const bar = document.getElementById("scale-readout");
+  const r = bar && !bar.hidden ? bar.getBoundingClientRect() : null;
+  if (!box) return;
+  if (r && r.width) {
+    box.style.setProperty("--fs-map-bottom", `${Math.round(window.innerHeight - r.top + 8)}px`);
+    box.style.setProperty("--fs-map-right", `${Math.round(window.innerWidth - r.right)}px`);
+  }
+}
+
+/** Show the map (idempotent): bottom right, above the scale bar. */
 export function showFlightMap() {
-  const column = document.getElementById("bottom-right-hud");
-  if (!column) return;
   if (!box) build();
-  if (box.parentElement !== column) column.insertBefore(box, column.firstChild);
+  if (box.parentElement !== document.body) document.body.appendChild(box);
   track.length = 0;
   // Start at a scale that suits the altitude: ~25 km across low down.
   const altKm = (Number(window.__flightSim?.shipAltUnits) || 0) * 6371 / 3.2;
   zoom = altKm > 200 ? 5 : altKm > 30 ? 7 : altKm > 6 ? 8 : 9;
   clearInterval(timer);
-  timer = setInterval(() => { sampleTrack(); draw(); }, 250);
+  timer = setInterval(() => { sampleTrack(); place(); draw(); }, 250);
   sampleTrack();
+  place();
   draw();
 }
 

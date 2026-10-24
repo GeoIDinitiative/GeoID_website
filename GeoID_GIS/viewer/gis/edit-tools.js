@@ -464,7 +464,7 @@ export function makeEditSession(fc, { limit = MAX_SNAPSHOTS } = {}) {
    Everything below needs a document, a globe and the import manager.
    ═════════════════════════════════════════════════════════════════════════ */
 
-const VECTOR_RENDER_URL = "./vector-render.js?v=20261024-441b759";
+const VECTOR_RENDER_URL = "./vector-render.js?v=20261024-6b767d8";
 
 /* NEVER a backtick inside this literal — it ends the string and kills the
    module silently. Geometry and layout only: viewer-skin.css paints .button

@@ -349,7 +349,7 @@ export async function buildFloodGeoTiff({ onProgress = () => {}, fetchImpl = fet
   let demNote = "no DEM (streamed elevation unreachable), so terrain is not in the score";
   try {
     onProgress("Asking for streamed elevation over Northern Ireland…");
-    const dem = await import("./dem-tiles.js?v=20261024-441b759");
+    const dem = await import("./dem-tiles.js?v=20261024-6b767d8");
     const box = { west: NI_BOUNDS.minX, east: NI_BOUNDS.maxX, south: NI_BOUNDS.minY, north: NI_BOUNDS.maxY };
     const result = await Promise.race([
       dem.ensure(box),
@@ -371,7 +371,7 @@ export async function buildFloodGeoTiff({ onProgress = () => {}, fetchImpl = fet
   if (!grid.stats.riverCells) throw new Error("no rivers fell inside the grid");
   if (heightAt && !grid.stats.demCells) demNote = "no DEM cells held over NI, so terrain is not in the score";
 
-  const { writeGeoTiff } = await import("./geotiff-writer.js?v=20261024-441b759");
+  const { writeGeoTiff } = await import("./geotiff-writer.js?v=20261024-6b767d8");
   const bytes = writeGeoTiff({ band: grid.band, width: grid.width, height: grid.height, bounds: grid.bounds, noData: NaN });
   return { bytes, grid, demNote };
 }
