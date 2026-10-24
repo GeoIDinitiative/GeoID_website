@@ -20,24 +20,24 @@
  * the same order the eye reads, so the answer is the polygon you clicked.
  */
 
-import { pointInPolygon, boundsOf, haversineMetres } from "./geometry.js?v=20261024-10697a5";
-import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20261024-10697a5";
+import { pointInPolygon, boundsOf, haversineMetres } from "./geometry.js?v=20261024-fee91ab";
+import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20261024-fee91ab";
 import {
   attachReliefAttributes, followRelief, markerRingTexture,
-} from "./vector-render.js?v=20261024-10697a5";
-import { rockClass, crustalSetting, rockClassLabel } from "./rock-class.js?v=20261024-10697a5";
-import { lithologyLabel } from "./lithology-label.js?v=20261024-10697a5";
-import { isIceFeature, iceCard } from "./ice-card.js?v=20261024-10697a5";
-import { isSoilFeature, soilCard } from "./soil-card.js?v=20261024-10697a5";
-import { waterCard, WATER_SAID } from "./water-card.js?v=20261024-10697a5";
-import { isRiskFeature, riskCard } from "./cyclone-risk-card.js?v=20261024-10697a5";
-import { isVolcanicRiskFeature, volcanicRiskCard } from "./volcanic-risk-card.js?v=20261024-10697a5";
-import { isSeismicRiskFeature, seismicRiskCard } from "./seismic-risk-card.js?v=20261024-10697a5";
-import { isEarthquakeFeature, earthquakeCard } from "./earthquake-card.js?v=20261024-10697a5";
-import { isZoneFeature, zoneCard } from "./volcanic-zone-card.js?v=20261024-10697a5";
+} from "./vector-render.js?v=20261024-fee91ab";
+import { rockClass, crustalSetting, rockClassLabel } from "./rock-class.js?v=20261024-fee91ab";
+import { lithologyLabel } from "./lithology-label.js?v=20261024-fee91ab";
+import { isIceFeature, iceCard } from "./ice-card.js?v=20261024-fee91ab";
+import { isSoilFeature, soilCard } from "./soil-card.js?v=20261024-fee91ab";
+import { waterCard, WATER_SAID } from "./water-card.js?v=20261024-fee91ab";
+import { isRiskFeature, riskCard } from "./cyclone-risk-card.js?v=20261024-fee91ab";
+import { isVolcanicRiskFeature, volcanicRiskCard } from "./volcanic-risk-card.js?v=20261024-fee91ab";
+import { isSeismicRiskFeature, seismicRiskCard } from "./seismic-risk-card.js?v=20261024-fee91ab";
+import { isEarthquakeFeature, earthquakeCard } from "./earthquake-card.js?v=20261024-fee91ab";
+import { isZoneFeature, zoneCard } from "./volcanic-zone-card.js?v=20261024-fee91ab";
 import {
   canEditRow, editableFields, applyRowChange,
-} from "./table-editor.js?v=20261024-10697a5";
+} from "./table-editor.js?v=20261024-fee91ab";
 
 /* A line has no interior, so it is picked by proximity. Scaled to the view:
    8 px worth of ground at the current altitude, floored so a click at orbital
@@ -2026,7 +2026,37 @@ function distanceToLine(point, line) {
   return best;
 }
 
-function lineTolerance() {
+/**
+ * IN EARTH FLIGHT THE GROUND IS SEEN ALONG, NOT DOWN ON.
+ *
+ * Every tolerance below reads "the view is the altitude across", which is true
+ * looking down at the globe and badly wrong from a cockpit: 3 km above Denver,
+ * a river 11 km ahead was 44 m of tolerance -- about one pixel, and that pixel
+ * foreshortened four times along the line of sight -- so a line could not be
+ * clicked at all. In flight the ground under a pixel at the clicked point is
+ * its own distance over the focal length, stretched by how grazing the view
+ * is (taken as the square root, so a sideways miss is not forgiven as much as
+ * one along the view). Null outside flight, where nothing changes.
+ */
+function flightMetresPerPixel(lat, lon) {
+  const T = window.GeoIDFlightTerrain, f = window.__flightSim, viewer = window.GeoIDViewer;
+  if (!T?.active?.() || !f?.shipLatLon || !f.shipWorldPos || !Number.isFinite(lat) || !Number.isFinite(lon)) return null;
+  const height = viewer?.renderer?.domElement?.clientHeight, fov = viewer?.camera?.fov;
+  if (!(height > 0) || !(fov > 0)) return null;
+  const R = 6371000, toRad = Math.PI / 180, perUnit = R / 3.2;
+  const a = f.shipLatLon;
+  const h = Math.sin(((lat - a.lat) * toRad) / 2) ** 2
+    + Math.cos(lat * toRad) * Math.cos(a.lat * toRad) * Math.sin(((lon - a.lon) * toRad) / 2) ** 2;
+  const along = 2 * R * Math.asin(Math.min(1, Math.sqrt(h)));
+  const up = Math.max(1, (f.shipWorldPos.length() - 3.2) * perUnit - (T.heightUnits?.(lat, lon) || 0) * perUnit);
+  const range = Math.hypot(along, up);
+  const mpp = (range * 2 * Math.tan((fov * toRad) / 2)) / height;
+  return mpp / Math.sqrt(Math.max(0.05, up / range));
+}
+
+function lineTolerance(lat, lon) {
+  const flight = flightMetresPerPixel(lat, lon);
+  if (flight) return Math.min(LINE_CEILING_M, Math.max(5, flight * LINE_PIXELS));
   const metres = window.GeoIDViewer?.getZoomAltitudeMetres?.()?.metres;
   if (!Number.isFinite(metres)) return LINE_CEILING_M;
   // The view is roughly the altitude across, over a 60° field; 8 px of a
@@ -2051,7 +2081,9 @@ function lineTolerance() {
  * Ground under one screen pixel at the view, in metres — the camera's own
  * field of view over the canvas's own height.
  */
-function metresPerPixel() {
+function metresPerPixel(lat, lon) {
+  const flight = flightMetresPerPixel(lat, lon);
+  if (flight) return flight;
   const viewer = window.GeoIDViewer;
   const metres = viewer?.getZoomAltitudeMetres?.()?.metres;
   const height = viewer?.renderer?.domElement?.clientHeight;
@@ -2077,8 +2109,8 @@ export function pointReachPx(sizesPx) {
   return widest > 0 ? (widest / 2) + 2 : null;
 }
 
-function layerPointTolerance(layer, fallback) {
-  const mpp = metresPerPixel();
+function layerPointTolerance(layer, fallback, lat, lon) {
+  const mpp = metresPerPixel(lat, lon);
   if (!mpp) return fallback;
   const sizes = [];
   layer.object3D?.traverse?.((node) => {
@@ -2088,7 +2120,9 @@ function layerPointTolerance(layer, fallback) {
   return px ? Math.max(0.5, px * mpp) : fallback;
 }
 
-function pointToleranceMetres() {
+function pointToleranceMetres(lat, lon) {
+  const flight = flightMetresPerPixel(lat, lon);
+  if (flight) return Math.max(5, flight * 12);
   const metres = window.GeoIDViewer?.getZoomAltitudeMetres?.()?.metres;
   if (!Number.isFinite(metres)) return LINE_CEILING_M;
   // 12/8 rather than 9/8: the marker grows to ~12 px near the ground
@@ -2119,8 +2153,8 @@ function pointToleranceMetres() {
 export function featuresAt(lat, lon) {
   const layers = window.GeoIDImportManager?.getVectorLayers?.() || [];
   const point = [lon, lat];
-  const tolerance = lineTolerance();
-  const pointTolerance = pointToleranceMetres();
+  const tolerance = lineTolerance(lat, lon);
+  const pointTolerance = pointToleranceMetres(lat, lon);
   const hits = [];
   for (let i = layers.length - 1; i >= 0; i -= 1) {
     const layer = layers[i];
@@ -2136,7 +2170,7 @@ export function featuresAt(lat, lon) {
      */
     if (layer.groundPick === false) continue;
     const found = featureInLayer(layer, point, tolerance,
-      layerPointTolerance(layer, pointTolerance));
+      layerPointTolerance(layer, pointTolerance, lat, lon));
     if (found) hits.push({ layer, feature: found });
   }
   return hits;
