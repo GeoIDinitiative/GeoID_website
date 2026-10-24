@@ -20,7 +20,7 @@ self.onmessage = (e) => {
     if (!layer || !layer.features.length) { self.postMessage({ id, empty: true }); return; }
     const m = extrudeTile(layer, dem, demSize, sizeLocal, triangulate);
     self.postMessage({ id, mesh: m, buildings: m.polygons },
-      [m.position.buffer, m.normal.buffer, m.uv.buffer, m.color.buffer, m.index.buffer]);
+      [m.position.buffer, m.normal.buffer, m.uv.buffer, m.color.buffer, m.style.buffer, m.index.buffer]);
   } catch (err) {
     self.postMessage({ id, error: String(err && err.message || err) });
   }

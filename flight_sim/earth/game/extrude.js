@@ -24,12 +24,32 @@ import { rings, polygons, clipRing } from "./mvt.js?v=1";
 
 const SINK = 4;
 
-/* Facade palette: stone, render, brick, concrete, sandstone. Picked by a hash
-   of the outline so a building keeps its colour when its tile reloads. */
-const PALETTE = [
-  [0.80, 0.77, 0.71], [0.86, 0.84, 0.80], [0.66, 0.48, 0.40], [0.72, 0.72, 0.72],
-  [0.84, 0.76, 0.62], [0.76, 0.70, 0.64], [0.62, 0.62, 0.65], [0.90, 0.88, 0.84],
-];
+/* ── Facades, when OSM does not say ──────────────────────────────────────
+   OpenFreeMap's building layer carries `colour` (OSM building:colour) and the
+   two heights, and nothing else: no building type, material, levels or roof
+   tags. So the palette is chosen by what the HEIGHT says the building
+   probably is -- low: brick, stock brick and render; mid-rise: stone,
+   render and brick; towers: glass, steel and pale concrete -- and within a
+   class by a hash of the OSM id, so a building keeps its colour across
+   reloads and neighbours differ. */
+const PALETTES = {
+  low: [[0.62, 0.40, 0.33], [0.70, 0.52, 0.42], [0.78, 0.70, 0.58], [0.88, 0.85, 0.78],
+        [0.66, 0.60, 0.52], [0.56, 0.36, 0.30], [0.83, 0.78, 0.68], [0.74, 0.66, 0.56]],
+  mid: [[0.86, 0.82, 0.73], [0.80, 0.76, 0.68], [0.90, 0.88, 0.83], [0.70, 0.66, 0.60],
+        [0.64, 0.44, 0.36], [0.76, 0.74, 0.72], [0.84, 0.78, 0.64], [0.68, 0.70, 0.72]],
+  tall: [[0.55, 0.63, 0.70], [0.62, 0.68, 0.72], [0.48, 0.55, 0.60], [0.78, 0.79, 0.80],
+         [0.70, 0.74, 0.76], [0.45, 0.52, 0.56], [0.84, 0.84, 0.82], [0.58, 0.66, 0.66]],
+};
+/* Above this a building is drawn as a curtain wall (style 1: glass bays,
+   mullions, a sky sheen); below it as masonry with punched windows (0). */
+const TOWER_M = 40;
+
+function hash32(n) {
+  let h = (Math.floor(n) ^ 0x9e3779b9) >>> 0;
+  h = Math.imul(h ^ (h >>> 16), 0x85ebca6b) >>> 0;
+  h = Math.imul(h ^ (h >>> 13), 0xc2b2ae35) >>> 0;
+  return (h ^ (h >>> 16)) >>> 0;
+}
 
 /* OSM `building:colour` is a hex triple or a CSS name; mappers use a short
    list of names in practice. Values are softened toward facade tones — a
@@ -61,7 +81,7 @@ function parseColour(c) {
 export function extrudeTile(layer, dem, demSize, sizeLocal, triangulate) {
   const ext = layer.extent || 4096;
   const s = sizeLocal / ext;
-  const pos = [], nrm = [], uv = [], col = [], roofIdx = [], wallIdx = [];
+  const pos = [], nrm = [], uv = [], col = [], sty = [], roofIdx = [], wallIdx = [];
   let count = 0, nPoly = 0;
 
   const ground = (u, v) => {
@@ -79,13 +99,33 @@ export function extrudeTile(layer, dem, demSize, sizeLocal, triangulate) {
   // `fu, fv` override the UV: roofs map into the tile's imagery (the
   // default), walls carry facade metres instead — along the wall, and up
   // from the building's foot — which the wall shader turns into windows.
+  // `st` is the facade style the shader reads (0 masonry, 1 curtain wall).
+  let style = 0;
   const vert = (u, y, v, nx, ny, nz, r, g, b, fu, fv) => {
     pos.push(u * s, y, v * s);
     nrm.push(nx * 127, ny * 127, nz * 127);
     if (fu === undefined) uv.push(u / ext, 1 - v / ext);
     else uv.push(fu, fv);
     col.push(r * 255, g * 255, b * 255);
+    sty.push(style * 255);
     return count++;
+  };
+  /** One flat triangle with its own normal, wound to face `up` (roofs) or
+   *  outward from `centre` (gable walls). Points are [u, y, v]. */
+  const face = (pts, into, colour, facadeUV, outFrom) => {
+    const P = pts.map(([u, y, v]) => [u * s, y, v * s]);
+    const e1 = [P[1][0] - P[0][0], P[1][1] - P[0][1], P[1][2] - P[0][2]];
+    const e2 = [P[2][0] - P[0][0], P[2][1] - P[0][1], P[2][2] - P[0][2]];
+    let n = [e1[1] * e2[2] - e1[2] * e2[1], e1[2] * e2[0] - e1[0] * e2[2], e1[0] * e2[1] - e1[1] * e2[0]];
+    const want = outFrom
+      ? [P[0][0] - outFrom[0] * s, 0, P[0][2] - outFrom[1] * s]
+      : [0, 1, 0];
+    let order = [0, 1, 2];
+    if (n[0] * want[0] + n[1] * want[1] + n[2] * want[2] < 0) { order = [0, 2, 1]; n = n.map((x) => -x); }
+    const l = Math.hypot(n[0], n[1], n[2]) || 1;
+    const ids = order.map((k) => vert(pts[k][0], pts[k][1], pts[k][2], n[0] / l, n[1] / l, n[2] / l,
+      colour[0], colour[1], colour[2], facadeUV ? facadeUV[k][0] : undefined, facadeUV ? facadeUV[k][1] : undefined));
+    into.push(...ids);
   };
 
   for (const f of layer.features) {
@@ -107,34 +147,73 @@ export function extrudeTile(layer, dem, demSize, sizeLocal, triangulate) {
       const top = base + height;
       const bottom = minH > 0 ? base + minH : base - SINK;
 
-      // Roof: earcut over the outline and its courtyards.
-      const contour = outer.map(([x, y]) => ({ x, y }));
-      const holesV = holes.map((h) => h.map(([x, y]) => ({ x, y })));
-      const tris = triangulate(contour, holesV);
-      const all = contour.concat(...holesV);
-      const first = count;
-      for (const q of all) vert(q.x, top, q.y, 0, 1, 0, 1, 1, 1);
-      for (const t of tris) {
-        // Earcut's winding follows the input's; force the face to point up.
-        const a = all[t[0]], b = all[t[1]], c = all[t[2]];
-        const cross = (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x);
-        // In (x east, z south) a face points +y when the screen-space cross is negative.
-        if (cross < 0) roofIdx.push(first + t[0], first + t[1], first + t[2]);
-        else roofIdx.push(first + t[0], first + t[2], first + t[1]);
+      // Colour and style. OSM's building:colour wins; otherwise the height
+      // class's palette, picked by the OSM id (or the outline, if a tile
+      // carries no ids) so a building keeps its colour across reloads.
+      const key = f.id != null ? f.id : (outer[0][0] * 7349 + outer[0][1] * 3121 + (height | 0));
+      const hh = hash32(key);
+      const cls = height >= TOWER_M ? "tall" : height >= 12 ? "mid" : "low";
+      const c = parseColour(p.colour) || PALETTES[cls][hh % 8];
+      style = height >= TOWER_M ? 1 : 0;
+
+      // A pitched roof where the outline is a small rectangle -- see pitched().
+      const rect = minH === 0 && !holes.length ? pitched(outer, s, height, hh) : null;
+      const eave = rect ? top - rect.rise : top;
+
+      if (rect) {
+        // Roof planes in the roof group (imagery), gable ends in the walls.
+        const R = rect;
+        const at = (q, y) => [q[0], y, q[1]];
+        const centre = R.centre;
+        if (R.kind === "gable") {
+          const [p0, p1, p2, p3] = R.corners, m03 = R.ridge[0], m12 = R.ridge[1];
+          for (const quad of [[p0, p1, m12, m03], [p2, p3, m03, m12]]) {
+            face([at(quad[0], eave), at(quad[1], eave), at(quad[2], top)], roofIdx, [1, 1, 1]);
+            face([at(quad[0], eave), at(quad[2], top), at(quad[3], top)], roofIdx, [1, 1, 1]);
+          }
+          const gable = (a, b, m) => {
+            const run = Math.hypot(b[0] - a[0], b[1] - a[1]) * s;
+            face([at(a, eave), at(b, eave), at(m, top)], wallIdx, c,
+              [[0, eave - base], [run, eave - base], [run / 2, top - base]], centre);
+          };
+          gable(p1, p2, m12);
+          gable(p3, p0, m03);
+        } else {
+          const [p0, p1, p2, p3] = R.corners, r0 = R.ridge[0], r1 = R.ridge[1];
+          face([at(p0, eave), at(p1, eave), at(r1, top)], roofIdx, [1, 1, 1]);
+          face([at(p0, eave), at(r1, top), at(r0, top)], roofIdx, [1, 1, 1]);
+          face([at(p2, eave), at(p3, eave), at(r0, top)], roofIdx, [1, 1, 1]);
+          face([at(p2, eave), at(r0, top), at(r1, top)], roofIdx, [1, 1, 1]);
+          face([at(p1, eave), at(p2, eave), at(r1, top)], roofIdx, [1, 1, 1]);
+          face([at(p3, eave), at(p0, eave), at(r0, top)], roofIdx, [1, 1, 1]);
+        }
+      } else {
+        // Flat roof: earcut over the outline and its courtyards.
+        const contour = outer.map(([x, y]) => ({ x, y }));
+        const holesV = holes.map((h) => h.map(([x, y]) => ({ x, y })));
+        const tris = triangulate(contour, holesV);
+        const all = contour.concat(...holesV);
+        const first = count;
+        for (const q of all) vert(q.x, top, q.y, 0, 1, 0, 1, 1, 1);
+        for (const t of tris) {
+          // Earcut's winding follows the input's; force the face to point up.
+          const a = all[t[0]], b = all[t[1]], cc = all[t[2]];
+          const cross = (b.x - a.x) * (cc.y - a.y) - (b.y - a.y) * (cc.x - a.x);
+          // In (x east, z south) a face points +y when the screen-space cross is negative.
+          if (cross < 0) roofIdx.push(first + t[0], first + t[1], first + t[2]);
+          else roofIdx.push(first + t[0], first + t[2], first + t[1]);
+        }
       }
 
-      // Walls. Facade colour from OSM if tagged, else the palette; the foot of
-      // every wall is darkened to 60 % as a cheap stand-in for occlusion.
-      const ox = outer[0][0], oy = outer[0][1];
-      const c = parseColour(p.colour) || PALETTE[((ox * 7349 + oy * 3121 + (height | 0)) >>> 0) % PALETTE.length];
-      const ao = 0.6;
+      // Walls, up to the eave. Occlusion at the foot is the shader's (from
+      // the facade height in `uv`), so the vertex colour is the facade's own.
       const wall = (ring, isOuter) => {
         // Exteriors run one way and holes the other; fix both so that the
         // outward face of every wall is on the left of travel (y down).
         const sgn = ringSign(ring);
         const pts = (isOuter ? sgn > 0 : sgn < 0) ? ring : ring.slice().reverse();
         let run = 0;
-        const yb = bottom - base, yt = top - base;
+        const yb = bottom - base, yt = eave - base;
         for (let i = 0; i < pts.length; i++) {
           const a = pts[i], b = pts[(i + 1) % pts.length];
           const dx = b[0] - a[0], dz = b[1] - a[1];
@@ -143,10 +222,10 @@ export function extrudeTile(layer, dem, demSize, sizeLocal, triangulate) {
           const nx = dz / len, nz = -dx / len;
           const r0 = run, r1 = run + len * s;
           run = r1;
-          const i0 = vert(a[0], bottom, a[1], nx, 0, nz, c[0] * ao, c[1] * ao, c[2] * ao, r0, yb);
-          const i1 = vert(a[0], top, a[1], nx, 0, nz, c[0], c[1], c[2], r0, yt);
-          const i2 = vert(b[0], top, b[1], nx, 0, nz, c[0], c[1], c[2], r1, yt);
-          const i3 = vert(b[0], bottom, b[1], nx, 0, nz, c[0] * ao, c[1] * ao, c[2] * ao, r1, yb);
+          const i0 = vert(a[0], bottom, a[1], nx, 0, nz, c[0], c[1], c[2], r0, yb);
+          const i1 = vert(a[0], eave, a[1], nx, 0, nz, c[0], c[1], c[2], r0, yt);
+          const i2 = vert(b[0], eave, b[1], nx, 0, nz, c[0], c[1], c[2], r1, yt);
+          const i3 = vert(b[0], bottom, b[1], nx, 0, nz, c[0], c[1], c[2], r1, yb);
           wallIdx.push(i0, i1, i2, i0, i2, i3);
         }
       };
@@ -163,11 +242,58 @@ export function extrudeTile(layer, dem, demSize, sizeLocal, triangulate) {
     normal: new Int8Array(nrm),
     uv: new Float32Array(uv),
     color: new Uint8Array(col),
+    style: new Uint8Array(sty),
     index,
     polygons: nPoly,
     roofCount: roofIdx.length,
     wallCount: wallIdx.length,
   };
+}
+
+/* ── Pitched roofs, inferred ─────────────────────────────────────────────
+   OSM's roof:shape is not in the vector tiles this reads, so roofs are
+   INFERRED, and only where the inference is safe: an outline that is a
+   rectangle (four corners within 15 degrees of square, after dropping
+   near-collinear points), 30–450 m^2, no taller than 15 m and with no
+   courtyard -- a house, a terrace block, a garage, a church hall. Elongated
+   ones (long side over 1.6 times the short) get a gable along their length,
+   squarer ones a hip; one in six is left flat, because plenty are. The roof
+   rises about 35 degrees, capped at 5 m and at a third of the building.
+   Everything else keeps the flat roof the data implies. */
+export function pitched(ring, s, height, hh) {
+  if (height > 15 || hh % 6 === 0) return null;
+  // Drop points where the outline barely turns.
+  let pts = ring.slice();
+  for (let pass = 0; pass < 2 && pts.length > 4; pass++) {
+    pts = pts.filter((q, i) => {
+      const a = pts[(i + pts.length - 1) % pts.length], b = pts[(i + 1) % pts.length];
+      const v1 = [q[0] - a[0], q[1] - a[1]], v2 = [b[0] - q[0], b[1] - q[1]];
+      const c = (v1[0] * v2[0] + v1[1] * v2[1]) / ((Math.hypot(...v1) * Math.hypot(...v2)) || 1);
+      return c < Math.cos(10 * Math.PI / 180);
+    });
+  }
+  if (pts.length !== 4) return null;
+  for (let i = 0; i < 4; i++) {
+    const a = pts[(i + 3) % 4], q = pts[i], b = pts[(i + 1) % 4];
+    const v1 = [a[0] - q[0], a[1] - q[1]], v2 = [b[0] - q[0], b[1] - q[1]];
+    const c = (v1[0] * v2[0] + v1[1] * v2[1]) / ((Math.hypot(...v1) * Math.hypot(...v2)) || 1);
+    if (Math.abs(c) > Math.sin(15 * Math.PI / 180)) return null;
+  }
+  const len = (a, b) => Math.hypot(b[0] - a[0], b[1] - a[1]);
+  // Order so that p0->p1 is a LONG side.
+  let [p0, p1, p2, p3] = pts;
+  if (len(p0, p1) < len(p1, p2)) [p0, p1, p2, p3] = [p1, p2, p3, p0];
+  const L = len(p0, p1) * s, W = len(p1, p2) * s, area = L * W;
+  if (area < 30 || area > 450) return null;
+  const rise = Math.min(5, height / 3, (W / 2) * Math.tan(35 * Math.PI / 180));
+  const mid = (a, b) => [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+  const m03 = mid(p3, p0), m12 = mid(p1, p2);
+  const centre = mid(m03, m12);
+  if (L / W > 1.6) return { kind: "gable", corners: [p0, p1, p2, p3], ridge: [m03, m12], rise, centre };
+  // Hip: the ridge is the long axis shortened by half the width at each end.
+  const k = Math.min(0.5, (W / 2) / L);
+  const lerp = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
+  return { kind: "hip", corners: [p0, p1, p2, p3], ridge: [lerp(m03, m12, k), lerp(m03, m12, 1 - k)], rise, centre };
 }
 
 /** Drop repeated points, including a closing copy of the first. Earcut's

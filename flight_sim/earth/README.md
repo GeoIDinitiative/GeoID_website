@@ -29,7 +29,11 @@ URL parameters: `?city=london|catania|newyork|paris|rome|sanfran|chicago|tokyo|h
   over a city: `GeoID_GIS/viewer/gis/osm-buildings.js` reuses this folder's
   worker, MVT decoder, extruder and `game/facade.js`. Below 6 km above the
   drawn ground they load by z14 tile round the camera (16 tiles at most); above
-  8 km they are all unloaded; sun shadows below 4 km. Notes:
+  8 km they are all unloaded; sun shadows below 4 km. Each building tile also
+  lays its own Esri imagery (z17 near, ~0.7 m/px; z16 further out) on the
+  ground under it, because the globe's default basemap is Sentinel-2 at 10 m,
+  which is soft from a few hundred metres. Earth Flight's own terrain goes to
+  z18 (measured: z18 chunks drawn under the aircraft at 150 m). Notes:
   `GeoID_GIS/docs/notes/globe-rendering.md`, "Streamed 3D buildings".
 
 ## What is reused, and what is new
@@ -68,9 +72,13 @@ too, or the page will load a second copy of three.
 - **Google Photorealistic 3D Tiles** (Map Tiles API) is the real Google Earth / MSFS-style mesh, and it is the only way to get true photogrammetry. It needs an API key with billing. Its terms require Google's logo and the per-tile data attributions on screen, and they restrict caching and pre-fetching. No key is in this repository. If one is ever added, it belongs behind an opt-in toggle using NASA-AMMOS `3DTilesRendererJS`, with the key held server-side or referrer-restricted. Read the current terms first.
 
 **Limits — what this is not.**
-- **Not photogrammetry.** Buildings are OSM outlines extruded to their tagged height, with flat roofs. Where mappers have tagged heights or levels (central London, Manhattan, most of Germany) the skyline is real. Elsewhere a 5 m default (OpenMapTiles' and this code's) gives a believable low town of uniform blocks. There are no roof shapes, trees, or 3D bridges.
+- **Not photogrammetry.** Buildings are OSM outlines extruded to their tagged height. Where mappers have tagged heights or levels (central London, Manhattan, most of Germany) the skyline is real; elsewhere a 5 m default (OpenMapTiles' and this code's) gives a low town of uniform blocks.
+- **What the tiles carry, and what is inferred.** OpenFreeMap's `building` layer has OSM `building:colour`, the two heights and the OSM id, and nothing else: no building type, material, levels, `roof:shape` or `roof:colour`. Checked on 2026-10-24 for richer keyless sources: Overture's PMTiles bucket answers 403 for every release (the data is GeoParquet only), and Overpass returned 406 from overpass-api.de and timed out on two mirrors. So:
+  - *walls*: `building:colour` where tagged; otherwise a palette chosen by height class (under 12 m brick, stock brick and render; 12–40 m stone and render; over 40 m glass and steel), picked per building by a hash of its OSM id so it is stable across reloads;
+  - *facades* are procedural, in the material (`game/facade.js`): masonry gets storeys of 3.3 m, slab lines, punched windows in 3 m bays with per-pane variation, and shopfront glazing below 4 m. Towers over 40 m get a curtain wall: 1.5 m glass bays, mullions, a spandrel per floor, and a Fresnel sky sheen. Every wall gets contact occlusion fading out by 5 m, and the patterns fade to their average below a pixel and a half;
+  - *roofs* show the imagery, a shade darker than the walls. **Pitched roofs are inferred, not read**: an outline that is a near-rectangle of 30–450 m², at most 15 m tall and with no courtyard gets a gable (long side over 1.6× the short) or a hip, rising about 35°; one in six stays flat. Everything else is flat, as the data implies;
+  - *cost*: one byte per vertex for the facade style, and about 60 % more worker time per tile (112 ms against 70 ms for the densest London tile, off the main thread). Pitched roofs add 4–6 triangles per house. No measurable change in frame time at 1600×900 over central London, because draw calls rather than fill set the limit there.
 - **Roofs are textured from z16/z17 imagery** (z17 for tiles within 900 m when requested). Satellite imagery is not true-ortho, so a tower's photographed roof is displaced from its footprint and can wear a strip of street. The photos also carry their own baked shadows from capture time, under the real-time ones.
-- **Facades are procedural**: storeys of 3.4 m and window bays of 3 m, faded out with distance. OSM has no facade data.
 - **Shadows** come from one 4096² shadow map (2048² where the GPU caps textures below 8192). It is refitted every frame to a square ahead of the camera, ~1.2 km across at rooftop height and up to 8 km across from high up, and snapped to texels so the edges do not crawl. Beyond that box nothing casts. Hills cast too, but only from chunks at z ≥ 14. Cascaded shadow maps were judged not worth a second and third depth pass: a building's shadow is only legible near the building.
 - **Terrain** is ~30 m SRTM interpolated to z15, so cliffs and embankments are soft. Some published Terrarium tiles are empty (all no-data), e.g. 14/8873/6336 on Etna's west flank. These are filled from the parent tile; without that they became 2 km pits ringed by skirt walls.
 - **Scale.** The world is Mercator × cos(lat₀) about the starting city, re-centred by translation every 20 km. Distances drift ~1.5 % per degree of latitude flown, and the horizon comes from a d²/2R curvature drop in the vertex shader.

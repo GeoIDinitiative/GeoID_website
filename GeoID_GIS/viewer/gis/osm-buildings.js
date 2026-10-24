@@ -36,8 +36,8 @@
 // transparent pass in a group sorted at 190 (see GROUP_ORDER), still
 // depth-tested and depth-writing against the globe and each other.
 
-import { isEarth } from "./bodies.js?v=20261024-256a6da";
-import { facade } from "../../../flight_sim/earth/game/facade.js?v=1";
+import { isEarth } from "./bodies.js?v=20261024-154e7f1";
+import { facade, roof } from "../../../flight_sim/earth/game/facade.js?v=1";
 
 const BUILDINGS_TILEJSON = "https://tiles.openfreemap.org/planet";
 const IMAGERY_URL = "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}";
@@ -47,6 +47,8 @@ export const HIDE_ABOVE_M = 8000;
 export const SHADOW_BELOW_M = 4000;
 const Z = 14;
 const ROOF_Z = 16;
+const ROOF_Z_NEAR = 17;
+const ROOF_NEAR_M = 900;
 const RADIUS_M = 2500;        // tiles whose box is this close to the eye's ground point
 const AHEAD_M = 1800;         // ...or to the point the view is centred on
 const MAX_TILES = 16;
@@ -250,18 +252,29 @@ function nextImage() {
   }
 }
 
+/**
+ * The tile's Esri imagery as one canvas: roofs are UV-mapped into it, and the
+ * same texture is laid on the ground under the tile (see `build`), so a city
+ * seen from a few hundred metres is on real 0.7 m imagery rather than the
+ * globe's default basemap -- Sentinel-2 at 10 m, which is soft from there.
+ * z17 (8 x 8 tiles, 2048 px, ~0.7 m/px over London) for tiles within
+ * ROOF_NEAR_M of the camera when requested, z16 (1024 px) further out. z18
+ * would be 4096 px a tile -- 64 MB of texture each, 256 requests -- which the
+ * budget cannot carry for sixteen tiles; Earth Flight streams z18 per chunk.
+ * Starts transparent: unloaded parts show the globe's own ground, not grey.
+ */
 function roofTexture(t) {
-  const k = 1 << (ROOF_Z - Z);
+  const zoom = t.d < ROOF_NEAR_M ? ROOF_Z_NEAR : ROOF_Z;
+  const k = 1 << (zoom - Z);
   const canvas = document.createElement("canvas");
   canvas.width = canvas.height = 256 * k;
   const ctx = canvas.getContext("2d");
-  ctx.fillStyle = "#8d8a86";
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
   const tex = new THREE.CanvasTexture(canvas);
   tex.colorSpace = THREE.SRGBColorSpace;
+  tex.anisotropy = 8;
   for (let j = 0; j < k; j++)
     for (let i = 0; i < k; i++) {
-      const url = IMAGERY_URL.replace("{z}", ROOF_Z).replace("{x}", t.x * k + i).replace("{y}", t.y * k + j);
+      const url = IMAGERY_URL.replace("{z}", zoom).replace("{x}", t.x * k + i).replace("{y}", t.y * k + j);
       loadImage(url, () => t.dead).then((img) => {
         if (t.dead) return;
         ctx.drawImage(img, i * 256, j * 256);
@@ -299,12 +312,13 @@ function build(viewer, t, m, count, lat, sizeM) {
   geo.setAttribute("normal", new THREE.BufferAttribute(m.normal, 3, true));
   geo.setAttribute("uv", new THREE.BufferAttribute(m.uv, 2));
   geo.setAttribute("color", new THREE.BufferAttribute(m.color, 3, true));
+  geo.setAttribute("aStyle", new THREE.BufferAttribute(m.style, 1, true));
   geo.addGroup(0, m.roofCount, 0);
   geo.addGroup(m.roofCount, m.wallCount, 1);
   geo.computeBoundingSphere();
 
   t.roof = roofTexture(t);
-  const roofMat = shadowed(new THREE.MeshLambertMaterial({ map: t.roof, transparent: true }));
+  const roofMat = roof(shadowed(new THREE.MeshLambertMaterial({ map: t.roof, transparent: true })));
   const mesh = noPick(new THREE.Mesh(geo, [roofMat, wallMat]));
   mesh.name = "GeoID-OSMBuildings";
   mesh.renderOrder = ORDER_BUILDINGS;
@@ -317,6 +331,14 @@ function build(viewer, t, m, count, lat, sizeM) {
     new THREE.PlaneGeometry(sizeM, sizeM).rotateX(-Math.PI / 2).translate(sizeM / 2, 0.4, sizeM / 2),
     new THREE.ShadowMaterial({ opacity: 0.38, transparent: true, depthWrite: false })));
   catcher.renderOrder = ORDER_CATCHER;
+
+  // The same imagery, on the ground under the tile, in the streamed-imagery
+  // band: after the globe's own refine patch (40), before anything imported
+  // (50+), refusing the depth test like every other drape.
+  const ground = noPick(new THREE.Mesh(
+    new THREE.PlaneGeometry(sizeM, sizeM).rotateX(-Math.PI / 2).translate(sizeM / 2, 0, sizeM / 2),
+    new THREE.MeshBasicMaterial({ map: t.roof, transparent: true, depthTest: false, depthWrite: false })));
+  ground.matrixAutoUpdate = false;
   catcher.receiveShadow = true;
   catcher.matrixAutoUpdate = false;
 
@@ -330,10 +352,11 @@ function build(viewer, t, m, count, lat, sizeM) {
   east.addScaledVector(up, -east.dot(up)).normalize();
   south.crossVectors(east, up).normalize();     // x east, y up -> z south (right-handed)
   t.frame = { clat, clon, up, east, south, half: sizeM / 2 };
-  t.mesh = mesh; t.catcher = catcher;
+  t.mesh = mesh; t.catcher = catcher; t.ground = ground;
   t.count = count; t.verts = m.position.length / 3;
   place(viewer, t);
   holder(viewer).add(mesh, catcher);
+  groundHolder(viewer).add(ground);
   stats.tiles++; stats.buildings += count; stats.verts += t.verts;
 }
 
@@ -350,6 +373,18 @@ function holder(viewer) {
   return group;
 }
 
+let groundGroup = null;
+const GROUND_ORDER = 41;
+function groundHolder(viewer) {
+  if (!groundGroup || groundGroup.parent !== viewer.globe) {
+    groundGroup = new THREE.Group();
+    groundGroup.name = "GeoID-OSMBuildingsGround";
+    groundGroup.renderOrder = GROUND_ORDER;
+    viewer.globe.add(groundGroup);
+  }
+  return groundGroup;
+}
+
 /** Seat a tile on the ground as drawn this frame. */
 function place(viewer, t) {
   const f = t.frame;
@@ -363,6 +398,7 @@ function place(viewer, t) {
   mat.setPosition(origin);
   t.mesh.matrix.copy(mat); t.mesh.matrixWorldNeedsUpdate = true;
   t.catcher.matrix.copy(mat); t.catcher.matrixWorldNeedsUpdate = true;
+  t.ground.matrix.copy(mat); t.ground.matrixWorldNeedsUpdate = true;
 }
 
 function drop(key) {
@@ -372,6 +408,9 @@ function drop(key) {
   if (t.mesh) {
     t.mesh.parent?.remove(t.mesh);
     t.catcher.parent?.remove(t.catcher);
+    t.ground.parent?.remove(t.ground);
+    t.ground.geometry.dispose();
+    t.ground.material.dispose();
     t.mesh.geometry.dispose();
     t.mesh.material[0].dispose();
     t.catcher.geometry.dispose();
