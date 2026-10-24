@@ -29,7 +29,7 @@
 //   * Depth-tested: hills and buildings hide what is behind them. Night only
 //     (the ship's NIGHT from flight-tiles.js); nothing runs by day.
 
-import { NIGHT } from "./night-lights.js?v=20261024-35dc55e";
+import { NIGHT } from "./night-lights.js?v=20261024-290bc3b";
 
 const TILEJSON = "https://tiles.openfreemap.org/planet";
 const BM = "https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/VIIRS_Black_Marble/default/2016-01-01/GoogleMapsCompatible_Level8/{z}/{y}/{x}.png";
@@ -191,12 +191,14 @@ const LAMP_VERT = /* glsl */`
     // city is a glow that follows its street density, not a flat wash
     // (between a point source's 1/d^2 and the 1/d of an eye exposing for the
     // night).
-    float energy = 4.0 * min(1.0, pow(px, 1.5)) * 3.0;
+    // Gain tuned with every lamp drawn (it had been set while the depth test
+    // was hiding most of them, and over-exposed into white blobs once fixed).
+    float energy = 4.0 * min(1.0, pow(px, 1.5)) * 1.0;
     // HIGH UP the dots go soft: the glow widens to a few pixels whatever the
     // distance, the light SPREAD over it (energy / area), so thousands of
     // lamps add up to a diffuse glow that still follows the roads, rather
     // than a scatter of sub-pixel sparks.
-    float diffusePx = mix(2.0, 13.0, uDiffuse);
+    float diffusePx = mix(2.0, 10.0, uDiffuse);
     float size = clamp(max(px * 2.0, diffusePx), 2.0, 32.0);
     gl_PointSize = size;
     vCore = clamp(1.6 / size, 0.03, 0.6);
