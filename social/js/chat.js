@@ -9,10 +9,10 @@
  * that drops sockets, the mock -- the poll is exactly what it always was. A
  * hidden tab closes its socket and reopens it when it is shown again.
  */
-import * as api from "./api.js?v=20261024-d1d958c";
-import { myHandle, setUnread } from "./store.js?v=20261024-d1d958c";
-import { h, clear, timeEl, toast, busy, textarea, errorBox, pollWhileVisible, put } from "./dom.js?v=20261024-d1d958c";
-import { userChip } from "./components.js?v=20261024-d1d958c";
+import * as api from "./api.js?v=20261024-07e8f89";
+import { myHandle, setUnread } from "./store.js?v=20261024-07e8f89";
+import { h, clear, timeEl, toast, busy, textarea, errorBox, pollWhileVisible, put } from "./dom.js?v=20261024-07e8f89";
+import { userChip } from "./components.js?v=20261024-07e8f89";
 
 const PING_MS = 30000;
 const MAX_RETRIES = 6;

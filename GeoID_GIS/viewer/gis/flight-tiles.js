@@ -197,8 +197,11 @@ function liftGeometry(viewer, t, N) {
 }
 
 function material(t) {
+  // `transparent` (at full opacity) only to be drawn in the transparent pass:
+  // the globe's horizon patch is a transparent, depth-ignoring drape at order
+  // 40, and an opaque tile would be drawn BEFORE it and painted over.
   const m = new THREE.MeshBasicMaterial({
-    map: null, side: THREE.DoubleSide,
+    map: null, side: THREE.DoubleSide, transparent: true, depthWrite: true,
     polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -8,
   });
   if (t.z >= VEG_FROM_Z) vegetation(m, t);

@@ -10,12 +10,12 @@
  * exported, the annotation following the time-lapse bar.
  */
 
-import { polygonsOf, peopleOnGrid, formatPeople, seriesCsv } from "./exposure.js?v=20261024-d1d958c";
-import { riskMaps, riskMapKind, assessLayer, countsUnder, ringsBox } from "./risk-reader.js?v=20261024-d1d958c";
-import { renderAssessment, annotationOf, el } from "./risk-reader-view.js?v=20261024-d1d958c";
-import { showAnnotation, removeAnnotation } from "./exposure-annotation.js?v=20261024-d1d958c";
-import { refreshPolygonOptions, promptDrawTool } from "./extent-picker.js?v=20261024-d1d958c";
-import { drawTimeSeries } from "./time-series-plot.js?v=20261024-d1d958c";
+import { polygonsOf, peopleOnGrid, formatPeople, seriesCsv } from "./exposure.js?v=20261024-07e8f89";
+import { riskMaps, riskMapKind, assessLayer, countsUnder, ringsBox } from "./risk-reader.js?v=20261024-07e8f89";
+import { renderAssessment, annotationOf, el } from "./risk-reader-view.js?v=20261024-07e8f89";
+import { showAnnotation, removeAnnotation } from "./exposure-annotation.js?v=20261024-07e8f89";
+import { refreshPolygonOptions, promptDrawTool } from "./extent-picker.js?v=20261024-07e8f89";
+import { drawTimeSeries } from "./time-series-plot.js?v=20261024-07e8f89";
 
 const search = new URL(import.meta.url).search;
 const byId = (id) => document.getElementById(id);
