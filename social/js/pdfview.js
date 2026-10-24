@@ -10,7 +10,7 @@
  * 60 canvases up front. x and y are fractions of the page, so a pin lands on
  * the same spot at any zoom or screen width.
  */
-import { h, put } from "./dom.js?v=20261024-7f51ec4";
+import { h, put } from "./dom.js?v=20261024-af6707d";
 
 let lib = null;
 async function pdfjs() {

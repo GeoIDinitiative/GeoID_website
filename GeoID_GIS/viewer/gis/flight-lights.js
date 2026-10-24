@@ -26,7 +26,7 @@
 //   * Depth-tested: hills and buildings hide what is behind them. Night only
 //     (the ship's NIGHT from flight-tiles.js); nothing runs by day.
 
-import { NIGHT } from "./night-lights.js?v=20261024-7f51ec4";
+import { NIGHT } from "./night-lights.js?v=20261024-af6707d";
 import { litPower, radianceAboveBackground, CLASS_BY_CODE } from "../../../flight_sim/earth/game/lamps.js?v=1";
 
 const TILEJSON = "https://tiles.openfreemap.org/planet";
@@ -153,7 +153,7 @@ const LAMP_VERT = /* glsl */`
     // a point source's does: the sum over a city is then a glow that follows
     // its density, not a flat wash (a fixed minimum per lamp, right for the
     // scattered far roads seen from 1 km, saturated 500k lamps at 8 km).
-    float energy = 4.0 * min(1.0, px * px) * 3.0;
+    float energy = 4.0 * min(1.0, px * px) * 7.0;
     // HIGH UP the dots go soft: the glow widens to a few pixels whatever the
     // distance, the light SPREAD over it (energy / area), so thousands of
     // lamps add up to a diffuse glow that still follows the roads, rather
