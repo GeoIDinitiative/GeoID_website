@@ -124,9 +124,16 @@ for (let t = m.roofCount; t < m.roofCount + m.wallCount; t += 3) {
   if (on(1500) && stored[0] <= 0) wallsOk = false;
 }
 check("wall winding matches its normal, outward and into the courtyard", wallsOk);
-check("facade UVs are metres up the wall", (() => {
+check("facade UVs are whole storeys up the wall, ending at the eave", (() => {
   let maxV = 0; for (let t = m.roofCount; t < m.roofCount + m.wallCount; t++) maxV = Math.max(maxV, m.uv[I[t] * 2 + 1]);
-  return Math.abs(maxV - 30) < 1e-3;
+  return maxV === Math.round(30 / 3.2);
+})());
+check("every wall segment carries a whole number of bays", (() => {
+  for (let t = m.roofCount; t < m.roofCount + m.wallCount; t += 3) {
+    const us = [0, 1, 2].map((k) => m.uv[I[t + k] * 2]);
+    if (us.some((u) => Math.abs(u - Math.round(u)) > 1e-6)) return false;
+  }
+  return true;
 })());
 
 /* ── Inferred roofs ───────────────────────────────────────────────────── */

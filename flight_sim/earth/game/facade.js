@@ -5,14 +5,16 @@
  * so it touches only shader strings and imports nothing: each side passes its
  * own three.js copy's material in.
  *
- * What the walls get, all from two numbers per vertex -- the facade metres in
- * `uv` (along the wall, up from its foot) and the style byte `aStyle`:
+ * What the walls get, all from two numbers per vertex -- the facade grid in
+ * `uv` (bays along the wall, storeys up from its foot) and the style byte
+ * `aStyle`:
  *
- *   masonry (style 0)  storeys of 3.3 m, a slab line at each floor, punched
- *                      windows in 3 m bays, each pane a little different
- *                      (blinds, reflections) by a hash of its cell; tall
- *                      shopfront glazing below 4 m.
- *   curtain (style 1)  1.5 m glass bays with thin mullions and an opaque
+ *   masonry (style 0)  whole storeys (~3.2 m) and whole bays (~3 m) per wall
+ *                      (`uv` is in bays and storeys, from extrude.js), a slab
+ *                      line at each floor, one punched window per cell, each
+ *                      pane a little different (blinds, reflections) by a
+ *                      hash of its cell; taller openings on the ground floor.
+ *   curtain (style 1)  ~1.5 m glass panels with thin mullions and an opaque
  *                      spandrel at each floor, plus a sky sheen that grows
  *                      toward grazing angles (a Fresnel term).
  *   both               contact occlusion: darkest at the ground, gone by 5 m.
@@ -34,38 +36,43 @@ float fHash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453)
 
 const WALL_COLOUR = /* glsl */`
   // Style 0.5 is "plain": bridge concrete, wheels -- no windows, no base shading.
+  // vFacade is (bays, storeys): every wall segment holds whole bays and the
+  // height whole equal storeys (extrude.js BAY_M / STOREY_M), so each cell is
+  // exactly one window's worth of wall and none is cut by a corner or a roof.
   if (vStyle < 0.25 || vStyle > 0.75) {
     vec2 w = fwidth(vFacade);
-    float px = max(w.x, w.y);
     float glassDark = 0.0;
     vec3 glass = vec3(0.10, 0.13, 0.17);
+    float storey = floor(vFacade.y);
+    float above = step(0.0, vFacade.y);                   // not the sunk foot
     if (vStyle < 0.25) {
-      // Masonry: 3 m bays, 3.3 m storeys.
-      vec2 cell = vec2(vFacade.x / 3.0, vFacade.y / 3.3);
-      vec2 f = fract(cell);
-      float shop = 1.0 - step(4.0, vFacade.y);              // ground floor
-      float lo = mix(0.30, 0.10, shop), hi = mix(0.80, 0.92, shop);
-      float win = step(0.22, f.x) * step(f.x, 0.78) * step(lo, f.y) * step(f.y, hi);
-      win *= step(0.6, vFacade.y);
-      float slab = (1.0 - step(0.06, f.y)) * step(4.0, vFacade.y);
-      float r = fHash(floor(cell));
+      // Masonry: one punched window per bay per storey, sill ~1 m up, head
+      // ~0.6 m under the next floor; the ground floor's openings a little
+      // taller (doors, shopfronts) but the same width.
+      vec2 f = fract(vFacade);
+      float ground = 1.0 - step(0.5, storey);
+      float lo = mix(0.30, 0.10, ground), hi = 0.80;
+      float win = step(0.24, f.x) * step(f.x, 0.76) * step(lo, f.y) * step(f.y, hi) * above;
+      float slab = (1.0 - step(0.04, f.y)) * step(0.5, storey);
+      float r = fHash(floor(vFacade));
       vec3 pane = glass * mix(0.8, 2.6, r * r);             // some panes lit, some blinds
-      float fade = clamp(1.0 - px / 3.0 * 1.6, 0.0, 1.0);
+      float fade = clamp(1.0 - max(w.x, w.y) * 1.6, 0.0, 1.0);
       vec3 wall = diffuseColor.rgb * (1.0 + 0.10 * slab);
       vec3 near = mix(wall, pane, win);
-      vec3 far = mix(diffuseColor.rgb, glass, 0.20 * step(0.6, vFacade.y));
+      vec3 far = mix(diffuseColor.rgb, glass, 0.20 * above);
       diffuseColor.rgb = mix(far, near, fade);
-      vWinLit = win * step(r, 0.55) * fade + 0.18 * (1.0 - fade) * step(0.6, vFacade.y);
+      vWinLit = win * step(r, 0.55) * fade + 0.18 * (1.0 - fade) * above;
     } else {
-      // Curtain wall: 1.5 m glass bays, mullions, a spandrel per floor.
-      vec2 cell = vec2(vFacade.x / 1.5, vFacade.y / 3.6);
+      // Curtain wall: two glass panels per bay (~1.5 m), mullions, a
+      // spandrel at each floor.
+      vec2 cell = vec2(vFacade.x * 2.0, vFacade.y);
       vec2 f = fract(cell);
       float mull = step(f.x, 0.05) + step(0.95, f.x);
       float span = step(f.y, 0.20);
-      float glassMask = (1.0 - clamp(mull + span, 0.0, 1.0));
+      float glassMask = (1.0 - clamp(mull + span, 0.0, 1.0)) * above;
       float r = fHash(vec2(floor(cell.y), floor(cell.x / 4.0)));
       vec3 pane = mix(glass * 1.4, diffuseColor.rgb * 0.55, 0.35 + 0.25 * r);
-      float fade = clamp(1.0 - px / 1.5 * 1.6, 0.0, 1.0);
+      float fade = clamp(1.0 - max(w.x * 2.0, w.y) * 1.6, 0.0, 1.0);
       vec3 near = mix(diffuseColor.rgb, pane, glassMask);
       vec3 far = mix(diffuseColor.rgb, pane, 0.75);
       diffuseColor.rgb = mix(far, near, fade);
@@ -73,7 +80,7 @@ const WALL_COLOUR = /* glsl */`
       vWinLit = (glassMask * step(r, 0.5) * fade + 0.25 * (1.0 - fade)) * 0.8;
     }
     // Contact occlusion: the street darkens the foot of every wall.
-    diffuseColor.rgb *= mix(0.55, 1.0, smoothstep(-1.0, 5.0, vFacade.y));
+    diffuseColor.rgb *= mix(0.6, 1.0, smoothstep(-0.3, 1.2, vFacade.y));
     vGlass = glassDark;
   }
 `;
@@ -104,7 +111,7 @@ export function facade(material) {
     shader.uniforms.uNight = material.userData.night || { value: 0 };
   };
   const key = material.customProgramCacheKey?.bind(material);
-  material.customProgramCacheKey = () => (key ? key() : "") + "|facade2";
+  material.customProgramCacheKey = () => (key ? key() : "") + "|facade3";
   return material;
 }
 

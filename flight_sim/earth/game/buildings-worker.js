@@ -7,7 +7,7 @@
 
 import { ShapeUtils, Vector2 } from "../../../everest/vendor/three.module.js?v=84ebb99-a7f30c15";
 import { decodeLayer } from "./mvt.js?v=1";
-import { extrudeTile } from "./extrude.js?v=4";
+import { extrudeTile } from "./extrude.js?v=5";
 
 // three's earcut wrapper wants Vector2s (it calls .equals on them).
 const v2 = (pts) => pts.map((p) => new Vector2(p.x, p.y));

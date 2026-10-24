@@ -24,6 +24,13 @@ import { rings, polygons, clipRing } from "./mvt.js?v=1";
 import { bridgeOutlines, drawBridges, latticeClusters, drawWheel, inPolys } from "./structures.js?v=2";
 
 const SINK = 4;
+// Facade grid (facade.js): every wall segment carries a WHOLE number of bays
+// of about BAY_M, starting at its corner, and the height a whole number of
+// equal storeys of about STOREY_M ending at the eave. Windows are then all
+// one size and none is cut by a corner or the roof (owner, 2026-10-24: "the
+// windows are all different sizes, first window is too high up").
+export const BAY_M = 3.0;
+export const STOREY_M = 3.2;
 
 /* ── Facades, when OSM does not say ──────────────────────────────────────
    OpenFreeMap's building layer carries `colour` (OSM building:colour) and the
@@ -226,6 +233,9 @@ export function extrudeTile(layer, dem, demSize, sizeLocal, triangulate, extra =
       // A pitched roof where the outline is a small rectangle -- see pitched().
       const rect = minH === 0 && !holes.length ? pitched(outer, s, height, hh) : null;
       const eave = rect ? top - rect.rise : top;
+      const storeys = Math.max(1, Math.round((eave - base) / STOREY_M));
+      const storeyH = (eave - base) / storeys;
+      let bay = 0;
 
       if (rect) {
         // Roof planes in the roof group (imagery), gable ends in the walls.
@@ -238,10 +248,10 @@ export function extrudeTile(layer, dem, demSize, sizeLocal, triangulate, extra =
             face([at(quad[0], eave), at(quad[1], eave), at(quad[2], top)], roofIdx, [1, 1, 1]);
             face([at(quad[0], eave), at(quad[2], top), at(quad[3], top)], roofIdx, [1, 1, 1]);
           }
+          // The gable ends are plain attic wall: no bays, half a storey up.
           const gable = (a, b, m) => {
-            const run = Math.hypot(b[0] - a[0], b[1] - a[1]) * s;
-            face([at(a, eave), at(b, eave), at(m, top)], wallIdx, c,
-              [[0, eave - base], [run, eave - base], [run / 2, top - base]], centre);
+            const attic = [0, storeys + 0.5];
+            face([at(a, eave), at(b, eave), at(m, top)], wallIdx, c, [attic, attic, attic], centre);
           };
           gable(p1, p2, m12);
           gable(p3, p0, m03);
@@ -279,16 +289,18 @@ export function extrudeTile(layer, dem, demSize, sizeLocal, triangulate, extra =
         // outward face of every wall is on the left of travel (y down).
         const sgn = ringSign(ring);
         const pts = (isOuter ? sgn > 0 : sgn < 0) ? ring : ring.slice().reverse();
-        let run = 0;
-        const yb = bottom - base, yt = eave - base;
+        // Facade UV in bays (u) and storeys (v): see BAY_M. `bay` runs on
+        // round the building so neighbouring walls light different windows.
+        const yb = (bottom - base) / storeyH, yt = storeys;
         for (let i = 0; i < pts.length; i++) {
           const a = pts[i], b = pts[(i + 1) % pts.length];
           const dx = b[0] - a[0], dz = b[1] - a[1];
           const len = Math.hypot(dx, dz);
           if (len < 1e-6) continue;
           const nx = dz / len, nz = -dx / len;
-          const r0 = run, r1 = run + len * s;
-          run = r1;
+          const bays = Math.round(len * s / BAY_M);
+          const r0 = bay, r1 = bay + bays;
+          bay = r1 + 1;
           const i0 = vert(a[0], bottom, a[1], nx, 0, nz, c[0], c[1], c[2], r0, yb);
           const i1 = vert(a[0], eave, a[1], nx, 0, nz, c[0], c[1], c[2], r0, yt);
           const i2 = vert(b[0], eave, b[1], nx, 0, nz, c[0], c[1], c[2], r1, yt);
