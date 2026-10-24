@@ -177,6 +177,14 @@ ok("and smaller symbols keep their proportions", Math.abs(flightMarkerPx(44) - 1
 ok("the frame step applies it only while flying, before the ring reads the size",
   /if \(flying\) steady = flightMarkerPx\(steady\);\s*points\.userData\.steadySize = steady;/.test(eventsSrc)
   && /const flying = !!window\.__flightSim\?\.active;/.test(eventsSrc));
+// A culled marker is parked BEHIND THE CAMERA. Parked at 1e9 it sat on the far
+// boundary within float32 rounding once Earth Flight's near plane was a few
+// metres, was not clipped, and every hidden marker drew at one point in the sky.
+ok("hidden markers are parked behind the camera, not a billion units out",
+  /function parkingSpot\(points, camera, cam\)/.test(eventsSrc)
+  && /const x = visible \? truth\[i\] : park\.x;/.test(eventsSrc) && !/OVER_THE_HORIZON = 1e9/.test(eventsSrc));
+ok("the markers' spin frame is synced at the top of every render, from the globe's own angle",
+  /scene\.onBeforeRender = function eventsSpin/.test(eventsSrc) && /globe\.rotation\.y - Math\.PI/.test(eventsSrc));
 ok("and anything measuring a marker reads that, never the drawn size",
   /found = node\.userData\.steadySize \|\| node\.material\?\.size \|\| 0;/.test(eventsSrc));
 ok("the tracker writes whole pixels, and only when they change",

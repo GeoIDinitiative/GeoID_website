@@ -23,9 +23,9 @@ import { STLLoader } from "../vendor/STLLoader.js";
 import {
   AIR_SOURCES, AIR_CATEGORIES, SHIP_CATEGORIES, readDigitraffic, foldAisStream, aisStreamSubscription,
   boxAbout, deadReckon, radiusForView, mergeRecords, cardRows, headingBasis, KT_TO_MS,
-} from "./traffic-feeds.js?v=20261024-080b7f6";
-import { isParked } from "./parked.js?v=20261024-080b7f6";
-import { followFrame, FOLLOW_PITCH_MAX } from "./satellites.js?v=20261024-080b7f6";
+} from "./traffic-feeds.js?v=20261024-48e7212";
+import { isParked } from "./parked.js?v=20261024-48e7212";
+import { followFrame, FOLLOW_PITCH_MAX } from "./satellites.js?v=20261024-48e7212";
 
 const KM_TO_UNITS = 3.2 / 6371;
 const M_TO_UNITS = KM_TO_UNITS / 1000;
@@ -807,11 +807,20 @@ function modelStep(t, camera, camLocal) {
  * the layer's own frame (never a hemisphere: that names a continent), the
  * events' own rule. A craft drawn as a model wears its dot just over it.
  */
-const FAR_AWAY = 1e9;
+// A hidden dot goes BEHIND THE CAMERA, a globe radius back along its line of
+// sight, where a negative clip w discards it at any near/far. It used to go to
+// (1e9, 1e9, 1e9): with Earth Flight's near plane of a few metres that lands on
+// the far boundary within float32 rounding, is not clipped, and every hidden
+// dot drew at one fixed point in the sky (events.js, parkingSpot).
+const _ahead = new THREE.Vector3();
+const _park = new THREE.Vector3();
 let frameNo = 0;
-function dotStep(t, camLocal) {
+function dotStep(t, camLocal, camera) {
   const positions = t.geometry.attributes.position;
   const shown = groupShown(t);
+  camera.getWorldDirection(_ahead);
+  t.group.worldToLocal(_ahead.add(camera.position));   // the frame camLocal is in
+  _park.copy(camLocal).sub(_ahead).normalize().multiplyScalar(window.GeoIDViewer?.GLOBE_RADIUS || 3.2).add(camLocal);
   for (const record of t.list) {
     const p = record.pos;
     const visible = shown && p && record.groundR && p.dot(camLocal) >= record.groundR * record.groundR;
@@ -819,7 +828,7 @@ function dotStep(t, camLocal) {
     record.drawn = at;
     const i = record.index;
     if (at) positions.setXYZ(i, at.x, at.y, at.z);
-    else positions.setXYZ(i, FAR_AWAY, FAR_AWAY, FAR_AWAY);
+    else positions.setXYZ(i, _park.x, _park.y, _park.z);
   }
   positions.needsUpdate = true;
 }
@@ -959,7 +968,7 @@ function installFrameHook() {
         _inverse.copy(t.group.matrixWorld).invert();
         camLocal.copy(camera.position).applyMatrix4(_inverse);
         modelStep(t, camera, camLocal);
-        dotStep(t, camLocal);
+        dotStep(t, camLocal, camera);
         pulseStep(t);
         labelStep(t, camera);
       } catch (error) { /* one bad frame must not stop the render */ }
@@ -1178,7 +1187,7 @@ function wireSpec(spec) {
   document.getElementById(spec.ids.symbology)?.addEventListener("click", async () => {
     const layer = layerOf(spec);
     if (!layer) { say(spec, "Turn the tracker on first — symbology colours the live layer."); return; }
-    const dialog = await import("./symbology-dialog.js?v=20261024-080b7f6");
+    const dialog = await import("./symbology-dialog.js?v=20261024-48e7212");
     dialog.openSymbologyDialog(layer);
   });
   window.GeoIDImportManager?.onChange?.(() => {

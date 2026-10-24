@@ -2,15 +2,15 @@ import * as THREE from "./vendor/three.module.js";
 // The polygon-area rule lives in one place, with a test. Stamped by hand
 // once: stamp.py only rewrites a ?v= that already exists.
 import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
-  from "./gis/geo-utils.js?v=20261024-080b7f6";
+  from "./gis/geo-utils.js?v=20261024-48e7212";
 import { attachReliefAttributes, followRelief }
-  from "./gis/vector-render.js?v=20261024-080b7f6";
+  from "./gis/vector-render.js?v=20261024-48e7212";
 import { rockClass, crustalSetting, rockClassLabel, classificationBasis }
-  from "./gis/rock-class.js?v=20261024-080b7f6";
+  from "./gis/rock-class.js?v=20261024-48e7212";
 import { lithologyLabel }
-  from "./gis/lithology-label.js?v=20261024-080b7f6";
+  from "./gis/lithology-label.js?v=20261024-48e7212";
 import { formatLatLon }
-  from "./gis/coord-format.js?v=20261024-080b7f6";
+  from "./gis/coord-format.js?v=20261024-48e7212";
 
 /**
  * This module's own cache stamp, read off its own URL.
@@ -24298,7 +24298,17 @@ ${error && error.message ? error.message : error}`;
         // after every orbit-camera rule above so the ship has the last word,
         // and the camera's matrices recomposed for the passes below (the
         // Venus fork found its labels all "off-screen" without this).
+        // The frame's spin, read ONCE. In flight the sim carries the aircraft
+        // round with the globe by the angle the globe turned (co-rotation), so
+        // the globe must already be at this frame's angle when the sim runs
+        // -- it was set further down, after the sim, and the aircraft lagged
+        // the ground by one frame. The sim turns the spin in bursts, so the
+        // lag changed every frame: measured 4-8 m jumps of aircraft and
+        // camera against the ground, the reported "the whole thing moves".
+        let _frameSpin = null;
         if (window.__flightSim?.active) {
+          _frameSpin = getSpinDeltaRadians();
+          if (!coreToggle.checked) globe.rotation.y = Math.PI + _frameSpin;
           window.__flightSim.update(camera);
           camera.updateMatrixWorld(true);
           camera.matrixWorldInverse.copy(camera.matrixWorld).invert();
@@ -24322,7 +24332,7 @@ ${error && error.message ? error.message : error}`;
         if (!coreToggle.checked) {
           // Keep Moon in real relative location/time (not accelerated by the 120s/day globe spin).
           updateMoonOrbits(moonLayer.entries, moonFeatureLabelLayer.entries, Date.now());
-          globe.rotation.y = Math.PI + getSpinDeltaRadians();
+          globe.rotation.y = Math.PI + (_frameSpin ?? getSpinDeltaRadians());
           const _spinDelta = globe.rotation.y - Math.PI;
           labelLayer.group.rotation.y = _spinDelta;
           userPinLayer.group.rotation.y = _spinDelta;

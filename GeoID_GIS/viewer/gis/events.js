@@ -16,9 +16,9 @@ import {
   gdacsPoints, resolveColour,
   MARKER_LIFT_MAX, liftForAltitude, dotSizePx, zoomGain, MARKER_MAX_PX, flightMarkerPx, isQuake, publisherOf, restoreActive,
   stormCategory, stormScale, stormLabel, STORM_BASE_CAP, markerHitGeometry, nearestHit,
-} from "./event-sources.js?v=20261024-080b7f6";
-import { escapeHtml, safeUrl } from "./escape-html.js?v=20261024-080b7f6";
-import { holdLaunch } from "./launch-ready.js?v=20261024-080b7f6";
+} from "./event-sources.js?v=20261024-48e7212";
+import { escapeHtml, safeUrl } from "./escape-html.js?v=20261024-48e7212";
+import { holdLaunch } from "./launch-ready.js?v=20261024-48e7212";
 
 const API = "https://eonet.gsfc.nasa.gov/api/v3/events";
 
@@ -1300,11 +1300,37 @@ function spinFrame() {
 }
 
 function syncSpin() {
-  const delta = window.GeoIDViewer?.getSpinDeltaRadians?.();
+  // The globe's own angle when there is one: that is what was drawn this
+  // frame, and reading the spin clock again a moment later gives a different
+  // answer while the spin runs.
+  const globe = window.GeoIDViewer?.globe;
+  const delta = globe ? globe.rotation.y - Math.PI : window.GeoIDViewer?.getSpinDeltaRadians?.();
   if (spun && Number.isFinite(delta)) spun.rotation.y = delta;
 }
 
+/**
+ * IN STEP WITH THE GLOBE, NOT A FRAME BEHIND IT. The markers' spin frame was
+ * synced only in this module's own animation frame, which runs before or
+ * after the viewer's render as the browser pleases -- so the markers could
+ * hold last frame's angle while the ground under them had turned. In Earth
+ * Flight the spin advances in bursts, and the markers slid against the
+ * ground. Synced at the top of every render as well, where the globe has
+ * already been turned (chained, like vector-render's relief sync).
+ */
+let spinHookScene = null;
+function hookSpinToRender() {
+  const scene = window.GeoIDViewer?.scene;
+  if (!scene || spinHookScene === scene) return;
+  spinHookScene = scene;
+  const previous = typeof scene.onBeforeRender === "function" ? scene.onBeforeRender.bind(scene) : null;
+  scene.onBeforeRender = function eventsSpin(...args) {
+    if (previous) previous(...args);
+    syncSpin();
+  };
+}
+
 function trackScale() {
+  hookSpinToRender();
   if (sizeFrame) return;
   const step = () => {
     // The chips are DOM and outlive the frame loop unless taken down with it.
@@ -1618,13 +1644,27 @@ const isStormBand = (key) => String(key).startsWith("storm-");
 const bandNumber = (key) => Number(String(key).split("-")[1]);
 
 /**
- * Somewhere no camera will look, for a marker that is round the back.
+ * Somewhere no camera will look, for a marker that is round the back: BEHIND
+ * THE CAMERA, a globe radius back along its own line of sight.
  *
- * A point whose clip position is this far out is discarded by the frustum, and
- * that is the whole mechanism: there is no per-point size or alpha on a
- * `PointsMaterial`, so hiding one means moving it.
+ * There is no per-point size or alpha on a PointsMaterial, so a hidden marker
+ * is moved where the clip stage throws it away. It used to be parked at
+ * (1e9, 1e9, 1e9), relying on the far plane -- and that stopped working in
+ * Earth Flight, whose near plane is a few metres so the aircraft is not clipped
+ * away (scripts/flightsim.js). With near at a few metres and far at 1000 units,
+ * a point a billion units out lands on the far boundary to within float32
+ * rounding and is NOT clipped: every marker round the back of the planet drew
+ * at that one point in the sky, which, being at infinity along (1, 1, 1), sat
+ * at the same compass bearing wherever and whenever one flew (reported: "the
+ * events are not mapped tight to the surface"). A point behind the camera has
+ * a negative clip w and is discarded whatever the near and far planes are.
  */
-const OVER_THE_HORIZON = 1e9;
+function parkingSpot(points, camera, cam) {
+  const fwd = camera.getWorldDirection(new THREE.Vector3());
+  const ahead = points.worldToLocal(camera.position.clone().add(fwd));
+  const back = cam.clone().sub(ahead).normalize();
+  return cam.clone().addScaledVector(back, window.GeoIDViewer?.GLOBE_RADIUS || 3.2);
+}
 
 /**
  * The planet stops occluding the markers, so this does it instead.
@@ -1658,12 +1698,13 @@ function cullBehindGlobe(points, camera) {
   const radius = window.GeoIDViewer?.GLOBE_RADIUS || 3.2;
   const horizon = radius * radius;
   const out = attr.array;
+  const park = parkingSpot(points, camera, cam);
   let changed = false;
   for (let i = 0; i < truth.length; i += 3) {
     const visible = truth[i] * cam.x + truth[i + 1] * cam.y + truth[i + 2] * cam.z >= horizon;
-    const x = visible ? truth[i] : OVER_THE_HORIZON;
-    const y = visible ? truth[i + 1] : OVER_THE_HORIZON;
-    const z = visible ? truth[i + 2] : OVER_THE_HORIZON;
+    const x = visible ? truth[i] : park.x;
+    const y = visible ? truth[i + 1] : park.y;
+    const z = visible ? truth[i + 2] : park.z;
     // All three compared, not just the first: the relief watcher rewrites the
     // truth as the exaggeration changes, and a marker can move in one axis
     // alone.
@@ -2733,8 +2774,8 @@ async function showTrace(event) {
   }
 
   const [plot, { spectrogram }] = await Promise.all([
-    import("./seismogram-plot.js?v=20261024-080b7f6"),
-    import("./research/dsp.js?v=20261024-080b7f6"),
+    import("./seismogram-plot.js?v=20261024-48e7212"),
+    import("./research/dsp.js?v=20261024-48e7212"),
   ]);
   if (stale()) return;
 
