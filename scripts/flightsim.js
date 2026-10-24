@@ -3567,17 +3567,21 @@
   }
 
   // ---- per-frame update (called from the viewer render loop) ----
-  function holdPausedCamera(camera) {
+  // The camera as the sim last placed it, in the ship's own frame. Recorded at
+  // the END of every flying frame: by the top of the next one the orbit
+  // controls (which run first, every frame) have already turned it to look at
+  // their target, straight down at the globe.
+  function recordCameraPose(camera) {
     if (!state.pos || !state.quat) return;
-    if (!state._pauseCam) {
-      const inv = state.quat.clone().invert();
-      state._pauseCam = {
-        off: camera.position.clone().sub(state.pos).applyQuaternion(inv),
-        up: camera.up.clone().applyQuaternion(inv),
-        rot: inv.multiply(camera.quaternion),
-      };
-    }
-    const h = state._pauseCam;
+    const inv = state.quat.clone().invert();
+    const h = state._camPose || (state._camPose = { off: new THREE.Vector3(), up: new THREE.Vector3(), rot: new THREE.Quaternion() });
+    h.off.copy(camera.position).sub(state.pos).applyQuaternion(inv);
+    h.up.copy(camera.up).applyQuaternion(inv);
+    h.rot.copy(inv).multiply(camera.quaternion);
+  }
+  function holdPausedCamera(camera) {
+    const h = state._camPose;
+    if (!h || !state.pos || !state.quat) return;
     camera.position.copy(state.pos).add(h.off.clone().applyQuaternion(state.quat));
     camera.up.copy(h.up).applyQuaternion(state.quat);
     camera.quaternion.copy(state.quat).multiply(h.rot);
@@ -3585,6 +3589,12 @@
   }
 
   function update(camera) {
+    const out = updateFrame(camera);
+    if (fs.active && !fs.paused) recordCameraPose(camera);
+    return out;
+  }
+
+  function updateFrame(camera) {
     if (!fs.active) return;
     // One body per flight. The moon viewer opening (flying a planet) or
     // closing / switching moon (flying a moon) ends it.
@@ -3623,7 +3633,6 @@
     // placed left it to the viewer's own controls, which swung it round to
     // look straight down at the globe.
     if (fs.paused) { state.lastT = 0; holdPausedCamera(camera); return; }
-    state._pauseCam = null;
 
     const now = performance.now();
     let dt = state.lastT ? (now - state.lastT) / 1000 : 0;

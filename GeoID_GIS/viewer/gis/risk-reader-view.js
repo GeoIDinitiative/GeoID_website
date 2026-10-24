@@ -4,12 +4,12 @@
  * read one way in one place and another way in the next.
  */
 
-import { formatPeople } from "./exposure.js?v=20261025-eb433fd";
+import { formatPeople } from "./exposure.js?v=20261025-260d2fe";
 import {
   LEVEL_COLOURS, formatCount, formatShare, formatNumber, returnPeriod, stackedBarSvg, assessmentCsv,
   reportHtml, bandColour,
-} from "./risk-assessment.js?v=20261025-eb433fd";
-import { may, refusal } from "./membership.js?v=20261025-eb433fd";
+} from "./risk-assessment.js?v=20261025-260d2fe";
+import { may, refusal } from "./membership.js?v=20261025-260d2fe";
 
 const search = new URL(import.meta.url).search;
 

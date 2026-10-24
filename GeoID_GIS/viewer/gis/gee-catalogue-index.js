@@ -1,4 +1,4 @@
-import { dataUrl } from "./data-base.js?v=20261025-eb433fd";
+import { dataUrl } from "./data-base.js?v=20261025-260d2fe";
 /**
  * The whole Earth Engine data catalogue, searchable in the page.
  *
