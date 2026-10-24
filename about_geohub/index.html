@@ -875,41 +875,116 @@
   <link rel="stylesheet" href="/styles/site-unify.css?v=20261024-256a6da">
   <link rel="stylesheet" href="/styles/bands.css?v=20261024-256a6da">
   <style>
-    /* ── About GeoHUB on photo bands: wider rows, bigger captures ──────────
-       Loaded after bands.css. The feature rows were a narrow column of text
-       beside a letterboxed capture in a dark frame; now the capture runs
-       large to the edge of the screen and the cards spread across the
-       wider column, so a 1920px screen is not two-thirds empty. */
-    body.bands .feature-tile {
-      grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.25fr) !important;
-      column-gap: clamp(2.5rem, 5vw, 5.5rem);
-      align-items: center;
+    /* ── About GeoHUB on photo bands ────────────────────────────────────────
+       Loaded after bands.css. The four feature sections (01–04) share one
+       layout: a numbered head (kicker, heading, lead) on the column edge, then
+       the media large beside a side column of figures or steps and the points,
+       the media alternating sides down the page. Each band's backdrop is its
+       own capture, blurred into a colour wash, so the four read as a set
+       without reusing a photograph. */
+    body.bands .fx { padding-top: clamp(5rem, 8vw, 7.5rem) !important; padding-bottom: clamp(5rem, 8vw, 7.5rem) !important; }
+    body.bands .fx > .cx-bg.fx-wash {
+      filter: blur(70px) saturate(1.35);
+      transform: scale(1.25);
+      opacity: 0.7;
     }
-    /* Flipped rows put the capture first, so the tracks swap with it: the
-       capture always gets the wide one. */
-    body.bands .feature-tile.is-flipped {
-      grid-template-columns: minmax(0, 1.25fr) minmax(0, 0.85fr) !important;
+    body.bands .fx > .fx-shade {
+      background:
+        linear-gradient(180deg, rgba(8,0,20,0.80) 0%, rgba(8,0,20,0.58) 45%, rgba(8,0,20,0.82) 100%);
     }
-    body.bands .feature-tile .feature-body { padding: 0 !important; max-width: 36rem; }
-    body.bands .feature-tile.is-flipped .feature-body { justify-self: end; }
-    body.bands .feature-tile .feature-shot {
-      background: none;
-      border-radius: 4px 0 0 4px;
-      margin-right: calc(-1 * var(--band-gut));
-      box-shadow: 0 30px 90px rgba(0, 0, 0, 0.55);
-      line-height: 0;
+    .fx-head .cx-kicker { margin-bottom: 1rem; }
+    .fx-head .tile-title { margin: 0 0 1.1rem !important; font-size: clamp(2.2rem, 4vw, 3.4rem) !important; }
+    .fx-head .tile-desc { margin: 0; max-width: none; font-size: 1.12rem !important; color: rgba(236, 232, 248, 0.84); }
+    .fx-head .tile-desc a { color: var(--accent); }
+
+    .fx-body {
+      display: grid;
+      grid-template-columns: minmax(0, 1.35fr) minmax(0, 0.65fr);
+      gap: clamp(2.5rem, 5vw, 4.5rem);
+      align-items: start;
+      margin-top: clamp(2.5rem, 4.5vw, 3.75rem);
     }
-    body.bands .feature-tile.is-flipped .feature-shot {
-      border-radius: 0 4px 4px 0;
-      margin-right: 0;
-      margin-left: calc(-1 * var(--band-gut));
+    .fx-flip .fx-body { grid-template-columns: minmax(0, 0.65fr) minmax(0, 1.35fr); }
+    .fx-flip .fx-media { order: 2; }
+
+    .fx-media { margin: 0; }
+    .fx-media :is(img, video) {
+      display: block;
+      width: 100% !important;
+      height: auto !important;
+      max-height: none !important;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 10px;
+      box-shadow: 0 30px 80px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(var(--accent-rgb), 0.06);
+      background: #05030c;
     }
-    body.bands .feature-tile .feature-shot img { height: auto; object-fit: cover; }
-    body.bands .feature-tile .feature-shot::after { display: none; }
-    body.bands .feature-tile .tile-desc p { font-size: 1.08rem; line-height: 1.7; }
-    body.bands .feature-list { gap: 0.8rem; margin-top: 1.5rem; }
-    body.bands .feature-list li { font-size: 1rem; line-height: 1.65; }
-    body.bands .feature-body .hero-actions { flex-direction: row !important; flex-wrap: wrap; justify-content: flex-start !important; gap: 0.75rem; }
+    .fx-media figcaption { margin-top: 0.85rem; color: var(--muted); font-size: 0.86rem; line-height: 1.55; }
+    .fx-media .fx-media-2 { margin-top: 1.75rem; }
+
+    .fx-side { display: flex; flex-direction: column; gap: 2rem; }
+    .fx-figs { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem 1.75rem; margin: 0; }
+    .fx-figs > div { border-top: 1px solid var(--band-rule); padding-top: 0.9rem; }
+    .fx-figs dt {
+      font-family: "Archivo", system-ui, sans-serif;
+      font-size: clamp(1.7rem, 2.4vw, 2.3rem);
+      letter-spacing: -0.035em;
+      line-height: 1;
+      color: var(--text);
+    }
+    .fx-figs dd { margin: 0.45rem 0 0; color: var(--muted); font-size: 0.84rem; line-height: 1.45; }
+
+    .fx-steps { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem 1.75rem; counter-reset: fxs; }
+    .fx-steps li { counter-increment: fxs; border-top: 1px solid var(--band-rule); padding-top: 0.9rem; display: grid; gap: 0.3rem; }
+    .fx-steps b {
+      font-family: "Archivo", system-ui, sans-serif;
+      font-size: 1.35rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      color: var(--text);
+    }
+    .fx-steps b::before {
+      content: counter(fxs, decimal-leading-zero) "  ";
+      font-family: "Public Sans", sans-serif;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      color: var(--accent);
+      vertical-align: middle;
+    }
+    .fx-steps span { color: var(--muted); font-size: 0.84rem; line-height: 1.45; }
+
+    .fx-points { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.95rem; }
+    .fx-points li {
+      position: relative;
+      padding-left: 1.1rem;
+      color: rgba(236, 232, 248, 0.76);
+      font-size: 0.95rem;
+      line-height: 1.65;
+    }
+    .fx-points li::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: 0.62em;
+      width: 6px;
+      height: 6px;
+      border-radius: 1px;
+      background: var(--accent);
+    }
+    .fx-points strong { color: var(--text); }
+    .fx-side .hero-actions { margin: 0; flex-direction: row !important; justify-content: flex-start !important; flex-wrap: wrap; gap: 0.75rem; }
+    .fx .shot-credit { margin: 2rem 0 0; max-width: none; }
+
+    @media (max-width: 1180px) {
+      .fx-body, .fx-flip .fx-body { grid-template-columns: 1fr; }
+      .fx-flip .fx-media { order: 0; }
+      .fx-side { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem 3rem; align-items: start; }
+      .fx-side .hero-actions { grid-column: 1 / -1; }
+    }
+    @media (max-width: 720px) {
+      .fx-side { grid-template-columns: 1fr; }
+      .fx-figs, .fx-steps { grid-template-columns: 1fr 1fr !important; }
+    }
 
     body.bands .shot-grid { grid-template-columns: repeat(4, minmax(0, 1fr)) !important; text-align: left; }
     body.bands .shot-card img { background: none; aspect-ratio: 16 / 10; }
@@ -944,20 +1019,7 @@
     @media (max-width: 1100px) {
       body.bands .worlds-grid { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; }
     }
-    @media (max-width: 1080px) {
-      body.bands .feature-tile,
-      body.bands .feature-tile.is-flipped { grid-template-columns: 1fr !important; row-gap: 2.5rem; }
-      body.bands .feature-tile.is-flipped .feature-body { justify-self: start; }
-      body.bands .feature-tile .feature-shot,
-      body.bands .feature-tile.is-flipped .feature-shot {
-        order: -1;
-        margin: 0 calc(-1 * var(--band-gut)) !important;
-        border-radius: 0;
-      }
-    }
     @media (max-width: 720px) {
-      body.bands .feature-tile .feature-shot,
-      body.bands .feature-tile.is-flipped .feature-shot { margin: 0 calc(-1 * clamp(1.1rem, 5vw, 1.5rem)) !important; }
       body.bands :is(.shot-grid, .cards-grid-4, .earth-info-body) { grid-template-columns: 1fr !important; }
       body.bands .worlds-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
     }
@@ -1025,65 +1087,102 @@
       <!-- (The "Geoscience Without Gatekeepers" tile was removed 2026-10-18: it made
            the same case as "Democratizing Geohazard Science" further down.) -->
 
-      <!-- ── Feature: the record, played through time ── -->
-      <div class="cyan-tile feature-tile" id="features">
-        <div class="feature-body">
+      <!-- ── 01 Feature: the record, played through time ── -->
+      <section class="band-tile fx" id="features">
+        <img class="cx-bg fx-wash" src="/assets/opt/geohub-timeline-poster.webp" alt="" loading="lazy" decoding="async">
+        <div class="cx-shade fx-shade"></div>
+        <header class="fx-head">
+          <span class="cx-kicker">01 &middot; The record</span>
           <h2 class="tile-title">Three Centuries of Hazard, on a Timeline</h2>
-          <div class="tile-desc">
-            <p>Not a susceptibility picture — the actual events, merged and played back frame by frame.</p>
+          <p class="tile-desc">Not a susceptibility picture &mdash; the actual events, merged into one record and played back frame by frame, on the globe where you will use them.</p>
+        </header>
+        <div class="fx-body">
+          <figure class="fx-media">
+            <video src="/assets/opt/geohub-timeline.mp4" poster="/assets/opt/geohub-timeline-poster.webp" autoplay muted loop playsinline preload="metadata" aria-label="The earthquake record playing year by year across the GeoHUB globe, with the timeline scrubber running from 1964 to today"></video>
+            <figcaption>The earthquake layer playing by year, recorded in GeoHUB. Scrub, pause or step a frame at a time.</figcaption>
+          </figure>
+          <div class="fx-side">
+            <dl class="fx-figs">
+              <div><dt>312,500</dt><dd>earthquakes, M4.5+, from 1008 to today</dd></div>
+              <div><dt>13,513</dt><dd>tropical cyclone tracks, 1842&ndash;2026</dd></div>
+              <div><dt>3</dt><dd>catalogues merged: ComCat, ISC-GEM, GEM GHEC</dd></div>
+              <div><dt>63</dt><dd>frames by year, or season by season</dd></div>
+            </dl>
+            <ul class="fx-points">
+              <li><strong>One record, not three.</strong> USGS ComCat, ISC-GEM and GEM GHEC joined by identity, with homogenised moment magnitudes.</li>
+              <li><strong>Every cyclone on file.</strong> IBTrACS best tracks coloured by peak wind, played season by season.</li>
+              <li><strong>Filter, then scrub.</strong> Narrow by magnitude or basin and run the clock forward or back.</li>
+              <li><strong>Licences travel with the data.</strong> Every layer keeps its licence and DOI, so anything you derive inherits the same terms.</li>
+            </ul>
           </div>
-          <ul class="feature-list">
-            <li><strong>312,500 earthquakes</strong>, M4.5+, from 1008 to today — USGS ComCat, ISC-GEM and GEM GHEC in one record.</li>
-            <li><strong>13,513 tropical cyclones</strong>, every track on file from 1842 to 2026, coloured by peak wind.</li>
-            <li>Filter by magnitude or basin, then scrub the clock — 63 frames by year, or season by season.</li>
-            <li>Every layer keeps its licence and DOI, so anything you derive inherits the same terms.</li>
-          </ul>
-          <p class="shot-credit">Earthquakes: USGS ComCat; ISC-GEM and GEM GHEC, CC BY-SA 3.0. Cyclone tracks: IBTrACS v04r01, NOAA NCEI (Knapp et al. 2010). Imagery: Sentinel-2 cloudless 2025 by EOX IT Services GmbH.</p>
         </div>
-        <div class="feature-shot">
-          <img src="/assets/opt/geohub-quakes.webp" alt="The GeoHUB globe showing 312,500 plotted earthquakes coloured by magnitude, with the layer's symbology panel and a playback timeline beneath it" loading="lazy" decoding="async">
-        </div>
-      </div>
+        <p class="shot-credit">Earthquakes: USGS ComCat; ISC-GEM and GEM GHEC, CC BY-SA 3.0. Cyclone tracks: IBTrACS v04r01, NOAA NCEI (Knapp et al. 2010). Imagery: Sentinel-2 cloudless 2025 by EOX IT Services GmbH.</p>
+      </section>
 
-      <!-- ── Feature: draw and sample ── -->
-      <div class="cyan-tile feature-tile is-flipped" id="study-area">
-        <div class="feature-body">
+      <!-- ── 02 Feature: draw and sample ── -->
+      <section class="band-tile fx fx-flip" id="study-area">
+        <img class="cx-bg fx-wash" src="/assets/opt/geohub-radar.webp" alt="" loading="lazy" decoding="async">
+        <div class="cx-shade fx-shade"></div>
+        <header class="fx-head">
+          <span class="cx-kicker">02 &middot; The study area</span>
           <h2 class="tile-title">Draw a Study Area, Pull the Data Inside It</h2>
-          <div class="tile-desc">
-            <p>A study area is the question every dataset on the globe is asked. Draw a polygon and GeoHUB fetches what lies inside it, instead of a picture of the whole world.</p>
+          <p class="tile-desc">A study area is the question every dataset on the globe is asked. Draw a polygon and GeoHUB fetches what lies inside it, instead of a picture of the whole world.</p>
+        </header>
+        <div class="fx-body">
+          <figure class="fx-media">
+            <img src="/assets/opt/geohub-radar.webp" alt="A study area drawn over the British Isles, 1,400,716 square kilometres, with the live radar composite fetched inside it" loading="lazy" decoding="async">
+            <figcaption>A 1.4 million km&sup2; study area over the British Isles, with the live radar composite fetched inside it.</figcaption>
+          </figure>
+          <div class="fx-side">
+            <ol class="fx-steps">
+              <li><b>Draw</b><span>polygon, box, circle or your own shapefile</span></li>
+              <li><b>Fetch</b><span>radar, forecasts and Earth Engine inside it</span></li>
+              <li><b>Sample</b><span>time series at the stations it contains</span></li>
+              <li><b>Export</b><span>CSV, GeoJSON or shapefile, clipped exactly</span></li>
+            </ol>
+            <ul class="fx-points">
+              <li><strong>Any shape, any layer.</strong> Draw a polygon, box or circle anywhere, or use any polygon layer &mdash; your own shapefile included.</li>
+              <li><strong>The weather inside it.</strong> RainViewer radar, plus GFS and ICON precipitation, temperature and wind.</li>
+              <li><strong>Earth Engine over it.</strong> Rainfall, temperature, vegetation and soil moisture, as a map or a time-lapse.</li>
+              <li><strong>Time series and clips.</strong> Station records plotted and exported as CSV; geology, elevation and every active layer clipped to the area &mdash; or the terrain taken into the Meshing Studio.</li>
+            </ul>
           </div>
-          <ul class="feature-list">
-            <li>Draw a polygon, box or circle anywhere, or use any polygon layer — your own shapefile included.</li>
-            <li>Fetch the <strong>weather</strong> inside it: RainViewer radar, plus GFS and ICON precipitation, temperature and wind.</li>
-            <li>Pull <strong>Earth Engine</strong> datasets over it — rainfall, temperature, vegetation, soil moisture — as a map or a time-lapse.</li>
-            <li>Record <strong>time series</strong> at stations inside it, plotted and exported as CSV.</li>
-            <li>Clip geology, elevation and every active layer to it exactly — CSV, GeoJSON or shapefile — or take the terrain into the Meshing Studio.</li>
-          </ul>
-          <p class="shot-credit">Radar composite: RainViewer. Imagery: Sentinel-2 cloudless 2025 by EOX IT Services GmbH (contains modified Copernicus Sentinel data 2025), CC BY-NC-SA 4.0.</p>
         </div>
-        <div class="feature-shot">
-          <img src="/assets/opt/geohub-radar.webp" alt="A study area drawn over the British Isles, 1,400,716 square kilometres, with the live radar composite fetched inside it" loading="lazy" decoding="async">
-        </div>
-      </div>
+        <p class="shot-credit">Radar composite: RainViewer. Imagery: Sentinel-2 cloudless 2025 by EOX IT Services GmbH (contains modified Copernicus Sentinel data 2025), CC BY-NC-SA 4.0.</p>
+      </section>
 
-      <!-- ── Feature: the meshing studio ── -->
-      <div class="cyan-tile feature-tile" id="studio">
-        <div class="feature-body">
+      <!-- ── 03 Feature: the meshing studio ── -->
+      <section class="band-tile fx" id="studio">
+        <img class="cx-bg fx-wash" src="/assets/opt/geohub-studio.webp" alt="" loading="lazy" decoding="async">
+        <div class="cx-shade fx-shade"></div>
+        <header class="fx-head">
+          <span class="cx-kicker">03 &middot; The model</span>
           <h2 class="tile-title">From Terrain to Finite Elements</h2>
-          <div class="tile-desc">
-            <p>A GIS tells you what is there. A model tells you what it will do. The studio is the bridge, in the same tab.</p>
+          <p class="tile-desc">A GIS tells you what is there. A model tells you what it will do. The Meshing Studio is the bridge between the two, in the same tab as the globe.</p>
+        </header>
+        <div class="fx-body">
+          <figure class="fx-media">
+            <img src="/assets/opt/geohub-studio.webp" alt="The GeoHUB Meshing Studio with a terrain block built as surface, subsurface and atmosphere volumes, and the model tree open beside it" loading="lazy" decoding="async">
+            <figcaption>A study area's terrain built as surface, subsurface and atmosphere volumes, with the model tree beside it.</figcaption>
+            <img class="fx-media-2" src="/assets/opt/mesh.webp" alt="A terrain surface rendered as a finite-element wireframe mesh" loading="lazy" decoding="async">
+            <figcaption>The same ground as a mesh, ready to hand to a solve.</figcaption>
+          </figure>
+          <div class="fx-side">
+            <ol class="fx-steps">
+              <li><b>Terrain</b><span>the real surface under your study area</span></li>
+              <li><b>Volumes</b><span>surface, subsurface and atmosphere, named</span></li>
+              <li><b>Mesh</b><span>structured or unstructured, with gmsh</span></li>
+              <li><b>Solve</b><span>GALES, locally or on a machine you choose</span></li>
+            </ol>
+            <ul class="fx-points">
+              <li><strong>A solid from the ground.</strong> Pull the terrain under your study area into named volumes.</li>
+              <li><strong>Real geometry tools.</strong> Boolean operations, physical groups, structured or unstructured meshing, and a clip plane to see inside.</li>
+              <li><strong>Set up the physics.</strong> Assign materials and boundary conditions, then hand the mesh to a solve.</li>
+              <li><strong>Your compute.</strong> The browser configures the run; the solver runs on your machine or one you point it at.</li>
+            </ul>
           </div>
-          <ul class="feature-list">
-            <li>Pull the real terrain under your study area into a solid — surface, subsurface and atmosphere as named volumes.</li>
-            <li>Boolean geometry, physical groups, structured or unstructured meshing, and a clip plane to see inside.</li>
-            <li>Assign materials and boundary conditions, then hand the mesh to a solve.</li>
-            <li>The browser configures the run; the solver runs locally or on a machine you point it at.</li>
-          </ul>
         </div>
-        <div class="feature-shot">
-          <img src="/assets/opt/geohub-studio.webp" alt="The GeoHUB Meshing Studio with a terrain block built as surface, subsurface and atmosphere volumes, and the model tree open beside it" loading="lazy" decoding="async">
-        </div>
-      </div>
+      </section>
 
       <!-- ── The rest of the toolkit ── -->
       <div class="photo-tile" id="toolkit">
@@ -1227,11 +1326,14 @@
         @media (max-width: 1100px) { .worlds-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
         @media (max-width: 640px)  { .worlds-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
       </style>
-      <div class="cyan-tile feature-tile is-flipped" id="worlds">
-        <div class="feature-body">
+      <section class="band-tile fx fx-flip" id="worlds">
+        <img class="cx-bg fx-wash" src="/assets/opt/hero_marsflight.webp" alt="" loading="lazy" decoding="async">
+        <div class="cx-shade fx-shade"></div>
+        <header class="fx-head">
+          <span class="cx-kicker">04 &middot; Ten worlds</span>
           <h2 class="tile-title">Mercury to Pluto, on Mission Data</h2>
-          <div class="tile-desc">
-            <p>Every viewer is built from the datasets its missions returned, and every one has elevation profiles, named-feature search, geology overlays and a core cutaway.</p>
+          <p class="tile-desc">Every viewer is built from the datasets its missions returned, and every one has elevation profiles, named-feature search, geology overlays and a core cutaway &mdash;
+              <a href="/geohub/mercury/">Mercury</a>,
               <a href="/geohub/venus/">Venus</a>,
               <a href="/geohub/earth/">Earth</a>,
               <a href="/geohub/moon/">Moon</a>,
@@ -1239,24 +1341,33 @@
               <a href="/geohub/jupiter/">Jupiter</a>,
               <a href="/geohub/saturn/">Saturn</a>,
               <a href="/geohub/uranus/">Uranus</a>,
-              <a href="/geohub/neptune/">Neptune</a>,
+              <a href="/geohub/neptune/">Neptune</a> and
               <a href="/geohub/pluto/">Pluto</a>.</p>
-          </div>
-          <ul class="feature-list">
-            <li><strong>Mars is a flight simulator</strong> as well as a map: pick a launch site anywhere and fly MOLA relief with the CTX mosaic beneath you, from an 8 km low pass to 300 km orbit.</li>
-            <li><strong>Twenty-four moons</strong> carry clickable surface features — 2,087 on the Moon alone — and each planet's moon system opens in its own orbital view.</li>
-            <li><strong>Palaeo sea level</strong> on the rocky worlds: raise or lower a simulated ocean in real time and trace the coastlines scientists still argue over.</li>
-            <li>Free, no account, and reached from the GeoHUB header or the cards below.</li>
-          </ul>
-          <div class="hero-actions" style="justify-content:flex-start;margin-top:1.25rem;">
-            <a class="btn-primary" href="/?world=mars">Launch the Mars flight simulator</a>
-            <a class="btn-ghost" href="/?world=moon">Open the Moon</a>
+        </header>
+        <div class="fx-body">
+          <figure class="fx-media">
+            <img src="/assets/opt/hero_marsflight.webp" alt="The Mars flight simulator: MOLA relief with the CTX mosaic streamed beneath a flight HUD" loading="lazy" decoding="async">
+            <figcaption>The Mars flight simulator: MOLA relief with the CTX mosaic streamed beneath you.</figcaption>
+          </figure>
+          <div class="fx-side">
+            <dl class="fx-figs">
+              <div><dt>10</dt><dd>worlds, each on its own mission data</dd></div>
+              <div><dt>24</dt><dd>moons with clickable surface features</dd></div>
+              <div><dt>2,087</dt><dd>named features on the Moon alone</dd></div>
+              <div><dt>8&ndash;300 km</dt><dd>flight altitude over Mars</dd></div>
+            </dl>
+            <ul class="fx-points">
+              <li><strong>Mars is a flight simulator</strong> as well as a map: pick a launch site anywhere and fly MOLA relief with the CTX mosaic beneath you, from an 8 km low pass to 300 km orbit.</li>
+              <li><strong>Moon systems in orbit.</strong> Each planet's moons open in their own orbital view, their features clickable.</li>
+              <li><strong>Palaeo sea level</strong> on the rocky worlds: raise or lower a simulated ocean in real time and trace the coastlines scientists still argue over.</li>
+            </ul>
+            <div class="hero-actions">
+              <a class="btn-primary" href="/?world=mars">Launch the Mars flight simulator</a>
+              <a class="btn-ghost" href="/?world=moon">Open the Moon</a>
+            </div>
           </div>
         </div>
-        <div class="feature-shot">
-          <img src="/assets/opt/hero_marsflight.webp" alt="The Mars flight simulator: MOLA relief with the CTX mosaic streamed beneath a flight HUD" loading="lazy" decoding="async">
-        </div>
-      </div>
+      </section>
       <div class="photo-tile" id="worlds-grid">
         <div class="photo-tile-bg" style="background-image: url('/assets/photos/jupiter.webp'); opacity: 0.55;"></div>
         <div class="photo-tile-overlay"></div>

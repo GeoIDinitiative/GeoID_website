@@ -48,6 +48,7 @@ GeoID_GIS/gales/
 # under 1 MB each -- so they are named back in. The originals stay ignored.
 !assets/opt/geohub-hero.mp4
 !assets/opt/etna_demo.webm
+!assets/opt/geohub-timeline.mp4
 
 # Bake caches: the source data a service script downloads, never served.
 GeoID_GIS/services/.cache/
