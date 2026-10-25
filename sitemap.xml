@@ -27,6 +27,28 @@
   <url><loc>https://geoidinitiative.com/earth_explorer/etna/</loc><lastmod>2026-09-22</lastmod></url>
   <url><loc>https://geoidinitiative.com/everest/</loc><lastmod>2026-09-22</lastmod></url>
 
+  <!-- One page per GeoHUB tool (scripts/explore-pages.py): what a search for
+       "saturn 3d viewer" or "live earthquake map" should land on. -->
+  <url><loc>https://geoidinitiative.com/explore/</loc><lastmod>2026-10-25</lastmod></url>
+  <url><loc>https://geoidinitiative.com/explore/earth-flight-simulator/</loc><lastmod>2026-10-25</lastmod></url>
+  <url><loc>https://geoidinitiative.com/explore/mars-flight-simulator/</loc><lastmod>2026-10-25</lastmod></url>
+  <url><loc>https://geoidinitiative.com/explore/mercury/</loc><lastmod>2026-10-25</lastmod></url>
+  <url><loc>https://geoidinitiative.com/explore/venus/</loc><lastmod>2026-10-25</lastmod></url>
+  <url><loc>https://geoidinitiative.com/explore/moon/</loc><lastmod>2026-10-25</lastmod></url>
+  <url><loc>https://geoidinitiative.com/explore/mars/</loc><lastmod>2026-10-25</lastmod></url>
+  <url><loc>https://geoidinitiative.com/explore/jupiter/</loc><lastmod>2026-10-25</lastmod></url>
+  <url><loc>https://geoidinitiative.com/explore/saturn/</loc><lastmod>2026-10-25</lastmod></url>
+  <url><loc>https://geoidinitiative.com/explore/uranus/</loc><lastmod>2026-10-25</lastmod></url>
+  <url><loc>https://geoidinitiative.com/explore/neptune/</loc><lastmod>2026-10-25</lastmod></url>
+  <url><loc>https://geoidinitiative.com/explore/pluto/</loc><lastmod>2026-10-25</lastmod></url>
+  <url><loc>https://geoidinitiative.com/explore/earthquake-map/</loc><lastmod>2026-10-25</lastmod></url>
+  <url><loc>https://geoidinitiative.com/explore/natural-events-map/</loc><lastmod>2026-10-25</lastmod></url>
+  <url><loc>https://geoidinitiative.com/explore/world-geology-map/</loc><lastmod>2026-10-25</lastmod></url>
+  <url><loc>https://geoidinitiative.com/explore/volcano-map/</loc><lastmod>2026-10-25</lastmod></url>
+  <url><loc>https://geoidinitiative.com/explore/satellite-tracker/</loc><lastmod>2026-10-25</lastmod></url>
+  <url><loc>https://geoidinitiative.com/explore/tropical-cyclone-tracks/</loc><lastmod>2026-10-25</lastmod></url>
+  <url><loc>https://geoidinitiative.com/explore/geohazard-models/</loc><lastmod>2026-10-25</lastmod></url>
+
   <!-- What GeoID is, what it sells, and who it is for. -->
   <url><loc>https://geoidinitiative.com/about/</loc><lastmod>2026-09-22</lastmod></url>
   <url><loc>https://geoidinitiative.com/membership/</loc><lastmod>2026-09-22</lastmod></url>

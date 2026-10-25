@@ -47,6 +47,12 @@ SITE_PAGES = [
     "privacy/index.html", "terms/index.html", "disclaimer/index.html",
     "refund/index.html", "consultancy/index.html", "sign-in/index.html", "account/index.html", "404.html",
 ]
+# The /explore/ landing pages (scripts/explore-pages.py): site pages, one per
+# GeoHUB tool, listed in the file they are generated from.
+import json as _json
+SITE_PAGES += ["explore/index.html"] + [
+    f"explore/{f['slug']}/index.html"
+    for f in _json.loads((ROOT / "explore" / "features.json").read_text(encoding="utf-8"))["features"]]
 
 # The application: the GeoHUB shell, the GIS viewer, the nine planet viewers
 # and the standalone explorers. Every one of these carried NO POLICY AT ALL

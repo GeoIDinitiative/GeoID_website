@@ -52,6 +52,13 @@ CARDS = {
     "everest/index.html":       ("everest", "The summit of Mount Everest above the surrounding peaks"),
     "fund.html":                ("fund", "A landslide scar on a mountainside, seen from above"),
 }
+# The /explore/ landing pages (scripts/explore-pages.py): each card is made
+# from its page's own screenshot by scripts/explore-images.py.
+import json as _json
+_EXPLORE = _json.loads((ROOT / "explore" / "features.json").read_text(encoding="utf-8"))
+CARDS["explore/index.html"] = ("explore", _EXPLORE["hub"]["image"]["alt"])
+for _f in _EXPLORE["features"]:
+    CARDS[f"explore/{_f['slug']}/index.html"] = (f"explore-{_f['slug']}", _f["image"]["alt"])
 
 
 def block(slug, alt):

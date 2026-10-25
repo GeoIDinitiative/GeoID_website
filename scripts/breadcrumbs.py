@@ -56,6 +56,11 @@ TRAILS = {
     "disclaimer/index.html":       [("Disclaimer", "/disclaimer/")],
     "refund/index.html":           [("Billing & Refunds", "/refund/")],
 }
+# The /explore/ landing pages (scripts/explore-pages.py), from the same file.
+EXPLORE = ("Explore", "/explore/")
+TRAILS["explore/index.html"] = [EXPLORE]
+for _f in json.loads((ROOT / "explore" / "features.json").read_text(encoding="utf-8"))["features"]:
+    TRAILS[f"explore/{_f['slug']}/index.html"] = [EXPLORE, (_f["name"], f"/explore/{_f['slug']}/")]
 
 BLOCK = re.compile(
     r'^[ \t]*<script type="application/ld\+json" data-breadcrumb>.*?</script>\n',
