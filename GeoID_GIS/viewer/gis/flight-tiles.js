@@ -26,8 +26,8 @@
 // Esri World Imagery (blankTile=false: a missing tile is a 404 and the
 // ancestor stays). Flight only.
 
-import { NIGHT } from "./night-lights.js?v=20261025-0b97685";
-import { flightGpuUniforms } from "./flight-terrain-gpu.js?v=20261025-0b97685";
+import { NIGHT } from "./night-lights.js?v=20261025-4e369f7";
+import { flightGpuUniforms } from "./flight-terrain-gpu.js?v=20261025-4e369f7";
 
 // Esri serves World Imagery over HTTP/1.1, so a browser opens only ~6
 // connections per host: measured, 12 requests on one host ran at ~20 tiles/s.
