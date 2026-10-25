@@ -250,8 +250,8 @@ def feature_page(f):
           <strong>{esc(f["name"])}</strong>
         </div>
         <div class="page-jump">
-          <a href="#what">What you can do</a>
-          <a href="#faq">Questions</a>
+          <a href="#what">Features</a>
+          <a href="#faq">FAQ</a>
           <a href="/explore/">All tools</a>
         </div>
       </section>
@@ -273,7 +273,7 @@ def feature_page(f):
     out.append(f"""        </article>
         <figure class="x-shot">
           <img src="/assets/explore/{f["slug"]}.jpg" alt="{esc(f["image"]["alt"])}" width="800" height="450" fetchpriority="high" decoding="async">
-          <figcaption>{esc(f["image"]["alt"])}, in GeoHUB.</figcaption>
+          <figcaption>{esc(f["image"]["alt"])}.</figcaption>
         </figure>
       </section>
 """)
