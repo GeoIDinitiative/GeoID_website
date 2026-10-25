@@ -45,7 +45,7 @@ import * as THREE from "../vendor/three.module.js";
 import { TIER_WINDOW, TIER_SIZE, distanceKm } from "../../../flight_sim/earth/game/gazetteer.js?v=1";
 // The Mars module, loaded when flight labels start: it imports three.js by an
 // absolute web path, which only a browser resolves (Node tests import this file).
-const MARS_LABELS = "../../../planet_explorer/mars/viewer/label-layer.js?v=20261025-8ef4586";
+const MARS_LABELS = "../../../planet_explorer/mars/viewer/label-layer.js?v=20261025-03194db";
 let buildLabelLayer = null, updateLabelVisibility = null, updateLabelAnchors = null, makeLabelTexture = null;
 
 /* ── What the Mars viewer's scope provided, from Earth ─────────────────── */
@@ -444,7 +444,16 @@ function step() {
     // "heavy" frames (updateLabelVisibility just recomputed sprite.visible
     // earlier in this same render pass); light frames keep the last known.
     if ((_heavyFrame && !coreToggle.checked) || entry._fsBaseVisible === undefined) entry._fsBaseVisible = !!entry.sprite.visible;
-    if (!entry._fsBaseVisible) { hideProxies(entry); continue; }
+    if (!entry._fsBaseVisible) {
+      // EARTH: a label the declutter hid takes its dot with it. The Mars
+      // module leaves the dot on at its globe-scale size, which a few
+      // hundred metres up is a ball the size of a house (reported: "those
+      // just at the extent of view become large dots").
+      entry.marker.visible = false;
+      if (entry.line) entry.line.visible = false;
+      hideProxies(entry);
+      continue;
+    }
     const P = entry.marker.position;
     const R = P.length() || 1;
     const cosG = (P.x * Chat.x + P.y * Chat.y + P.z * Chat.z) / R;
@@ -497,11 +506,17 @@ function step() {
         // label with its distance (right for a globe seen whole), which over
         // a city drew a park 40 km off larger than Rome under the wing. In
         // flight a label is its tier's pixel height wherever it is -- a
-        // capital ~33 px, a single building ~15 px (gazetteer.js TIER_SIZE)
-        // -- and its dot a few pixels, not a ball beside the aircraft.
+        // capital ~46 px, a village or a building the 24 px floor
+        // (gazetteer.js TIER_SIZE) -- and its dot a few pixels, not a ball
+        // beside the aircraft.
         const tier = Math.min(7, Math.max(1, Number(entry.item?.lod) || 4));
         if (entry.baseScale) {
-          const k = (distCam * anglePerPx * 21 * (TIER_SIZE[tier] || 1)) / Math.max(entry.baseScale.y, 1e-9);
+          // The chip's height in pixels, padding included: 30 px at tier 4,
+          // never under 24 -- below that the name itself drops under ~11 px
+          // and stops being readable (reported: labels that "just continue
+          // to shrink" near the ground).
+          const chipPx = Math.max(24, 30 * (TIER_SIZE[tier] || 1));
+          const k = (distCam * anglePerPx * chipPx) / Math.max(entry.baseScale.y, 1e-9);
           entry.sprite.scale.set(entry.baseScale.x * k, entry.baseScale.y * k, 1);
         }
         entry.marker.scale.setScalar((distCam * anglePerPx * (tier <= 3 ? 9 : tier <= 5 ? 7 : 6)) / 0.022);
