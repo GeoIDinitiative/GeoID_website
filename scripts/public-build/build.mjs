@@ -26,6 +26,8 @@
  *     <textarea>; inline scripts minified, and the sha256 that each page's
  *     CSP (scripts/csp.py) pins for them swapped for the new one. Inline
  *     styles are left alone.
+ *   - .json .geojson .csv .svg .xml .webmanifest .txt: copied with any path
+ *     on the build machine ("/home/<user>/...") blanked; scripts too.
  *   - anything else: copied.
  *
  * URLs do not change, so the `?v=` stamps, the service worker and the
@@ -33,6 +35,7 @@
  *
  * Then it checks its own output and exits 1, failing the deploy, if:
  *   - any file it wrote is of an internal kind (a rule above was bypassed);
+ *   - any file it wrote still names a path on the build machine;
  *   - a page, script, stylesheet or JSON file in the output refers to a site
  *     file that was left out, other than a text mention of a source file
  *     (data provenance names its baker: "GeoID_GIS/services/bake-x.py").
@@ -127,6 +130,18 @@ async function minify(rel, source) {
   });
   return result.code;
 }
+
+/**
+ * A PATH ON THE MACHINE THAT BUILT THE DATA. Bakers record where they read
+ * and wrote ("/home/<user>/mars_game_assets/...", "file:///home/<user>/..."),
+ * which names the account and lays out its folders. Useless to a visitor and
+ * private, so it is blanked in every published script and data file. A page
+ * is not rewritten (an inline script's CSP hash would break); one carrying a
+ * path fails the self-check instead, to be fixed at the source.
+ */
+const LOCAL_PATH = /(?:file:\/\/)?(?:\/home\/|\/Users\/|[A-Za-z]:[\\/]{1,2}Users[\\/]{1,2})[A-Za-z0-9_.-]+(?:[\\/][^"'`\s,)<>\]}]*)?/g;
+export const scrubLocalPaths = (text) => text.replace(LOCAL_PATH, "(local path)");
+const SCRUBBED_EXT = new Set([".json", ".geojson", ".csv", ".svg", ".xml", ".webmanifest", ".txt"]);
 
 const KEEP_BLOCK = /<(script|style|pre|textarea)\b[\s\S]*?<\/\1\s*>/gi;
 const HTML_COMMENT = /<!--(?!\[if|<!\[endif)[\s\S]*?-->/g;
@@ -251,7 +266,7 @@ async function main() {
     try {
       if ((ext === ".js" || ext === ".mjs" || ext === ".css") && !isThirdParty(rel)) {
         const text = await readFile(src, "utf8");
-        const code = await minify(rel, text);
+        const code = scrubLocalPaths(await minify(rel, text));
         await writeFile(dst, code);
         stats.minified++; stats.bytesIn += Buffer.byteLength(text); stats.bytesOut += Buffer.byteLength(code);
       } else if (ext === ".html") {
@@ -260,6 +275,9 @@ async function main() {
         if (allowedInlineScripts(html) < allowedInlineScripts(text)) failures.push(`${rel}: an inline script lost its CSP hash`);
         await writeFile(dst, html);
         stats.html++;
+      } else if (SCRUBBED_EXT.has(ext)) {
+        await writeFile(dst, scrubLocalPaths(await readFile(src, "utf8")));
+        stats.copied++;
       } else {
         await copyFile(src, dst);
         stats.copied++;
@@ -273,9 +291,14 @@ async function main() {
   // Self-check over what was WRITTEN.
   const leaked = publish.filter((f) => isInternal(f));
   const broken = [];
-  await pool(publish.filter((f) => written.has(f) && /\.(html|m?js|css|json|webmanifest|xml)$/i.test(f)), 16, async (rel) => {
+  const localPaths = [];
+  await pool(publish.filter((f) => written.has(f) && /\.(html|m?js|css|json|geojson|csv|svg|webmanifest|xml|txt)$/i.test(f)), 16, async (rel) => {
     const text = await readFile(path.join(OUT, rel), "utf8");
-    for (const b of brokenRefs(rel, text, tracked, published)) broken.push(`${rel} -> ${b}`);
+    // third-party files ship as published upstream (PDF.js's Emscripten
+    // runtime carries a stock HOME of "/home/web_user", nobody's machine)
+    if (!isThirdParty(rel) && LOCAL_PATH.test(text)) localPaths.push(rel);
+    LOCAL_PATH.lastIndex = 0;
+    if (!/\.(geojson|csv|svg|txt)$/i.test(rel)) for (const b of brokenRefs(rel, text, tracked, published)) broken.push(`${rel} -> ${b}`);
   });
 
   const kb = (n) => `${(n / 1024 / 1024).toFixed(1)} MB`;
@@ -285,7 +308,8 @@ async function main() {
   for (const f of failures) console.error(`FAILED     ${f}`);
   for (const f of leaked) console.error(`LEAKED     ${f}`);
   for (const b of [...new Set(broken)].sort()) console.error(`NEEDS      ${b}`);
-  if (failures.length || leaked.length || broken.length) process.exit(1);
+  for (const f of localPaths) console.error(`LOCAL PATH ${f}`);
+  if (failures.length || leaked.length || broken.length || localPaths.length) process.exit(1);
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
