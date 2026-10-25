@@ -164,6 +164,41 @@ function rebuild(viewer, items) {
  * and never more than ACTIVE_MAX at once, most significant and nearest first.
  */
 const ACTIVE_MAX = 1800;
+
+/**
+ * THE GEOHUB'S OWN LABEL CONTROLS STEER THE FLIGHT'S LABELS (owner,
+ * 2026-10-25: "while in flight mode we cannot control/toggle the location
+ * labels -- dead connection in the workspace and in the explorer tab").
+ *
+ * The partition stays: flight shows its own all-encompassing set, on by
+ * default, whatever the globe's categories say. What the controls do in
+ * flight is what a reader means by touching them there:
+ *   - the Workspace's Location labels eye, or Explorer > Locations' master
+ *     switch: every flight label off, or back on;
+ *   - a category's own box (Cities & towns, Volcanoes...), ticked or unticked
+ *     BY HAND during the flight: that category's flight labels follow it. Only
+ *     a hand's tick counts (isTrusted): the eye switching every box off and
+ *     back on is a cascade of the app's own events, not a choice per category;
+ *   - the Workspace's label-size slider: the flight's chips grow and shrink
+ *     with it (the size pass below).
+ * None of this writes anything back: the globe's own labels and the boxes'
+ * saved state are exactly what the controls already made them.
+ */
+const control = { on: true, off: new Set() };
+export function flightLabelAllowed(item, c = control) {
+  return c.on && !c.off.has(item?.category);
+}
+function onLabelControl(e) {
+  const t = e.target;
+  if (!t || !window.__flightSim?.active) return;
+  if (t.id === "locations-master-toggle" || t.matches?.('.layer-row-labels [data-role="visible"]')) control.on = t.checked;
+  else if (e.isTrusted && t.dataset?.placeCategory) {
+    for (const id of t.dataset.placeCategory.split(" ")) {
+      if (t.checked) control.off.delete(id); else control.off.add(id);
+    }
+  } else return;
+  lastItemsAt = 0;   // re-cut the places on the next frame, not in a second
+}
 let curatedCache = null, curatedCount = -1, sortCounter = 0;
 function curatedPlaces(viewer) {
   const all = viewer.getAllPlaceItems?.() || [];
@@ -183,6 +218,7 @@ function syncPlaces(viewer) {
   const streamed = window.GeoIDFlightGazetteer?.getItems?.(curated) || [];
   const admit = [];
   const consider = (item) => {
+    if (!flightLabelAllowed(item)) return;
     const w = windowOf(item);
     if (altKm > w.maxAltKm * 1.25) return;
     // A cheap box first: 13k great-circle distances a second is not free.
@@ -515,7 +551,7 @@ function step() {
           // never under 24 -- below that the name itself drops under ~11 px
           // and stops being readable (reported: labels that "just continue
           // to shrink" near the ground).
-          const chipPx = Math.max(24, 30 * (TIER_SIZE[tier] || 1));
+          const chipPx = Math.max(24, 30 * (TIER_SIZE[tier] || 1)) * (window.GeoIDViewer?.getLabelSizeScale?.() || 1);
           const k = (distCam * anglePerPx * chipPx) / Math.max(entry.baseScale.y, 1e-9);
           entry.sprite.scale.set(entry.baseScale.x * k, entry.baseScale.y * k, 1);
         }
@@ -829,6 +865,7 @@ export async function startFlightLabels() {
   if (frame || !window.__flightSim?.active) return;
   frame = requestAnimationFrame(step);
   window.GeoIDViewer?.renderer?.domElement?.addEventListener("click", onClick, true);
+  document.addEventListener("change", onLabelControl);
 }
 
 /** Stop and clear. */
@@ -836,6 +873,7 @@ export function stopFlightLabels() {
   if (frame) cancelAnimationFrame(frame);
   frame = null;
   window.GeoIDViewer?.renderer?.domElement?.removeEventListener("click", onClick, true);
+  document.removeEventListener("change", onLabelControl);
   dispose();
   itemsKey = "";
   window.__fsTriActive = false;
