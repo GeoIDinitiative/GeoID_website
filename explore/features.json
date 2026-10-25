@@ -65,7 +65,7 @@
       "kicker": "Free flight simulator",
       "lead": "Pick a launch site anywhere on Mars and fly it: the planet's real relief from NASA's Mars Orbiter Laser Altimeter, with the Context Camera mosaic streamed tile by tile beneath you, from a low pass over the canyons to orbit.",
       "cta": { "label": "Fly over Mars →", "href": "/?world=mars" },
-      "image": { "file": "mars-flight-simulator.jpg", "alt": "Flying low over the cratered surface of Mars in the Mars flight simulator" },
+      "image": { "file": "mars-flight-simulator.jpg", "alt": "A spaceplane flying over the northern lowlands of Mars in the Mars flight simulator" },
       "highlights": [
         { "title": "Real Martian terrain", "text": "MOLA relief — the altimeter map every Mars landing site is chosen on — under every pass." },
         { "title": "Imagery that sharpens as you descend", "text": "The CTX mosaic streams beneath the aircraft, so the closer you fly the more of the ground you see." },
@@ -338,7 +338,7 @@
       "kicker": "Interactive 3D dwarf-planet viewer",
       "lead": "Pluto as NASA's New Horizons saw it in 2015: the bright nitrogen-ice heart of Sputnik Planitia, mountains of water ice, and Charon, its moon, in one view as the binary they are.",
       "cta": { "label": "Open Pluto in 3D →", "href": "/?world=pluto" },
-      "image": { "file": "pluto.jpg", "alt": "Pluto and its nitrogen-ice heart in the GeoHUB 3D viewer" },
+      "image": { "file": "pluto.jpg", "alt": "Pluto and its named features in the GeoHUB 3D viewer" },
       "highlights": [
         { "title": "New Horizons", "text": "The surface from the only spacecraft to fly past Pluto." },
         { "title": "The heart", "text": "Sputnik Planitia, a glacier of nitrogen ice the size of a country." },
@@ -552,7 +552,7 @@
       "lead": "Landslides, floods, tropical cyclones, seismic shaking, volcanic ashfall and sea level — each run over the area you draw, on the terrain and geology already on the globe, with its method, assumptions and sources stated beside the map.",
       "cta": { "label": "Open GeoHUB →", "href": "/" },
       "cta2": { "label": "Membership", "href": "/membership/" },
-      "image": { "file": "geohazard-models.jpg", "alt": "A hazard model computed over 3D terrain in GeoHUB" },
+      "image": { "file": "geohazard-models.jpg", "alt": "Mount Etna and the central Mediterranean on the GeoHUB globe, where the hazard models run" },
       "highlights": [
         { "title": "Landslides", "text": "Sixteen days of hourly GFS rainfall, a water balance over the drainage and an infinite-slope Factor of Safety per cell." },
         { "title": "Floods and sea level", "text": "Inundation by scenario and discharge; the sea at a level you choose, spread from the real coastline." },

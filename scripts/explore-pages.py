@@ -35,7 +35,9 @@ DATA = json.loads((ROOT / "explore" / "features.json").read_text(encoding="utf-8
 
 
 def esc(s):
-    return html.escape(str(s), quote=True)
+    # Double quotes only, as the site's other generators write attributes
+    # (social-cards.py leaves an apostrophe as it is).
+    return html.escape(str(s), quote=False).replace('"', "&quot;")
 
 
 def plain(s):
