@@ -244,6 +244,9 @@
       <dt class="fs-boost-only"><kbd>Shift</kbd><span class="fs-pad-eq"><kbd>R2</kbd></span></dt><dd class="fs-boost-only">Boost<span class="fs-pad-eq fs-pad-note"> (squeeze for less)</span></dd>
       <dt><kbd>Space</kbd><span class="fs-pad-eq"><kbd>R1</kbd></span></dt><dd>Brake</dd>
       <dt><kbd>C</kbd><span class="fs-pad-eq"><kbd>&#9633;</kbd></span></dt><dd>Camera — chase / cockpit</dd>
+      <dt>Drag view</dt><dd>Orbit the camera round the craft</dd>
+      <dt>Scroll view</dt><dd>Camera closer / further</dd>
+      <dt><kbd>V</kbd> / double-click<span class="fs-pad-eq"><kbd>R3</kbd></span></dt><dd>Recentre the camera behind</dd>
       <dt><kbd>R</kbd><span class="fs-pad-eq"><kbd>L3</kbd></span></dt><dd>Re-level</dd>
       <dt><kbd>P</kbd><span class="fs-pad-eq"><kbd>Options</kbd></span></dt><dd>Pause / resume</dd>
       <dt><kbd>H</kbd></dt><dd>Show / hide HUD</dd>
@@ -783,6 +786,10 @@
     warping: false,
     braking: false,
     cam: "chase",
+    // Orbit of the chase camera around the craft, set by dragging the view:
+    // yaw all the way round, pitch over and under, distance by the wheel.
+    // t* are where the pointer put it; the plain fields ease toward them.
+    orbit: { yaw: 0, pitch: 0, dist: 1, tYaw: 0, tPitch: 0, tDist: 1 },
     hudVisible: true,
     lastT: 0,
     crashed: false,
@@ -2898,6 +2905,7 @@
     // Chase offset is damped, so a stale one from a previous flight would be
     // eased out of visibly on the first frames. Snap it on the next update.
     state._camOff = null;
+    recentreOrbit(true);   // every flight starts from behind the craft
     state.cam = cameraModeSelect?.value || "chase";
     state.lastT = 0;
     state.spinRef = NaN;     // co-rotation starts from this frame's spin
@@ -2998,6 +3006,30 @@
 
   function updateCamTag() {
     if (hudCamTag) hudCamTag.textContent = "CAM: " + state.cam.toUpperCase();
+  }
+
+  // The chase camera's orbit, as one rotation: pitch about the craft's right
+  // axis (up x forward, so +pitch raises the camera), then yaw about its up.
+  const _orbitAxis = new THREE.Vector3();
+  const _orbitPitchQ = new THREE.Quaternion();
+  const _orbitYawQ = new THREE.Quaternion();
+  function orbitQuat(up, fwd, yaw, pitch) {
+    _orbitAxis.crossVectors(up, fwd).normalize();
+    _orbitPitchQ.setFromAxisAngle(_orbitAxis, pitch);
+    _orbitYawQ.setFromAxisAngle(up, yaw);
+    return _orbitYawQ.clone().multiply(_orbitPitchQ);
+  }
+  // Pitch stops short of straight over or under, where lookAt has no "up" to
+  // hold and the view would flip. The base chase view already sits ~19 degrees
+  // up, so these are about 80 degrees above the craft and 55 below it.
+  const ORBIT_PITCH_MIN = -1.3, ORBIT_PITCH_MAX = 1.06;
+  const ORBIT_DIST_MIN = 0.45, ORBIT_DIST_MAX = 6;
+  function recentreOrbit(snap) {
+    const o = state.orbit;
+    o.tYaw = 0; o.tPitch = 0; o.tDist = 1;
+    // Unwind whole turns so the ease back takes the short way round.
+    o.yaw = Math.atan2(Math.sin(o.yaw), Math.cos(o.yaw));
+    if (snap) { o.yaw = 0; o.pitch = 0; o.dist = 1; }
   }
 
   function toggleCam() {
@@ -4082,7 +4114,26 @@
       // Residual offset error. Now that translation cannot lag, this only moves
       // during attitude changes, and should sit at ~0 in straight flight.
       s._camGapKm = s._camOff.distanceTo(desiredOff) * METERS_PER_UNIT / 1000;
-      const look = s.pos.clone().addScaledVector(fwd, 4 * L).addScaledVector(shipUp, -0.4 * L);
+      // ORBIT, applied AFTER the damping, never inside it. The damped offset is
+      // still the plain chase offset, so everything measured above (no lag at
+      // speed, soft turns) holds; the drag then turns that offset about the
+      // craft. Damping a target that swings through 180 degrees would lerp the
+      // vector straight through the ship instead of round it.
+      const o = s.orbit;
+      const ease = 1 - Math.exp(-12 * camDt);
+      o.yaw += (o.tYaw - o.yaw) * ease;
+      o.pitch += (o.tPitch - o.pitch) * ease;
+      o.dist += (o.tDist - o.dist) * ease;
+      const orbiting = Math.abs(o.yaw) > 1e-4 || Math.abs(o.pitch) > 1e-4 || Math.abs(o.dist - 1) > 1e-4;
+      let look = s.pos.clone().addScaledVector(fwd, 4 * L).addScaledVector(shipUp, -0.4 * L);
+      if (orbiting) {
+        // Pitch about the craft's right-hand axis (up x forward), so a positive
+        // angle lifts the camera over the top; then yaw about its up axis.
+        const q = orbitQuat(shipUp, fwd, o.yaw, o.pitch);
+        const off = camera.position.clone().sub(s.pos).applyQuaternion(q).multiplyScalar(o.dist);
+        camera.position.copy(s.pos).add(off);
+        look = look.sub(s.pos).applyQuaternion(q).add(s.pos);
+      }
       camera.lookAt(look);
     } else {
       // Seat the view in the orbiter's crew module: forward of centre, just
@@ -4305,6 +4356,7 @@
     }
     if (pressed(e, "KeyX")) { setThrottle(0); flash("THROTTLE CUT"); e.preventDefault(); return; }
     if (pressed(e, "KeyC")) toggleCam();
+    if (pressed(e, "KeyV") && state.cam === "chase") { recentreOrbit(false); flash("VIEW RECENTRED"); }
     if (pressed(e, "KeyR")) levelOut();
     if (pressed(e, "KeyP")) setPaused(!fs.paused);
     if (pressed(e, "KeyH")) {
@@ -4314,6 +4366,73 @@
     if (e.code === "Escape") disengage();
   });
   window.addEventListener("keyup", (e) => { for (const t of keyTokens(e)) keys[t] = false; });
+
+  // ---- orbit the chase camera with the pointer ----
+  // Drag the view to swing the camera all the way round the craft and over or
+  // under it; the wheel moves it in and out; double-click (or V) puts it back
+  // behind. A press only becomes a drag past a few pixels, and the click that
+  // ends a real drag is swallowed, so clicking a place label or a feature in
+  // flight still works exactly as before.
+  (function wireOrbitCamera() {
+    const DRAG_PX = 4;
+    let drag = null;
+    let swallowClick = false;
+    const view = () => hooks?.renderer?.domElement || null;
+    const live = () => fs.active && !fs.paused && state.cam === "chase";
+    window.addEventListener("pointerdown", (e) => {
+      if (!live() || e.button !== 0 || e.target !== view()) return;
+      drag = { id: e.pointerId, x: e.clientX, y: e.clientY, moved: false };
+    }, true);
+    window.addEventListener("pointermove", (e) => {
+      if (!drag || e.pointerId !== drag.id) return;
+      const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+      if (!drag.moved) {
+        if (Math.hypot(dx, dy) < DRAG_PX) return;
+        drag.moved = true;
+        const el = view(); if (el) el.style.cursor = "grabbing";
+      }
+      drag.x = e.clientX; drag.y = e.clientY;
+      // One full turn per ~1.6 view-heights of drag, OrbitControls' feel:
+      // drag right and the camera swings left round the craft.
+      const h = Math.max(200, view()?.clientHeight || window.innerHeight);
+      const o = state.orbit;
+      o.tYaw -= (dx / h) * Math.PI * 1.25;
+      o.tPitch = Math.max(ORBIT_PITCH_MIN, Math.min(ORBIT_PITCH_MAX, o.tPitch + (dy / h) * Math.PI));
+    }, true);
+    const end = (e) => {
+      if (!drag || (e && e.pointerId !== drag.id)) return;
+      if (drag.moved) {
+        swallowClick = true;
+        setTimeout(() => { swallowClick = false; }, 0);
+        const el = view(); if (el) el.style.cursor = "";
+      }
+      drag = null;
+    };
+    window.addEventListener("pointerup", end, true);
+    window.addEventListener("pointercancel", end, true);
+    window.addEventListener("blur", () => end(null));
+    window.addEventListener("click", (e) => {
+      if (!swallowClick) return;
+      swallowClick = false;
+      e.preventDefault();
+      e.stopImmediatePropagation();
+    }, true);
+    // Capture phase on the window, so the globe's own wheel zoom never sees it
+    // in flight (the sim owns the camera, and that zoom would fight it).
+    window.addEventListener("wheel", (e) => {
+      if (!live() || e.target !== view()) return;
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      const unit = e.deltaMode === 1 ? 16 : (e.deltaMode === 2 ? 100 : 1);
+      const o = state.orbit;
+      o.tDist = Math.max(ORBIT_DIST_MIN, Math.min(ORBIT_DIST_MAX, o.tDist * Math.exp(e.deltaY * unit * 0.0015)));
+    }, { capture: true, passive: false });
+    window.addEventListener("dblclick", (e) => {
+      if (!live() || e.target !== view()) return;
+      recentreOrbit(false);
+      flash("VIEW RECENTRED");
+    }, true);
+  })();
 
   // ---- pause ----
   // Nothing here paused before; a controller's Options button needs it to, and
@@ -4377,7 +4496,7 @@
     { control: "cross", text: "Select, or open the focused panel" },
     { control: "triangle", text: "Show or hide this map" },
     { heading: "Not used here" },
-    { control: "r3", text: "Free look: this sim has no free-look camera", unused: true },
+    { control: "r3", text: "Recentre the camera behind the craft (drag the view to orbit it)" },
     { control: "share", text: "Screenshot: this sim has no screenshot", unused: true },
     { control: "touchpad", text: "Not read by the sim: it stays the pointer", unused: true },
   ];
@@ -4401,6 +4520,7 @@
     P.setHelp(PAD_HELP);          // this page's "Flying" map, for the overlay
     P.on("square", () => { if (fs.active && !fs.paused) toggleCam(); });
     P.on("l3", () => { if (fs.active && !fs.paused) levelOut(); });
+    P.on("r3", () => { if (fs.active && !fs.paused && state.cam === "chase") recentreOrbit(false); });
     P.on("options", () => { if (fs.active) setPaused(!fs.paused); });
     P.onBack(() => (fs.active ? controlCentre() : false));
     // Circle must not fold the flight section shut from under a running sim:
