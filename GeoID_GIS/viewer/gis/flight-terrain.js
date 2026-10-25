@@ -12,7 +12,7 @@
 // So flight has its own terrain, kept beside the globe rather than in it:
 //
 //   * heights are metres from the streamed DEM (dem-tiles.js / dem-stream.js,
-//     Terrarium, ~20-40 m posts near the aircraft), SEA HELD AT ZERO, times the
+//     Terrarium, ~20-40 m posts near the aircraft), THE SEA HELD FLAT (below), times the
 //     Vertical scale slider (1 = true scale);
 //   * this module keeps the DEM loaded round the aircraft and ahead of it;
 //   * `version` moves whenever new heights arrive or the scale changes, and
@@ -24,8 +24,86 @@
 // Only while flying: `active()` is false otherwise, and every consumer then
 // behaves exactly as before.
 
+import { waterMasks } from "./water-mask.js?v=20261025-a4b7425";
+
 const UNITS_PER_M = 3.2 / 6371000;
 const ENSURE_EVERY_MS = 1500;
+
+/*
+ * THE SEA IS FLAT (reported over Reykjavik as black spikes, "spike errors in
+ * mapping again"). Not a decode fault this time: the source tiles themselves
+ * carry it. North of 60 deg Mapzen's Terrarium is ArcticDEM, a surface model
+ * on the ellipsoid, and over open water it is noise -- measured in Faxafloi
+ * and Skerjafjordur, blobs of 430-520 m a few hundred metres across, at every
+ * zoom from 12 to 15 -- while the honest sea beside them reads the local
+ * geoid offset (~65 m in Iceland, ~0 elsewhere). A despike cannot tell a
+ * 400 m blob from a sea cliff; the coastline can.
+ *
+ * So round the aircraft the GeoHUB's own ocean polygons (water-mask.js: OSM
+ * water polygons, coastline-exact) are burnt onto a grid, the LOCAL SEA LEVEL
+ * is the median of the DEM over those sea cells (the blobs are a small
+ * minority), and a sea cell is never drawn higher than that level plus 3 m.
+ * Capped at the local level, not at zero, so Iceland's coasts meet their sea
+ * without a 65 m step. Flight only, like everything here.
+ */
+const SEA_HALF_KM = 25, SEA_GRID = 512, SEA_MOVE_KM = 8, SEA_SLACK_M = 3;
+let sea = null;          // { box, lat, lon, ocean, level }
+let seaPending = false;
+
+/** The median of the finite values, or null with too few to say. */
+export function seaLevelOf(values) {
+  const v = values.filter(Number.isFinite).sort((a, b) => a - b);
+  if (v.length < 20) return null;
+  const m = v.length >> 1;
+  return v.length % 2 ? v[m] : (v[m - 1] + v[m]) / 2;
+}
+
+/** A sea cell is drawn no higher than the local sea level (+ slack). */
+export function capAtSea(h, inSea, level, slack = SEA_SLACK_M) {
+  return inSea && Number.isFinite(level) ? Math.min(h, level + slack) : h;
+}
+
+function inSea(lat, lon) {
+  if (!sea) return false;
+  const { box: b } = sea;
+  if (lat < b.south || lat > b.north || lon < b.west || lon > b.east) return false;
+  const x = Math.min(SEA_GRID - 1, Math.floor((lon - b.west) / (b.east - b.west) * SEA_GRID));
+  const y = Math.min(SEA_GRID - 1, Math.floor((b.north - lat) / (b.north - b.south) * SEA_GRID));
+  return sea.ocean[y * SEA_GRID + x] === 1;
+}
+
+function measureSeaLevel() {
+  if (!sea) return;
+  const dem = window.GeoIDDem, b = sea.box, samples = [];
+  for (let y = 3; y < SEA_GRID; y += 9) {
+    for (let x = 3; x < SEA_GRID; x += 9) {
+      if (sea.ocean[y * SEA_GRID + x] !== 1) continue;
+      const lat = b.north - (y + 0.5) / SEA_GRID * (b.north - b.south);
+      const lon = b.west + (x + 0.5) / SEA_GRID * (b.east - b.west);
+      samples.push(dem?.heightAt?.(lat, lon));
+    }
+  }
+  sea.level = seaLevelOf(samples);
+}
+
+async function refreshSea(ship) {
+  if (seaPending) return;
+  const km = sea ? Math.hypot((ship.lat - sea.lat) * 111.32, (ship.lon - sea.lon) * 111.32 * Math.cos(ship.lat * Math.PI / 180)) : Infinity;
+  if (km < SEA_MOVE_KM) return;
+  seaPending = true;
+  try {
+    const b = box(ship.lat, ship.lon, SEA_HALF_KM);
+    const masks = await waterMasks(b, SEA_GRID, SEA_GRID);
+    sea = { box: b, lat: ship.lat, lon: ship.lon, ocean: masks.ocean, level: null };
+    measureSeaLevel();
+    version += 1;
+    window.dispatchEvent(new CustomEvent("geoid:flight-terrain-changed", { detail: { vex, version } }));
+  } catch (_e) {
+    // No mask is the old behaviour, not a fault: the DEM is drawn as it is.
+  } finally {
+    seaPending = false;
+  }
+}
 
 let vex = 1;
 let version = 0;
@@ -41,7 +119,8 @@ export function active() {
 export function groundMetres(lat, lon) {
   const w = lon >= -180 && lon < 180 ? lon : ((lon + 540) % 360) - 180;   // east-positive 0-360 too
   const h = window.GeoIDDem?.heightAt?.(lat, w);
-  return Number.isFinite(h) ? Math.max(0, h) : null;
+  if (!Number.isFinite(h)) return null;
+  return Math.max(0, sea ? capAtSea(h, inSea(lat, w), sea.level) : h);
 }
 
 /** Drawn height in scene units: ground metres x the Vertical scale. */
@@ -84,6 +163,7 @@ async function ensureAround() {
     dem.ensure(box(near.lat, near.lon, 7), { maxTiles: 12 }),
     dem.ensure(box(mid.lat, mid.lon, 30 + 6 * altKm), { maxTiles: 12 }),
   ];
+  refreshSea(ship);
   await Promise.allSettled(asks);
   // The sampler's revision, not its tile count: a full cache swaps tiles at a
   // constant count, and the heights under everything changed unannounced.
@@ -92,6 +172,7 @@ async function ensureAround() {
     : (typeof st.tiles === "number" ? st.tiles : (Array.isArray(st.tiles) ? st.tiles.length : -1));
   if (held !== lastHeld) {
     lastHeld = held;
+    measureSeaLevel();   // new heights: the sea's own median may have moved
     version += 1;
     window.dispatchEvent(new CustomEvent("geoid:flight-terrain-changed", { detail: { vex, version } }));
   }
@@ -134,6 +215,7 @@ export function startFlightTerrain() {
 export function stopFlightTerrain() {
   clearInterval(timer);
   timer = null;
+  sea = null;
   version += 1;
   window.dispatchEvent(new CustomEvent("geoid:flight-terrain-changed", { detail: { vex, version } }));
 }

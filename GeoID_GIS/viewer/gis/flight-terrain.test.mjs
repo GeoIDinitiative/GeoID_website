@@ -37,5 +37,17 @@ T.setVex(99);
 check("the scale is clamped to the slider's 1-10", T.getVex() === 10);
 check("longitudes wrap (east-positive 0-360 reads the same ground)", T.groundMetres(51.5, 359.9) === 35);
 
+// THE SEA IS FLAT. Faxafloi as measured: the sea reads ~65 m (ArcticDEM on the
+// ellipsoid), with a few blobs of 430-520 m among a few hundred honest posts.
+const faxafloi = [...Array(300).fill(0).map((_, i) => 62 + (i % 7)), 476, 516, 521, 498, 440, 430];
+const level = T.seaLevelOf(faxafloi);
+check("the local sea level is the honest sea, not the blobs", level >= 62 && level <= 68, String(level));
+check("a 516 m blob over the sea is drawn at the sea level", T.capAtSea(516, true, level) === level + 3);
+check("the honest sea is left as it is", T.capAtSea(64, true, level) === 64);
+check("land is never touched, however high", T.capAtSea(914, false, level) === 914);
+check("with no sea level known, nothing is capped", T.capAtSea(516, true, null) === 516);
+check("too few sea samples give no level", T.seaLevelOf([1, 2, 3]) === null);
+check("a sea elsewhere sits at zero", T.seaLevelOf(Array(50).fill(0).map((_, i) => (i % 5) - 2)) === 0);
+
 console.log(`\n${passed} passed, ${failed} failed`);
 process.exit(failed ? 1 : 0);
