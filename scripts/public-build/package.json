@@ -1,0 +1,12 @@
+{
+  "name": "geoid-public-build",
+  "private": true,
+  "description": "Builds the public site (_site/) that GitHub Pages serves: see build.mjs.",
+  "type": "module",
+  "scripts": {
+    "build": "node build.mjs"
+  },
+  "devDependencies": {
+    "esbuild": "0.28.2"
+  }
+}

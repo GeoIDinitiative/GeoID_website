@@ -55,6 +55,13 @@ section by subject: `grep -n "^## " GeoID_GIS/docs/notes/*.md`.
   then published to R2 (`publish-data.py` / `publish-tiles.py`, audited by
   `services/audit-published.py`). Never delete the local copy after publishing.
   (data-and-hosting.md)
+- **The live site is a BUILD, not the branch.** `.github/workflows/pages.yml`
+  publishes what `scripts/public-build/build.mjs` makes: notes, docs, tests,
+  services, tools, page backups and every `.md .py .txt .sql .pdf …` are left
+  out, and JS/CSS/inline scripts are minified with comments stripped. A file
+  type the browser must fetch that the build drops has to be allowed in
+  `isInternal()` there; the build fails rather than ship a page missing a file.
+  Check a change with `node scripts/public-build/build.mjs --out /tmp/site`.
 - **Never push without being asked.** Commit locally; the user says when.
 
 ## Topics

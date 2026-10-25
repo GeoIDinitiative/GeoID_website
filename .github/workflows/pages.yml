@@ -1,0 +1,63 @@
+# Publishes the site: what scripts/public-build/build.mjs builds, and nothing
+# else.
+#
+# GitHub Pages used to serve the `main` branch as it stands, which made every
+# file in this private repository public -- the engineering notes, the
+# security runbook, the Workers' and Supabase functions' source, the bakers,
+# the tests, the plans. The build leaves all of that out, minifies the scripts
+# and styles with their comments stripped, and fails (so nothing deploys) if
+# anything internal would ship or a page would lose a file it loads.
+#
+# ONE-TIME SWITCH, in the repository's settings: Settings -> Pages -> Build
+# and deployment -> Source: "GitHub Actions". Until then GitHub keeps
+# publishing the branch and the deploy job below is refused. The custom
+# domain stays where it is set in those settings; the CNAME file is not used.
+
+name: pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# One deploy at a time, and a newer push never cancels a deploy half done.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: scripts/public-build/package-lock.json
+
+      - name: Build dependencies (esbuild, pinned)
+        run: npm ci --prefix scripts/public-build --no-audit --no-fund
+
+      - name: Build the public site
+        run: node scripts/public-build/build.mjs --out _site
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

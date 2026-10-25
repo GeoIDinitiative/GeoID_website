@@ -326,3 +326,7 @@ id_ed25519.*
 
 # graphify code graph: local tooling, never published with the site.
 graphify-out/
+
+# The public build (scripts/public-build/build.mjs): its esbuild install and its output.
+scripts/public-build/node_modules/
+_site/
