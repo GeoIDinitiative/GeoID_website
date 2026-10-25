@@ -8,7 +8,7 @@
  */
 
 import { decodeLayer, rings, polygons, clipRing, ringArea } from "../game/mvt.js?v=1";
-import { extrudeTile, pitched, inflateBy, inflateRing, monumentForm, STYLE_STONE, STYLE_CHURCH } from "../game/extrude.js?v=8";
+import { extrudeTile, pitched, inflateBy, inflateRing, monumentForm, STYLE_STONE, STYLE_CHURCH } from "../game/extrude.js?v=9";
 import { clipLine, pointInRing, fitWheel, scatterTrees } from "../game/structures.js?v=2";
 import { extrudeCanopy, crownHeight, CANOPY_KINDS } from "../game/canopy.js?v=2";
 import { ShapeUtils, Vector2 } from "../../../everest/vendor/three.module.js";
