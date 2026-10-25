@@ -38,9 +38,12 @@ const URL_TEMPLATES = [
 ];
 const ROOT_Z = 7;
 export const MAX_Z = 17;
-export const SPLIT = 2.0;            // split while closer than SPLIT x the tile's size (~1.6 px per texel at the split)
-export const MAX_LEAVES = 800;
-const MAX_TILES_KEPT = 1500;
+// Split while closer than SPLIT x the tile's size. 2.4 (was 2.0; owner,
+// 2026-10-25: "extend the radius of the higher res"): the sharpest imagery
+// reaches about a fifth further before giving way to the next level.
+export const SPLIT = 2.4;
+export const MAX_LEAVES = 1000;
+const MAX_TILES_KEPT = 1800;
 const FETCH_BUDGET = 12;            // 6 per host x 2 hosts
 const AHEAD_S = 6;                 // prefetch where the aircraft will be this far ahead
 const UNITS_PER_M = 3.2 / 6371000;
@@ -112,6 +115,31 @@ export function selectLeaves(eye, altM, reachM, { maxZ = MAX_Z, split = SPLIT, m
   }
   leaves.sort((a, b) => a.d - b.d);
   return leaves.slice(0, maxLeaves);
+}
+
+/**
+ * How much coarser each neighbour is, across the tile's four edges
+ * [north, south, west, east], in quadtree levels (0 where the neighbour is
+ * as fine or finer). `isLeaf(z, x, y)` says whether that tile is drawn.
+ *
+ * WHY. Leaves of different levels meet edge to edge, and the photograph
+ * changed sharpness in a straight line there (owner: "a clean transition
+ * between mapped higher and lower resolution tiles"). Knowing the step, a
+ * tile samples its own image that many mip levels coarser AT the edge,
+ * easing to full sharpness half a tile in, so the two sides match where
+ * they touch; and its vegetation and rock relief fade out there when the
+ * neighbour has none, so the ground does not step either.
+ */
+export function edgeSteps(z, x, y, isLeaf) {
+  const n = 2 ** z;
+  const across = [[x, y - 1], [x, y + 1], [((x - 1) % n + n) % n, y], [(x + 1) % n, y]];
+  return across.map(([nx, ny]) => {
+    if (ny < 0 || ny >= n) return 0;
+    for (let up = 0; z - up >= 1; up++) {
+      if (isLeaf(z - up, nx >> up, ny >> up)) return up;
+    }
+    return 0;
+  });
 }
 
 /** UV crop of an ancestor's image for a tile: [offsetU, offsetV, scale]. */
@@ -257,6 +285,11 @@ function material(t) {
     uUp: { value: new THREE.Vector3() },
     uSunLocal: { value: new THREE.Vector3(0, 0, 1) },     // (east, north, up)
     uOwn: { value: 0 },
+    // Coarser-neighbour steps (edgeSteps) and which edges' neighbours carry
+    // no vegetation / rock relief: (north, south, west, east).
+    uEdgeLod: { value: new THREE.Vector4() },
+    uEdgeVeg: { value: new THREE.Vector4() },
+    uEdgeRock: { value: new THREE.Vector4() },
     uNight: { value: 0 },
     uLights: { value: null },
     uLightsXf: { value: new THREE.Vector3(0, 0, 1) },      // offset u, v, scale into the Black Marble tile
@@ -277,6 +310,7 @@ function material(t) {
 varying vec2 vTileUv;
 attribute float aSlope;
 varying float vSlope;
+${EDGE_PARS}
 ${sampled ? SAMPLE_VERTEX_PARS + ROCK_FN : ""}
 ${veg ? VEG_VERTEX_PARS : ""}
 ${rocks ? ROCK_VERTEX_PARS : ""}`)
@@ -289,19 +323,42 @@ ${rocks ? ROCK_VERTEX : ""}`);
       .replace("#include <common>", `#include <common>
 varying vec2 vTileUv;
 varying float vSlope;
+${EDGE_PARS}
 ${veg ? "varying float vVegShade;" : ""}
 ${bump ? ROCK_FN + BUMP_PARS : ""}
 ${NIGHT_PARS}
 ${DRAPE_PARS}`)
-      .replace("#include <map_fragment>", `#include <map_fragment>
+      .replace("#include <map_fragment>", `${EDGE_MAP_FRAGMENT}
 ${veg ? "  diffuseColor.rgb *= vVegShade;" : ""}
 ${bump ? BUMP_FRAGMENT : ""}
 ${NIGHT_FRAGMENT}
 ${DRAPE_FRAGMENT}`);
   };
-  m.customProgramCacheKey = () => `geoid-flight-tile|${veg}|${rocks}|${bump}`;
+  m.customProgramCacheKey = () => `geoid-flight-tile2|${veg}|${rocks}|${bump}`;
   return m;
 }
+
+/* Seams between levels (edgeSteps). `edgeRamp(steps)` is, per edge with a
+   non-zero entry, 1 at that edge falling to 0 half a tile in; the largest
+   wins. vTileUv: u 0 west -> 1 east, v 1 north -> 0 south (skirts share
+   their edge's uv, so they follow it). */
+const EDGE_PARS = /* glsl */`
+uniform vec4 uEdgeLod, uEdgeVeg, uEdgeRock;
+vec4 edgeNear(vec2 t) {
+  vec4 d = vec4(1.0 - t.y, t.y, t.x, 1.0 - t.x);         // distance to N, S, W, E in tiles
+  return vec4(1.0) - smoothstep(vec4(0.0), vec4(0.5), d);
+}
+float edgeRamp(vec2 t, vec4 steps) {
+  vec4 w = edgeNear(t) * steps;
+  return max(max(w.x, w.y), max(w.z, w.w));
+}`;
+/* The photograph, sampled `edgeRamp` mip levels coarser near a coarser
+   neighbour (own images only; an ancestor's crop is already coarse). */
+const EDGE_MAP_FRAGMENT = /* glsl */`
+#ifdef USE_MAP
+  vec4 sampledDiffuseColor = texture2D( map, vMapUv, uOwn * edgeRamp(vTileUv, uEdgeLod) );
+  diffuseColor *= sampledDiffuseColor;
+#endif`;
 
 const SAMPLE_VERTEX_PARS = /* glsl */`
 uniform sampler2D map;
@@ -328,7 +385,8 @@ const VEG_VERTEX = /* glsl */`
 #ifdef USE_MAP
   if (uOwn > 0.5) {
     vec2 st = (mapTransform * vec3(uv, 1.0)).xy;
-    float h0 = vegAt(st);
+    // Fades to nothing at an edge whose neighbour has no vegetation relief.
+    float h0 = vegAt(st) * (1.0 - min(1.0, edgeRamp(uv, uEdgeVeg)));
     transformed += uUp * (h0 * uVegH);
     float e = 1.0 / 32.0;
     float dx = (vegAt(st + vec2(e, 0.0)) - vegAt(st - vec2(e, 0.0))) * uVegSlope / (2.0 * e);
@@ -367,7 +425,8 @@ const ROCK_VERTEX = /* glsl */`
     vec3 c1 = sqrt(max(textureLod(map, st, uRockLod).rgb, 0.0));
     vec3 c2 = sqrt(max(textureLod(map, st, uRockLod + 2.0).rgb, 0.0));
     float l1 = dot(c1, vec3(0.299, 0.587, 0.114)), l2 = dot(c2, vec3(0.299, 0.587, 0.114));
-    transformed += uUp * (clamp((l1 - l2) * 2.5, -1.0, 1.0) * aSlope * rockFn(c1) * uRockH);
+    float keep = 1.0 - min(1.0, edgeRamp(uv, uEdgeRock));    // none where the neighbour has none
+    transformed += uUp * (clamp((l1 - l2) * 2.5, -1.0, 1.0) * aSlope * rockFn(c1) * uRockH * keep);
   }
 #endif`;
 const BUMP_PARS = /* glsl */`
@@ -680,6 +739,17 @@ function tick() {
       if (heightSignature(t) !== t.sig) { liftGeometry(viewer, t, t.N); continue; }
     }
     if (t.N < fullGrid(t.z)) liftGeometry(viewer, t, fullGrid(t.z));
+  }
+  // Coarser neighbours across each edge (edgeSteps), for the seam blend.
+  const leafSet = new Set(leaves.map((L) => key(L.z, L.x, L.y)));
+  const isLeaf = (z, x, y) => leafSet.has(key(z, x, y));
+  for (const t of wanted) {
+    if (!t.uniforms) continue;
+    const st = edgeSteps(t.z, t.x, t.y, isLeaf);
+    t.uniforms.uEdgeLod.value.set(...st);
+    const lacks = (fromZ) => st.map((k) => (t.z >= fromZ && k > 0 && t.z - k < fromZ ? 1 : 0));
+    t.uniforms.uEdgeVeg.value.set(...lacks(VEG_FROM_Z));
+    t.uniforms.uEdgeRock.value.set(...lacks(ROCK_FROM_Z));
   }
   for (const t of wanted) {
     request(t);

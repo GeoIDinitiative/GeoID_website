@@ -42,5 +42,30 @@ const [ou, ov, sc] = T.ancestorCrop(10, 4 * 100 + 1, 4 * 200 + 2, 8, 100, 200);
 check("ancestor crop offset and scale", ou === 0.25 && ov === 0.25 && sc === 0.25, `${ou},${ov},${sc}`);
 check("tile maths round trip", Math.abs(T.tileYToLat(T.latToTileY(51.5, 12), 12) - 51.5) < 1e-9 && Math.abs(T.tileXToLon(T.lonToTileX(-0.12, 12), 12) + 0.12) < 1e-9);
 
+// Seams: across every edge of every leaf, edgeSteps reports how many levels
+// coarser the leaf on the other side is -- exactly what the shader eases to
+// at that edge.
+{
+  const leaves = T.selectLeaves(london, 300, 30000, { maxLeaves: Infinity });
+  const set = new Set(leaves.map((L) => `${L.z}/${L.x}/${L.y}`));
+  const isLeaf = (z, x, y) => set.has(`${z}/${x}/${y}`);
+  let steps = 0, wrong = 0;
+  for (const L of leaves) {
+    const st = T.edgeSteps(L.z, L.x, L.y, isLeaf);
+    const n = 2 ** L.z;
+    const across = [[L.x, L.y - 1], [L.x, L.y + 1], [(L.x - 1 + n) % n, L.y], [(L.x + 1) % n, L.y]];
+    st.forEach((k, e) => {
+      const [nx, ny] = across[e];
+      if (k > 0) {
+        steps++;
+        if (!isLeaf(L.z - k, nx >> k, ny >> k)) wrong++;
+      }
+    });
+  }
+  check(`level boundaries found (${steps}) and each names the coarser leaf`, steps > 20 && wrong === 0, String(wrong));
+  check("the finest tile under the aircraft has no coarser neighbour", T.edgeSteps(leaves[0].z, leaves[0].x, leaves[0].y, isLeaf).every((k) => k === 0));
+  check("a step is at most a couple of levels (the quadtree is balanced enough)", leaves.every((L) => T.edgeSteps(L.z, L.x, L.y, isLeaf).every((k) => k <= 3)));
+}
+
 console.log(`\n${passed} passed, ${failed} failed`);
 process.exit(failed ? 1 : 0);
