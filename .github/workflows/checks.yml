@@ -97,6 +97,10 @@ jobs:
           python3 scripts/csp.py --check
           python3 scripts/breadcrumbs.py --check
           python3 scripts/noindex.py --check
+          # The /explore/ landing pages: written from explore/features.json,
+          # each with its screenshot and share card.
+          python3 scripts/explore-pages.py --check
+          python3 scripts/explore-images.py --check
 
   pages:
     name: Research Hub pages mount
