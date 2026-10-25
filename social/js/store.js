@@ -2,8 +2,8 @@
  * Who is here: the /v1/me answer, shared by every view, and the unread
  * counts the header draws.
  */
-import { play } from "./sounds.js?v=20261025-7084e6b";
-import * as api from "./api.js?v=20261025-7084e6b";
+import { play } from "./sounds.js?v=20261025-27b00a1";
+import * as api from "./api.js?v=20261025-27b00a1";
 
 const listeners = new Set();
 export const store = { me: null, loaded: false, error: null };

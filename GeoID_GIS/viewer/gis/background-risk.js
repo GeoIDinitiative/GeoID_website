@@ -13,7 +13,7 @@
  * The lookup buckets the cells by whole degree and tests only that bucket.
  */
 
-import { dataUrl } from "./data-base.js?v=20261025-7084e6b";
+import { dataUrl } from "./data-base.js?v=20261025-27b00a1";
 
 export const GRIDS = [
   { id: "cyclone", path: "/data/global/cyclone-risk.geojson", model: "Tropical cyclone risk map (IBTrACS, within 200 km)", layer: /cyclone risk/i },
