@@ -109,5 +109,14 @@ check("skyline flags are held steady: quick up, slow down, reset when hidden",
     /const ACTIVE_KEY = "geoid-gis:events-active-2";/.test(ev) && /removeItem\("geoid-gis:events-active"\)/.test(ev), true);
 }
 
+// CRISP SKYLINE TEXT (owner, 2026-10-25: "distant labels over the horizon are
+// super blurry and stretched").
+check("skyline names and ranges have their own text, drawn at the size shown, no mipmaps",
+  /tex\.generateMipmaps = false;\s*tex\.minFilter = THREE\.LinearFilter;/.test(src)
+    && /entry\._fsHLabel\.scale\.set\(uppH \* ct\.w, uppH \* ct\.h, 1\);/.test(src)
+    && /entry\._fsDist\.scale\.set\(uppH \* dt\.w, uppH \* dt\.h, 1\);/.test(src), true);
+check("...one canvas pixel per screen pixel (x devicePixelRatio)",
+  /Math\.round\(px \* dpr\)/.test(src) && /w: cv\.width \/ dpr, h: cv\.height \/ dpr/.test(src), true);
+
 console.log(`\n${failures ? `${failures} failed` : "all passed"}`);
 process.on("exit", () => { process.exitCode = failures ? 1 : 0; });
