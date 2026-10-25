@@ -21,16 +21,16 @@
 //      frame): aim the globe there, then open pre-flight, whose centre
 //      crosshair takes the site from wherever the globe is aimed.
 
-import { startFlightTerrain, stopFlightTerrain, setVex, primeLaunchSite } from "./flight-terrain.js?v=20261025-36ec828";
-import { startFlightTerrainGpu, stopFlightTerrainGpu } from "./flight-terrain-gpu.js?v=20261025-36ec828";
-import { startFlightLabels, stopFlightLabels } from "./flight-labels.js?v=20261025-36ec828";
-import { showFlightMap, hideFlightMap } from "./flight-map.js?v=20261025-36ec828";
-import { showFlightSky, hideFlightSky } from "./flight-sky.js?v=20261025-36ec828";
-import { startFlightTiles, stopFlightTiles } from "./flight-tiles.js?v=20261025-36ec828";
-import { startFlightClouds, stopFlightClouds } from "./flight-clouds.js?v=20261025-36ec828";
-import { startFlightLights, stopFlightLights } from "./flight-lights.js?v=20261025-36ec828";
-import "./flight-place.js?v=20261025-36ec828";
-import { isEarth } from "./bodies.js?v=20261025-36ec828";
+import { startFlightTerrain, stopFlightTerrain, setVex, primeLaunchSite } from "./flight-terrain.js?v=20261025-485690a";
+import { startFlightTerrainGpu, stopFlightTerrainGpu } from "./flight-terrain-gpu.js?v=20261025-485690a";
+import { startFlightLabels, stopFlightLabels } from "./flight-labels.js?v=20261025-485690a";
+import { showFlightMap, hideFlightMap } from "./flight-map.js?v=20261025-485690a";
+import { showFlightSky, hideFlightSky } from "./flight-sky.js?v=20261025-485690a";
+import { startFlightTiles, stopFlightTiles } from "./flight-tiles.js?v=20261025-485690a";
+import { startFlightClouds, stopFlightClouds } from "./flight-clouds.js?v=20261025-485690a";
+import { startFlightLights, stopFlightLights } from "./flight-lights.js?v=20261025-485690a";
+import "./flight-place.js?v=20261025-485690a";
+import { isEarth } from "./bodies.js?v=20261025-485690a";
 
 /** `?flight=earth&lat=..&lon=..` -> { lat, lon } or { lat: null } or null. */
 export function parseFlightLink(search) {
@@ -302,7 +302,9 @@ function wire() {
     for (const id of QUIET_LAYERS) {
       if (quieted.ids.has(id)) continue;
       const layer = G?.layerForDataset?.(id);
-      if (!layer) continue;
+      // Only once it has landed: a layer still loading has no geometry yet,
+      // and the geometry that arrives later comes in visible.
+      if (!layer || layer.status !== "loaded" || !layer.object3D) continue;
       quieted.ids.add(id);
       if (layer.visible === false) continue;
       if (H?.setVisible) H.setVisible(layer, false);
@@ -327,8 +329,8 @@ function wire() {
     quieted = null;
   }
   window.addEventListener("flightsim:engaged", () => {
-    setTimeout(quietGlobeOverlays, 60);
-    setTimeout(quietGlobeOverlays, 4000);            // a launch default still on its way
+    // Again over the first half-minute, for a launch default still on its way.
+    for (const ms of [60, 2000, 5000, 10000, 20000, 30000]) setTimeout(() => { if (quieted || ms === 60) quietGlobeOverlays(); }, ms);
   });
   window.addEventListener("flightsim:disengaged", restoreGlobeOverlays);
 
