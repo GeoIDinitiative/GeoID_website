@@ -59,5 +59,17 @@ check("the chips follow the Workspace's label-size slider",
 check("listened to only while flying",
   /addEventListener\("change", onLabelControl\)/.test(src) && /removeEventListener\("change", onLabelControl\)/.test(src), true);
 
+// The Workspace's Location labels eye sweeps the label boxes in Locations and
+// nothing else: a tool card's own switch there (the GeoID Network's Community
+// layer, the IAU outlines) is a layer, and the eye loaded it onto the globe.
+{
+  const lh = readFileSync(new URL("./layer-hierarchy.js", import.meta.url), "utf8");
+  check("the Location labels eye leaves tool cards' switches (Community) alone",
+    /const LOCATION_BOXES = [^;]*:not\(\.gis-tool-section input\)/.test(lh), true);
+  const sb = readFileSync(new URL("./social-bridge.js", import.meta.url), "utf8");
+  check("and the Community switch is inside such a card",
+    /wrap\.className = "gis-tool-section";[\s\S]{0,1200}id="social-community-toggle"/.test(sb), true);
+}
+
 console.log(`\n${failures ? `${failures} failed` : "all passed"}`);
 process.on("exit", () => { process.exitCode = failures ? 1 : 0; });

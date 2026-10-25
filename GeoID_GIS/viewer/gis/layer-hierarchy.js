@@ -1145,7 +1145,17 @@ function activeBasemap() {
  * puts back exactly those rows (all of them if nothing was recorded).
  */
 // The Moons row is not a label: it shows the Moon itself, and it opens on.
-const LOCATION_BOXES = "#locations-section input[type=checkbox]:not(#locations-master-toggle):not(#moon-toggle)";
+/**
+ * The label boxes in Locations, and ONLY those. The section also holds cards
+ * that are layers of their own with a tick on their header -- the GeoID
+ * Network's Community posts (social-bridge.js) and the IAU outlines -- and
+ * sweeping those up meant switching Location labels off and on loaded the
+ * Community layer onto the globe (owner, 2026-10-25: "why on earth has
+ * Community -- GeoID Network been added to the geoHUB globe"). A box inside
+ * a tool card (.gis-tool-section) is that card's own switch, never a label.
+ */
+const LOCATION_BOXES = "#locations-section input[type=checkbox]:not(#locations-master-toggle):not(#moon-toggle)"
+  + ":not(.gis-tool-section input)";
 let locationsOnBeforeOff = null;
 function locationBoxes() {
   return [...document.querySelectorAll(LOCATION_BOXES)]
