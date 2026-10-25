@@ -11,7 +11,7 @@
  * one of those.
  */
 
-import { makeRaster, cellSizeMetres } from "./raster-analysis.js?v=20261025-34a5ee7";
+import { makeRaster, cellSizeMetres } from "./raster-analysis.js?v=20261025-2a63c19";
 
 const NEIGHBOURS = [[-1, -1], [0, -1], [1, -1], [-1, 0], [1, 0], [-1, 1], [0, 1], [1, 1]];
 

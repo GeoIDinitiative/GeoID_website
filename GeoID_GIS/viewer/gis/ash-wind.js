@@ -10,7 +10,7 @@
  * than run on winds that do not exist.
  */
 
-import { LEVELS, readColumn } from "./atmosphere-model.js?v=20261025-34a5ee7";
+import { LEVELS, readColumn } from "./atmosphere-model.js?v=20261025-2a63c19";
 
 export const FORECAST_BASE = "https://api.open-meteo.com/v1/forecast";
 export const HISTORICAL_BASE = "https://historical-forecast-api.open-meteo.com/v1/forecast";
