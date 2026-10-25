@@ -7,7 +7,7 @@
 
 import { ShapeUtils, Vector2 } from "../../../everest/vendor/three.module.js?v=84ebb99-a7f30c15";
 import { decodeLayer } from "./mvt.js?v=1";
-import { extrudeTile } from "./extrude.js?v=6";
+import { extrudeTile } from "./extrude.js?v=8";
 
 // three's earcut wrapper wants Vector2s (it calls .equals on them).
 const v2 = (pts) => pts.map((p) => new Vector2(p.x, p.y));
@@ -21,8 +21,12 @@ self.onmessage = (e) => {
     const transport = decodeLayer(buf, "transportation");
     const water = decodeLayer(buf, "water");
     const landcover = decodeLayer(buf, "landcover");
+    // Landmarks (extrude.js `landmarks`): stadium and pitch polygons, and the
+    // named castles, churches and monuments.
+    const landuse = decodeLayer(buf, "landuse");
+    const poi = decodeLayer(buf, "poi");
     if (!layer.features.length && !transport && !landcover) { self.postMessage({ id, empty: true }); return; }
-    const m = extrudeTile(layer, dem, demSize, sizeLocal, triangulate, { transport, water, landcover, origin });
+    const m = extrudeTile(layer, dem, demSize, sizeLocal, triangulate, { transport, water, landcover, landuse, poi, origin });
     if (!m.index.length && !m.trees.length && !m.canopy.index.length) { self.postMessage({ id, empty: true }); return; }
     self.postMessage({ id, mesh: m, buildings: m.polygons },
       [m.position.buffer, m.normal.buffer, m.uv.buffer, m.color.buffer, m.style.buffer, m.index.buffer, m.trees.buffer,

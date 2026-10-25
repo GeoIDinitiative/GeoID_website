@@ -18,7 +18,11 @@
  *                      spandrel at each floor, plus a sky sheen that grows
  *                      toward grazing angles (a Fresnel term).
  *   both               contact occlusion: darkest at the ground, gone by 5 m.
- *   plain (style 0.5)  none of the above: bridge decks and piers, wheels.
+ *   stone (0.375)      castles: dressed courses, mortar, the odd arrow slit.
+ *   plain (style 0.5)  none of the above: bridge decks and piers, wheels,
+ *                      stadium stands, monuments.
+ *   church (0.625)     stone courses, a tall pointed-arch window per ~5 m
+ *                      bay (v runs 0..1 up the whole wall), buttress shade.
  *
  * Every pattern fades to its own average once a bay is smaller than about a
  * pixel and a half, so distant blocks do not shimmer. Cost per wall fragment:
@@ -83,6 +87,55 @@ const WALL_COLOUR = /* glsl */`
     diffuseColor.rgb *= mix(0.6, 1.0, smoothstep(-0.3, 1.2, vFacade.y));
     vGlass = glassDark;
   }
+  // Dressed stone (style 0.375): castles. Courses ~0.64 m (five to a 3.2 m
+  // storey) of staggered ~1.2 m blocks, each its own shade, mortar between;
+  // a narrow arrow slit in about one bay in three above the ground storey.
+  // The slits stop below 0.4 of a storey, so the merlons on top (v from the
+  // eave to +0.3) stay solid.
+  else if (vStyle > 0.3 && vStyle < 0.45) {
+    vec2 w = fwidth(vFacade);
+    float course = vFacade.y * 5.0;
+    float row = floor(course);
+    float bx = vFacade.x * 2.5 + 0.5 * mod(row, 2.0);
+    vec2 f = vec2(fract(bx), fract(course));
+    float mortar = max(1.0 - step(0.035, f.x), 1.0 - step(0.06, f.y));
+    float r = fHash(vec2(floor(bx), row));
+    vec2 cell = fract(vFacade);
+    float st = floor(vFacade.y);
+    float slit = step(0.47, cell.x) * step(cell.x, 0.53) * step(0.40, cell.y) * step(cell.y, 0.80)
+      * step(fHash(floor(vFacade) + 7.0), 0.33) * step(0.5, st);
+    float fade = clamp(1.0 - max(w.x * 2.5, w.y * 5.0) * 1.6, 0.0, 1.0);
+    vec3 near = mix(diffuseColor.rgb * (0.86 + 0.24 * r), diffuseColor.rgb * 0.62, mortar);
+    near = mix(near, vec3(0.05, 0.05, 0.06), slit);
+    diffuseColor.rgb = mix(diffuseColor.rgb * 0.97, near, fade);
+    diffuseColor.rgb *= mix(0.6, 1.0, smoothstep(-0.3, 1.2, vFacade.y));
+    vWinLit = slit * fade * step(fHash(floor(vFacade) + 3.0), 0.4) * 0.6;
+  }
+  // Church (style 0.625): stone courses, and one tall pointed-arch window per
+  // ~5 m bay. Here v runs 0..1 foot to eave (extrude.js), so the lancet spans
+  // the wall whatever its height: sill at 0.18, the arch springing at 0.62
+  // and pointed at 0.74. A buttress shade at each bay's edge.
+  else if (vStyle > 0.55 && vStyle < 0.7) {
+    vec2 w = fwidth(vFacade);
+    float course = vFacade.y * 24.0;
+    float row = floor(course);
+    float bx = vFacade.x * 4.0 + 0.5 * mod(row, 2.0);
+    float mortar = max(1.0 - step(0.035, fract(bx)), 1.0 - step(0.07, fract(course)));
+    float r = fHash(vec2(floor(bx), row));
+    vec2 cell = vec2(fract(vFacade.x), vFacade.y);
+    float hw = 0.13;                                        // half the window, in bays
+    float arch = cell.y < 0.62 ? hw : hw * clamp((0.74 - cell.y) / 0.12, 0.0, 1.0);
+    float win = step(abs(cell.x - 0.5), arch) * step(0.18, cell.y) * step(cell.y, 0.74);
+    float mull = win * (1.0 - step(0.012, abs(cell.x - 0.5)));   // a centre mullion
+    float buttress = 1.0 - step(0.07, min(cell.x, 1.0 - cell.x));
+    float fade = clamp(1.0 - max(w.x * 4.0, w.y * 24.0) * 1.2, 0.0, 1.0);
+    vec3 stone = mix(diffuseColor.rgb * (0.88 + 0.2 * r), diffuseColor.rgb * 0.66, mortar * fade);
+    stone *= mix(1.0, 0.82, buttress);
+    vec3 glass = mix(vec3(0.10, 0.12, 0.20), vec3(0.28, 0.20, 0.30), fHash(vec2(floor(vFacade.x), 1.0)));
+    diffuseColor.rgb = mix(stone, mix(glass, stone * 0.7, mull), win * mix(0.6, 1.0, fade));
+    diffuseColor.rgb *= mix(0.65, 1.0, smoothstep(-0.05, 0.12, vFacade.y));
+    vWinLit = win * (1.0 - mull) * 0.55;
+  }
 `;
 
 const WALL_SHEEN = /* glsl */`
@@ -111,7 +164,7 @@ export function facade(material) {
     shader.uniforms.uNight = material.userData.night || { value: 0 };
   };
   const key = material.customProgramCacheKey?.bind(material);
-  material.customProgramCacheKey = () => (key ? key() : "") + "|facade3";
+  material.customProgramCacheKey = () => (key ? key() : "") + "|facade4";
   return material;
 }
 

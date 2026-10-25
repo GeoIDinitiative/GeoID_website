@@ -20,7 +20,7 @@
  * one footprint. A sunk wall is invisible; a floating one is not.
  */
 
-import { rings, polygons, clipRing } from "./mvt.js?v=1";
+import { rings, polygons, clipRing, ringArea } from "./mvt.js?v=1";
 import { bridgeOutlines, drawBridges, latticeClusters, drawWheel, inPolys } from "./structures.js?v=3";
 
 const SINK = 4;
@@ -48,6 +48,151 @@ const PALETTES = {
   tall: [[0.55, 0.63, 0.70], [0.62, 0.68, 0.72], [0.48, 0.55, 0.60], [0.78, 0.79, 0.80],
          [0.70, 0.74, 0.76], [0.45, 0.52, 0.56], [0.84, 0.84, 0.82], [0.58, 0.66, 0.66]],
 };
+/* Landmarks (see `landmarks` below) wear their own materials: castles,
+   palaces and churches dressed stone, stadiums pale concrete and cladding. */
+const STONE = [[0.72, 0.69, 0.62], [0.66, 0.63, 0.57], [0.78, 0.73, 0.62], [0.60, 0.58, 0.55],
+               [0.80, 0.76, 0.66], [0.70, 0.64, 0.54], [0.63, 0.62, 0.60], [0.75, 0.70, 0.60]];
+const STADIUM = [[0.86, 0.87, 0.88], [0.80, 0.82, 0.84], [0.90, 0.90, 0.88], [0.74, 0.76, 0.80]];
+/* Facade style bytes (facade.js): masonry 0, stone 0.375, plain 0.5,
+   church 0.625, curtain 1. */
+export const STYLE_STONE = 0.375;
+const STYLE_PLAIN = 0.5;
+export const STYLE_CHURCH = 0.625;
+/* A church's bays are its window rhythm, wider than a house's. */
+const CHURCH_BAY_M = 5.0;
+
+/* ── Coincident walls ────────────────────────────────────────────────────
+   OSM maps landmarks as overlapping parts -- Elizabeth Tower is eight
+   footprints stacked 0-51, 48-61, 60-82 m...; Westminster Abbey a 51 m nave
+   over an 8 m outline; Edinburgh's Royal Palace a 13 m block on a 5 m slab.
+   Where two of them share an outer edge, two outward walls of different
+   colours lie in ONE plane and the depth test settles it differently every
+   frame the camera moves: the continuous flicker. So every footprint is
+   grown outward by a few centimetres to a metre, more the taller it is (and
+   a hash apart for equal heights): of two coincident walls the taller part's
+   now stands proud and always wins, by more than the depth buffer resolves
+   at the distances a wall is big enough to see. Roofs grow with their walls.
+   Vertices on the tile's edge stay put, or the two halves of a building cut
+   by the edge would overlap there. */
+export function inflateBy(height, hh) {
+  // Steep while buildings are low (5 cm per metre to 16 m), where most
+  // overlapping parts differ by a storey or two; gentle above (4 mm per
+  // metre), so a tower is not visibly fattened. The hash only splits equal
+  // heights (OSM's 5 m default makes many): five steps to 11 cm, under the 15 cm
+  // that one 3 m storey of difference already gives.
+  const h = Math.max(0, height);
+  return 0.10 + 0.05 * Math.min(h, 16) + 0.004 * Math.max(0, Math.min(h, 150) - 16) + (hh % 5) * 0.028;
+}
+export function inflateRing(ring, d, ext, isOuter) {
+  const n = ring.length;
+  if (n < 3 || !(d > 0)) return ring;
+  // Orient as wall() does, so each edge's (dz, -dx) normal points out of the solid.
+  const sgn = ringSign(ring);
+  const pts = (isOuter ? sgn > 0 : sgn < 0) ? ring : ring.slice().reverse();
+  const nrm = pts.map((a, i) => {
+    const b = pts[(i + 1) % n];
+    const dx = b[0] - a[0], dz = b[1] - a[1], len = Math.hypot(dx, dz) || 1;
+    return [dz / len, -dx / len];
+  });
+  const onEdge = (q) => q[0] <= 1e-6 || q[1] <= 1e-6 || q[0] >= ext - 1e-6 || q[1] >= ext - 1e-6;
+  return pts.map((q, i) => {
+    if (onEdge(q)) return q;
+    const n1 = nrm[(i + n - 1) % n], n2 = nrm[i];
+    const mx = n1[0] + n2[0], mz = n1[1] + n2[1];
+    const k = 1 + n1[0] * n2[0] + n1[1] * n2[1];
+    if (k < 1e-3) return q;                         // a spike doubling back: leave it
+    // Miter, capped at 2.5x so a sharp corner cannot shoot out.
+    const scale = Math.min(d / k, 2.5 * d / (Math.hypot(mx, mz) / 2 || 1));
+    return [q[0] + mx * scale, q[1] + mz * scale];
+  });
+}
+
+/* ── Landmarks, from the same tile ───────────────────────────────────────
+   The building layer says nothing about what a building is, but the tile's
+   other layers do: `landuse` carries stadium and pitch polygons, and `poi`
+   names castles (OpenMapTiles puts palaces in that class too), churches and
+   stadiums. A building is
+     stadium  if its centre lies in a landuse=stadium polygon: the stands;
+     castle   if it holds a castle POI, or stands within CASTLE_REACH_M of one
+              and is no taller than 25 m, so the walls and towers round the
+              named keep come too (the reach was 160 m and 40 m: at the Tower
+              of London that took in Tower Hill's offices, battlements and all);
+     palace   if it holds a castle-class POI named as a palace, house or hall;
+     worship  if it holds a place of worship.
+   Stadium > castle > palace > worship. */
+const CASTLE_REACH_M = 110;
+export function landmarks(extra, ext, s) {
+  const out = { stadiums: [], castles: [], palaces: [], worship: [], monuments: [] };
+  const centroid = (r) => [r.reduce((a, q) => a + q[0], 0) / r.length, r.reduce((a, q) => a + q[1], 0) / r.length];
+  if (extra.landuse) {
+    const pitches = [];
+    for (const f of extra.landuse.features) {
+      if (f.type !== 3) continue;
+      const cls = f.props.class;
+      if (cls !== "stadium" && cls !== "pitch") continue;
+      for (const pl of polygons(rings(f.geometry))) {
+        if (pl.outer.length < 3) continue;
+        if (cls === "stadium") out.stadiums.push({ ring: pl.outer, centre: centroid(pl.outer), pitchArea: 0 });
+        else pitches.push({ c: centroid(pl.outer), area: Math.abs(ringArea(pl.outer)) });
+      }
+    }
+    // Each stadium faces its largest pitch; without one, its own middle.
+    for (const st of out.stadiums)
+      for (const pt of pitches)
+        if (pt.area > st.pitchArea && pointIn(pt.c, st.ring)) { st.centre = pt.c; st.pitchArea = pt.area; }
+  }
+  if (extra.poi) {
+    for (const f of extra.poi.features) {
+      const p = rings(f.geometry)[0]?.[0];
+      if (!p) continue;
+      const cls = f.props.class, name = String(f.props.name || f.props["name:en"] || "");
+      if (cls === "castle") {
+        if (/palace|house|hall|court/i.test(name) && !/castle|tower|fort|keep/i.test(name)) out.palaces.push(p);
+        else out.castles.push(p);
+      } else if (cls === "place_of_worship") out.worship.push(p);
+      else {
+        const form = monumentForm(cls, name);
+        if (form) out.monuments.push({ p, form, name });
+      }
+    }
+  }
+  out.castleReach = CASTLE_REACH_M / s;
+  return out;
+}
+/* What a monument POI is drawn as, from its class and name -- the tiles
+   carry no height or form for them. Columns and needles are named as such;
+   everything else that is a monument, statue or memorial gets a figure on a
+   plinth. Plaques, shafts, burial grounds and street furniture tagged as
+   monuments are left alone. */
+export function monumentForm(cls, name) {
+  if (/plaque|shaft|burial|ground|field|street|house|clearing|board|garden|park|trust/i.test(name)) return null;
+  if (/column/i.test(name) && (cls === "monument" || cls === "art_gallery" || cls === "attraction")) return "column";
+  if (/needle|obelisk/i.test(name) && (cls === "monument" || cls === "attraction" || cls === "art_gallery")) return "obelisk";
+  if (cls === "monument") return "statue";
+  if (cls === "art_gallery" && /statue|memorial|cenotaph/i.test(name)) return "statue";
+  return null;
+}
+function pointIn(p, ring) {
+  let c = false;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const [xi, yi] = ring[i], [xj, yj] = ring[j];
+    if ((yi > p[1]) !== (yj > p[1]) && p[0] < (xj - xi) * (p[1] - yi) / (yj - yi) + xi) c = !c;
+  }
+  return c;
+}
+export function classify(marks, polys, centre, height) {
+  if (!marks) return null;
+  const holds = (pts) => pts.some((q) => polys.some((pl) => pointIn(q, pl.outer) && !pl.holes.some((h) => pointIn(q, h))));
+  const st = height >= 6 && marks.stadiums.find((x) => pointIn(centre, x.ring));
+  if (st) return { kind: "stadium", centre: st.centre };
+  if (holds(marks.castles)) return { kind: "castle" };
+  if (height <= 25 && marks.castles.some((q) => Math.hypot(q[0] - centre[0], q[1] - centre[1]) < marks.castleReach)) return { kind: "castle" };
+  if (holds(marks.palaces)) return { kind: "palace" };
+  if (holds(marks.worship)) return { kind: "worship" };
+  if (holds(marks.monuments.map((m) => m.p))) return { kind: "monument" };
+  return null;
+}
+
 /* Above this a building is drawn as a curtain wall (style 1: glass bays,
    mullions, a sky sheen); below it as masonry with punched windows (0). */
 const TOWER_M = 40;
@@ -197,6 +342,25 @@ export function extrudeTile(layer, dem, demSize, sizeLocal, triangulate, extra =
   });
   const lattice = latticeClusters(parts);
   const centreOf = new Map(parts.map((q) => [q.i, q]));
+  const marks = landmarks(extra, ext, s);
+  /** A closed frustum about a point: `n` sides from radius r0 (metres) at y0
+   *  to r1 at y1, rotated by `rot`, with a top cap; walls in the wall group. */
+  const solid = (p, r0, r1, y0, y1, n, colour, rot = 0) => {
+    const ring = (r, y) => Array.from({ length: n }, (_, k) => {
+      const a = rot + (k / n) * Math.PI * 2;
+      return [p[0] + Math.cos(a) * r / s, y, p[1] + Math.sin(a) * r / s];
+    });
+    const lo = ring(r0, y0), hi = ring(r1, y1);
+    const vs = (y1 - y0) / 3.2;
+    for (let k = 0; k < n; k++) {
+      const j = (k + 1) % n;
+      face([lo[k], lo[j], hi[j]], wallIdx, colour, [[0, 0], [0.4, 0], [0.4, vs]], p);
+      face([lo[k], hi[j], hi[k]], wallIdx, colour, [[0, 0], [0.4, vs], [0, vs]], p);
+    }
+    for (let k = 1; k < n - 1; k++) face([hi[0], hi[k], hi[k + 1]], wallIdx, colour, [[0, vs], [0, vs], [0, vs]]);
+  };
+  const inflate = extra.inflate !== false;
+  let landmarkCount = 0;
 
   for (const [fi, f] of layer.features.entries()) {
     if (f.type !== 3) continue;
@@ -210,10 +374,21 @@ export function extrudeTile(layer, dem, demSize, sizeLocal, triangulate, extra =
     const minH = +p.render_min_height || 0;
     if (height <= minH) continue;
 
-    for (const poly of polygons(rings(f.geometry))) {
-      const outer = dedupe(clipRing(poly.outer, ext));
+    const featPolys = polygons(rings(f.geometry));
+    const fc = cq ? [cq.cu, cq.cv] : null;
+    const mark = fc ? classify(marks, featPolys, fc, height) : null;
+    if (mark) landmarkCount++;
+    const fkey = f.id != null ? f.id : 0;
+    const grow = inflate ? inflateBy(height, hash32(fkey)) / s : 0;
+
+    for (const poly of featPolys) {
+      let outer = dedupe(clipRing(poly.outer, ext));
       if (outer.length < 3) continue;
-      const holes = poly.holes.map((h) => dedupe(clipRing(h, ext))).filter((h) => h.length >= 3);
+      let holes = poly.holes.map((h) => dedupe(clipRing(h, ext))).filter((h) => h.length >= 3);
+      if (grow) {
+        outer = inflateRing(outer, grow, ext, true);
+        holes = holes.map((h) => inflateRing(h, grow, ext, false));
+      }
 
       nPoly++;
       let base = Infinity;
@@ -227,15 +402,41 @@ export function extrudeTile(layer, dem, demSize, sizeLocal, triangulate, extra =
       const key = f.id != null ? f.id : (outer[0][0] * 7349 + outer[0][1] * 3121 + (height | 0));
       const hh = hash32(key);
       const cls = height >= TOWER_M ? "tall" : height >= 12 ? "mid" : "low";
-      const c = parseColour(p.colour) || PALETTES[cls][hh % 8];
-      style = height >= TOWER_M ? 1 : 0;
+      const kind = mark?.kind;
+      const palette = kind === "stadium" ? STADIUM : (kind ? STONE : PALETTES[cls]);
+      const c = parseColour(p.colour) || palette[hh % palette.length];
+      style = kind === "castle" ? STYLE_STONE : kind === "worship" ? STYLE_CHURCH
+        : (kind === "stadium" || kind === "monument") ? STYLE_PLAIN : height >= TOWER_M ? 1 : 0;
 
       // A pitched roof where the outline is a small rectangle -- see pitched().
-      const rect = minH === 0 && !holes.length ? pitched(outer, s, height, hh) : null;
+      // Never on a stadium stand or a castle: those have their own tops.
+      // A church's nave gets a steep gable whatever its size; its towers stay
+      // flat for the parapet and pinnacles below.
+      const towerLike = kind === "worship" && height >= 15 && towerish(outer, s, height);
+      const rect = minH === 0 && !holes.length && kind !== "stadium" && kind !== "castle" && kind !== "monument" && !towerLike
+        ? pitched(outer, s, height, hh, kind === "worship" ? CHURCH_ROOF : undefined) : null;
       const eave = rect ? top - rect.rise : top;
       const storeys = Math.max(1, Math.round((eave - base) / STOREY_M));
       const storeyH = (eave - base) / storeys;
       let bay = 0;
+
+      // A stand's top at a point: full height away from the pitch, a low
+      // pitch-side wall nearest it. `onHole`: the point is on a courtyard.
+      let standTop = () => eave;
+      if (kind === "stadium") {
+        const lo = base + Math.max(3, Math.min(height * 0.18, 10));
+        const cIn = holes.some((h) => pointIn(mark.centre, h));
+        if (cIn) standTop = (_q, onHole) => (onHole ? lo : top);
+        else {
+          const ds = outer.concat(...holes).map((q) => Math.hypot(q[0] - mark.centre[0], q[1] - mark.centre[1]));
+          const dmin = Math.min(...ds), dmax = Math.max(...ds);
+          standTop = (q) => {
+            const d = Math.hypot(q[0] - mark.centre[0], q[1] - mark.centre[1]);
+            const t = dmax - dmin > 1e-9 ? Math.min(1, Math.max(0, (d - dmin) / (dmax - dmin))) : 1;
+            return lo + (top - lo) * t;
+          };
+        }
+      }
 
       if (rect) {
         // Roof planes in the roof group (imagery), gable ends in the walls.
@@ -264,6 +465,23 @@ export function extrudeTile(layer, dem, demSize, sizeLocal, triangulate, extra =
           face([at(p1, eave), at(p2, eave), at(r1, top)], roofIdx, [1, 1, 1]);
           face([at(p3, eave), at(p0, eave), at(r0, top)], roofIdx, [1, 1, 1]);
         }
+      } else if (kind === "stadium") {
+        // RAKED STANDS. The seating falls toward the pitch: the roof surface
+        // runs from the full height on the side away from it down to a low
+        // pitch-side wall. A bowl mapped as one outline with the pitch as its
+        // hole (Wembley) is high round the outside and low round the hole;
+        // separate stands (Old Trafford) slope by distance from the pitch.
+        const contour = outer.map(([x, y]) => ({ x, y }));
+        const holesV = holes.map((h) => h.map(([x, y]) => ({ x, y })));
+        const tris = triangulate(contour, holesV);
+        const all = contour.concat(...holesV);
+        const ring = new Array(all.length).fill(0);
+        let o = contour.length;
+        holes.forEach((h, hi) => { for (let k = 0; k < h.length; k++) ring[o + k] = hi + 1; o += h.length; });
+        const ys = all.map((q, i) => standTop([q.x, q.y], ring[i] > 0));
+        for (const t of tris) {
+          face(t.map((ix) => [all[ix].x, ys[ix], all[ix].y]), roofIdx, [1, 1, 1]);
+        }
       } else {
         // Flat roof: earcut over the outline and its courtyards.
         const contour = outer.map(([x, y]) => ({ x, y }));
@@ -291,26 +509,101 @@ export function extrudeTile(layer, dem, demSize, sizeLocal, triangulate, extra =
         const pts = (isOuter ? sgn > 0 : sgn < 0) ? ring : ring.slice().reverse();
         // Facade UV in bays (u) and storeys (v): see BAY_M. `bay` runs on
         // round the building so neighbouring walls light different windows.
-        const yb = (bottom - base) / storeyH, yt = storeys;
+        // A church's facade v runs 0..1 foot to eave (one tall window per
+        // bay, not a window per storey); everything else counts storeys.
+        const church = kind === "worship";
+        const vScale = church ? (eave - base) : storeyH;
+        const yb = (bottom - base) / vScale;
         for (let i = 0; i < pts.length; i++) {
           const a = pts[i], b = pts[(i + 1) % pts.length];
+          const ta = kind === "stadium" ? standTop(a, !isOuter) : eave;
+          const tb = kind === "stadium" ? standTop(b, !isOuter) : eave;
+          const yta = kind === "stadium" ? (ta - base) / storeyH : church ? 1 : storeys;
+          const ytb = kind === "stadium" ? (tb - base) / storeyH : church ? 1 : storeys;
           const dx = b[0] - a[0], dz = b[1] - a[1];
           const len = Math.hypot(dx, dz);
           if (len < 1e-6) continue;
           const nx = dz / len, nz = -dx / len;
-          const bays = Math.round(len * s / BAY_M);
+          const bays = Math.max(church ? 1 : 0, Math.round(len * s / (church ? CHURCH_BAY_M : BAY_M)));
           const r0 = bay, r1 = bay + bays;
           bay = r1 + 1;
           const i0 = vert(a[0], bottom, a[1], nx, 0, nz, c[0], c[1], c[2], r0, yb);
-          const i1 = vert(a[0], eave, a[1], nx, 0, nz, c[0], c[1], c[2], r0, yt);
-          const i2 = vert(b[0], eave, b[1], nx, 0, nz, c[0], c[1], c[2], r1, yt);
+          const i1 = vert(a[0], ta, a[1], nx, 0, nz, c[0], c[1], c[2], r0, yta);
+          const i2 = vert(b[0], tb, b[1], nx, 0, nz, c[0], c[1], c[2], r1, ytb);
           const i3 = vert(b[0], bottom, b[1], nx, 0, nz, c[0], c[1], c[2], r1, yb);
           wallIdx.push(i0, i1, i2, i0, i2, i3);
+          if (isOuter && ((kind === "castle" && crenellate) || towerLike)) battlements(a, b, nx, nz, top, c, church ? 1 : storeys, len * s);
+        }
+      };
+      // Not on a castle "building" that is really a whole precinct (Edinburgh's
+      // is one 5 m feature of 1,244 rings): only on walls and towers.
+      const crenellate = featPolys.length <= 40;
+      // BATTLEMENTS along every outer wall top of a castle: merlons about
+      // 1.4 m wide and 1.1 m tall with 1 m gaps, flush with the wall face and
+      // 0.6 m thick, in the wall's stone.
+      const battlements = (a, b, nx, nz, y0, colour, storeysUV, lenM) => {
+        if (lenM < 3) return;
+        const MW = 1.4, GAP = 1.0, MH = 1.1, DEP = 0.6;
+        // Unit direction along the wall, then everything below in metres / s.
+        const ex = (b[0] - a[0]) / (lenM / s), ez = (b[1] - a[1]) / (lenM / s);
+        const along = (q, m) => [q[0] + ex * m / s, q[1] + ez * m / s];
+        const inward = (q) => [q[0] - nx * DEP / s, q[1] - nz * DEP / s];
+        const n = Math.floor((lenM + GAP) / (MW + GAP));
+        const lead = (lenM - (n * MW + (n - 1) * GAP)) / 2;
+        const y1 = y0 + MH;
+        // Facade v just above the eave's storey, below where facade.js cuts slits.
+        const v0 = storeysUV, v1 = storeysUV + 0.3;
+        for (let k = 0; k < n; k++) {
+          const t0 = lead + k * (MW + GAP);
+          const p0 = along(a, t0), p1 = along(a, t0 + MW), q1 = inward(p1), q0 = inward(p0);
+          const mid = [(p0[0] + p1[0] + q0[0] + q1[0]) / 4, (p0[1] + p1[1] + q0[1] + q1[1]) / 4];
+          // Four sides (outer face, end, inner face, end), each wound out of the merlon.
+          for (const [u, w] of [[p0, p1], [p1, q1], [q1, q0], [q0, p0]]) {
+            face([[u[0], y0, u[1]], [w[0], y0, w[1]], [w[0], y1, w[1]]], wallIdx, colour, [[0, v0], [0.4, v0], [0.4, v1]], mid);
+            face([[u[0], y0, u[1]], [w[0], y1, w[1]], [u[0], y1, u[1]]], wallIdx, colour, [[0, v0], [0.4, v1], [0, v1]], mid);
+          }
+          face([[p0[0], y1, p0[1]], [p1[0], y1, p1[1]], [q1[0], y1, q1[1]]], wallIdx, colour, [[0, v1], [0.4, v1], [0.4, v1]]);
+          face([[p0[0], y1, p0[1]], [q1[0], y1, q1[1]], [q0[0], y1, q0[1]]], wallIdx, colour, [[0, v1], [0.4, v1], [0, v1]]);
         }
       };
       wall(outer, true);
       for (const h of holes) wall(h, false);
+      // A church tower's corners carry pinnacles over the parapet.
+      if (towerLike) for (const q of corners(outer)) {
+        const cx = outer.reduce((a, r) => a + r[0], 0) / outer.length, cz = outer.reduce((a, r) => a + r[1], 0) / outer.length;
+        const k = Math.hypot(cx - q[0], cz - q[1]) || 1;
+        const at = [q[0] + (cx - q[0]) / k * (0.5 / s), q[1] + (cz - q[1]) / k * (0.5 / s)];
+        solid(at, 0.45, 0.02, top, top + Math.min(6, height * 0.12), 4, c, Math.PI / 4);
+      }
     }
+  }
+
+  // MONUMENTS that are points, not buildings: a stylised stone form at the
+  // POI (monumentForm), standing on the ground there. Drawn in the plain
+  // style; a column or needle in OSM is almost never a footprint.
+  const MON = [0.80, 0.77, 0.70], BRONZE = [0.36, 0.33, 0.28];
+  let monumentCount = 0;
+  const footprints = layer.features.filter((f) => f.type === 3 && !f.props.hide_3d);
+  for (const m of marks.monuments) {
+    const [u, v] = m.p;
+    if (u < 0 || v < 0 || u > ext || v > ext) continue;
+    if (footprints.some((f) => polygons(rings(f.geometry)).some((pl) => pointIn(m.p, pl.outer)))) continue;   // a building: dressed above
+    const g = ground(u, v);
+    style = STYLE_PLAIN;
+    if (m.form === "column") {
+      solid(m.p, 4.2, 4.2, g, g + 5, 4, MON, Math.PI / 4);          // pedestal
+      solid(m.p, 1.6, 1.4, g + 5, g + 38, 12, MON);                  // shaft
+      solid(m.p, 2.2, 2.2, g + 38, g + 40, 4, MON, Math.PI / 4);     // capital
+      solid(m.p, 0.6, 0.3, g + 40, g + 44, 6, BRONZE);               // figure
+    } else if (m.form === "obelisk") {
+      solid(m.p, 2.8, 2.8, g, g + 1.5, 4, MON, Math.PI / 4);         // base
+      solid(m.p, 1.4, 0.9, g + 1.5, g + 19, 4, MON, Math.PI / 4);    // shaft, tapering
+      solid(m.p, 0.9, 0.02, g + 19, g + 21, 4, MON, Math.PI / 4);    // pyramidion
+    } else {
+      solid(m.p, 1.8, 1.8, g, g + 3, 4, MON, Math.PI / 4);           // plinth
+      solid(m.p, 0.45, 0.3, g + 3, g + 5.4, 6, BRONZE);              // figure
+    }
+    monumentCount++;
   }
 
   // Bridges, then any wheels the lattice pass recognised.
@@ -346,6 +639,8 @@ export function extrudeTile(layer, dem, demSize, sizeLocal, triangulate, extra =
     trees,
     canopy,
     wheels: lattice.wheels.length,
+    landmarks: landmarkCount,
+    monuments: monumentCount,
     latticeParts: lattice.skip.size,
     roofCount: roofIdx.length,
     wallCount: wallIdx.length,
@@ -362,8 +657,13 @@ export function extrudeTile(layer, dem, demSize, sizeLocal, triangulate, extra =
    squarer ones a hip; one in six is left flat, because plenty are. The roof
    rises about 35 degrees, capped at 5 m and at a third of the building.
    Everything else keeps the flat roof the data implies. */
-export function pitched(ring, s, height, hh) {
-  if (height > 15 || hh % 6 === 0) return null;
+/* A church nave: steeper (50 degrees), any size, never left flat, and
+   gabled down its length -- the hip is for houses. */
+const CHURCH_ROOF = { maxHeight: 45, minArea: 30, maxArea: 4000, angle: 50, maxRise: 16, flat: false, gableRatio: 1.15 };
+export function pitched(ring, s, height, hh, o = {}) {
+  const maxHeight = o.maxHeight ?? 15, minArea = o.minArea ?? 30, maxArea = o.maxArea ?? 450;
+  const angle = o.angle ?? 35, maxRise = o.maxRise ?? 5, gableRatio = o.gableRatio ?? 1.6;
+  if (height > maxHeight || (o.flat !== false && hh % 6 === 0)) return null;
   // Drop points where the outline barely turns.
   let pts = ring.slice();
   for (let pass = 0; pass < 2 && pts.length > 4; pass++) {
@@ -386,16 +686,35 @@ export function pitched(ring, s, height, hh) {
   let [p0, p1, p2, p3] = pts;
   if (len(p0, p1) < len(p1, p2)) [p0, p1, p2, p3] = [p1, p2, p3, p0];
   const L = len(p0, p1) * s, W = len(p1, p2) * s, area = L * W;
-  if (area < 30 || area > 450) return null;
-  const rise = Math.min(5, height / 3, (W / 2) * Math.tan(35 * Math.PI / 180));
+  if (area < minArea || area > maxArea) return null;
+  const rise = Math.min(maxRise, height / 3, (W / 2) * Math.tan(angle * Math.PI / 180));
   const mid = (a, b) => [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
   const m03 = mid(p3, p0), m12 = mid(p1, p2);
   const centre = mid(m03, m12);
-  if (L / W > 1.6) return { kind: "gable", corners: [p0, p1, p2, p3], ridge: [m03, m12], rise, centre };
+  if (L / W > gableRatio) return { kind: "gable", corners: [p0, p1, p2, p3], ridge: [m03, m12], rise, centre };
   // Hip: the ridge is the long axis shortened by half the width at each end.
   const k = Math.min(0.5, (W / 2) / L);
   const lerp = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
   return { kind: "hip", corners: [p0, p1, p2, p3], ridge: [lerp(m03, m12, k), lerp(m03, m12, 1 - k)], rise, centre };
+}
+
+/** A church tower rather than a nave: compact (under 400 m^2) and at least
+ *  1.4 times as tall as it is wide. */
+export function towerish(ring, s, height) {
+  let a2 = 0;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) a2 += ring[j][0] * ring[i][1] - ring[i][0] * ring[j][1];
+  const area = Math.abs(a2 / 2) * s * s;
+  return area > 4 && area <= 400 && height >= 1.4 * Math.sqrt(area);
+}
+/** The outline's real corners: vertices where it turns by more than 45 degrees. */
+function corners(ring) {
+  const n = ring.length;
+  return ring.filter((q, i) => {
+    const a = ring[(i + n - 1) % n], b = ring[(i + 1) % n];
+    const v1 = [q[0] - a[0], q[1] - a[1]], v2 = [b[0] - q[0], b[1] - q[1]];
+    const c = (v1[0] * v2[0] + v1[1] * v2[1]) / ((Math.hypot(...v1) * Math.hypot(...v2)) || 1);
+    return c < Math.cos(45 * Math.PI / 180);
+  }).slice(0, 8);
 }
 
 /** Drop repeated points, including a closing copy of the first. Earcut's

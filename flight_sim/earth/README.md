@@ -37,6 +37,39 @@ What stays in this folder is the buildings pipeline the globe uses:
 The worker imports three r165 from `everest/vendor/` with Everest's stamp
 (`?v=84ebb99-a7f30c15`); if `everest/tools/stamp.py` restamps, update it.
 
+## Landmarks and the coincident-wall flicker (2026-10-25)
+
+`game/extrude.js` reads two more layers of the same tile (the worker decodes
+them): `landuse` (stadium and pitch polygons) and `poi` (castles -- palaces
+are in that class too -- places of worship, monuments).
+
+- **Stadiums**: buildings inside a `landuse=stadium` polygon are drawn as
+  raked stands, high away from the pitch and down to a low pitch-side wall;
+  a bowl mapped as one outline with the pitch as its hole (Wembley) is high
+  round the outside and low round the hole.
+- **Castles**: dressed stone (facade style 0.375: courses, mortar, the odd
+  arrow slit) and battlements along every outer wall top, for the building
+  holding the castle POI and those within 110 m up to 25 m tall.
+- **Churches**: their own style (0.625: stone, one pointed-arch window per
+  ~5 m bay), a steep 50° gable over the nave at any size, and a parapet with
+  corner pinnacles on tower-like parts.
+- **Palaces** and monuments mapped as buildings: stone.
+- **Monuments that are points** (statues, columns, needles): a stylised
+  stone form at the POI, chosen by name. Their sizes are generic (a column
+  is 44 m, a needle 21 m, a statue on a 3 m plinth): the tiles carry no
+  height for them.
+
+**Flicker.** OSM maps landmarks as overlapping parts, and two outward walls
+of different colours in one plane fought in the depth buffer every frame the
+camera moved. Every footprint is now grown outward by 0.1-1.5 m, more the
+taller it is, so of two coincident walls the taller part's stands proud.
+Measured on six landmark tiles: coincident fighting wall pairs fell from
+~12,700 to ~600 (most left are on tile edges, inside the neighbour tile's
+building). Shadows are also stable now (`osm-buildings.js`: the shadow map
+is snapped to whole texels in the globe's frame and fades out before its
+edge). In a paused flight over Westminster, pixels changing frame to frame
+on the city fell from 0.64 % to 0.07-0.18 %.
+
 ## Sources, licences, limits
 
 | Layer | Source | Key? | Licence / terms |
