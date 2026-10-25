@@ -11,11 +11,13 @@ function clamp(value, min, max) { return Math.max(min, Math.min(max, value)); }
 // gentle-looking while landing hard. The mosaic path targets an absolute pixel
 // height and cancels baseScale entirely, so its ramp is the only thing acting
 // and it needs a floor that keeps lod-5 text legible.
-const LOD_TIER_SCALE = [1.0, 1.0, 0.84, 0.70, 0.57, 0.44];
-const LOD_MOSAIC_TIER = [1.0, 1.0, 0.88, 0.77, 0.67, 0.58];
+// Tiers 6 and 7 are Earth Flight's (its streamed villages and single
+// buildings, gis/flight-gazetteer.js); no planet's data reaches past 5.
+const LOD_TIER_SCALE = [1.0, 1.0, 0.84, 0.70, 0.57, 0.44, 0.38, 0.33];
+const LOD_MOSAIC_TIER = [1.0, 1.0, 0.88, 0.77, 0.67, 0.58, 0.53, 0.49];
 function lodTierFactor(lod, table = LOD_TIER_SCALE) {
   const n = Number(lod);
-  return Number.isFinite(n) && n >= 1 && n <= 5 ? table[n] : 1.0;
+  return Number.isFinite(n) && n >= 1 && n <= 7 ? table[n] : 1.0;
 }
 
 // Moon feature catalogs use IAU small-body convention (west-positive 0-360, opposite

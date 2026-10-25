@@ -27,11 +27,25 @@
 // Flight's terrain, flight-terrain.js), the skyline heights, and the radius.
 // The globe's own place labels stand down in flight (earth-viewer.js,
 // updateLabelVisibility) so the two never double up.
+//
+// A PARTITION (owner, 2026-10-25): the globe's labels are the GeoHUB's
+// generalised set, the flight's are "all encompassing, like a location museum
+// as we fly". So the flight takes EVERY curated place (getAllPlaceItems, not
+// the Location labels switch's set, and not the legend's ticks), adds the
+// places it streams itself (flight-gazetteer.js: towns, villages, peaks,
+// parks, airports from OpenStreetMap; landmarks, buildings, museums and
+// historic sites from Wikipedia), and shows each one only inside its tier's
+// window -- how high the aircraft is, how far the place is (gazetteer.js
+// TIER_WINDOW): the White House close and low, a capital from the
+// stratosphere. The label layer holds only the places that window admits
+// round the aircraft, added and dropped as it flies, so the Mars module's
+// budgets (500 built labels) go to what can actually be seen.
 
 import * as THREE from "../vendor/three.module.js";
+import { TIER_WINDOW, TIER_SIZE, distanceKm } from "../../../flight_sim/earth/game/gazetteer.js?v=1";
 // The Mars module, loaded when flight labels start: it imports three.js by an
 // absolute web path, which only a browser resolves (Node tests import this file).
-const MARS_LABELS = "../../../planet_explorer/mars/viewer/label-layer.js?v=20261025-aa8e56d";
+const MARS_LABELS = "../../../planet_explorer/mars/viewer/label-layer.js?v=20261025-bf3aac3";
 let buildLabelLayer = null, updateLabelVisibility = null, updateLabelAnchors = null, makeLabelTexture = null;
 
 /* ── What the Mars viewer's scope provided, from Earth ─────────────────── */
@@ -77,10 +91,21 @@ function getReliefPoint(radius, _sampler, _cache, _relief, lat, lon, lift = 0) {
  * over Great Britain says nothing.
  */
 const AREA_CATEGORIES = new Set(["place-island", "place-landform", "place-marine"]);
+/** A place's window: the highest it is labelled from, and how far (km). */
+function windowOf(item) {
+  const lod = Number(item?.lod) || 3;
+  const w = TIER_WINDOW[Math.min(7, Math.max(1, lod))];
+  return { maxAltKm: item?.maxAltKm ?? w.maxAltKm, reachKm: item?.reachKm ?? w.reachKm };
+}
+
 function earthHidden(entry, km, altKm, beyondHorizon) {
-  // The Location legend's category ticks (Cities, Islands, Seas...).
-  if (entry.item?.category && window.GeoIDViewer?.isPlaceCategoryEnabled?.(entry.item.category) === false) return true;
   const lod = Number(entry.item?.lod) || 3;
+  const win = windowOf(entry.item);
+  // DYNAMIC: a place is labelled only from low enough and near enough for
+  // its tier, so coming down fills the scene in and climbing thins it out.
+  if (altKm > win.maxAltKm || km > win.reachKm) return true;
+  // The small tiers name what is in front of you, never the skyline.
+  if (beyondHorizon && lod >= 6) return true;
   const horizonKm = Math.sqrt(2 * (MARS_RADIUS_METERS / 1000) * Math.max(0.05, altKm));
   const reach = Math.min(700, Math.max(150, 3 * horizonKm)) * (lod <= 1 ? 1.6 : lod === 2 ? 1.25 : 1);
   if (km > reach) return true;
@@ -120,7 +145,7 @@ function rebuild(viewer, items) {
       const t = makeLabelTexture(item, { customPalette: item.label_palette, backingScale: 1 });
       entry.sprite.material.map = t.texture;
       entry.sprite.material.needsUpdate = true;
-      const k = item.lod === 1 ? 1.55 : item.lod === 2 ? 1.30 : item.lod === 3 ? 1.10 : item.lod === 5 ? 0.88 : 1.0;
+      const k = TIER_SIZE[Math.min(7, Math.max(1, Number(item.lod) || 4))] || 1.0;
       entry.sprite.scale.set((t.width / 200) * 0.66 * k, (t.height / 200) * 0.66 * k, 1);
       entry.baseScale = entry.sprite.scale.clone();
     }
@@ -129,16 +154,91 @@ function rebuild(viewer, items) {
   viewer.globe.add(labelLayer.group);
 }
 
+/*
+ * THE ACTIVE SET. Every curated place (13k) and every streamed one is
+ * offered; a place joins the label layer when the aircraft is within 1.25x
+ * its reach and 1.25x its ceiling (so a place does not flicker in and out at
+ * its edge), and leaves when it is no longer. Entries are added and removed
+ * in place -- the Mars module's entries are plain records whose 3D objects
+ * are built on first sight, so a new place costs nothing until it shows --
+ * and never more than ACTIVE_MAX at once, most significant and nearest first.
+ */
+const ACTIVE_MAX = 1800;
+let curatedCache = null, curatedCount = -1, sortCounter = 0;
+function curatedPlaces(viewer) {
+  const all = viewer.getAllPlaceItems?.() || [];
+  if (all.length !== curatedCount) {
+    curatedCount = all.length;
+    curatedCache = all.filter((i) => Number.isFinite(i.lat) && Number.isFinite(i.lon) && i.name);
+  }
+  return curatedCache || [];
+}
+
+function syncPlaces(viewer) {
+  const f = window.__flightSim;
+  if (!f?.shipLatLon) return;
+  const { lat, lon } = f.shipLatLon;
+  const altKm = (Number(f.shipAltUnits) || 0) / (3.2 / 6371000) / 1000;
+  const curated = curatedPlaces(viewer);
+  const streamed = window.GeoIDFlightGazetteer?.getItems?.(curated) || [];
+  const admit = [];
+  const consider = (item) => {
+    const w = windowOf(item);
+    if (altKm > w.maxAltKm * 1.25) return;
+    // A cheap box first: 13k great-circle distances a second is not free.
+    const reach = w.reachKm * 1.25;
+    if (Math.abs(item.lat - lat) * 111.32 > reach) return;
+    const km = distanceKm(lat, lon, item.lat, item.lon);
+    if (km <= reach) admit.push({ item, km, lod: Number(item.lod) || 3 });
+  };
+  for (const item of curated) consider(item);
+  for (const item of streamed) consider(item);
+  admit.sort((a, b) => (a.lod - b.lod) || (a.km - b.km));
+  const want = new Set(admit.slice(0, ACTIVE_MAX).map((a) => a.item));
+  if (!labelLayer) {
+    rebuild(viewer, [...want]);
+    terrainVersion = -1;
+    return;
+  }
+  const entries = labelLayer.entries;
+  let changed = false;
+  for (let i = entries.length - 1; i >= 0; i--) {
+    const e = entries[i];
+    if (want.has(e.item)) continue;
+    disposeProxies(e);
+    entries._disposeEntry?.(e);
+    entries.splice(i, 1);
+    changed = true;
+  }
+  const have = new Set(entries.map((e) => e.item));
+  const add = [...want].filter((it) => !have.has(it));
+  if (add.length) {
+    // Records only: built by the layer's own (wrapped) _buildEntry on first sight.
+    const extra = buildLabelLayer(3.2, null, null, null, getReliefPoint, add);
+    for (const e of extra.entries) { e.sortIndex = sortCounter++; entries.push(e); }
+    changed = true;
+  }
+  if (changed) window.__fsPlaceStats = { active: entries.length, admitted: admit.length, streamed: streamed.length, curated: curated.length };
+}
+
+/** A horizon flag's three sprites, out of the scene and the pick list. */
+function disposeProxies(e) {
+  for (const k of ["_fsTri", "_fsHLabel", "_fsDist"]) {
+    const o = e[k];
+    if (!o) continue;
+    o.parent?.remove(o);
+    o.material.dispose();
+    const io = labelLayer?.interactiveObjects;
+    const at = io ? io.indexOf(o) : -1;
+    if (at !== -1) io.splice(at, 1);
+    e[k] = null;
+  }
+}
+
 function dispose() {
   if (!labelLayer) return;
   for (const e of labelLayer.entries) labelLayer.entries._disposeEntry?.(e);
-  for (const e of labelLayer.entries) {
-    for (const k of ["_fsTri", "_fsHLabel", "_fsDist"]) {
-      if (!e[k]) continue;
-      e[k].parent?.remove(e[k]);
-      e[k].material.dispose();
-    }
-  }
+  for (const e of labelLayer.entries) disposeProxies(e);
   labelLayer.group.parent?.remove(labelLayer.group);
   labelLayer = null;
 }
@@ -147,13 +247,11 @@ function step() {
   frame = requestAnimationFrame(step);
   const viewer = window.GeoIDViewer;
   if (!viewer?.globe || !viewer.camera || !viewer.renderer || !window.__flightSim?.active) return;
-  // The place set (the Location labels switch, its categories) is a 13k-item
-  // list: look at it once a second, not every frame.
-  if (performance.now() - lastItemsAt > 1000 || !itemsKey) {
+  // The places round the aircraft, once a second: the curated set and the
+  // streamed one, cut to what their windows can admit from here.
+  if (performance.now() - lastItemsAt > 1000 || !labelLayer) {
     lastItemsAt = performance.now();
-    const items = viewer.getPlaceLabels?.() || [];
-    const key = `${items.length}|${items[0]?.name || ""}|${items[items.length - 1]?.name || ""}`;
-    if (key !== itemsKey) { itemsKey = key; if (items.length) rebuild(viewer, items); else dispose(); terrainVersion = -1; }
+    syncPlaces(viewer);
   }
   if (!labelLayer) return;
   const camera = viewer.camera, renderer = viewer.renderer, globe = viewer.globe;
@@ -185,7 +283,9 @@ function step() {
       true,
       true,
       true,
-      viewer.getLabelDensity?.() ?? 3,
+      // Every tier: the windows (earthHidden) decide what flight shows, not
+      // the GeoHUB's label density.
+      7,
       null,
       null,
       () => false,
@@ -678,7 +778,22 @@ function onClick(ev) {
   };
   if (!viewer.showFeatureCard?.(card, item.lat, item.lon)) viewer.openPlace?.(item);
   ev.stopPropagation();
+  // A place from Wikipedia carries one line; its article's summary follows
+  // when it arrives, into the same card if that is still the one open.
+  if (item.wikiTitle && !item._summary) {
+    openCardItem = item;
+    window.GeoIDFlightGazetteer?.wikiSummary?.(item.wikiTitle).then((sum) => {
+      if (!sum?.extract) return;
+      item._summary = sum.extract;
+      if (openCardItem !== item || !window.__flightSim?.active) return;
+      viewer.showFeatureCard?.({ ...card, description: [card.description, sum.extract].filter(Boolean).join(" — ") }, item.lat, item.lon);
+    });
+  } else if (item._summary) {
+    openCardItem = item;
+    viewer.showFeatureCard?.({ ...card, description: [card.description, item._summary].filter(Boolean).join(" — ") }, item.lat, item.lon);
+  }
 }
+let openCardItem = null;
 
 /** Start following the view (idempotent). */
 export async function startFlightLabels() {

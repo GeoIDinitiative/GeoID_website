@@ -21,16 +21,17 @@
 //      frame): aim the globe there, then open pre-flight, whose centre
 //      crosshair takes the site from wherever the globe is aimed.
 
-import { startFlightTerrain, stopFlightTerrain, setVex, primeLaunchSite } from "./flight-terrain.js?v=20261025-aa8e56d";
-import { startFlightTerrainGpu, stopFlightTerrainGpu } from "./flight-terrain-gpu.js?v=20261025-aa8e56d";
-import { startFlightLabels, stopFlightLabels } from "./flight-labels.js?v=20261025-aa8e56d";
-import { showFlightMap, hideFlightMap } from "./flight-map.js?v=20261025-aa8e56d";
-import { showFlightSky, hideFlightSky } from "./flight-sky.js?v=20261025-aa8e56d";
-import { startFlightTiles, stopFlightTiles } from "./flight-tiles.js?v=20261025-aa8e56d";
-import { startFlightClouds, stopFlightClouds } from "./flight-clouds.js?v=20261025-aa8e56d";
-import { startFlightLights, stopFlightLights } from "./flight-lights.js?v=20261025-aa8e56d";
-import "./flight-place.js?v=20261025-aa8e56d";
-import { isEarth } from "./bodies.js?v=20261025-aa8e56d";
+import { startFlightTerrain, stopFlightTerrain, setVex, primeLaunchSite } from "./flight-terrain.js?v=20261025-bf3aac3";
+import { startFlightTerrainGpu, stopFlightTerrainGpu } from "./flight-terrain-gpu.js?v=20261025-bf3aac3";
+import { startFlightLabels, stopFlightLabels } from "./flight-labels.js?v=20261025-bf3aac3";
+import { startFlightGazetteer, stopFlightGazetteer } from "./flight-gazetteer.js?v=20261025-bf3aac3";
+import { showFlightMap, hideFlightMap } from "./flight-map.js?v=20261025-bf3aac3";
+import { showFlightSky, hideFlightSky } from "./flight-sky.js?v=20261025-bf3aac3";
+import { startFlightTiles, stopFlightTiles } from "./flight-tiles.js?v=20261025-bf3aac3";
+import { startFlightClouds, stopFlightClouds } from "./flight-clouds.js?v=20261025-bf3aac3";
+import { startFlightLights, stopFlightLights } from "./flight-lights.js?v=20261025-bf3aac3";
+import "./flight-place.js?v=20261025-bf3aac3";
+import { isEarth } from "./bodies.js?v=20261025-bf3aac3";
 
 /** `?flight=earth&lat=..&lon=..` -> { lat, lon } or { lat: null } or null. */
 export function parseFlightLink(search) {
@@ -356,10 +357,10 @@ function wire() {
     if (!window.__flightSim?.active && document.body.classList.contains("fs-preflight")) primeLaunchSite();
     if (window.__flightSim?.active) {
       setVex(document.getElementById("fs-vex")?.value || 1);
-      startFlightTerrain(); startFlightTerrainGpu(); startFlightTiles(); startFlightClouds(); startFlightLights(); showFlightSky(); showFlightMap(); startFlightLabels();
+      startFlightTerrain(); startFlightTerrainGpu(); startFlightTiles(); startFlightClouds(); startFlightLights(); showFlightSky(); showFlightMap(); startFlightGazetteer(); startFlightLabels();
     }
   }, 60));
-  window.addEventListener("flightsim:disengaged", () => { stopFlightTerrain(); stopFlightTerrainGpu(); stopFlightTiles(); stopFlightClouds(); stopFlightLights(); hideFlightSky(); hideFlightMap(); stopFlightLabels(); });
+  window.addEventListener("flightsim:disengaged", () => { stopFlightTerrain(); stopFlightTerrainGpu(); stopFlightTiles(); stopFlightClouds(); stopFlightLights(); hideFlightSky(); hideFlightMap(); stopFlightLabels(); stopFlightGazetteer(); });
   // The Vertical scale slider exaggerates the flight terrain (1 = true scale).
   document.addEventListener("input", (e) => { if (e.target?.id === "fs-vex") setVex(e.target.value); });
 

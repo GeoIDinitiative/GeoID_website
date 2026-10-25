@@ -2,15 +2,15 @@ import * as THREE from "./vendor/three.module.js";
 // The polygon-area rule lives in one place, with a test. Stamped by hand
 // once: stamp.py only rewrites a ?v= that already exists.
 import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
-  from "./gis/geo-utils.js?v=20261025-aa8e56d";
+  from "./gis/geo-utils.js?v=20261025-bf3aac3";
 import { attachReliefAttributes, followRelief }
-  from "./gis/vector-render.js?v=20261025-aa8e56d";
+  from "./gis/vector-render.js?v=20261025-bf3aac3";
 import { rockClass, crustalSetting, rockClassLabel, classificationBasis }
-  from "./gis/rock-class.js?v=20261025-aa8e56d";
+  from "./gis/rock-class.js?v=20261025-bf3aac3";
 import { lithologyLabel }
-  from "./gis/lithology-label.js?v=20261025-aa8e56d";
+  from "./gis/lithology-label.js?v=20261025-bf3aac3";
 import { formatLatLon }
-  from "./gis/coord-format.js?v=20261025-aa8e56d";
+  from "./gis/coord-format.js?v=20261025-bf3aac3";
 
 /**
  * This module's own cache stamp, read off its own URL.
@@ -5273,7 +5273,7 @@ function fmtProp(value) {
       }
       // Earth Flight's own parts, which are the mode rather than Workspace
       // layers: the ground imagery, the 3D buildings and trees, and the aircraft.
-      for (const credit of [window.GeoIDFlightTiles?.creditNow?.(), window.GeoIDFlightClouds?.creditNow?.(), window.GeoIDFlightLights?.creditNow?.(), window.GeoIDBuildings?.creditNow?.(), window.GeoIDEarthFlight?.aircraftCredit?.()]) {
+      for (const credit of [window.GeoIDFlightTiles?.creditNow?.(), window.GeoIDFlightClouds?.creditNow?.(), window.GeoIDFlightLights?.creditNow?.(), window.GeoIDFlightGazetteer?.creditNow?.(), window.GeoIDBuildings?.creditNow?.(), window.GeoIDEarthFlight?.aircraftCredit?.()]) {
         if (!credit) continue;
         sourceEntries.push({
           title: credit.title,
