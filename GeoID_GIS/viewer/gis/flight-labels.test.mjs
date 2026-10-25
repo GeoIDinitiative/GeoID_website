@@ -74,6 +74,11 @@ check("listened to only while flying",
     /wrap\.className = "gis-tool-section";[\s\S]{0,1200}id="social-community-toggle"/.test(sb), true);
 }
 
+// The distance factor is used by the chip AND the dot: declared inside the
+// chip's block, the dot threw a ReferenceError every frame and no label was
+// ever placed over its dot (leaders slanting into the sky, Mars-sized dots).
+check("the distance factor is in scope for the chip and the dot",
+  /const near = 1 - smooth[^\n]*\n\s*if \(entry\.baseScale\) \{/.test(src), true);
 check("dots are sized from the sphere's radius, 4-6 px",
   /const dotR = entry\.marker\.geometry\?\.parameters\?\.radius/.test(src)
     && /setScalar\(\(distCam \* anglePerPx \* dotPx\) \/ \(2 \* dotR\)\)/.test(src), true);

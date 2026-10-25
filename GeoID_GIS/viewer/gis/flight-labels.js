@@ -597,6 +597,10 @@ function step() {
         // (gazetteer.js TIER_SIZE) -- and its dot a few pixels, not a ball
         // beside the aircraft.
         const tier = Math.min(7, Math.max(1, Number(entry.item?.lod) || 4));
+        // How near, 1 close by to 0 at the edge of the tier's naming range
+        // (NAME_KM), on a log scale: sizes the chip and the dot below.
+        const km = gamma * (MARS_RADIUS_METERS / 1000);
+        const near = 1 - smooth(0, Math.log(NAME_KM[tier]), Math.log(Math.max(km, 1)));
         if (entry.baseScale) {
           // The chip's height in pixels, padding included: 30 px at tier 4,
           // never under 24 -- below that the name itself drops under ~11 px
@@ -609,8 +613,6 @@ function step() {
           // a log scale to 0.72x at the edge of its naming range (NAME_KM),
           // beyond which it is an icon anyway; never below 22 px, the
           // smallest a name still reads at.
-          const km = gamma * (MARS_RADIUS_METERS / 1000);
-          const near = 1 - smooth(0, Math.log(NAME_KM[tier]), Math.log(Math.max(km, 1)));
           const chipPx = Math.max(22, 30 * (TIER_SIZE[tier] || 1) * (0.72 + 0.58 * near))
             * (window.GeoIDViewer?.getLabelSizeScale?.() || 1);
           const k = (distCam * anglePerPx * chipPx) / Math.max(entry.baseScale.y, 1e-9);
