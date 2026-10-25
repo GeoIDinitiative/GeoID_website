@@ -45,7 +45,7 @@ import * as THREE from "../vendor/three.module.js";
 import { TIER_WINDOW, TIER_SIZE, distanceKm } from "../../../flight_sim/earth/game/gazetteer.js?v=1";
 // The Mars module, loaded when flight labels start: it imports three.js by an
 // absolute web path, which only a browser resolves (Node tests import this file).
-const MARS_LABELS = "../../../planet_explorer/mars/viewer/label-layer.js?v=20261025-bf3aac3";
+const MARS_LABELS = "../../../planet_explorer/mars/viewer/label-layer.js?v=20261025-8ef4586";
 let buildLabelLayer = null, updateLabelVisibility = null, updateLabelAnchors = null, makeLabelTexture = null;
 
 /* ── What the Mars viewer's scope provided, from Earth ─────────────────── */
@@ -493,6 +493,18 @@ function step() {
         // connector is rewritten surface → label, i.e. sub-vertical.
         // Orbit anchors self-restore on exit via syncTerrainReliefState.
         const distCam = lookV.length();
+        // EARTH: SIZE BY TIER, CONSTANT ON SCREEN. The Mars sizing grows a
+        // label with its distance (right for a globe seen whole), which over
+        // a city drew a park 40 km off larger than Rome under the wing. In
+        // flight a label is its tier's pixel height wherever it is -- a
+        // capital ~33 px, a single building ~15 px (gazetteer.js TIER_SIZE)
+        // -- and its dot a few pixels, not a ball beside the aircraft.
+        const tier = Math.min(7, Math.max(1, Number(entry.item?.lod) || 4));
+        if (entry.baseScale) {
+          const k = (distCam * anglePerPx * 21 * (TIER_SIZE[tier] || 1)) / Math.max(entry.baseScale.y, 1e-9);
+          entry.sprite.scale.set(entry.baseScale.x * k, entry.baseScale.y * k, 1);
+        }
+        entry.marker.scale.setScalar((distCam * anglePerPx * (tier <= 3 ? 9 : tier <= 5 ? 7 : 6)) / 0.022);
         const lift = Math.max(distCam * anglePerPx * 62, entry.sprite.scale.y * 1.4);
         upV.copy(P).multiplyScalar(1 / (P.length() || 1)); // radial up at the feature
         entry.sprite.position.copy(P).addScaledVector(upV, lift);
