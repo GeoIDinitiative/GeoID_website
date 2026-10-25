@@ -55,7 +55,10 @@ check("the places are cut by the controls before their windows",
 check("only a hand's tick on a category counts, not the eye's cascade",
   /e\.isTrusted && t\.dataset\?\.placeCategory/.test(src), true);
 check("the chips follow the Workspace's label-size slider",
-  /chipPx = Math\.max\(24, 30 \* \(TIER_SIZE\[tier\] \|\| 1\)\) \* \(window\.GeoIDViewer\?\.getLabelSizeScale\?\.\(\) \|\| 1\)/.test(src), true);
+  /chipPx = Math\.max\(22, [^;]*\)\s*\* \(window\.GeoIDViewer\?\.getLabelSizeScale\?\.\(\) \|\| 1\)/.test(src), true);
+check("and their distance: near larger, far smaller, never under 22 px",
+  /const near = 1 - smooth\(0, Math\.log\(NAME_KM\[tier\]\), Math\.log\(Math\.max\(km, 1\)\)\);/.test(src)
+    && /Math\.max\(22, 30 \* \(TIER_SIZE\[tier\] \|\| 1\) \* \(0\.72 \+ 0\.58 \* near\)\)/.test(src), true);
 check("listened to only while flying",
   /addEventListener\("change", onLabelControl\)/.test(src) && /removeEventListener\("change", onLabelControl\)/.test(src), true);
 

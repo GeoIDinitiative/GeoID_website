@@ -602,11 +602,21 @@ function step() {
           // never under 24 -- below that the name itself drops under ~11 px
           // and stops being readable (reported: labels that "just continue
           // to shrink" near the ground).
-          const chipPx = Math.max(24, 30 * (TIER_SIZE[tier] || 1)) * (window.GeoIDViewer?.getLabelSizeScale?.() || 1);
+          //
+          // AND BY DISTANCE (owner, 2026-10-25, over Eyjafjallajokull: "near
+          // field location labels are the same as those that are far away").
+          // A place close by is drawn up to 1.3x its tier's size, shrinking on
+          // a log scale to 0.72x at the edge of its naming range (NAME_KM),
+          // beyond which it is an icon anyway; never below 22 px, the
+          // smallest a name still reads at.
+          const km = gamma * (MARS_RADIUS_METERS / 1000);
+          const near = 1 - smooth(0, Math.log(NAME_KM[tier]), Math.log(Math.max(km, 1)));
+          const chipPx = Math.max(22, 30 * (TIER_SIZE[tier] || 1) * (0.72 + 0.58 * near))
+            * (window.GeoIDViewer?.getLabelSizeScale?.() || 1);
           const k = (distCam * anglePerPx * chipPx) / Math.max(entry.baseScale.y, 1e-9);
           entry.sprite.scale.set(entry.baseScale.x * k, entry.baseScale.y * k, 1);
         }
-        entry.marker.scale.setScalar((distCam * anglePerPx * (tier <= 3 ? 9 : tier <= 5 ? 7 : 6)) / 0.022);
+        entry.marker.scale.setScalar((distCam * anglePerPx * (tier <= 3 ? 9 : tier <= 5 ? 7 : 6) * (0.7 + 0.45 * near)) / 0.022);
         const lift = Math.max(distCam * anglePerPx * 62, entry.sprite.scale.y * 1.4);
         upV.copy(P).multiplyScalar(1 / (P.length() || 1)); // radial up at the feature
         entry.sprite.position.copy(P).addScaledVector(upV, lift);
