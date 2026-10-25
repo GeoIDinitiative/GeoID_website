@@ -45,7 +45,7 @@ import * as THREE from "../vendor/three.module.js";
 import { TIER_WINDOW, TIER_SIZE, SMALL_REACH_KM, distanceKm } from "../../../flight_sim/earth/game/gazetteer.js?v=2";
 // The Mars module, loaded when flight labels start: it imports three.js by an
 // absolute web path, which only a browser resolves (Node tests import this file).
-const MARS_LABELS = "../../../planet_explorer/mars/viewer/label-layer.js?v=20261025-cebeacc";
+const MARS_LABELS = "../../../planet_explorer/mars/viewer/label-layer.js?v=20261025-a4b7425";
 let buildLabelLayer = null, updateLabelVisibility = null, updateLabelAnchors = null, makeLabelTexture = null;
 
 /* ── What the Mars viewer's scope provided, from Earth ─────────────────── */
