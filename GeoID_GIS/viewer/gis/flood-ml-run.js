@@ -23,6 +23,7 @@ import {
   latticeOnGrid, featureRows, decodeForest, predictForest, wettest3, TERRARIUM_URL,
 } from "./flood-ml.js?v=20261025-5164e76";
 import { dataUrl } from "./data-base.js?v=20261025-5164e76";
+import { may, refusal } from "./membership.js?v=20261025-5164e76";
 
 export const GLOBAL_NAME = "Flood susceptibility — global (random forest).tif";
 export const AREA_NAME = "Flood susceptibility — here (random forest, 250 m).tif";
@@ -226,6 +227,9 @@ export function replace(name) {
 
 /** Run over the chosen box and put the result on the globe. */
 export async function showArea({ onProgress = () => {} } = {}) {
+  // The trained forest is members' data (the data gate refuses it with a
+  // 402 otherwise): say so here rather than as an HTTP status mid-run.
+  if (!may("flood")) throw new Error(refusal("flood"));
   const chosen = await chooseBox();
   if (chosen.error) throw new Error(chosen.error);
   const out = await runArea(chosen.box, { onProgress });

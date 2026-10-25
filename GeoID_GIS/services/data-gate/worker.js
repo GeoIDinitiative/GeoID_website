@@ -30,6 +30,11 @@ export const MEMBER_DATA = [
   "cyclone-risk",
   "seismic-risk",
   "volcanic-risk",        // covers volcanic-risk-holocene
+  // THE TRAINED FORESTS (owner, 2026-10-25): GeoID's own models, which in
+  // anyone's hands reproduce the flood and landslide predictions anywhere.
+  // Only the forests -- the global maps beside them stay a free preview.
+  "flood-ml/forest",      // forest-fine.json, forest-coarse.json
+  "landslide-ml/forest",
 ];
 
 export function gatedData(path) {
@@ -102,8 +107,8 @@ export default {
     if (!claims) {
       return new Response(JSON.stringify({
         error: "member",
-        message: "This is one of GeoID's own modelled risk maps. Sign in as a "
-          + "member to open it.",
+        message: "This is one of GeoID's own models or modelled risk maps. "
+          + "Sign in as a member to open it.",
         where: "https://geoidinitiative.com/membership/",
       }), {
         status: 402,   // Payment Required: the one status that means this

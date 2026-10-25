@@ -17,6 +17,7 @@ import { buildLandslideStack, landslideRows, LS_FEATURES } from "./landslide-ml.
 import { json, loadNormal, demMosaic, landCoverClasses, soil, chooseBox, checkBox, layerNamed, replace, manager,
   MAX_SPAN_DEG } from "./flood-ml-run.js?v=20261025-5164e76";
 import { dataUrl } from "./data-base.js?v=20261025-5164e76";
+import { may, refusal } from "./membership.js?v=20261025-5164e76";
 
 export const GLOBAL_NAME = "Landslide susceptibility — global (random forest).tif";
 export const AREA_NAME = "Landslide susceptibility — here (random forest, 250 m).tif";
@@ -68,6 +69,9 @@ export async function runArea(box, { onProgress = () => {} } = {}) {
 }
 
 export async function showArea({ onProgress = () => {} } = {}) {
+  // The trained forest is members' data (the data gate refuses it with a
+  // 402 otherwise): say so here rather than as an HTTP status mid-run.
+  if (!may("landslides")) throw new Error(refusal("landslides"));
   const chosen = await chooseBox();
   if (chosen.error) throw new Error(chosen.error);
   const out = await runArea(chosen.box, { onProgress });

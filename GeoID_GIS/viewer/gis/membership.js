@@ -241,6 +241,11 @@ export const MEMBER_DATA = [
   "cyclone-risk",
   "seismic-risk",
   "volcanic-risk",        // covers volcanic-risk-holocene
+  // THE TRAINED FORESTS (owner, 2026-10-25): GeoID's own models, which in
+  // anyone's hands reproduce the flood and landslide predictions anywhere.
+  // Only the forests -- the global maps beside them stay a free preview.
+  "flood-ml/forest",      // forest-fine.json, forest-coarse.json
+  "landslide-ml/forest",
 ];
 
 /**
