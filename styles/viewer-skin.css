@@ -268,6 +268,23 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--skin-chrome); 
    low: this is real mission imagery and shouldn't be cooked. */
 canvas { filter: saturate(1.18) contrast(1.04); }
 
+/* SCANLINES ARE DRAWN IN DEVICE PIXELS, NOT CSS PIXELS. A 1px line every 3px
+   lands on whole pixels only at 100% scaling; at Windows' 125% or 150% each
+   line is 1.25 or 1.5 device pixels and the rasteriser smears and beats them
+   into heavy, uneven bands -- a 1920 laptop at 125% looked twice as "CRT" as
+   the same panel at 100%. So the period is 3 device pixels (one dark), or 6
+   (two dark) from 1.5x up, expressed back in CSS px per scaling step. Browser
+   zoom between steps rounds to the nearest one. */
+:root { --crt-scan: 3px; }
+@media (min-resolution: 1.1dppx)  { :root { --crt-scan: 2.6667px; } } /* 112.5% */
+@media (min-resolution: 1.2dppx)  { :root { --crt-scan: 2.4px; } }    /* 125%   */
+@media (min-resolution: 1.3dppx)  { :root { --crt-scan: 2.25px; } }   /* 133%   */
+@media (min-resolution: 1.45dppx) { :root { --crt-scan: 4px; } }      /* 150%   */
+@media (min-resolution: 1.65dppx) { :root { --crt-scan: 3.4286px; } } /* 175%   */
+@media (min-resolution: 1.9dppx)  { :root { --crt-scan: 3px; } }      /* 200%   */
+@media (min-resolution: 2.4dppx)  { :root { --crt-scan: 3.6px; } }    /* 250%   */
+@media (min-resolution: 2.9dppx)  { :root { --crt-scan: 3px; } }      /* 300%   */
+
 /* ── CRT: scanlines, vignette and a slow roll ──────────────────────────
    Each viewer is its own document (several are iframed), so each needs its
    own overlay — a parent's cannot reach in. pointer-events:none throughout
@@ -277,6 +294,6 @@ body::after {
   position: fixed; inset: 0;
   z-index: 99999; pointer-events: none;
   background:
-    repeating-linear-gradient(180deg, rgba(0,0,0,0.13) 0 1px, transparent 1px 3px),
+    linear-gradient(180deg, rgba(0,0,0,0.13) 0 33.34%, transparent 33.34%) 0 0 / 100% var(--crt-scan, 3px),
     radial-gradient(125% 125% at 50% 50%, transparent 55%, rgba(var(--skin-vignette), 0.48) 100%);
 }

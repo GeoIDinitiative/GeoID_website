@@ -282,8 +282,27 @@ body.bands :is(.hero-content, .cx-top .cx-inner, .hero-centred .hero-panel) :is(
 }
 body.bands .hero-content :is(p, .hero-desc, .hero-tagline, .hero-sub) { max-width: 46rem; }
 body.bands .band-tile.hero-centred { grid-template-columns: 1fr !important; justify-items: center; }
-/* A mark pinned to one side would pull a centred hero off its axis. */
-body.bands .hero-tile .hero-logo-bg { display: none !important; }
+/* A mark pinned to one side would pull a centred hero off its axis -- unless
+   the hero opts in with .hero-tile--mark (Our Team, Get Involved). There the
+   text stays centred and the logo (the nav's own lockup, GeoID_logo_icon.png)
+   sits in the tile's top-right corner, above the line of the heading, so it
+   never meets the centred text. Below 900px the hero is too short for both. */
+body.bands .hero-tile:not(.hero-tile--mark) .hero-logo-bg { display: none !important; }
+body.bands .hero-tile--mark .hero-logo-bg {
+  display: block;
+  position: absolute;
+  top: clamp(1.25rem, 2.5vw, 2.25rem);
+  right: clamp(1.25rem, 2.5vw, 2.25rem);
+  transform: none;
+  width: clamp(9rem, 13vw, 15rem);
+  height: auto;
+  opacity: 0.95;
+  z-index: 2;
+  pointer-events: none;
+}
+@media (max-width: 899px) {
+  body.bands .hero-tile--mark .hero-logo-bg { display: none !important; }
+}
 /* The shade follows the text: darkest behind the centre, not the left. */
 body.bands .hero-tile .hero-overlay {
   background:

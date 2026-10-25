@@ -144,7 +144,7 @@ body::after {
   position: fixed; inset: 0;
   z-index: 99990; pointer-events: none;
   background:
-    repeating-linear-gradient(180deg, rgba(0,0,0,0.10) 0 1px, transparent 1px 3px),
+    linear-gradient(180deg, rgba(0,0,0,0.10) 0 33.34%, transparent 33.34%) 0 0 / 100% var(--crt-scan, 3px),
     radial-gradient(120% 120% at 50% 50%, transparent 60%, rgba(10, 1, 25, 0.35) 100%);
 }
 

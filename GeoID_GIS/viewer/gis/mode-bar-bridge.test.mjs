@@ -230,12 +230,12 @@ function fakeDoc({
       && !/body\.modebar-hosted \.brand-audio/.test(css));
   }
   check("a narrow screen hands the bar back to the page, at the width the links need",
-    /const narrow = window\.matchMedia\("\(max-width: 1399px\)"\);/.test(shell)
+    /const narrow = window\.matchMedia\("\(max-width: 1599px\)"\);/.test(shell)
     && /hosted: Boolean\(modeBar\) && !narrow\.matches,/.test(shell)
     && /narrow\.addEventListener\?\.\("change", claimModeBar\);/.test(shell));
   const nav = strip(readFileSync(here("../../../styles/site-nav.css"), "utf8"));
   check("and the stylesheet is the other half of that width",
-    /@media \(max-width: 1399px\) \{\s*\.site-nav \.nav-modebar \{ display: none; \}/.test(nav));
+    /@media \(max-width: 1599px\) \{\s*\.site-nav \.nav-modebar \{ display: none; \}/.test(nav));
 
   // THE TAB HEADERS MAY NOT MOVE. The wordmark and the membership group are
   // both `flex: 1 1 0` and that pair is what centres the links -- measured with

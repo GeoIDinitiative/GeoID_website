@@ -663,9 +663,8 @@
   .story-title { font-size: clamp(1.05rem, 1.4vw, 1.3rem); letter-spacing: -0.03em; transition: color .25s var(--ease); }
   .story:hover .story-title { color: var(--a); }
   .story-desc { font-size: 14px; line-height: 1.6; color: var(--ink-3); margin-top: 9px; }
-  .story--lead { grid-column: span 2; }
-  .story--lead .story-media { aspect-ratio: 16/9; }
-  .story--lead .story-title { font-size: clamp(1.4rem, 2.2vw, 2rem); }
+  /* Every tile the same size (scripts/make-updates.py no longer marks a
+     double-width lead): six tiles under a span-2 lead stranded the sixth. */
 
   /* ══ FOOTER ═════════════════════════════════════════════════════════ */
   .foot { padding: clamp(60px, 9vh, 110px) 0 40px; border-top: 1px solid var(--hair); background: var(--bg-0); }
@@ -686,7 +685,9 @@
     .cap-grid { grid-template-columns: 1fr; }
     .hub-grid { grid-template-columns: 1fr; }
     .news { grid-template-columns: repeat(2, minmax(0,1fr)); }
-    .story--lead { grid-column: span 2; }
+    /* Nine across two columns leaves one: let it take the full row. */
+    .story:last-child:nth-child(odd) { grid-column: span 2; }
+    .story:last-child:nth-child(odd) .story-media { aspect-ratio: 21/9; }
     .worlds-detail { grid-template-columns: 1fr; align-items: start; }
     .foot-grid { grid-template-columns: 1fr 1fr; }
     .foot-brand { grid-column: span 2; }
@@ -702,7 +703,8 @@
     .hs-label { display: none; }
     .hs-rail-inner { gap: 10px; }
     .news { grid-template-columns: 1fr; }
-    .story--lead { grid-column: auto; }
+    .story:last-child:nth-child(odd) { grid-column: auto; }
+    .story:last-child:nth-child(odd) .story-media { aspect-ratio: 3/2; }
     .worlds-rail { gap: 2px; }
     /* At 390px the stage is 270px wide: planet 193 + two 39px arrows left
        zero spare and the arrows touched the moon. Shrink both so there's a
@@ -838,18 +840,18 @@
       </div></div></div>
     </div>
 
-    <div class="hs-slide" id="hsp-4" role="tabpanel" aria-roledescription="slide" aria-label="5 of 5: Mars Flight Simulator">
+    <div class="hs-slide" id="hsp-4" role="tabpanel" aria-roledescription="slide" aria-label="5 of 5: Flight simulators, Earth and Mars">
       <div class="hs-media">
         <video muted loop playsinline preload="none" poster="/assets/opt/hero_marsflight.webp" data-src="/assets/flight_sim_demo_hero.webm" aria-label="Flying over Martian terrain"></video>
       </div>
       <div class="hs-scrim"></div>
       <div class="hs-body"><div class="shell"><div class="hs-copy">
-        <span class="hs-tag">Free · GeoHUB worlds</span>
-        <h2 class="hs-title">Fly the surface of <em>Mars</em>.</h2>
-        <p class="hs-lede">MOLA relief with the CTX mosaic streamed beneath you, from an 8 km low pass to 300 km orbit. Pick a launch site and a heading anywhere on the planet.</p>
+        <span class="hs-tag">Free · Earth Flight is new</span>
+        <h2 class="hs-title">Fly the real <em>Earth</em>. Then Mars.</h2>
+        <p class="hs-lede">A light aircraft or a helicopter anywhere on Earth, over satellite imagery on true terrain, with a real night and places named as you fly. On Mars, MOLA relief with the CTX mosaic from an 8 km low pass to 300 km orbit.</p>
         <div class="hs-actions">
-          <a class="btn btn-solid" href="/?world=mars">Launch the simulator <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
-          <a class="btn btn-line" href="/about_geohub/#worlds">All ten worlds</a>
+          <a class="btn btn-solid" href="/explore/earth-flight-simulator/">Fly Earth <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+          <a class="btn btn-line" href="/?world=mars">Fly Mars</a>
         </div>
       </div></div></div>
     </div>
@@ -861,7 +863,7 @@
           <button class="hs-tab" role="tab" aria-selected="false" aria-controls="hsp-1" data-i="1" tabindex="-1"><span class="hs-num">02</span><span class="hs-label">Hazard models</span></button>
           <button class="hs-tab" role="tab" aria-selected="false" aria-controls="hsp-2" data-i="2" tabindex="-1"><span class="hs-num">03</span><span class="hs-label">ASCENT — Everest</span></button>
           <button class="hs-tab" role="tab" aria-selected="false" aria-controls="hsp-3" data-i="3" tabindex="-1"><span class="hs-num">04</span><span class="hs-label">Mount Etna</span></button>
-          <button class="hs-tab" role="tab" aria-selected="false" aria-controls="hsp-4" data-i="4" tabindex="-1"><span class="hs-num">05</span><span class="hs-label">Mars flight sim</span></button>
+          <button class="hs-tab" role="tab" aria-selected="false" aria-controls="hsp-4" data-i="4" tabindex="-1"><span class="hs-num">05</span><span class="hs-label">Flight sims</span></button>
         </div>
       </div>
     </div>
@@ -912,7 +914,7 @@
         <div class="sec-head-copy">
           <span class="eyebrow">What's live</span>
           <h2 class="sec-title">One workspace. Everything in it ships today.</h2>
-          <p class="sec-lede">GeoHUB is free and needs no account. Membership, at £49.99 a year, opens the hazard models GeoID computes itself. Earth Explorer's site models and ASCENT are free.</p>
+          <p class="sec-lede">GeoHUB, the flight simulators and Earth Explorer are free and need no account. GeoID Network needs only a sign-in. Membership, at £49.99 a year, opens the hazard models GeoID computes itself, and the consultancy answers one question at a time for a fixed fee.</p>
         </div>
         <a class="btn btn-line btn-sm" href="/about/">Read the overview</a>
       </div>
@@ -962,6 +964,51 @@
             <span class="cap-go">Open Earth Explorer <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
           </div>
         </a>
+
+        <a class="cap rise" style="--d:0ms" href="/explore/earth-flight-simulator/">
+          <div class="cap-media"><img src="/assets/opt/earth-flight.webp" alt="Earth Flight: a light aircraft over forested ridges in GeoHUB" loading="lazy"></div>
+          <div class="cap-body">
+            <span class="cap-status">New · free</span>
+            <h3 class="cap-title">Flight simulators</h3>
+            <p class="cap-desc">Earth Flight flies the whole planet inside GeoHUB; Mars flies its mission data.</p>
+            <ul class="cap-list">
+              <li>Light aircraft or helicopter, from 300 m to orbit, anywhere on Earth</li>
+              <li>OpenStreetMap buildings, a real night, places named as you fly</li>
+              <li>GeoHUB layers painted onto the terrain under the wings</li>
+            </ul>
+            <span class="cap-go">Fly Earth <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+          </div>
+        </a>
+
+        <a class="cap rise" style="--d:110ms" href="/social/">
+          <div class="cap-media"><img src="/assets/opt/geoid-network.webp" alt="The GeoID Network feed with trending topics and filters by kind of work" loading="lazy"></div>
+          <div class="cap-body">
+            <span class="cap-status">Live · free with a sign-in</span>
+            <h3 class="cap-title">GeoID Network</h3>
+            <p class="cap-desc">Where GeoHUB work is shared, questioned and reviewed &mdash; the scene itself, not a screenshot.</p>
+            <ul class="cap-list">
+              <li>Shared 3D scenes open exactly as they were left</li>
+              <li>Posts labelled observed, modelled, forecast or AI-assisted</li>
+              <li>Draft peer review, teams, projects and a who-works-where map</li>
+            </ul>
+            <span class="cap-go">Open the Network <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+          </div>
+        </a>
+
+        <a class="cap rise" style="--d:220ms" href="/consultancy/">
+          <div class="cap-media"><img src="/assets/opt/geohub-radar.webp" alt="Rainfall radar over the British Isles in GeoHUB" loading="lazy"></div>
+          <div class="cap-body">
+            <span class="cap-status">Taking enquiries · 2026–27</span>
+            <h3 class="cap-title">Consultancy</h3>
+            <p class="cap-desc">Focused, freelance geohazard assessments: one site, one question, the method written down.</p>
+            <ul class="cap-list">
+              <li>Landslide, flood, volcanic, seismic and glacial hazard</li>
+              <li>Bespoke finite-element modelling with GALES</li>
+              <li>Free scoping call, then a fixed-fee proposal</li>
+            </ul>
+            <span class="cap-go">See the consultancy <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+          </div>
+        </a>
       </div>
     </div>
   </section>
@@ -987,7 +1034,7 @@
             </li>
             <li>
               <span class="hub-pane-n">Explorers</span>
-              <span class="hub-pane-d">Ten worlds in the same window, each on its mission data, with the same distance, profile, geology and feature-search tools. Mars adds the flight simulator over the CTX mosaic.</span>
+              <span class="hub-pane-d">Ten worlds in the same window, each on its mission data, with the same distance, profile, geology and feature-search tools. Earth Flight flies the whole planet with your layers on the ground; Mars has its own simulator over the CTX mosaic.</span>
             </li>
             <li>
               <span class="hub-pane-n">Meshing Studio</span>
@@ -1014,6 +1061,57 @@
           <div class="hub-cap">
             <span>World geology · Macrostrat, CC BY 4.0</span>
             <span>Coastlines · Natural Earth</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════ NETWORK — why there is a social platform at all ══════════ -->
+  <section class="sec" id="network" aria-label="GeoID Network">
+    <div class="shell">
+      <div class="sec-head rise">
+        <div class="sec-head-copy">
+          <span class="eyebrow">GeoID Network · free with a sign-in</span>
+          <h2 class="sec-title">A network built around the work, not the reach.</h2>
+          <p class="sec-lede">An open hazard map is only worth something if it can be questioned. General social networks reward followers; GeoID Network puts the scene, the method and the people who know the ground first.</p>
+        </div>
+        <a class="btn btn-line btn-sm" href="/social/">Open the Network</a>
+      </div>
+
+      <div class="hub-grid rise">
+        <div class="hub-copy">
+          <ul class="hub-panes">
+            <li>
+              <span class="hub-pane-n">The scene</span>
+              <span class="hub-pane-d">Share a GeoHUB scene and it opens exactly as you left it &mdash; layers, camera, parameters &mdash; so a reader can check the work, not trust a screenshot. Datasets stay at their source or on your disk.</span>
+            </li>
+            <li>
+              <span class="hub-pane-n">Provenance</span>
+              <span class="hub-pane-d">Every post says what kind of claim it is: observed, derived, modelled, forecast or AI-assisted. Field observations can be confirmed or disputed by others who know the place.</span>
+            </li>
+            <li>
+              <span class="hub-pane-n">Fair ranking</span>
+              <span class="hub-pane-d">Discover is weighted by comments, forks and reactions &mdash; not follower counts &mdash; so a good analysis from a small account is not buried.</span>
+            </li>
+            <li>
+              <span class="hub-pane-n">Review &amp; teams</span>
+              <span class="hub-pane-d">Request peer review of a draft, grant a team access to a project&rsquo;s workspace, and find who works where you do on the study-area map.</span>
+            </li>
+          </ul>
+          <div class="hs-actions">
+            <a class="btn btn-solid" href="/social/">Open GeoID Network <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+            <a class="btn btn-line" href="/about_geohub/#network">Why a network</a>
+          </div>
+        </div>
+
+        <div>
+          <div class="hub-shot">
+            <img src="/assets/opt/geoid-network.webp" alt="The GeoID Network feed: posts ranked by discussion, trending topics and filters by kind of work" loading="lazy" decoding="async" width="900" height="600">
+          </div>
+          <div class="hub-cap">
+            <span>GeoID Network, Discover feed</span>
+            <span>Email addresses are never shown</span>
           </div>
         </div>
       </div>
@@ -1056,7 +1154,28 @@
 
       <div class="news">
 <!-- UPDATES:START (generated by scripts/make-updates.py — edit data/updates.json instead) -->
-        <a class="story story--lead story--live rise" style="--d:0ms" href="/">
+        <a class="story story--live rise" style="--d:110ms" href="/explore/earth-flight-simulator/">
+          <div class="story-media"><img src="/assets/opt/earth-flight.webp" alt="Earth Flight in GeoHUB: a light aircraft over forested ridges with the map inset and HUD" loading="lazy" decoding="async"></div>
+          <span class="story-kicker">New release</span>
+          <h3 class="story-title">Earth Flight: fly the real planet</h3>
+          <p class="story-desc">A light aircraft or a helicopter anywhere on Earth, over satellite imagery on true terrain, with OpenStreetMap buildings, a real night and places named as you fly. Inside GeoHUB, so its layers fly too.</p>
+        </a>
+
+        <a class="story story--live rise" style="--d:110ms" href="/social/">
+          <div class="story-media"><img src="/assets/opt/geoid-network.webp" alt="The GeoID Network feed: discover tab, trending topics and filters by kind of post" loading="lazy" decoding="async"></div>
+          <span class="story-kicker">Live now</span>
+          <h3 class="story-title">GeoID Network, for the work itself</h3>
+          <p class="story-desc">Share a 3D scene that opens as you left it, post analyses with their provenance, ask for peer review of a draft and find who works where you do. Ranked by discussion, not follower counts.</p>
+        </a>
+
+        <a class="story story--live rise" style="--d:110ms" href="/consultancy/">
+          <div class="story-media"><img src="/assets/opt/geohub-radar.webp" alt="Rainfall radar over the British Isles in GeoHUB" loading="lazy" decoding="async"></div>
+          <span class="story-kicker">Taking enquiries</span>
+          <h3 class="story-title">Freelance geohazard consultancy</h3>
+          <p class="story-desc">One site, one question: landslide, flood, volcanic, seismic or glacial, answered with a model built for it and the assumptions written down. Free scoping call, then a fixed fee.</p>
+        </a>
+
+        <a class="story story--live rise" style="--d:110ms" href="/">
           <div class="story-media"><img src="/assets/opt/geohub-quakes.webp" alt="The GeoHUB globe with 312,500 earthquakes plotted and a playback timeline" loading="lazy" decoding="async"></div>
           <span class="story-kicker">Live now</span>
           <h3 class="story-title">GeoHUB: the hazard record on a 3D globe</h3>
@@ -1070,18 +1189,18 @@
           <p class="story-desc">Landslide and slope stability from GFS rainfall, flood by discharge, cyclone, seismic, volcanic ashfall and sea level — with rock properties, the Model Builder and Earth Engine. £49.99 a year.</p>
         </a>
 
-        <a class="story story--live rise" style="--d:110ms" href="/everest/">
-          <div class="story-media"><img src="/assets/opt/everest_ascent.webp" alt="ASCENT — the Everest climbing game" loading="lazy" decoding="async"></div>
-          <span class="story-kicker">New release</span>
-          <h3 class="story-title">ASCENT — climb Everest in your browser</h3>
-          <p class="story-desc">Walk the real mountain: Esri imagery over a live elevation model, the South Col route, oxygen, weather and crevasses. Pick a camp and go.</p>
-        </a>
-
         <a class="story story--live rise" style="--d:110ms" href="/?world=mars">
           <div class="story-media"><img src="/assets/opt/hero_marsflight.webp" alt="Mars flight simulator" loading="lazy" decoding="async"></div>
           <span class="story-kicker">Live now</span>
           <h3 class="story-title">The Mars Flight Simulator</h3>
           <p class="story-desc">MOLA relief with the CTX mosaic streamed beneath you, from an 8 km low pass to 300 km orbit. Launch from anywhere on the planet.</p>
+        </a>
+
+        <a class="story story--live rise" style="--d:110ms" href="/everest/">
+          <div class="story-media"><img src="/assets/opt/everest_ascent.webp" alt="ASCENT — the Everest climbing game" loading="lazy" decoding="async"></div>
+          <span class="story-kicker">New release</span>
+          <h3 class="story-title">ASCENT — climb Everest in your browser</h3>
+          <p class="story-desc">Walk the real mountain: Esri imagery over a live elevation model, the South Col route, oxygen, weather and crevasses. Pick a camp and go.</p>
         </a>
 
         <a class="story story--live rise" style="--d:110ms" href="/earth_explorer/etna/">

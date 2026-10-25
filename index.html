@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; script-src 'self' https://static.cloudflareinsights.com 'sha256-yPXcJC6xz5zk+kdwYEZ9cpEoKH6naZ9e7jqZMfgxuM4=' 'sha256-Mkko0pn4e0P2d6royTo0QRnyLQsuvZpD81Q+vsflrV4=' 'sha256-Abewjsa7X1DFpizm5Jmlepq02QDnZECG66sTJVPzD/Y=' 'sha256-t2kbwG31Qy1eDSOLvu6JRAZ5/f+FBDiszAy7NLs2nkk=' 'sha256-XW0ed2zjfK36eMKRU36H1A4VAkWGmo5YiK5ER2hrp3U=' 'sha256-Uky8coMigjWSZXzY2Q1IRtb6LeN4hBkzzaxZsi9urJ0=' 'sha256-HiVohRX9XRx7XlG+uGLN87ZCK6f+N99QWTlTY0ceRmU='; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https: http://localhost:* http://127.0.0.1:*; media-src 'self' data: blob: https:; connect-src 'self' data: blob: https: http://localhost:* http://127.0.0.1:*; frame-src 'self' blob: https://docs.google.com https://drive.google.com; form-action 'self' https://formspree.io https://buy.stripe.com https://docs.google.com; worker-src 'self' blob:; child-src 'self' blob:; upgrade-insecure-requests">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; script-src 'self' https://static.cloudflareinsights.com 'sha256-yPXcJC6xz5zk+kdwYEZ9cpEoKH6naZ9e7jqZMfgxuM4=' 'sha256-Mkko0pn4e0P2d6royTo0QRnyLQsuvZpD81Q+vsflrV4=' 'sha256-Abewjsa7X1DFpizm5Jmlepq02QDnZECG66sTJVPzD/Y=' 'sha256-S/JXzkSHTcyV7wKnsrqrIOa2eTSsbpVDc3K/TwRnooc=' 'sha256-XW0ed2zjfK36eMKRU36H1A4VAkWGmo5YiK5ER2hrp3U=' 'sha256-Uky8coMigjWSZXzY2Q1IRtb6LeN4hBkzzaxZsi9urJ0=' 'sha256-HiVohRX9XRx7XlG+uGLN87ZCK6f+N99QWTlTY0ceRmU='; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https: http://localhost:* http://127.0.0.1:*; media-src 'self' data: blob: https:; connect-src 'self' data: blob: https: http://localhost:* http://127.0.0.1:*; frame-src 'self' blob: https://docs.google.com https://drive.google.com; form-action 'self' https://formspree.io https://buy.stripe.com https://docs.google.com; worker-src 'self' blob:; child-src 'self' blob:; upgrade-insecure-requests">
   <!-- The stamped modules/CSS bust their own cache, but this shell HTML has
        no stamp on its own URL, so a browser was serving a cached tab with an
        old iframe stamp -- which read as "nothing changed" after every edit.
@@ -2254,19 +2254,19 @@
       }
 
       // A NARROW HEADER HAS NO ROOM FOR IT, and the stylesheet hides the bar
-      // below 1400px -- the width at which the logo and the bar would reach
+      // below 1600px -- the width at which the logo and the bar would reach
       // the centred tab headers, which must not move. So the claim has to be
       // conditional on the same width, or such a screen would have no mode
       // switch at all: hidden here AND hidden in the viewer because this side
       // said it had one. Below it the row goes back to the page, which is
       // where it lived before.
-      const narrow = window.matchMedia("(max-width: 1399px)");
+      const narrow = window.matchMedia("(max-width: 1599px)");
       /**
        * THE PLAYER IS CLAIMED ON ITS OWN WIDTH, and it is a different width.
        *
        * It is one 30px button tucked against the membership group -- it does
        * not reach for the centred tab headers the way a 356px bar does, so the
-       * 1400px rule that stands the BAR down has nothing to say about it.
+       * 1600px rule that stands the BAR down has nothing to say about it.
        * Coupled to that rule it stood down at 1399 while the header went on
        * drawing it: measured at 1300, the header's button showing AND the
        * world's own player back in the deck, which is the duplicate this was

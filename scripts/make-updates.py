@@ -5,7 +5,8 @@ Usage:
     python3 scripts/make-updates.py
 
 Posting an update is now a two-minute job:
-  1. add an entry to data/updates.json (first entry = lead story)
+  1. add an entry to data/updates.json (newest first; keep the count a
+     multiple of three so the three-column grid has no orphan row)
   2. run this script
   3. commit both files
 
@@ -56,7 +57,11 @@ def main() -> int:
         print("feed is empty — nothing to do", file=sys.stderr)
         return 1
 
-    tiles = "\n\n".join(tile(u, i == 0) for i, u in enumerate(updates))
+    # Every tile is the same size: a double-width lead left six tiles as
+    # 2+1 / 3 / 1 across three columns, with the last one stranded.
+    tiles = "\n\n".join(tile(u, False) for u in updates)
+    if len(updates) % 3:
+        print(f"note: {len(updates)} tiles leaves a part row in the 3-column grid", file=sys.stderr)
     block = f"{START}\n{tiles}\n      {END}"
 
     page = PAGE.read_text()

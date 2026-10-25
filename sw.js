@@ -16,7 +16,7 @@
 //   * a request that asks for a byte range is never cached (a COG read);
 //   * only whole 200 responses are stored.
 
-const SITE_VERSION = 'v60';   // v60: the GeoID wordmark, versioned so no cache holds the old one
+const SITE_VERSION = 'v61';   // v61: scanlines in device pixels, header at 1600px, About/Dashboard updates
 const STATIC_CACHE = `geoid-site-${SITE_VERSION}`;
 const DATA_CACHE = 'geoid-data-v1';        // data.geoidinitiative.com, fingerprinted (?v=)
 const BASEMAP_CACHE = 'geoid-basemap-tiles-v1';  // Sentinel-2 cloudless / GIBS / OSM tiles
