@@ -105,6 +105,8 @@ export function isInternal(rel) {
   const base = parts[parts.length - 1];
   if (/\.(test|spec)\.m?js$/.test(base)) return true;
   if (/\.broken-/.test(base)) return true;
+  // the trained flood and landslide forests: GeoID's models, never site files
+  if (/^data\/global\/[^/]+-ml\/forest-[^/]*\.json$/.test(rel)) return true;
   if (/^(CLAUDE|README|ROADMAP|QUICKSTART|CONTRACT)\b/i.test(base)) return true;
   const ext = path.extname(base).toLowerCase();
   if (!ext) return true;                       // extensionless: repo furniture
