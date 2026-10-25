@@ -17,7 +17,7 @@
  */
 
 import * as THREE from "../vendor/three.module.js";
-import { colourValues, colormapTable, interpolateOnSlice, rangeOf, formatValue } from "./gales-results.js?v=20261025-4e369f7";
+import { colourValues, colormapTable, interpolateOnSlice, rangeOf, formatValue } from "./gales-results.js?v=20261025-7084e6b";
 
 const R = () => window.GeoIDGalesResults;
 const V = { open: false, field: "", component: "", renderer: null, scene: null, group: null, surface: null, slice: null, camera: null, node: null, raf: 0, painting: false, again: false, range: [0, 1], label: "" };

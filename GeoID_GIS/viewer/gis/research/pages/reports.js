@@ -19,13 +19,13 @@
  * goes through the project store, a print through the browser.
  */
 
-import { registerPage } from "../stages.js?v=20261025-4e369f7";
-import * as store from "../project-store.js?v=20261025-4e369f7";
-import { el, card, button, row, textarea, persistentStatus, splitPanes } from "./common.js?v=20261025-4e369f7";
+import { registerPage } from "../stages.js?v=20261025-7084e6b";
+import * as store from "../project-store.js?v=20261025-7084e6b";
+import { el, card, button, row, textarea, persistentStatus, splitPanes } from "./common.js?v=20261025-7084e6b";
 import {
   buildReport, mergeWriting, latticeInside, summarise, tally, placesFor, areaGeometry, slug, printableHtml,
   markdownToHtml, readingsSignature,
-} from "../study-report.js?v=20261025-4e369f7";
+} from "../study-report.js?v=20261025-7084e6b";
 
 const PAGE = "Study Area Reports";
 const DIR = "reports";
