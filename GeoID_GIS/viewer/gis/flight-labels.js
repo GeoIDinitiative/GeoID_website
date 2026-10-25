@@ -116,6 +116,48 @@ function earthHidden(entry, km, altKm, beyondHorizon) {
   return false;
 }
 
+/*
+ * EARTH: READABLE DISTANCE BY TIER. A place in view is NAMED only this close
+ * (km, along the ground); beyond it, out to its window's reach, it is an icon.
+ * Roughly a third to a half of each tier's reach (gazetteer.js TIER_WINDOW):
+ * a capital is named from a long way off, a village only once it is close.
+ */
+const NAME_KM = { 1: 400, 2: 250, 3: 110, 4: 45, 5: 22, 6: 9, 7: 3.5 };
+/** At most this many names, and this many bare icons, in view at once. */
+const MAX_NAMED_IN_VIEW = 22, MAX_ICONS_IN_VIEW = 70;
+const smooth = (a, b, x) => { const t = Math.max(0, Math.min(1, (x - a) / Math.max(b - a, 1e-9))); return t * t * (3 - 2 * t); };
+
+/*
+ * EARTH: IS THIS PLACE BEHIND THE TERRAIN? The in-view labels are drawn with
+ * no depth test (they must sit over the ground and the aircraft), so nothing
+ * hid a village behind the mountain in front of it (reported over the
+ * Himalaya). March the sight line from the camera to the place's ground point
+ * against the drawn terrain (GeoIDFlightTerrain.heightUnits: the same heights
+ * the mesh and the anchors use), samples bunched toward the place, where the
+ * nearer ridges sit, and stopping short of its own last 150 m so it cannot
+ * occlude itself. With hysteresis: once hidden, a place must clear the ridge
+ * by 10 m to come back; to be hidden, the ridge must stand 15 m into the line.
+ */
+const UNITS_PER_M = 3.2 / 6371000;
+const _tbS = new THREE.Vector3();
+export function terrainBlocks(C, P, Rg, wasHidden = false, heightUnits = window.GeoIDFlightTerrain?.heightUnits) {
+  if (typeof heightUnits !== "function") return false;
+  const dist = C.distanceTo(P);
+  if (!(dist > 1e-9)) return false;
+  const tEnd = 1 - Math.min(0.25, (150 * UNITS_PER_M) / dist);
+  const tol = (wasHidden ? -10 : 15) * UNITS_PER_M;
+  const N = 28;
+  for (let i = 1; i <= N; i += 1) {
+    const t = tEnd * (1 - (1 - i / N) ** 1.6);
+    _tbS.copy(C).lerp(P, t);
+    const r = _tbS.length();
+    const lat = Math.asin(Math.max(-1, Math.min(1, _tbS.y / r))) * 180 / Math.PI;
+    const lon = Math.atan2(-_tbS.z, _tbS.x) * 180 / Math.PI;
+    if (r < Rg + heightUnits(lat, lon) - tol) return true;
+  }
+  return false;
+}
+
 let labelLayer = null;
 let itemsKey = "";
 let terrainVersion = -1;
@@ -466,6 +508,15 @@ function step() {
              t: cy - hPx / 2 - 2, b: cy + hPx / 2 + 2 };
   };
   const rectsOverlap = (a, b) => a.l < b.r && b.l < a.r && a.t < b.b && b.t < a.b;
+  // A dot's screen box: `px` square round where a label-frame point projects.
+  const pointScreenRect = (Plocal, px) => {
+    _srV.copy(Plocal);
+    grp.localToWorld(_srV);
+    const ndc = _srN.copy(_srV).project(camera);
+    if (ndc.z > 1) return null;
+    const cx = (ndc.x * 0.5 + 0.5) * _srVw, cy = (-ndc.y * 0.5 + 0.5) * _srVh, h = px / 2;
+    return { l: cx - h, r: cx + h, t: cy - h, b: cy + h };
+  };
 
   // Every box already claimed this frame: real in-view labels first (they
   // always win), then proxy names in significance order.
@@ -586,19 +637,63 @@ function step() {
     cullStats.candidates = (cullStats.candidates || 0) + 1;
     candidates.push({ entry, over, cosG, P, R });
   }
-  // EARTH: in-view labels never overlap. They are re-anchored above their
-  // dots after the viewer's declutter ran, so two near places could still
-  // land on each other (reported: Newcastle over Sunderland). Most
-  // significant first, then nearest; a label whose box is taken is hidden.
+  // EARTH: IN VIEW, AS MARS DOES THE SKYLINE -- HIDE, NAME, ICONIFY, FADE
+  // (owner, 2026-10-25: labels showing through mountains, and "the horizon is
+  // consistently overcrowded by far too many labels -- see how mars handles
+  // crowding by fading, hiding and iconifying"). Most significant first, then
+  // nearest, each place gets the best of four fates:
+  //   HIDDEN   its ground is behind terrain from here (terrainBlocks): the
+  //            peak in front takes the label, dot and connector with it;
+  //   NAMED    near enough for its tier to be read (NAME_KM), within the
+  //            budget of names, and its chip lands on free screen -- faded a
+  //            little as it nears the edge of its naming range;
+  //   ICON     otherwise its dot alone, category-coloured, fading with range,
+  //            as long as the dot itself lands on free screen and within the
+  //            icon budget: the place stays visible as something ahead,
+  //            and earns its name as the aircraft closes on it;
+  //   DROPPED  when even the dot would sit on another.
   promoted.sort((a, b) => ((Number(a.entry.item?.lod) || 3) - (Number(b.entry.item?.lod) || 3)) || (a.gamma - b.gamma));
-  for (const { entry } of promoted) {
-    const rect = spriteScreenRect(entry.sprite);
-    if (rect && occupiedRects.some((r) => rectsOverlap(r, rect))) {
-      entry.sprite.visible = false;
-      if (entry.line) entry.line.visible = false;
-      entry.marker.visible = false;
+  const KM_PER_RAD = MARS_RADIUS_METERS / 1000;
+  let named = 0, icons = 0;
+  const showAs = (entry, fate, opacity = 1) => {
+    const asName = fate === "name";
+    entry.sprite.visible = asName;
+    if (entry.line) entry.line.visible = asName;
+    entry.marker.visible = fate !== "hidden";
+    // the fade eases in rather than popping as a fate changes
+    entry._fsOp = (entry._fsOp ?? 0) + (opacity - (entry._fsOp ?? 0)) * 0.25;
+    if (asName && entry.sprite.material) entry.sprite.material.opacity = entry._fsOp;
+    if (entry.line?.material) entry.line.material.opacity = 0.36 * entry._fsOp;
+    if (entry.marker.material) entry.marker.material.opacity = 0.92 * entry._fsOp;
+  };
+  for (const { entry, gamma } of promoted) {
+    // Line of sight, refreshed every fourth frame per place (staggered).
+    if (entry._fsOcc === undefined || (frameCount + (entry.sortIndex || 0)) % 4 === 0) {
+      entry._fsOcc = terrainBlocks(camLocal, entry.marker.position, Rg, entry._fsOcc);
+    }
+    if (entry._fsOcc) { showAs(entry, "hidden", 0); entry._fsOp = 0; cullStats.occluded = (cullStats.occluded || 0) + 1; continue; }
+    const tier = Math.min(7, Math.max(1, Number(entry.item?.lod) || 4));
+    const km = gamma * KM_PER_RAD;
+    const nameKm = NAME_KM[tier];
+    if (km <= nameKm && named < MAX_NAMED_IN_VIEW) {
+      const rect = spriteScreenRect(entry.sprite);
+      if (rect && !occupiedRects.some((r) => rectsOverlap(r, rect))) {
+        occupiedRects.push(rect);
+        named += 1;
+        showAs(entry, "name", 1 - 0.35 * smooth(0.55 * nameKm, nameKm, km));
+        continue;
+      }
+    }
+    const dot = icons < MAX_ICONS_IN_VIEW ? pointScreenRect(entry.marker.position, 9) : null;
+    if (dot && !occupiedRects.some((r) => rectsOverlap(r, dot))) {
+      occupiedRects.push(dot);
+      icons += 1;
+      showAs(entry, "icon", 0.85 - 0.45 * smooth(nameKm, windowOf(entry.item).reachKm, km));
+      cullStats.iconified = (cullStats.iconified || 0) + 1;
+    } else {
+      showAs(entry, "hidden", 0);
       cullStats.promotedDecluttered = (cullStats.promotedDecluttered || 0) + 1;
-    } else if (rect) occupiedRects.push(rect);
+    }
   }
   // Pass 2 — declutter the horizon band: nearest feature wins each
   // azimuth bin, capped so the skyline never crowds.
@@ -822,7 +917,10 @@ function onClick(ev) {
     for (let p = o; p; p = p.parent) if (!p.visible) return false;
     return true;
   });
-  const hit = ray.intersectObjects(live, false)[0];
+  // Only what is drawn: a place hidden behind a ridge or decluttered away
+  // keeps an invisible hit target, which must not open a card.
+  const drawn = new Set(labelLayer.entries.filter((e) => e.sprite?.visible || e.marker?.visible).map((e) => e.item));
+  const hit = ray.intersectObjects(live, false).find((h) => drawn.has(h.object?.userData?.feature));
   const item = hit?.object?.userData?.feature;
   if (!item) return;
   // EARTH: the card the geology and the imported layers use, pinned to the
