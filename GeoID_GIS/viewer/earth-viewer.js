@@ -2,15 +2,15 @@ import * as THREE from "./vendor/three.module.js";
 // The polygon-area rule lives in one place, with a test. Stamped by hand
 // once: stamp.py only rewrites a ?v= that already exists.
 import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
-  from "./gis/geo-utils.js?v=20261025-9cfd5f7";
+  from "./gis/geo-utils.js?v=20261025-aa8e56d";
 import { attachReliefAttributes, followRelief }
-  from "./gis/vector-render.js?v=20261025-9cfd5f7";
+  from "./gis/vector-render.js?v=20261025-aa8e56d";
 import { rockClass, crustalSetting, rockClassLabel, classificationBasis }
-  from "./gis/rock-class.js?v=20261025-9cfd5f7";
+  from "./gis/rock-class.js?v=20261025-aa8e56d";
 import { lithologyLabel }
-  from "./gis/lithology-label.js?v=20261025-9cfd5f7";
+  from "./gis/lithology-label.js?v=20261025-aa8e56d";
 import { formatLatLon }
-  from "./gis/coord-format.js?v=20261025-9cfd5f7";
+  from "./gis/coord-format.js?v=20261025-aa8e56d";
 
 /**
  * This module's own cache stamp, read off its own URL.
@@ -24810,16 +24810,16 @@ ${error && error.message ? error.message : error}`;
              * Above the anchor's own horizon is right from orbit and wrong
              * from 1 km up: a 3.3 km summit 135 km away stands well above
              * the horizon and failed it, so a click on Etna's label opened
-             * its card hidden (reported: distant labels "not clickable"). In
-             * Earth Flight the card hides only when the sight line passes
-             * under the sea.
+             * its card hidden (reported: distant labels "not clickable").
+             * And the flight's horizon flags are places BEYOND the horizon
+             * by design, clicked to ask what lies that way. In Earth Flight
+             * the card shows while its place is ahead of the camera, riding
+             * on the place's bearing, and hides once it is behind.
              */
-            if (!visible && window.__flightSim?.active) {
-              const a = camera.position.clone().sub(planetCenterWorld);
-              const d = worldPos.clone().sub(planetCenterWorld).sub(a);
-              const t = Math.max(0, Math.min(1, -a.dot(d) / Math.max(d.lengthSq(), 1e-12)));
-              const seaR = marsGroup.localToWorld(new THREE.Vector3(3.2, 0, 0)).sub(planetCenterWorld).length();
-              visible = a.addScaledVector(d, t).length() >= seaR;
+            if (window.__flightSim?.active) {
+              const forward = new THREE.Vector3();
+              camera.getWorldDirection(forward);
+              visible = worldPos.clone().sub(camera.position).dot(forward) > 0;
             }
             if (!visible) {
               if (geoPopup) geoPopup.hidden = true;
