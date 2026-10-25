@@ -232,10 +232,31 @@ const control = { on: true, off: new Set() };
 export function flightLabelAllowed(item, c = control) {
   return c.on && !c.off.has(item?.category);
 }
+/**
+ * ONE SWITCH, SEEN FROM EVERYWHERE. The Workspace row and the Locations
+ * master read this while flying (layer-hierarchy.js flyingLabels) and are told
+ * whenever it moves; a flight starts with labels off only if they were
+ * switched off by hand in GeoHUB, and the master is put back to what the
+ * globe's own boxes say on landing.
+ */
+function announce() {
+  const master = document.getElementById("locations-master-toggle");
+  if (master && window.__flightSim?.active) master.checked = control.on;
+  window.dispatchEvent(new CustomEvent("geoid:flight-labels-changed", { detail: { on: control.on } }));
+}
+function setLabelsOn(on) {
+  if (control.on === Boolean(on)) return;
+  control.on = Boolean(on);
+  lastItemsAt = 0;
+  announce();
+}
+if (typeof window !== "undefined") {
+  window.GeoIDFlightLabels = { isOn: () => control.on, setOn: setLabelsOn };
+}
 function onLabelControl(e) {
   const t = e.target;
   if (!t || !window.__flightSim?.active) return;
-  if (t.id === "locations-master-toggle" || t.matches?.('.layer-row-labels [data-role="visible"]')) control.on = t.checked;
+  if (t.id === "locations-master-toggle" || t.matches?.('.layer-row-labels [data-role="visible"]')) { setLabelsOn(t.checked); return; }
   else if (e.isTrusted && t.dataset?.placeCategory) {
     for (const id of t.dataset.placeCategory.split(" ")) {
       if (t.checked) control.off.delete(id); else control.off.add(id);
@@ -1025,6 +1046,8 @@ export async function startFlightLabels() {
   if (frame) return;
   if (!buildLabelLayer) ({ buildLabelLayer, updateLabelVisibility, updateLabelAnchors, makeLabelTexture } = await import(MARS_LABELS));
   if (frame || !window.__flightSim?.active) return;
+  control.on = !window.GeoIDLayerHierarchy?.labelsSwitchedOff?.();
+  announce();
   frame = requestAnimationFrame(step);
   window.GeoIDViewer?.renderer?.domElement?.addEventListener("click", onClick, true);
   document.addEventListener("change", onLabelControl);
@@ -1039,4 +1062,8 @@ export function stopFlightLabels() {
   dispose();
   itemsKey = "";
   window.__fsTriActive = false;
+  // Landed: the master says what the globe's own boxes say again.
+  const master = document.getElementById("locations-master-toggle");
+  if (master) master.checked = Boolean(document.querySelector("#locations-section input[type=checkbox]:checked:not(#locations-master-toggle):not(#moon-toggle)"));
+  window.dispatchEvent(new CustomEvent("geoid:flight-labels-changed", { detail: { on: false } }));
 }

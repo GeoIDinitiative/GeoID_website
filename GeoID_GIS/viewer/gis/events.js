@@ -430,7 +430,13 @@ function rememberSources() {
  * wants the mode, and somebody who has switched the whole thing off has not
  * said anything about their feed selection.
  */
-const ACTIVE_KEY = "geoid-gis:events-active";
+// "-2" since 2026-10-25 (owner: "events tab is not active by default (broken
+// from older version)"). Builds before this one could store "off" without
+// anybody choosing it, and that "0" then held the feed off on every visit;
+// the new key starts everyone from the default (ON) once. Choices made from
+// here on are remembered as before.
+const ACTIVE_KEY = "geoid-gis:events-active-2";
+try { window.localStorage?.removeItem("geoid-gis:events-active"); } catch (error) { /* no storage */ }
 
 function rememberActive(on) {
   try {
