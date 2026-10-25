@@ -28,18 +28,18 @@
  *   to the one the list has, not a second source of truth.
  */
 
-import { QUALITATIVE_RAMP } from "./symbology.js?v=20261025-a4b7425";
-import { currentBodyId } from "./bodies.js?v=20261025-a4b7425";
-import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20261025-a4b7425";
-import { rockClass } from "./rock-class.js?v=20261025-a4b7425";
-import { AREA_OPACITY } from "./layer-opacity.js?v=20261025-a4b7425";
-import { datasetInfoButton } from "./catalogue-list.js?v=20261025-a4b7425";
-import { isIceCover, isNotIceCover } from "./ice-cover.js?v=20261025-a4b7425";
-import { isIceFeature, iceCard } from "./ice-card.js?v=20261025-a4b7425";
-import { isSoilFeature, soilCard } from "./soil-card.js?v=20261025-a4b7425";
-import { waterCard, WATER_SAID } from "./water-card.js?v=20261025-a4b7425";
+import { QUALITATIVE_RAMP } from "./symbology.js?v=20261025-ce523e9";
+import { currentBodyId } from "./bodies.js?v=20261025-ce523e9";
+import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20261025-ce523e9";
+import { rockClass } from "./rock-class.js?v=20261025-ce523e9";
+import { AREA_OPACITY } from "./layer-opacity.js?v=20261025-ce523e9";
+import { datasetInfoButton } from "./catalogue-list.js?v=20261025-ce523e9";
+import { isIceCover, isNotIceCover } from "./ice-cover.js?v=20261025-ce523e9";
+import { isIceFeature, iceCard } from "./ice-card.js?v=20261025-ce523e9";
+import { isSoilFeature, soilCard } from "./soil-card.js?v=20261025-ce523e9";
+import { waterCard, WATER_SAID } from "./water-card.js?v=20261025-ce523e9";
 
-import { openSymbologyDialog } from "./symbology-dialog.js?v=20261025-a4b7425";
+import { openSymbologyDialog } from "./symbology-dialog.js?v=20261025-ce523e9";
 
 /* ── The catalogue ───────────────────────────────────────────────────────────
  *
