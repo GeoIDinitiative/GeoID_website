@@ -74,5 +74,9 @@ check("listened to only while flying",
     /wrap\.className = "gis-tool-section";[\s\S]{0,1200}id="social-community-toggle"/.test(sb), true);
 }
 
+check("dots are sized from the sphere's radius, 4-6 px",
+  /const dotR = entry\.marker\.geometry\?\.parameters\?\.radius/.test(src)
+    && /setScalar\(\(distCam \* anglePerPx \* dotPx\) \/ \(2 \* dotR\)\)/.test(src), true);
+
 console.log(`\n${failures ? `${failures} failed` : "all passed"}`);
 process.on("exit", () => { process.exitCode = failures ? 1 : 0; });

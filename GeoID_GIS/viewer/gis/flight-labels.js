@@ -616,7 +616,14 @@ function step() {
           const k = (distCam * anglePerPx * chipPx) / Math.max(entry.baseScale.y, 1e-9);
           entry.sprite.scale.set(entry.baseScale.x * k, entry.baseScale.y * k, 1);
         }
-        entry.marker.scale.setScalar((distCam * anglePerPx * (tier <= 3 ? 9 : tier <= 5 ? 7 : 6) * (0.7 + 0.45 * near)) / 0.022);
+        // The dot: 6 px for the big tiers down to 4, a little larger near and
+        // smaller far (reported: "the location label dots are also generally
+        // too big"). Sized from the sphere's own RADIUS -- the 0.022 this
+        // divided by before was taken for a diameter, which drew every dot
+        // twice the size it was meant to be.
+        const dotPx = (tier <= 3 ? 6 : tier <= 5 ? 5 : 4) * (0.75 + 0.35 * near);
+        const dotR = entry.marker.geometry?.parameters?.radius || 0.011;
+        entry.marker.scale.setScalar((distCam * anglePerPx * dotPx) / (2 * dotR));
         const lift = Math.max(distCam * anglePerPx * 62, entry.sprite.scale.y * 1.4);
         upV.copy(P).multiplyScalar(1 / (P.length() || 1)); // radial up at the feature
         entry.sprite.position.copy(P).addScaledVector(upV, lift);
@@ -694,7 +701,7 @@ function step() {
         continue;
       }
     }
-    const dot = icons < MAX_ICONS_IN_VIEW ? pointScreenRect(entry.marker.position, 9) : null;
+    const dot = icons < MAX_ICONS_IN_VIEW ? pointScreenRect(entry.marker.position, 8) : null;
     if (dot && !occupiedRects.some((r) => rectsOverlap(r, dot))) {
       occupiedRects.push(dot);
       icons += 1;
