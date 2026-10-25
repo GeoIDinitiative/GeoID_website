@@ -12,6 +12,20 @@ compatibility_date = "2026-01-01"
 # reaches the page as a bare "Failed to fetch" with no status to read.
 ALLOWED_ORIGINS = "https://geoidinitiative.com https://www.geoidinitiative.com http://localhost:8125"
 
+# ONLY THE MEMBERS' PATHS, never `data.geoidinitiative.com/*`. Every basemap
+# and terrain tile is read from this host, so a catch-all route would run the
+# Worker on millions of requests that it only passes through: on the free plan
+# that ends at 100,000 a day and the whole site's data stops. These three
+# prefixes are exactly MEMBER_DATA (worker.js; route.test in worker.test.mjs
+# holds them equal), and the Worker still checks gatedData() itself.
 [[routes]]
-pattern = "data.geoidinitiative.com/*"
+pattern = "data.geoidinitiative.com/cyclone-risk*"
+zone_name = "geoidinitiative.com"
+
+[[routes]]
+pattern = "data.geoidinitiative.com/seismic-risk*"
+zone_name = "geoidinitiative.com"
+
+[[routes]]
+pattern = "data.geoidinitiative.com/volcanic-risk*"
 zone_name = "geoidinitiative.com"

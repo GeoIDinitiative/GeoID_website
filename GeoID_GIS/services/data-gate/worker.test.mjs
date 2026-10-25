@@ -102,5 +102,15 @@ check("a pass signed with another key is refused",
 check("a malformed pass is refused rather than thrown",
   (await validPass("not.a.pass", SECRET)) === null);
 
+// The routes are the gated prefixes and nothing else: a catch-all route would
+// put every basemap tile through the Worker, and a missing one leaves a
+// members' layer open with no Worker in front of it at all.
+{
+  const toml = readFileSync(join(HERE, "wrangler.toml"), "utf8");
+  const routes = [...toml.matchAll(/^pattern\s*=\s*"data\.geoidinitiative\.com\/([^"]*)"/gm)].map((m) => m[1]);
+  check("one route per members' prefix, and no catch-all",
+    JSON.stringify(routes.sort()) === JSON.stringify(MEMBER_DATA.map((p) => `${p}*`).sort()));
+}
+
 console.log(`\n${failures ? `${failures} failed` : "all passed"}`);
 process.on("exit", () => { process.exitCode = failures ? 1 : 0; });
