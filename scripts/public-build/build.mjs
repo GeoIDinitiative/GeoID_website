@@ -19,7 +19,8 @@
  *   - INTERNAL (see isInternal): left out. Notes, docs, plans, tests and
  *     fixtures, server and tooling source, page backups, dotfiles, and every
  *     file type a browser never fetches from this site (.md .py .txt .sql ...).
- *   - .js / .mjs / .css: minified with every comment stripped, except
+ *   - .js / .mjs / .css: minified with every comment stripped, including
+ *     those inside GLSL/CSS/HTML template strings (stripStringComments), except
  *     third-party files (a `vendor` folder or a `.min.` name), which are
  *     copied as shipped so their licence banners stay intact.
  *   - .html: HTML comments stripped outside <script>, <style>, <pre> and
@@ -47,6 +48,7 @@ import { mkdir, readFile, writeFile, copyFile, rm } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { transform } from "esbuild";
+import { parse } from "acorn";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const OUT = path.resolve(ROOT, argValue("--out") || "_site");
@@ -129,6 +131,78 @@ async function minify(rel, source) {
     sourcefile: rel,
   });
   return result.code;
+}
+
+/**
+ * COMMENTS INSIDE STRINGS. A minifier cannot touch a comment that is part of
+ * a string's value, and the viewers keep their GLSL shaders, CSS and HTML
+ * templates in template literals: a shader's explanatory comments shipped
+ * verbatim. So the minified code is parsed and each template literal that is
+ * recognisably GLSL, CSS or HTML loses its comments (GLSL // and block
+ * comments, CSS block comments, HTML comments) and its blank lines.
+ *
+ * A comment that spans a `${...}` substitution is left alone: removing it
+ * would move the substitution into the shader. GLSL needs its line breaks
+ * (preprocessor directives end at one), so every newline stays.
+ */
+const GLSL = /\b(?:gl_Position|gl_FragColor|gl_FragCoord|void\s+main\s*\(|precision\s+(?:high|medium|low)p|uniform\s+\w|varying\s+\w|#include\s*<|\b(?:vec[234]|mat[34])\s*\()/;
+const CSS = /[{;]\s*[-\w]+\s*:/;
+const HOLE = /\u0000\d+\u0000/;
+
+function stripKind(text) {
+  let out = text;
+  const keep = (m, fn) => (HOLE.test(m) ? m : fn(m));
+  if (GLSL.test(text)) {
+    out = out.replace(/\/\*[\s\S]*?\*\//g, (m) => keep(m, () => ""));
+    out = out.replace(/(^|[^:\\])\/\/[^\n]*/g, (m, lead) => keep(m, () => lead));
+  } else if (CSS.test(text) && text.includes("/*")) {
+    out = out.replace(/\/\*[\s\S]*?\*\//g, (m) => keep(m, () => ""));
+  } else if (/<[a-z]/i.test(text) && text.includes("<!--")) {
+    out = out.replace(/<!--[\s\S]*?-->/g, (m) => keep(m, () => ""));
+  } else {
+    return text;
+  }
+  return out.replace(/[ \t]+$/gm, "").replace(/\n\s*\n/g, "\n");
+}
+
+function walk(node, fn) {
+  if (!node || typeof node.type !== "string") return;
+  fn(node);
+  for (const key in node) {
+    const v = node[key];
+    if (Array.isArray(v)) for (const c of v) walk(c, fn);
+    else if (v && typeof v === "object" && typeof v.type === "string") walk(v, fn);
+  }
+}
+
+export function stripStringComments(code, stats = { stripped: 0 }) {
+  let ast = null;
+  for (const sourceType of ["module", "script"]) {
+    try {
+      ast = parse(code, { ecmaVersion: "latest", sourceType, allowHashBang: true,
+        allowReturnOutsideFunction: true, allowAwaitOutsideFunction: true });
+      break;
+    } catch { /* try the other source type */ }
+  }
+  if (!ast) return code;
+  const edits = [];
+  walk(ast, (node) => {
+    if (node.type !== "TemplateLiteral") return;
+    const raws = node.quasis.map((q) => code.slice(q.start, q.end));
+    const joined = raws.map((r, i) => (i ? `\u0000${i}\u0000` : "") + r).join("");
+    const stripped = stripKind(joined);
+    if (stripped === joined) return;
+    const back = stripped.split(/\u0000\d+\u0000/);
+    if (back.length !== raws.length) return;
+    back.forEach((text, i) => {
+      if (text !== raws[i]) edits.push({ start: node.quasis[i].start, end: node.quasis[i].end, text });
+    });
+    stats.stripped++;
+  });
+  edits.sort((a, b) => b.start - a.start);
+  let out = code;
+  for (const e of edits) out = out.slice(0, e.start) + e.text + out.slice(e.end);
+  return out;
 }
 
 /**
@@ -254,7 +328,7 @@ async function main() {
   const published = new Set(publish);
 
   await rm(OUT, { recursive: true, force: true });
-  const stats = { copied: 0, minified: 0, html: 0, bytesIn: 0, bytesOut: 0 };
+  const stats = { copied: 0, minified: 0, html: 0, bytesIn: 0, bytesOut: 0, stripped: 0 };
   const failures = [];
   const written = new Set();
 
@@ -266,7 +340,7 @@ async function main() {
     try {
       if ((ext === ".js" || ext === ".mjs" || ext === ".css") && !isThirdParty(rel)) {
         const text = await readFile(src, "utf8");
-        const code = scrubLocalPaths(await minify(rel, text));
+        const code = scrubLocalPaths(ext === ".css" ? await minify(rel, text) : stripStringComments(await minify(rel, text), stats));
         await writeFile(dst, code);
         stats.minified++; stats.bytesIn += Buffer.byteLength(text); stats.bytesOut += Buffer.byteLength(code);
       } else if (ext === ".html") {
@@ -304,6 +378,7 @@ async function main() {
   const kb = (n) => `${(n / 1024 / 1024).toFixed(1)} MB`;
   console.log(`public build: ${publish.length} of ${files.length} tracked files published to ${path.relative(ROOT, OUT) || OUT}`);
   console.log(`  ${stats.minified} scripts/styles minified (${kb(stats.bytesIn)} -> ${kb(stats.bytesOut)}), ${stats.html} pages, ${stats.copied} copied`);
+  console.log(`  ${stats.stripped} shader/CSS/HTML templates inside scripts had their comments stripped`);
   console.log(`  ${files.length - publish.length} internal files left out`);
   for (const f of failures) console.error(`FAILED     ${f}`);
   for (const f of leaked) console.error(`LEAKED     ${f}`);
