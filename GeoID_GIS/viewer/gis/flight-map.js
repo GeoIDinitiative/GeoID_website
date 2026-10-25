@@ -25,7 +25,7 @@ const TRACK_STEP_M = 150;
 const R_EARTH = 6378137;
 const FOLD_KEY = "geoid-gis:flight-map-folded";
 
-let box = null, canvas = null, ctx = null, posLine = null, zLabel = null;
+let box = null, canvas = null, ctx = null, posLine = null;
 let zoom = 9;
 let timer = null;
 const track = [];
@@ -139,7 +139,6 @@ function draw() {
     const ns = ship.lat >= 0 ? "N" : "S", ew = ship.lon >= 0 ? "E" : "W";
     posLine.textContent = `${Math.abs(ship.lat).toFixed(3)}°${ns}  ${Math.abs(ship.lon).toFixed(3)}°${ew}`;
   }
-  if (zLabel) zLabel.textContent = `Z${zoom}`;
 }
 
 function sampleTrack() {
@@ -158,7 +157,6 @@ function build() {
   box.innerHTML = `
     <div class="fs-map-head">
       <span class="fs-map-title">Map</span>
-      <span class="fs-map-zoom" aria-live="polite"></span>
       <button type="button" class="fs-map-btn" data-step="-1" aria-label="Zoom the map out">−</button>
       <button type="button" class="fs-map-btn" data-step="1" aria-label="Zoom the map in">+</button>
       <button type="button" class="fs-map-btn fs-map-fold" aria-expanded="true" aria-label="Collapse the map">▾</button>
@@ -168,7 +166,6 @@ function build() {
   canvas = box.querySelector("canvas");
   ctx = canvas.getContext("2d");
   posLine = box.querySelector(".fs-map-pos");
-  zLabel = box.querySelector(".fs-map-zoom");
   // Collapse to the title bar and back, remembered for this browser.
   const fold = box.querySelector(".fs-map-fold");
   const setFolded = (folded) => {
@@ -207,14 +204,13 @@ function build() {
 }
 #fs-locator-map canvas { display: block; width: 100%; height: auto; border-radius: 0.2rem; }
 #fs-locator-map.is-collapsed canvas, #fs-locator-map.is-collapsed .fs-map-pos,
-#fs-locator-map.is-collapsed .fs-map-btn[data-step], #fs-locator-map.is-collapsed .fs-map-zoom { display: none; }
+#fs-locator-map.is-collapsed .fs-map-btn[data-step] { display: none; }
 #fs-locator-map.is-collapsed .fs-map-head { margin: 0; }
 #fs-locator-map .fs-map-head { display: flex; align-items: center; gap: 0.3rem; margin: 0 0 0.25rem; }
 #fs-locator-map .fs-map-title {
   flex: 1; font-size: 0.56rem; font-weight: 600; letter-spacing: 0.18em; text-transform: uppercase;
   color: var(--nav-accent, #ffd65c);
 }
-#fs-locator-map .fs-map-zoom { font-size: 0.56rem; color: rgba(238, 243, 251, 0.6); font-variant-numeric: tabular-nums; }
 #fs-locator-map .fs-map-btn {
   width: 1.15rem; height: 1.15rem; padding: 0; line-height: 1;
   font: 600 0.78rem "Exo 2", "Segoe UI", sans-serif;
