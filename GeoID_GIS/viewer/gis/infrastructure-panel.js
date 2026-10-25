@@ -27,18 +27,18 @@
  */
 
 import * as THREE from "../vendor/three.module.js";
-import { latLonToVector3 } from "./geo-utils.js?v=20261025-908352f";
-import { DATASETS, layerForDataset, addDataset, datasetById } from "./global-data.js?v=20261025-908352f";
-import { dataUrl } from "./data-base.js?v=20261025-908352f";
-import { riskMaps, areaFor, ringsBox, RIVER_ZONE_SCHEME, VOLCANIC_ZONE_SCHEME } from "./risk-reader.js?v=20261025-908352f";
-import { polygonsOf, polygonIndex, insideAny, gridValueAt, boxOf } from "./exposure.js?v=20261025-908352f";
+import { latLonToVector3 } from "./geo-utils.js?v=20261025-34a5ee7";
+import { DATASETS, layerForDataset, addDataset, datasetById } from "./global-data.js?v=20261025-34a5ee7";
+import { dataUrl } from "./data-base.js?v=20261025-34a5ee7";
+import { riskMaps, areaFor, ringsBox, RIVER_ZONE_SCHEME, VOLCANIC_ZONE_SCHEME } from "./risk-reader.js?v=20261025-34a5ee7";
+import { polygonsOf, polygonIndex, insideAny, gridValueAt, boxOf } from "./exposure.js?v=20261025-34a5ee7";
 import { SCHEMES, schemeForLayerName, bandScheme, chanceScheme, windLookup, riskLayerKind }
-  from "./risk-assessment.js?v=20261025-908352f";
+  from "./risk-assessment.js?v=20261025-34a5ee7";
 import {
   INSIDE_SCHEME, ASH_SCHEME, exposeSource, summarise, describe, exposureCsv, classColour, featureBox,
-} from "./infrastructure.js?v=20261025-908352f";
-import { refreshPolygonOptions, promptDrawTool } from "./extent-picker.js?v=20261025-908352f";
-import { boxSpanDeg, BRIDGE_TIERS, BUILDING_MAX_SPAN } from "./research/connectors.js?v=20261025-908352f";
+} from "./infrastructure.js?v=20261025-34a5ee7";
+import { refreshPolygonOptions, promptDrawTool } from "./extent-picker.js?v=20261025-34a5ee7";
+import { boxSpanDeg, BRIDGE_TIERS, BUILDING_MAX_SPAN } from "./research/connectors.js?v=20261025-34a5ee7";
 
 const search = new URL(import.meta.url).search;
 const byId = (id) => document.getElementById(id);
