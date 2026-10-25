@@ -1097,6 +1097,30 @@ function supersede(pass) {
 const MOTION_TILES = 64;
 const MOTION_CANVAS_PX = 2048;
 
+/**
+ * UPLOAD THE CANVAS NOW AND THEN, NOT PER TILE (owner, 2026-10-25: "when we
+ * zoom right in to low altitude, the gui freezes"). Profiled zooming GeoHUB
+ * down over London: texture upload was the second-largest main-thread cost
+ * from 50 km down -- every tile painted into a streaming canvas (up to 4096
+ * px square, 64 MB) set `needsUpdate`, so the WHOLE canvas went to the GPU
+ * again for each 256 px tile, dozens of times a pass. Now the canvas is
+ * uploaded at most every UPLOAD_EVERY_MS while tiles land, and once more when
+ * the pass completes: the ground still sharpens as it streams, in a few
+ * steps instead of one per tile.
+ */
+const UPLOAD_EVERY_MS = 200;
+function scheduleUpload(pass, final = false) {
+  const flush = () => {
+    pass.uploadTimer = null;
+    pass.lastUpload = performance.now();
+    if (pass.live?.material?.map) pass.live.material.map.needsUpdate = true;
+  };
+  if (final) { clearTimeout(pass.uploadTimer); flush(); return; }
+  if (pass.uploadTimer) return;
+  const wait = Math.max(0, UPLOAD_EVERY_MS - (performance.now() - (pass.lastUpload || 0)));
+  pass.uploadTimer = setTimeout(flush, wait);
+}
+
 /** One refinement pass: fetch the visible extent and swap the detail patch in. */
 async function refineOnce({ onStatus, motion = false } = {}) {
   const viewer = window.GeoIDViewer;
@@ -1181,8 +1205,9 @@ async function refineOnce({ onStatus, motion = false } = {}) {
       pass.live = mesh;
       restack();
     }
-    // A CanvasTexture re-uploads on demand; this is the whole progressive path.
-    pass.live.material.map.needsUpdate = true;
+    // A CanvasTexture re-uploads on demand; this is the whole progressive
+    // path -- coalesced (scheduleUpload), the last tile uploaded at once.
+    scheduleUpload(pass, done === total);
     if (done % 8 === 0 || done === total) {
       onStatus?.(`Sharpening: level ${level} — ${done}/${total} tiles…`);
     }
@@ -1501,13 +1526,14 @@ async function refineAhead(spec) {
         pass.live.renderOrder = spec.order + 0.001;   // over the old one while it fills
         group.add(pass.live);
       }
-      pass.live.material.map.needsUpdate = true;
+      scheduleUpload(pass);
     },
   });
   pass.cancel = run.cancel;
   await run;
   if (st.pass !== pass || aheadState.get(spec.key) !== st) return;
   if (!pass.live) { st.pass = null; return; }
+  scheduleUpload(pass, true);          // the last tiles, now
   disposeMesh(st.mesh);
   pass.live.name = `GeoID-BasemapAhead-${spec.key}`;
   pass.live.renderOrder = spec.order;

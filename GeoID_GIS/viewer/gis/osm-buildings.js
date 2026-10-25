@@ -446,7 +446,10 @@ function roofTexture(t) {
           if (t.dead) return;
           const sub = 256 / s;
           ctx.drawImage(img, (x - px * s) * sub, (y - py * s) * sub, sub, sub, i * 256, j * 256, 256, 256);
-          tex.needsUpdate = true;
+          // Coalesced, as basemap-drape.js's scheduleUpload: up to 64 pieces
+          // land in a 2048 px canvas, and uploading all of it for each one
+          // stalled the GUI as the city came in.
+          if (!t.roofUpload) t.roofUpload = setTimeout(() => { t.roofUpload = null; if (!t.dead) tex.needsUpdate = true; }, 200);
         }).catch(() => { if (!t.dead && up < 4) draw(z - 1, up + 1); });
       };
       draw(zoom, 0);
