@@ -374,7 +374,11 @@ async function main() {
     // runtime carries a stock HOME of "/home/web_user", nobody's machine)
     if (!isThirdParty(rel) && LOCAL_PATH.test(text)) localPaths.push(rel);
     LOCAL_PATH.lastIndex = 0;
-    if (!/\.(geojson|csv|svg|txt)$/i.test(rel)) for (const b of brokenRefs(rel, text, tracked, published)) broken.push(`${rel} -> ${b}`);
+    // sources.json names BUCKET objects (data-base.js reads them from there),
+    // not files this site serves, so its keys are not references to check
+    if (!/\.(geojson|csv|svg|txt)$/i.test(rel) && rel !== "data/global/sources.json") {
+      for (const b of brokenRefs(rel, text, tracked, published)) broken.push(`${rel} -> ${b}`);
+    }
   });
 
   const kb = (n) => `${(n / 1024 / 1024).toFixed(1)} MB`;
