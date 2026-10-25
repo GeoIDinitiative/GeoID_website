@@ -21,7 +21,7 @@
  */
 
 import { rings, polygons, clipRing } from "./mvt.js?v=1";
-import { bridgeOutlines, drawBridges, latticeClusters, drawWheel, inPolys } from "./structures.js?v=3";
+import { bridgeOutlines, drawBridges, latticeClusters, drawWheel, inPolys } from "./structures.js?v=4";
 
 const SINK = 4;
 // Facade grid (facade.js): every wall segment carries a WHOLE number of bays
@@ -141,7 +141,9 @@ export function extrudeTile(layer, dem, demSize, sizeLocal, triangulate, extra =
 
   /* ── Generic drawing for structures.js, in metres ─────────────────── */
   const toTile = (P) => [P[0] / s, P[1], P[2] / s];
-  const flatTri = (P, want, colour, group) => {
+  // `shift` [du, dv] (tile units) moves where a roof-group face reads the
+  // tile's imagery from: a patch under a bridge shows the ground beside it.
+  const flatTri = (P, want, colour, group, shift = null) => {
     const e1 = [P[1][0] - P[0][0], P[1][1] - P[0][1], P[1][2] - P[0][2]];
     const e2 = [P[2][0] - P[0][0], P[2][1] - P[0][1], P[2][2] - P[0][2]];
     let n = [e1[1] * e2[2] - e1[2] * e2[1], e1[2] * e2[0] - e1[0] * e2[2], e1[0] * e2[1] - e1[1] * e2[0]];
@@ -153,7 +155,10 @@ export function extrudeTile(layer, dem, demSize, sizeLocal, triangulate, extra =
     for (const k of order) {
       const [u, y, v] = toTile(P[k]);
       into.push(group === "roof"
-        ? vert(u, y, v, n[0] / l, n[1] / l, n[2] / l, colour[0], colour[1], colour[2])
+        ? (shift
+          ? vert(u, y, v, n[0] / l, n[1] / l, n[2] / l, colour[0], colour[1], colour[2],
+            Math.min(1, Math.max(0, (u + shift[0]) / ext)), Math.min(1, Math.max(0, 1 - (v + shift[1]) / ext)))
+          : vert(u, y, v, n[0] / l, n[1] / l, n[2] / l, colour[0], colour[1], colour[2]))
         : vert(u, y, v, n[0] / l, n[1] / l, n[2] / l, colour[0], colour[1], colour[2], 0, 0));
     }
   };
@@ -161,9 +166,9 @@ export function extrudeTile(layer, dem, demSize, sizeLocal, triangulate, extra =
     s, ext, triangulate,
     ground,
     tri: (P, n, colour, group) => { const keep = style; style = group === "roof" ? 0 : 0.5; flatTri(P, n, colour, group); style = keep; },
-    quad: (P, n, colour, group) => {
+    quad: (P, n, colour, group, shift = null) => {
       const keep = style; style = group === "roof" ? 0 : 0.5;
-      flatTri([P[0], P[1], P[2]], n, colour, group); flatTri([P[0], P[2], P[3]], n, colour, group);
+      flatTri([P[0], P[1], P[2]], n, colour, group, shift); flatTri([P[0], P[2], P[3]], n, colour, group, shift);
       style = keep;
     },
     box: (c, a, b, d, colour) => {
