@@ -2004,8 +2004,16 @@ function publishLayer() {
  *                  for good the first time somebody opened the Model page.
  * @param launch    whether this is the automatic arming at boot, which takes
  *                  the feed and none of the furniture. See `armOnLaunch`.
+ * @param quiet     whether the app is only stepping the feed ASIDE and back
+ *                  (Earth Flight puts it away for the flight and returns it on
+ *                  landing): the markers and the overlay go and come, and
+ *                  nothing else moves -- the sidebar section, the list's open
+ *                  or shut state, the held globe and its spin stay as the
+ *                  reader left them. Without it, landing re-ran an "entering",
+ *                  which opened the list nobody had asked for (owner,
+ *                  2026-10-25).
  */
-async function setActive(on, { remember = true, launch = false } = {}) {
+async function setActive(on, { remember = true, launch = false, quiet = false } = {}) {
   active = Boolean(on);
   if (remember) rememberActive(active);
   document.body.dataset.events = active ? "true" : "false";
@@ -2018,7 +2026,7 @@ async function setActive(on, { remember = true, launch = false } = {}) {
    * feed armed, which is most loads on a warm cache (reported 2026-10-23:
    * "Earth rotation is not live by default anymore").
    */
-  document.body.dataset.eventsHold = active && !launch ? "true" : "false";
+  if (!quiet) document.body.dataset.eventsHold = active && !launch ? "true" : "false";
   const row = byId("gis-group-events");
   if (row) row.classList.toggle("is-armed", active);
   // The control is a tick box, and it is set rather than read here: the mode
@@ -2035,7 +2043,7 @@ async function setActive(on, { remember = true, launch = false } = {}) {
   // the app deciding what you came to read, and the reasoning above only holds
   // for a gesture: "the feeds that were JUST SWITCHED ON" is a sentence about
   // somebody having switched them on.
-  if (active && row && !launch) row.open = true;
+  if (active && row && !launch && !quiet) row.open = true;
   const host = byId("events-overlay");
   const panel = byId("events-panel");
   const toggle = byId("events-panel-toggle");
@@ -2050,14 +2058,17 @@ async function setActive(on, { remember = true, launch = false } = {}) {
     // after this. Opened without a claim the feed was simply overwritten by
     // whichever fetch landed last, which is why it used to arm shut. The claim
     // is a default and the reader's first press of either toggle ends it.
-    if (active && panel) {
+    if (active && panel && quiet) {
+      // back as it was: a list left open is open again, in its own slot
+      if (!panel.hidden) window.GeoIDOverlayStack?.showOnly?.("events-overlay");
+    } else if (active && panel) {
       panel.hidden = false;
       toggle?.setAttribute("aria-expanded", "true");
       if (launch) window.GeoIDOverlayStack?.claim?.("events-overlay");
       else window.GeoIDOverlayStack?.showOnly?.("events-overlay");
     }
     placeOverlay();
-    if (!active && panel) {
+    if (!active && panel && !quiet) {
       panel.hidden = true;
       toggle?.setAttribute("aria-expanded", "false");
     }
@@ -2072,7 +2083,7 @@ async function setActive(on, { remember = true, launch = false } = {}) {
   // to somebody arming the mode to go and look at something; as the opening
   // state of the app it is a decision about the whole page that nobody made
   // here, and it would arrive looking like a globe that had failed to start.
-  if (!launch) {
+  if (!launch && !quiet) {
     window.GeoIDModeManager?.setSpin?.(!active && window.GeoIDModeManager?.isSpinning?.());
   }
 

@@ -315,7 +315,8 @@ function wire() {
     const E = window.GeoIDEvents;
     if (quieted.events === null && E?.isActive) {
       quieted.events = Boolean(E.isActive());
-      if (quieted.events) E.setActive(false, { remember: false });
+      // quiet: step aside, leaving the list, the section and the spin alone
+      if (quieted.events) E.setActive(false, { remember: false, quiet: true });
     }
   }
   function restoreGlobeOverlays() {
@@ -326,7 +327,7 @@ function wire() {
       if (H?.setVisible) H.setVisible(layer, true);
       else { layer.visible = true; if (layer.object3D) layer.object3D.visible = true; }
     }
-    if (quieted.events && !window.GeoIDEvents?.isActive?.()) window.GeoIDEvents?.setActive?.(true, { remember: false });
+    if (quieted.events && !window.GeoIDEvents?.isActive?.()) window.GeoIDEvents?.setActive?.(true, { remember: false, quiet: true });
     quieted = null;
   }
   window.addEventListener("flightsim:engaged", () => {
