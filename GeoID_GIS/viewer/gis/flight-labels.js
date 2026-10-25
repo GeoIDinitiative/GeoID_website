@@ -42,7 +42,7 @@
 // budgets (500 built labels) go to what can actually be seen.
 
 import * as THREE from "../vendor/three.module.js";
-import { TIER_WINDOW, TIER_SIZE, distanceKm } from "../../../flight_sim/earth/game/gazetteer.js?v=1";
+import { TIER_WINDOW, TIER_SIZE, SMALL_REACH_KM, distanceKm } from "../../../flight_sim/earth/game/gazetteer.js?v=2";
 // The Mars module, loaded when flight labels start: it imports three.js by an
 // absolute web path, which only a browser resolves (Node tests import this file).
 const MARS_LABELS = "../../../planet_explorer/mars/viewer/label-layer.js?v=20261025-f5a5da0";
@@ -95,7 +95,9 @@ const AREA_CATEGORIES = new Set(["place-island", "place-landform", "place-marine
 function windowOf(item) {
   const lod = Number(item?.lod) || 3;
   const w = TIER_WINDOW[Math.min(7, Math.max(1, lod))];
-  return { maxAltKm: item?.maxAltKm ?? w.maxAltKm, reachKm: item?.reachKm ?? w.reachKm };
+  const reachKm = item?.reachKm ?? w.reachKm;
+  // the small tiers name only what is around you, curated ones included
+  return { maxAltKm: item?.maxAltKm ?? w.maxAltKm, reachKm: lod >= 5 ? Math.min(reachKm, SMALL_REACH_KM) : reachKm };
 }
 
 function earthHidden(entry, km, altKm, beyondHorizon) {
@@ -122,7 +124,7 @@ function earthHidden(entry, km, altKm, beyondHorizon) {
  * Roughly a third to a half of each tier's reach (gazetteer.js TIER_WINDOW):
  * a capital is named from a long way off, a village only once it is close.
  */
-const NAME_KM = { 1: 400, 2: 250, 3: 110, 4: 45, 5: 22, 6: 9, 7: 3.5 };
+const NAME_KM = { 1: 400, 2: 250, 3: 110, 4: 45, 5: 5, 6: 5, 7: 3.5 };
 /** At most this many names, and this many bare icons, in view at once. */
 const MAX_NAMED_IN_VIEW = 22, MAX_ICONS_IN_VIEW = 70;
 const smooth = (a, b, x) => { const t = Math.max(0, Math.min(1, (x - a) / Math.max(b - a, 1e-9))); return t * t * (3 - 2 * t); };
@@ -439,6 +441,7 @@ function step() {
     if (e._fsHLabel) e._fsHLabel.visible = false;
     if (e._fsDist) e._fsDist.visible = false;
     e._fsRamp = 0;
+    e._fsSky = undefined;   // a flag that comes back starts from its own skyline
   };
   // Cached distance-readout textures. Cached by STRING, and the value is
   // rounded to coarse steps, so a feature 300 km out does not mint a new
@@ -761,7 +764,7 @@ function step() {
     if (canSample) {
       // EARTH: close in too -- at a few hundred metres up the ridges that
       // hide the skyline are a few km away, not 60-100% of the horizon.
-      for (const f of [0.02, 0.05, 0.1, 0.2, 0.35, 0.6, 0.85, 1.0]) {
+      for (const f of [0.01, 0.02, 0.035, 0.05, 0.075, 0.1, 0.15, 0.2, 0.28, 0.35, 0.45, 0.6, 0.72, 0.85, 1.0]) {
         const a = alpha * f;
         sDir.copy(Chat).multiplyScalar(Math.cos(a)).addScaledVector(tang, Math.sin(a));
         const lat = Math.asin(Math.max(-1, Math.min(1, sDir.y))) * 180 / Math.PI;
@@ -774,7 +777,14 @@ function step() {
         if (sinE > maxSin) maxSin = sinE;
       }
     }
-    const eSky = Math.asin(Math.max(-1, Math.min(1, maxSin)));
+    // EARTH: HELD STEADY (reported: "the labels over the horizon currently
+    // bob up and down"). The samples slide over the ridges as the aircraft
+    // moves, so the raw skyline jumps from frame to frame; the flag follows
+    // it quickly upward, so a ridge never covers it, and settles slowly down.
+    const eRaw = Math.asin(Math.max(-1, Math.min(1, maxSin)));
+    const ePrev = entry._fsSky;
+    const eSky = ePrev === undefined ? eRaw : ePrev + (eRaw - ePrev) * (eRaw > ePrev ? 0.3 : 0.04);
+    entry._fsSky = eSky;
     // Size + fade as a function of how far beyond the horizon it lies —
     // floors keep even the farthest flags readable.
     const t = Math.min(1, c.over / 0.9);

@@ -83,5 +83,10 @@ check("dots are sized from the sphere's radius, 4-6 px",
   /const dotR = entry\.marker\.geometry\?\.parameters\?\.radius/.test(src)
     && /setScalar\(\(distCam \* anglePerPx \* dotPx\) \/ \(2 \* dotR\)\)/.test(src), true);
 
+check("the small tiers are capped at 5 km in flight too (curated ones included)",
+  /reachKm: lod >= 5 \? Math\.min\(reachKm, SMALL_REACH_KM\) : reachKm/.test(src), true);
+check("skyline flags are held steady: quick up, slow down, reset when hidden",
+  /eRaw > ePrev \? 0\.3 : 0\.04/.test(src) && /e\._fsSky = undefined;/.test(src), true);
+
 console.log(`\n${failures ? `${failures} failed` : "all passed"}`);
 process.on("exit", () => { process.exitCode = failures ? 1 : 0; });

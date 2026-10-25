@@ -7,7 +7,7 @@
  *   out: { id, items: [{ name, lat, lon, category, type, lod, maxAltKm, reachKm, area, ele }] }
  */
 import { decodeLayer, rings } from "./mvt.js?v=1";
-import { rankFeature, tilePointToLatLon } from "./gazetteer.js?v=1";
+import { rankFeature, tilePointToLatLon } from "./gazetteer.js?v=2";
 
 function labelPoint(f) {
   const rs = rings(f.geometry);

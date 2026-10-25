@@ -48,14 +48,22 @@ export const FLIGHT_CATEGORIES = {
 // The visibility window by tier: how high, and how far. Tiers 1-4 are the
 // GeoHUB's own (the curated set, flight-labels.js keeps its reach rules for
 // them); 5-7 are what flight adds as it comes down.
+//
+// THE SMALL TIERS REACH 5 KM, wherever the aircraft is (owner, 2026-10-25:
+// "for the smaller less significant labels that manifest at lower altitudes
+// can we ensure a fetch radius of say 5km ... should reduce label
+// overcrowding -- more significant should still be seen in the distance").
+// Towns, villages, hamlets, small airports, sites and landmarks name what is
+// around you; the skyline is left to tiers 1-4.
+export const SMALL_REACH_KM = 5;
 export const TIER_WINDOW = {
   1: { maxAltKm: Infinity, reachKm: 700 },
   2: { maxAltKm: Infinity, reachKm: 500 },
   3: { maxAltKm: 120, reachKm: 300 },
   4: { maxAltKm: 40, reachKm: 150 },
-  5: { maxAltKm: 15, reachKm: 60 },
-  6: { maxAltKm: 6, reachKm: 22 },
-  7: { maxAltKm: 2.5, reachKm: 8 },
+  5: { maxAltKm: 15, reachKm: SMALL_REACH_KM },
+  6: { maxAltKm: 6, reachKm: SMALL_REACH_KM },
+  7: { maxAltKm: 2.5, reachKm: SMALL_REACH_KM },
 };
 
 // Label size by tier, relative to tier 4 (the GeoHUB's [1.55, 1.30, 1.10,
@@ -83,7 +91,7 @@ export function rankFeature(layer, p, z) {
     }
     if (cls === "town") return { name, category: "place-city", type: "Town", ...win(5) };
     if (cls === "village") return { name, category: "place-city", type: "Village", ...win(6) };
-    if (cls === "suburb" || cls === "quarter") return { name, category: "place-city", type: cap(cls), ...win(6, { maxAltKm: 4, reachKm: 12 }) };
+    if (cls === "suburb" || cls === "quarter") return { name, category: "place-city", type: cap(cls), ...win(6, { maxAltKm: 4 }) };
     if (cls === "hamlet" || cls === "neighbourhood" || cls === "isolated_dwelling") return { name, category: "place-city", type: cap(cls), ...win(7) };
     if (cls === "island" || cls === "islet") return { name, category: "place-island", type: cap(cls), area: true, ...win(cls === "island" ? 5 : 7) };
     return null;                         // countries and states: the HUD names them
@@ -196,8 +204,8 @@ export const WIKI_FROM_KM = 5;
 // The windows of the Wikipedia tiers: tighter than the tiles' tiers of the
 // same number, because a building is smaller than a village.
 const WIKI_WINDOW = {
-  5: { maxAltKm: 5, reachKm: 20 },
-  6: { maxAltKm: 3, reachKm: 9 },
+  5: { maxAltKm: 5, reachKm: SMALL_REACH_KM },
+  6: { maxAltKm: 3, reachKm: SMALL_REACH_KM },
   7: { maxAltKm: 1.6, reachKm: 4 },
 };
 

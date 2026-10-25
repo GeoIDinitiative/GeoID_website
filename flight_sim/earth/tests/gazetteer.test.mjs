@@ -3,7 +3,7 @@
 //
 //   node flight_sim/earth/tests/gazetteer.test.mjs
 
-import { rankFeature, rankWikipedia, dedupe, thinNearby, tilesAround, tilePointToLatLon, ringsFor, TIER_WINDOW, TIER_SIZE, WIKI_FROM_KM, nameKey } from "../game/gazetteer.js";
+import { rankFeature, rankWikipedia, dedupe, thinNearby, tilesAround, tilePointToLatLon, ringsFor, TIER_WINDOW, TIER_SIZE, WIKI_FROM_KM, nameKey, SMALL_REACH_KM } from "../game/gazetteer.js";
 
 let passed = 0, failed = 0;
 const check = (name, ok, detail = "") => {
@@ -26,6 +26,13 @@ check("a town is tier 5", rankFeature("place", { name: "Tivoli", class: "town", 
 check("a village is tier 6", rankFeature("place", { name: "Gallicano", class: "village" }, 11)?.lod === 6);
 check("a hamlet is tier 7", rankFeature("place", { name: "Colle", class: "hamlet" }, 11)?.lod === 7);
 check("countries and states are left to the HUD", rankFeature("place", { name: "Italia", class: "country" }, 8) === null && rankFeature("place", { name: "Lazio", class: "state" }, 8) === null);
+// Owner: "a fetch radius of say 5km" for the small tiers; the big ones still reach.
+check("the small tiers (5-7) reach 5 km and no further",
+  [5, 6, 7].every((t) => TIER_WINDOW[t].reachKm <= SMALL_REACH_KM) && SMALL_REACH_KM === 5);
+check("a town 4 km off is labelled, 8 km off is not",
+  shown(rankFeature("place", { name: "Tivoli", class: "town" }, 8), 1, 4) && !shown(rankFeature("place", { name: "Tivoli", class: "town" }, 8), 1, 8));
+check("a suburb reaches 5 km too", rankFeature("place", { name: "Trastevere", class: "suburb" }, 11)?.reachKm === 5);
+check("the significant tiers still reach the distance", TIER_WINDOW[1].reachKm >= 500 && TIER_WINDOW[4].reachKm >= 100);
 check("an unnamed place is no label", rankFeature("place", { class: "town" }, 8) === null);
 check("a 4,800 m peak is tier 4, a 1,200 m one tier 6",
   rankFeature("mountain_peak", { name: "Mont Blanc", class: "peak", ele: 4806 }, 8)?.lod === 4

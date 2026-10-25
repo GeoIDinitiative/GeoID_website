@@ -19,7 +19,7 @@
 // The flight labels (flight-labels.js) take `getItems()` once a second and
 // show each place only inside its window.
 
-import { ringsFor, tilesAround, dedupe, thinNearby, rankWikipedia, wikiGeoUrl, WIKI_FROM_KM, distanceKm, nameKey, FLIGHT_CATEGORIES, TIER_SIZE } from "../../../flight_sim/earth/game/gazetteer.js?v=1";
+import { ringsFor, tilesAround, dedupe, thinNearby, rankWikipedia, wikiGeoUrl, WIKI_FROM_KM, distanceKm, nameKey, FLIGHT_CATEGORIES, TIER_SIZE } from "../../../flight_sim/earth/game/gazetteer.js?v=2";
 
 const TILEJSON = "https://tiles.openfreemap.org/planet";
 const TICK_MS = 1500;
@@ -88,7 +88,7 @@ export function getVersion() { return version; }
 
 function ensureWorker() {
   if (worker) return worker;
-  worker = new Worker(new URL("../../../flight_sim/earth/game/gazetteer-worker.js?v=1", import.meta.url), { type: "module" });
+  worker = new Worker(new URL("../../../flight_sim/earth/game/gazetteer-worker.js?v=2", import.meta.url), { type: "module" });
   worker.onmessage = (e) => {
     const t = jobs.get(e.data.id);
     jobs.delete(e.data.id);
