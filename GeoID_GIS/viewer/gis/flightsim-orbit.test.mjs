@@ -65,8 +65,11 @@ ok(/if \(!swallowClick\) return;[\s\S]{0,80}e\.stopImmediatePropagation\(\);/.te
 ok(/window\.addEventListener\("wheel", \(e\) => \{\s*if \(!live\(\) \|\| e\.target !== view\(\)\) return;/.test(sim)
   && /\{ capture: true, passive: false \}/.test(sim),
   "the wheel is taken in capture, in flight only, so the globe's zoom never fights the sim");
-ok(/const live = \(\) => fs\.active && !fs\.paused && state\.cam === "chase";/.test(sim),
-  "orbiting is chase-view only, and only while flying");
+ok(/const live = \(\) => fs\.active && state\.cam === "chase";/.test(sim),
+  "orbiting is chase-view only, in flight -- paused included");
+ok(/h\.orbit = \{ yaw: o\.yaw, pitch: o\.pitch, dist: o\.dist \};/.test(sim)
+  && /const delta = now\.multiply\(then\.invert\(\)\);/.test(sim),
+  "a paused view turns about the craft by the orbit's change since the pause");
 ok(/P\.on\("r3", /.test(sim) && !/control: "r3", text: "Free look: this sim has no free-look camera", unused: true/.test(sim),
   "R3 recentres, and the controller map no longer says there is no free look");
 ok(/pressed\(e, "KeyV"\) && state\.cam === "chase"/.test(sim), "V recentres");
