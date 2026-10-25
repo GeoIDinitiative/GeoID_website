@@ -1,12 +1,12 @@
 import * as THREE from "../vendor/three.module.js";
 import { latLonToVector3, drapedRadius, looksLikeGeographic, sphericalPolygonAreaKm2 }
-  from "./geo-utils.js?v=20261025-576463b";
-import { collectionBounds, geometryCoords, polygonsOf, linesOf } from "./geoprocessing.js?v=20261025-576463b";
-import { pointInPolygon } from "./geometry.js?v=20261025-576463b";
-import { paintOpacity } from "./layer-opacity.js?v=20261025-576463b";
-import { applyCutaway } from "./cutaway.js?v=20261025-576463b";
-import { categoricalSymbology, suggestCategoryField } from "./symbology.js?v=20261025-576463b";
-import { flightGpuUniforms, DRAPE_MATERIALS } from "./flight-terrain-gpu.js?v=20261025-576463b";
+  from "./geo-utils.js?v=20261025-36ec828";
+import { collectionBounds, geometryCoords, polygonsOf, linesOf } from "./geoprocessing.js?v=20261025-36ec828";
+import { pointInPolygon } from "./geometry.js?v=20261025-36ec828";
+import { paintOpacity } from "./layer-opacity.js?v=20261025-36ec828";
+import { applyCutaway } from "./cutaway.js?v=20261025-36ec828";
+import { categoricalSymbology, suggestCategoryField } from "./symbology.js?v=20261025-36ec828";
+import { flightGpuUniforms, DRAPE_MATERIALS } from "./flight-terrain-gpu.js?v=20261025-36ec828";
 
 // Single renderer for every vector source. Each parser produces a GeoJSON
 // FeatureCollection and this turns it into draped globe geometry, so shapefile,
@@ -476,15 +476,23 @@ float geoidFlightHeightF(vec3 d) {
   return 0.0;
 }
 bool geoidFlightHidden() {
-  // The ground under this pixel (a long span's chord sags under it).
+  // The Earth's bulge first, on the bare sphere: the sight line passes inside
+  // it. Cheap, and it settles most of a world's lines from altitude.
+  vec3 p0 = normalize(vFlightPos) * 3.2;
+  vec3 d0 = vFlightEye - p0;
+  float t = clamp(-dot(p0, d0) / dot(d0, d0), 0.0, 1.0);
+  if (t > 0.002 && t < 0.998 && length(p0 + d0 * t) < 3.2 - 0.0002) return true;
+  // Only then the ground under this pixel (a long span's chord sags under
+  // it) and the hills along the sight line, 20 samples bunched toward the
+  // point. Kept small: this runs per line pixel, on laptop GPUs too.
   vec3 p = normalize(vFlightPos) * (3.2 + geoidFlightHeightF(vFlightPos));
   vec3 d = vFlightEye - p;
-  // The Earth's bulge: the sight line passes inside the sphere.
-  float t = clamp(-dot(p, d) / dot(d, d), 0.0, 1.0);
-  if (t > 0.002 && t < 0.998 && length(p + d * t) < 3.2) return true;
+  // Hills stand at most ~9 km: past the first stretch of a long sight line
+  // above that, nothing can be in the way.
+  float reach = min(1.0, (9000.0 * ${UNITS}) / max(length(vFlightEye) - 3.2, 1e-6));
   float tol = 8.0 * ${UNITS};
-  for (int i = 1; i <= 32; i++) {
-    float s = pow(float(i) / 32.0, 1.6);
+  for (int i = 1; i <= 20; i++) {
+    float s = reach * pow(float(i) / 20.0, 1.6);
     vec3 q = p + d * s;
     if (length(q) < 3.2 + geoidFlightHeightF(q) - tol) return true;
   }

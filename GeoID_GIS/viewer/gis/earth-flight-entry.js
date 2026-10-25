@@ -21,16 +21,16 @@
 //      frame): aim the globe there, then open pre-flight, whose centre
 //      crosshair takes the site from wherever the globe is aimed.
 
-import { startFlightTerrain, stopFlightTerrain, setVex, primeLaunchSite } from "./flight-terrain.js?v=20261025-576463b";
-import { startFlightTerrainGpu, stopFlightTerrainGpu } from "./flight-terrain-gpu.js?v=20261025-576463b";
-import { startFlightLabels, stopFlightLabels } from "./flight-labels.js?v=20261025-576463b";
-import { showFlightMap, hideFlightMap } from "./flight-map.js?v=20261025-576463b";
-import { showFlightSky, hideFlightSky } from "./flight-sky.js?v=20261025-576463b";
-import { startFlightTiles, stopFlightTiles } from "./flight-tiles.js?v=20261025-576463b";
-import { startFlightClouds, stopFlightClouds } from "./flight-clouds.js?v=20261025-576463b";
-import { startFlightLights, stopFlightLights } from "./flight-lights.js?v=20261025-576463b";
-import "./flight-place.js?v=20261025-576463b";
-import { isEarth } from "./bodies.js?v=20261025-576463b";
+import { startFlightTerrain, stopFlightTerrain, setVex, primeLaunchSite } from "./flight-terrain.js?v=20261025-36ec828";
+import { startFlightTerrainGpu, stopFlightTerrainGpu } from "./flight-terrain-gpu.js?v=20261025-36ec828";
+import { startFlightLabels, stopFlightLabels } from "./flight-labels.js?v=20261025-36ec828";
+import { showFlightMap, hideFlightMap } from "./flight-map.js?v=20261025-36ec828";
+import { showFlightSky, hideFlightSky } from "./flight-sky.js?v=20261025-36ec828";
+import { startFlightTiles, stopFlightTiles } from "./flight-tiles.js?v=20261025-36ec828";
+import { startFlightClouds, stopFlightClouds } from "./flight-clouds.js?v=20261025-36ec828";
+import { startFlightLights, stopFlightLights } from "./flight-lights.js?v=20261025-36ec828";
+import "./flight-place.js?v=20261025-36ec828";
+import { isEarth } from "./bodies.js?v=20261025-36ec828";
 
 /** `?flight=earth&lat=..&lon=..` -> { lat, lon } or { lat: null } or null. */
 export function parseFlightLink(search) {
@@ -285,6 +285,52 @@ function wire() {
     }
     folded = null;
   });
+
+  // Plate boundaries and the events feed start OFF in flight (owner,
+  // 2026-10-25: "initially the plate boundaries and events are not active in
+  // the flight sim"): they are the globe's defaults, read from orbit, and from
+  // a cockpit they are lines and markers across the scenery. Each is switched
+  // off once per flight -- the first time it is found on, so a default that
+  // loads late is caught too -- and switching it back on mid-flight sticks.
+  // Leaving flight gives back whatever this turned off; the GeoHUB's own
+  // remembered choices are not touched.
+  const QUIET_LAYERS = ["plate-boundaries", "plate-boundary-symbols"];
+  let quieted = null;
+  function quietGlobeOverlays() {
+    quieted = quieted || { ids: new Set(), layers: [], events: null };
+    const G = window.GeoIDGlobalData, H = window.GeoIDLayerHierarchy;
+    for (const id of QUIET_LAYERS) {
+      if (quieted.ids.has(id)) continue;
+      const layer = G?.layerForDataset?.(id);
+      if (!layer) continue;
+      quieted.ids.add(id);
+      if (layer.visible === false) continue;
+      if (H?.setVisible) H.setVisible(layer, false);
+      else { layer.visible = false; if (layer.object3D) layer.object3D.visible = false; }
+      quieted.layers.push(layer);
+    }
+    const E = window.GeoIDEvents;
+    if (quieted.events === null && E?.isActive) {
+      quieted.events = Boolean(E.isActive());
+      if (quieted.events) E.setActive(false, { remember: false });
+    }
+  }
+  function restoreGlobeOverlays() {
+    if (!quieted) return;
+    const H = window.GeoIDLayerHierarchy;
+    for (const layer of quieted.layers) {
+      if (layer.visible !== false) continue;          // the reader already put it back
+      if (H?.setVisible) H.setVisible(layer, true);
+      else { layer.visible = true; if (layer.object3D) layer.object3D.visible = true; }
+    }
+    if (quieted.events && !window.GeoIDEvents?.isActive?.()) window.GeoIDEvents?.setActive?.(true, { remember: false });
+    quieted = null;
+  }
+  window.addEventListener("flightsim:engaged", () => {
+    setTimeout(quietGlobeOverlays, 60);
+    setTimeout(quietGlobeOverlays, 4000);            // a launch default still on its way
+  });
+  window.addEventListener("flightsim:disengaged", restoreGlobeOverlays);
 
   // Expanding the nav DURING FLIGHT opens it on Earth Flight (owner,
   // 2026-10-24): the Explorer group and the flight panel are opened and the

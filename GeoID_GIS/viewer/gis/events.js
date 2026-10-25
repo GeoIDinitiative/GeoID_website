@@ -16,9 +16,9 @@ import {
   gdacsPoints, resolveColour,
   MARKER_LIFT_MAX, liftForAltitude, dotSizePx, zoomGain, MARKER_MAX_PX, flightMarkerPx, isQuake, publisherOf, restoreActive,
   stormCategory, stormScale, stormLabel, STORM_BASE_CAP, markerHitGeometry, nearestHit,
-} from "./event-sources.js?v=20261025-576463b";
-import { escapeHtml, safeUrl } from "./escape-html.js?v=20261025-576463b";
-import { holdLaunch } from "./launch-ready.js?v=20261025-576463b";
+} from "./event-sources.js?v=20261025-36ec828";
+import { escapeHtml, safeUrl } from "./escape-html.js?v=20261025-36ec828";
+import { holdLaunch } from "./launch-ready.js?v=20261025-36ec828";
 
 const API = "https://eonet.gsfc.nasa.gov/api/v3/events";
 
@@ -1204,6 +1204,11 @@ function drawLabels(camera, altitudeMetres, dotPx) {
     hideLabels();
     return 0;
   }
+  // In Earth Flight the markers keep their symbols, and the name chips under
+  // them stand down (owner: "the same symbology but not with the text box"):
+  // from a cockpit every event in range was boxed in text across the scene.
+  // The name is still a click away, on the card.
+  if (window.__flightSim?.active) { hideLabels(); return 0; }
   const canvas = window.GeoIDViewer?.renderer?.domElement;
   const width = canvas?.clientWidth || 0;
   const height = canvas?.clientHeight || 0;
@@ -2780,8 +2785,8 @@ async function showTrace(event) {
   }
 
   const [plot, { spectrogram }] = await Promise.all([
-    import("./seismogram-plot.js?v=20261025-576463b"),
-    import("./research/dsp.js?v=20261025-576463b"),
+    import("./seismogram-plot.js?v=20261025-36ec828"),
+    import("./research/dsp.js?v=20261025-36ec828"),
   ]);
   if (stale()) return;
 

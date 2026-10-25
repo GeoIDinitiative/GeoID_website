@@ -2,15 +2,15 @@ import * as THREE from "./vendor/three.module.js";
 // The polygon-area rule lives in one place, with a test. Stamped by hand
 // once: stamp.py only rewrites a ?v= that already exists.
 import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
-  from "./gis/geo-utils.js?v=20261025-576463b";
+  from "./gis/geo-utils.js?v=20261025-36ec828";
 import { attachReliefAttributes, followRelief }
-  from "./gis/vector-render.js?v=20261025-576463b";
+  from "./gis/vector-render.js?v=20261025-36ec828";
 import { rockClass, crustalSetting, rockClassLabel, classificationBasis }
-  from "./gis/rock-class.js?v=20261025-576463b";
+  from "./gis/rock-class.js?v=20261025-36ec828";
 import { lithologyLabel }
-  from "./gis/lithology-label.js?v=20261025-576463b";
+  from "./gis/lithology-label.js?v=20261025-36ec828";
 import { formatLatLon }
-  from "./gis/coord-format.js?v=20261025-576463b";
+  from "./gis/coord-format.js?v=20261025-36ec828";
 
 /**
  * This module's own cache stamp, read off its own URL.
@@ -21334,7 +21334,9 @@ uniform float uViewportWidth;`,
             globe,
             camera,
             renderer,
-            labelsToggle.checked,
+            // Earth Flight turns the location labels off (it draws its own);
+            // the reader's own pins are not location labels and stay.
+            labelsToggle.checked || Boolean(window.__flightSim?.active),
             true,
             true,
             true,
@@ -24549,7 +24551,7 @@ ${error && error.message ? error.message : error}`;
                 globe,
                 camera,
                 renderer,
-                marsLabelsEnabled,
+                marsLabelsEnabled || Boolean(window.__flightSim?.active),
                 true,
                 true,
                 true,
@@ -24606,7 +24608,7 @@ ${error && error.message ? error.message : error}`;
                 globe,
                 camera,
                 renderer,
-                marsLabelsEnabled,
+                marsLabelsEnabled || Boolean(window.__flightSim?.active),
                 true,
                 true,
                 true,
