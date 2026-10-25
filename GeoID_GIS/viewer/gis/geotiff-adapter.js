@@ -1,8 +1,8 @@
 import * as THREE from "../vendor/three.module.js";
-import { latLonToVector3, drapedRadius, looksLikeGeographic } from "./geo-utils.js?v=20261025-f5a5da0";
+import { latLonToVector3, drapedRadius, looksLikeGeographic } from "./geo-utils.js?v=20261025-cebeacc";
 import {
   attachReliefAttributes, followRelief, setRenderRelief, getRenderRelief,
-} from "./vector-render.js?v=20261025-f5a5da0";
+} from "./vector-render.js?v=20261025-cebeacc";
 
 // Rasters are resampled onto a mesh grid rather than used at native size: a
 // 4000x4000 DEM would otherwise mean 16M vertices. 192 keeps relief readable
