@@ -1,20 +1,63 @@
-Creative Commons Attribution 4.0 International (CC BY 4.0)
+PROPRIETARY SOFTWARE LICENCE
 
-Copyright (c) 2026 GeoIDinitiative
+Copyright (c) 2025-2026 Owen McCluskey, trading as the GeoID Initiative.
+All rights reserved.
 
-This repository (code, documentation, and website content) is licensed under the Creative Commons Attribution 4.0 International (CC BY 4.0) license.
+1. Scope
 
-Human-readable summary
+This licence covers everything in this repository that is not listed under
+section 4: the source code, scripts, shaders, configuration, build and data-
+processing tooling, documentation and notes, 3D models, artwork, audio, page
+designs and text (together, the "Software").
 
-You are free to:
-- Share — copy and redistribute the material in any medium or format
-- Adapt — remix, transform, and build upon the material for any purpose, even commercially
+2. No licence is granted
 
-Under the following terms:
-- Attribution — You must give appropriate credit, provide a link to the license, and indicate if changes were made. You may do so in any reasonable manner, but not in any way that suggests the licensor endorses you or your use.
+The Software is confidential and proprietary. No licence or other right in
+the Software is granted to anyone, by implication, estoppel or otherwise,
+except under a written agreement signed by the copyright holder.
 
-No additional restrictions — You may not apply legal terms or technological measures that legally restrict others from doing anything the license permits.
+Without that agreement you may not, in whole or in part:
 
-For the full legal text, see: https://creativecommons.org/licenses/by/4.0/legalcode
+  (a) copy, reproduce, modify, translate or create derivative works of the
+      Software;
+  (b) distribute, publish, sublicense, sell, rent, lend or otherwise make the
+      Software available to anyone;
+  (c) reverse engineer, decompile, disassemble, de-minify or otherwise attempt
+      to derive the source code, structure or algorithms of any part of the
+      Software delivered to a web browser, except to the extent that
+      applicable law expressly permits it despite this restriction;
+  (d) scrape, crawl, harvest or bulk-download the Software or the website it
+      serves by automated means, or use any of it to train, fine-tune or
+      evaluate a machine-learning model;
+  (e) remove or alter any copyright, licence or attribution notice; or
+  (f) circumvent any access control, membership check or usage limit.
 
-If you prefer the full legal code included in this file, I can replace this summary with the complete license text.
+That the Software's browser code can be read by a web browser does not
+grant any licence to it.
+
+3. Use of the website and of exported data
+
+Use of the GeoID website (https://geoidinitiative.com), including GeoHUB, is
+governed by its Terms of Service at https://geoidinitiative.com/terms/.
+
+Datasets that GeoID members export from GeoHUB are products supplied under
+those Terms ("Data exports"), not part of the Software, and this licence does
+not restrict them. Using GeoHUB or exporting data gives no right to the
+Software that produced it.
+
+4. Third-party material
+
+Third-party libraries, fonts, imagery and datasets included in or used by
+the Software remain under their own licences, which take precedence for that
+material. The libraries shipped with the site, with their versions and
+licences, are listed in vendor.json; datasets state their source and licence
+where they are shown.
+
+5. Contact
+
+Licensing enquiries: geoid.initiative@gmail.com
+Owen McCluskey, trading as the GeoID Initiative, 22 Boyle Avenue, Limavady,
+Co. Derry, BT49 9FH, Northern Ireland.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, TO THE
+FULLEST EXTENT PERMITTED BY LAW.
