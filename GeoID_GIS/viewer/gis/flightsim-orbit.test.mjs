@@ -15,8 +15,15 @@ const ok = (cond, name) => { if (cond) pass += 1; else failures.push(name); };
 const near = (a, b, eps = 1e-6) => Math.abs(a - b) < eps;
 
 // The helper exactly as shipped, lifted out of the sim.
-const src = sim.match(/const _orbitAxis = [\s\S]*?function orbitQuat\([\s\S]*?\n  \}/);
+const src = sim.match(/let _orbitAxis = null[\s\S]*?function orbitQuat\([\s\S]*?\n  \}/);
 ok(Boolean(src), "orbitQuat is defined in flightsim.js");
+
+// THREE IS NULL WHILE THE SCRIPT LOADS (`let THREE = null`, bound in
+// adoptHooks). A three object built in the sim's top scope throws at boot and
+// takes the whole flight sim with it -- which is how the first cut of this
+// broke "Enter" in GeoHUB. Nothing at that indent may construct one.
+const bootThree = sim.split("\n").filter((l) => /^  (const|let|var) [^=]+= new THREE\./.test(l));
+ok(bootThree.length === 0, `no three object is built at load (${bootThree.join(" | ")})`);
 const orbitQuat = src ? new Function("THREE", `${src[0]}; return orbitQuat;`)(THREE) : null;
 
 if (orbitQuat) {

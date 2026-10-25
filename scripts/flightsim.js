@@ -3010,10 +3010,16 @@
 
   // The chase camera's orbit, as one rotation: pitch about the craft's right
   // axis (up x forward, so +pitch raises the camera), then yaw about its up.
-  const _orbitAxis = new THREE.Vector3();
-  const _orbitPitchQ = new THREE.Quaternion();
-  const _orbitYawQ = new THREE.Quaternion();
+  // Made on first use, NOT at load: THREE is only bound once the viewer hands
+  // over its hooks (adoptHooks), so `new THREE.Vector3()` up here threw while
+  // the script booted and the whole sim never started.
+  let _orbitAxis = null, _orbitPitchQ = null, _orbitYawQ = null;
   function orbitQuat(up, fwd, yaw, pitch) {
+    if (!_orbitAxis) {
+      _orbitAxis = new THREE.Vector3();
+      _orbitPitchQ = new THREE.Quaternion();
+      _orbitYawQ = new THREE.Quaternion();
+    }
     _orbitAxis.crossVectors(up, fwd).normalize();
     _orbitPitchQ.setFromAxisAngle(_orbitAxis, pitch);
     _orbitYawQ.setFromAxisAngle(up, yaw);
