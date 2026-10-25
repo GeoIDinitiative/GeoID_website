@@ -48,8 +48,9 @@ const src = readFileSync(new URL("./flight-labels.js", import.meta.url), "utf8")
 check("in view, a place is hidden, named, iconified or dropped -- most significant first",
   /terrainBlocks\(camLocal, entry\.marker\.position, Rg, entry\._fsOcc\)/.test(src)
     && /showAs\(entry, "name"/.test(src) && /showAs\(entry, "icon"/.test(src), true);
-check("a hidden place's leftover hit target opens no card",
-  /const drawn = new Set\(labelLayer\.entries\.filter/.test(src), true);
+check("a click is matched on screen against what is drawn: name, skyline flag, triangle, dot",
+  /function pickDrawn\(/.test(src) && /consider\(e, e\.sprite, 4, 0\)/.test(src) && /consider\(e, e\._fsHLabel, 3, 0\)/.test(src)
+    && /consider\(e, e\._fsTri, 2, 18\)/.test(src) && /consider\(e, e\.marker, 1, 16\)/.test(src) && !/new THREE\.Raycaster/.test(src), true);
 check("the places are cut by the controls before their windows",
   /const consider = \(item\) => \{\s*if \(!flightLabelAllowed\(item\)\) return;/.test(src), true);
 check("only a hand's tick on a category counts, not the eye's cascade",

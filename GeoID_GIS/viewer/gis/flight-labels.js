@@ -939,18 +939,7 @@ function onClick(ev) {
   const viewer = window.GeoIDViewer;
   if (!labelLayer || !window.__flightSim?.active || !viewer?.renderer) return;
   const rect = viewer.renderer.domElement.getBoundingClientRect();
-  const ndc = new THREE.Vector2(((ev.clientX - rect.left) / rect.width) * 2 - 1, -((ev.clientY - rect.top) / rect.height) * 2 + 1);
-  const ray = new THREE.Raycaster();
-  ray.setFromCamera(ndc, viewer.camera);
-  const live = labelLayer.interactiveObjects.filter((o) => {
-    for (let p = o; p; p = p.parent) if (!p.visible) return false;
-    return true;
-  });
-  // Only what is drawn: a place hidden behind a ridge or decluttered away
-  // keeps an invisible hit target, which must not open a card.
-  const drawn = new Set(labelLayer.entries.filter((e) => e.sprite?.visible || e.marker?.visible).map((e) => e.item));
-  const hit = ray.intersectObjects(live, false).find((h) => drawn.has(h.object?.userData?.feature));
-  const item = hit?.object?.userData?.feature;
+  const item = pickDrawn(ev.clientX - rect.left, ev.clientY - rect.top, rect.width, rect.height, viewer.camera);
   if (!item) return;
   // EARTH: the card the geology and the imported layers use, pinned to the
   // place in the scene and moving with it (owner: "more like the geology pop
@@ -984,6 +973,52 @@ function onClick(ev) {
   }
 }
 let openCardItem = null;
+
+/**
+ * WHAT IS UNDER THE CLICK, ON SCREEN (reported: "many distant labels are still
+ * not 100% immediately clickable"). The raycast this replaces hit the Mars
+ * module's small hit spheres, which stay at its own label positions after
+ * flight re-anchors a label upright over its dot, and shrink to a pixel or two
+ * at range; and it skipped the skyline flags. This tests exactly what is
+ * drawn, by its box on screen: a named label's chip, a skyline flag's name
+ * and triangle, a bare dot (given a 16 px target so a far one can be hit).
+ * Where boxes overlap the name wins over a flag, a flag over a dot, and then
+ * the box whose centre is nearest the click.
+ */
+const _pk = new THREE.Vector3();
+function pickDrawn(x, y, w, h, camera) {
+  if (!labelLayer) return null;
+  const tanHalf = Math.tan((camera.fov * Math.PI / 180) / 2);
+  const box = (obj, minPx = 0) => {
+    obj.getWorldPosition(_pk);
+    const dist = camera.position.distanceTo(_pk);
+    const ndc = _pk.project(camera);
+    if (ndc.z > 1 || !(dist > 1e-9)) return null;
+    const ppu = h / (2 * dist * tanHalf);
+    const sw = obj.isSprite ? Math.max(minPx, obj.scale.x * ppu) : minPx;
+    const sh = obj.isSprite ? Math.max(minPx, obj.scale.y * ppu) : minPx;
+    const cx = (ndc.x * 0.5 + 0.5) * w, cy = (-ndc.y * 0.5 + 0.5) * h;
+    const c = obj.isSprite && obj.center ? obj.center : { x: 0.5, y: 0.5 };
+    const l = cx - sw * c.x, t = cy - sh * (1 - c.y);
+    return { l: l - 3, r: l + sw + 3, t: t - 3, b: t + sh + 3, cx: l + sw / 2, cy: t + sh / 2 };
+  };
+  const shownNow = (o) => { for (let p = o; p; p = p.parent) if (!p.visible) return false; return true; };
+  let best = null;
+  const consider = (entry, obj, rank, minPx) => {
+    if (!obj || !shownNow(obj)) return;
+    const b = box(obj, minPx);
+    if (!b || x < b.l || x > b.r || y < b.t || y > b.b) return;
+    const d = Math.hypot(x - b.cx, y - b.cy);
+    if (!best || rank > best.rank || (rank === best.rank && d < best.d)) best = { item: entry.item, rank, d };
+  };
+  for (const e of labelLayer.entries) {
+    consider(e, e.sprite, 4, 0);
+    consider(e, e._fsHLabel, 3, 0);
+    consider(e, e._fsTri, 2, 18);
+    consider(e, e.marker, 1, 16);
+  }
+  return best?.item || null;
+}
 
 /** Start following the view (idempotent). */
 export async function startFlightLabels() {
