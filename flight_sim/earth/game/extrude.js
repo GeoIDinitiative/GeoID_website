@@ -183,7 +183,14 @@ function pointIn(p, ring) {
 export function classify(marks, polys, centre, height) {
   if (!marks) return null;
   const holds = (pts) => pts.some((q) => polys.some((pl) => pointIn(q, pl.outer) && !pl.holes.some((h) => pointIn(q, h))));
-  const st = height >= 6 && marks.stadiums.find((x) => pointIn(centre, x.ring));
+  // Any part of the stadium, not only the stands: a building whose centre OR
+  // any corner is inside the stadium polygon. At Old Trafford a 5 m
+  // concourse ring round the stands (centre inside, under the old 6 m
+  // floor) was drawn as an office block with a band of lit windows round
+  // the whole bowl (owner, 2026-10-25: "stadiums still treated as
+  // buildings"). Only parts 8 m and up are raked (see standTop).
+  const st = marks.stadiums.find((x) => pointIn(centre, x.ring)
+    || polys.some((pl) => pl.outer.some((q) => pointIn(q, x.ring))));
   if (st) return { kind: "stadium", centre: st.centre };
   if (holds(marks.castles)) return { kind: "castle" };
   if (height <= 25 && marks.castles.some((q) => Math.hypot(q[0] - centre[0], q[1] - centre[1]) < marks.castleReach)) return { kind: "castle" };
@@ -423,7 +430,7 @@ export function extrudeTile(layer, dem, demSize, sizeLocal, triangulate, extra =
       // A stand's top at a point: full height away from the pitch, a low
       // pitch-side wall nearest it. `onHole`: the point is on a courtyard.
       let standTop = () => eave;
-      if (kind === "stadium") {
+      if (kind === "stadium" && height >= 8) {
         const lo = base + Math.max(3, Math.min(height * 0.18, 10));
         const cIn = holes.some((h) => pointIn(mark.centre, h));
         if (cIn) standTop = (_q, onHole) => (onHole ? lo : top);
@@ -465,7 +472,7 @@ export function extrudeTile(layer, dem, demSize, sizeLocal, triangulate, extra =
           face([at(p1, eave), at(p2, eave), at(r1, top)], roofIdx, [1, 1, 1]);
           face([at(p3, eave), at(p0, eave), at(r0, top)], roofIdx, [1, 1, 1]);
         }
-      } else if (kind === "stadium") {
+      } else if (kind === "stadium" && height >= 8) {
         // RAKED STANDS. The seating falls toward the pitch: the roof surface
         // runs from the full height on the side away from it down to a low
         // pitch-side wall. A bowl mapped as one outline with the pitch as its
@@ -516,8 +523,8 @@ export function extrudeTile(layer, dem, demSize, sizeLocal, triangulate, extra =
         const yb = (bottom - base) / vScale;
         for (let i = 0; i < pts.length; i++) {
           const a = pts[i], b = pts[(i + 1) % pts.length];
-          const ta = kind === "stadium" ? standTop(a, !isOuter) : eave;
-          const tb = kind === "stadium" ? standTop(b, !isOuter) : eave;
+          const ta = standTop(a, !isOuter);
+          const tb = standTop(b, !isOuter);
           const yta = kind === "stadium" ? (ta - base) / storeyH : church ? 1 : storeys;
           const ytb = kind === "stadium" ? (tb - base) / storeyH : church ? 1 : storeys;
           const dx = b[0] - a[0], dz = b[1] - a[1];

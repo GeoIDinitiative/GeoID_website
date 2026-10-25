@@ -361,4 +361,15 @@ check("monument forms come from the name", monumentForm("monument", "Nelson's Co
 check("a church nave gets a steep gable at any size", pitched([[0, 0], [60, 0], [60, 20], [0, 20]], 1, 25, 6,
   { maxHeight: 45, minArea: 30, maxArea: 4000, angle: 50, maxRise: 16, flat: false, gableRatio: 1.15 })?.kind === "gable");
 
+// A low part inside a stadium (Old Trafford's 5 m concourse ring) is the
+// stadium too: plain, not an office block with a band of windows, and flat.
+{
+  const st = enc("landuse", [{ tags: [0, 0], geometry: geom([[[400, 400], [1600, 400], [1600, 1600], [400, 1600]]]) }], lmKeys, lmVals);
+  const low = { extent: 4096, features: [part([[450, 450], [1550, 450], [1550, 520], [450, 520]], 5, 9)] };
+  const ml = extrudeTile(low, null, 256, 1000, tri, { landuse: st, inflate: false });
+  const tops = new Set(); for (let i = 1; i < ml.position.length; i += 3) tops.add(Math.round(ml.position[i] * 100) / 100);
+  check("a 5 m part inside a stadium is the stadium's, drawn plain", ml.landmarks === 1 && ml.style.every((v) => v === 127), String(ml.landmarks));
+  check("...and flat-topped (only parts from 8 m are raked)", Math.max(...tops) === 5, JSON.stringify([...tops]));
+}
+
 process.exit(failed ? 1 : 0);
