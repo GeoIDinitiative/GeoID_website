@@ -3578,6 +3578,9 @@
     h.off.copy(camera.position).sub(state.pos).applyQuaternion(inv);
     h.up.copy(camera.up).applyQuaternion(inv);
     h.rot.copy(inv).multiply(camera.quaternion);
+    // And its clip planes: the sim manages the near plane every frame, and
+    // the viewer's own rule pushed it past the aircraft 24 m away.
+    h.near = camera.near; h.far = camera.far;
   }
   function holdPausedCamera(camera) {
     const h = state._camPose;
@@ -3588,6 +3591,10 @@
     camera.position.copy(state.pos).add(h.off.clone().applyQuaternion(state.quat));
     camera.up.copy(h.up).applyQuaternion(state.quat);
     camera.quaternion.copy(state.quat).multiply(h.rot);
+    if (h.near && (camera.near !== h.near || camera.far !== h.far)) {
+      camera.near = h.near; camera.far = h.far;
+      camera.updateProjectionMatrix();
+    }
     camera.updateMatrixWorld();
   }
 

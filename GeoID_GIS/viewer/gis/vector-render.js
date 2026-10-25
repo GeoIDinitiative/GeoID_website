@@ -1,12 +1,12 @@
 import * as THREE from "../vendor/three.module.js";
 import { latLonToVector3, drapedRadius, looksLikeGeographic, sphericalPolygonAreaKm2 }
-  from "./geo-utils.js?v=20261025-3362b5a";
-import { collectionBounds, geometryCoords, polygonsOf, linesOf } from "./geoprocessing.js?v=20261025-3362b5a";
-import { pointInPolygon } from "./geometry.js?v=20261025-3362b5a";
-import { paintOpacity } from "./layer-opacity.js?v=20261025-3362b5a";
-import { applyCutaway } from "./cutaway.js?v=20261025-3362b5a";
-import { categoricalSymbology, suggestCategoryField } from "./symbology.js?v=20261025-3362b5a";
-import { flightGpuUniforms, DRAPE_MATERIALS } from "./flight-terrain-gpu.js?v=20261025-3362b5a";
+  from "./geo-utils.js?v=20261025-576463b";
+import { collectionBounds, geometryCoords, polygonsOf, linesOf } from "./geoprocessing.js?v=20261025-576463b";
+import { pointInPolygon } from "./geometry.js?v=20261025-576463b";
+import { paintOpacity } from "./layer-opacity.js?v=20261025-576463b";
+import { applyCutaway } from "./cutaway.js?v=20261025-576463b";
+import { categoricalSymbology, suggestCategoryField } from "./symbology.js?v=20261025-576463b";
+import { flightGpuUniforms, DRAPE_MATERIALS } from "./flight-terrain-gpu.js?v=20261025-576463b";
 
 // Single renderer for every vector source. Each parser produces a GeoJSON
 // FeatureCollection and this turns it into draped globe geometry, so shapefile,
@@ -384,8 +384,9 @@ function ensureReliefSync() {
  *     toward the eye (15 m, or 0.6% of the range) so the grids' small
  *     difference from the ground never buries them.
  *   * LINES, ribbons and markers stay geometry and test their own visibility:
- *     each vertex looks back along its sight line through the height grids
- *     (and past the Earth's bulge) and is hidden if the ground is in the way.
+ *     each pixel looks back from the ground under it along its sight line
+ *     through the height grids (and past the Earth's bulge) and is dropped if
+ *     the ground is in the way.
  *     Not the depth test: a river's vertices are kilometres apart and the
  *     straight span between them dips under every rise -- measured over
  *     Denver, 68 m for one span in ten and 235 m for one in a hundred --
@@ -440,24 +441,54 @@ float geoidFlightHeight(vec3 d) {
   return 0.0;
 }
 `;
-// Lines: is the ground between this vertex and the eye? Samples bunched
-// toward the vertex, where the ground that hides a thing usually is.
-const FLIGHT_SEEN_PARS = `
-varying float vFlightSeen;
-float geoidFlightSeen(vec3 p) {
-  if (uFlightOn < 0.5) return 1.0;
-  vec3 eye = (inverse(modelMatrix) * vec4(cameraPosition, 1.0)).xyz;
-  vec3 d = eye - p;
+// Lines: is the ground between this point and the eye? Asked PER PIXEL, of
+// the ground under the pixel: per vertex, a span between two visible vertices
+// -- a plate boundary densified to a degree is 100 km of straight line --
+// was drawn straight across the mountain between them (seen on Etna). The
+// vertex hands over its object-space position and the eye; samples bunch
+// toward the point, where the ground that hides a thing usually is.
+const FLIGHT_SEEN_VERTEX_PARS = `
+varying vec3 vFlightPos;
+varying vec3 vFlightEye;
+`;
+const FLIGHT_SEEN_VERTEX = `
+  vFlightPos = transformed;
+  vFlightEye = uFlightOn > 0.5 ? (inverse(modelMatrix) * vec4(cameraPosition, 1.0)).xyz : vec3(0.0);`;
+const FLIGHT_SEEN_FRAGMENT_PARS = `
+uniform float uFlightOn;
+uniform sampler2D uFlightNear;
+uniform sampler2D uFlightMid;
+uniform sampler2D uFlightFar;
+uniform vec4 uFlightNearBox;
+uniform vec4 uFlightMidBox;
+uniform vec4 uFlightFarBox;
+varying vec3 vFlightPos;
+varying vec3 vFlightEye;
+float geoidFlightHeightF(vec3 d) {
+  vec3 n = normalize(d);
+  vec2 ll = vec2(degrees(atan(n.z, -n.x)), degrees(asin(clamp(n.y, -1.0, 1.0))));
+  vec2 uv = (ll - uFlightNearBox.xy) / uFlightNearBox.zw;
+  if (uv.x > 0.001 && uv.x < 0.999 && uv.y > 0.001 && uv.y < 0.999) return texture2D(uFlightNear, uv).r * ${UNITS};
+  uv = (ll - uFlightMidBox.xy) / uFlightMidBox.zw;
+  if (uv.x > 0.001 && uv.x < 0.999 && uv.y > 0.001 && uv.y < 0.999) return texture2D(uFlightMid, uv).r * ${UNITS};
+  uv = (ll - uFlightFarBox.xy) / uFlightFarBox.zw;
+  if (uv.x > 0.001 && uv.x < 0.999 && uv.y > 0.001 && uv.y < 0.999) return texture2D(uFlightFar, uv).r * ${UNITS};
+  return 0.0;
+}
+bool geoidFlightHidden() {
+  // The ground under this pixel (a long span's chord sags under it).
+  vec3 p = normalize(vFlightPos) * (3.2 + geoidFlightHeightF(vFlightPos));
+  vec3 d = vFlightEye - p;
   // The Earth's bulge: the sight line passes inside the sphere.
   float t = clamp(-dot(p, d) / dot(d, d), 0.0, 1.0);
-  if (t > 0.002 && t < 0.998 && length(p + d * t) < 3.2) return 0.0;
+  if (t > 0.002 && t < 0.998 && length(p + d * t) < 3.2) return true;
   float tol = 8.0 * ${UNITS};
-  for (int i = 1; i <= 40; i++) {
-    float s = pow(float(i) / 40.0, 1.6);
+  for (int i = 1; i <= 32; i++) {
+    float s = pow(float(i) / 32.0, 1.6);
     vec3 q = p + d * s;
-    if (length(q) < 3.2 + geoidFlightHeight(q) - tol) return 0.0;
+    if (length(q) < 3.2 + geoidFlightHeightF(q) - tol) return true;
   }
-  return 1.0;
+  return false;
 }
 `;
 const FLIGHT_DEPTH_MARGIN = `
@@ -780,7 +811,7 @@ ${ribbon ? "attribute vec3 aPerp;\nattribute float aSide;\nuniform float uRibbon
 ${cullFarSide ? "varying float vFacing;" : ""}
 ${hole ? "varying vec3 vDir;" : ""}
 ${flightTerrain ? FLIGHT_VERTEX_PARS : ""}
-${flightKind === "line" ? FLIGHT_SEEN_PARS : ""}
+${flightKind === "line" ? FLIGHT_SEEN_VERTEX_PARS : ""}
 ${flightKind === "fill" ? FLIGHT_FILL_VERTEX_PARS : ""}
 ${shader.vertexShader}`.replace(
       "#include <begin_vertex>",
@@ -808,12 +839,11 @@ ${shader.fragmentShader}`.replace(
         "#include <clipping_planes_fragment>", `${FLIGHT_FILL_FRAGMENT}  #include <clipping_planes_fragment>`);
     } else if (flightKind === "line") {
       shader.vertexShader = shader.vertexShader.replace(
-        "#include <project_vertex>", "#include <project_vertex>\n  vFlightSeen = geoidFlightSeen(transformed);");
-      shader.fragmentShader = `uniform float uFlightOn;
-varying float vFlightSeen;
+        "#include <project_vertex>", `#include <project_vertex>${FLIGHT_SEEN_VERTEX}`);
+      shader.fragmentShader = `${FLIGHT_SEEN_FRAGMENT_PARS}
 ${shader.fragmentShader}`.replace(
         "#include <clipping_planes_fragment>",
-        "if (uFlightOn > 0.5 && vFlightSeen < 0.5) discard;\n  #include <clipping_planes_fragment>");
+        "if (uFlightOn > 0.5 && geoidFlightHidden()) discard;\n  #include <clipping_planes_fragment>");
     }
     /**
      * BACKFACE CULLING, FOR SOMETHING THAT HAS NO FACES.

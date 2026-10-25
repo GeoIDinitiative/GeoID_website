@@ -26,8 +26,8 @@
 // Esri World Imagery (blankTile=false: a missing tile is a 404 and the
 // ancestor stays). Flight only.
 
-import { NIGHT } from "./night-lights.js?v=20261025-3362b5a";
-import { flightGpuUniforms } from "./flight-terrain-gpu.js?v=20261025-3362b5a";
+import { NIGHT } from "./night-lights.js?v=20261025-576463b";
+import { flightGpuUniforms } from "./flight-terrain-gpu.js?v=20261025-576463b";
 
 // Esri serves World Imagery over HTTP/1.1, so a browser opens only ~6
 // connections per host: measured, 12 requests on one host ran at ~20 tiles/s.
@@ -694,7 +694,26 @@ function tick() {
     applyTexture(t);
     updateSun(t, sunL);
   }
-  for (const t of tiles.values()) if (t.mesh && !t.want) t.mesh.visible = false;
+  // A tile no longer wanted stays drawn -- pushed behind the rest -- until
+  // every wanted tile over it has a mesh. Hiding it at once left a hole when
+  // the selection changed (a turn, a climb) faster than the new meshes were
+  // built, and through it the globe's unlit daytime backdrop, framed by the
+  // neighbours' skirts: reported as a bright plateau with walls on Etna's
+  // slopes by night.
+  const bare = wanted.filter((t) => !t.mesh);
+  const overlaps = (a, b) => {
+    const z = Math.min(a.z, b.z);
+    return (a.x >> (a.z - z)) === (b.x >> (b.z - z)) && (a.y >> (a.z - z)) === (b.y >> (b.z - z));
+  };
+  for (const t of tiles.values()) {
+    if (!t.mesh) continue;
+    const standIn = !t.want && t.mesh.visible && bare.some((b) => overlaps(t, b));
+    if (!t.want && !standIn) t.mesh.visible = false;
+    else if (t.want) t.mesh.visible = true;
+    const units = standIn ? 16 : -8;
+    if (t.mesh.material.polygonOffsetUnits !== units) t.mesh.material.polygonOffsetUnits = units;
+  }
+  hideBackdropPatches(viewer);
   stats.built = leaves.filter((L) => tiles.get(key(L.z, L.x, L.y))?.mesh).length;
   // Forget the oldest beyond the budget.
   if (tiles.size > MAX_TILES_KEPT) {
@@ -745,6 +764,23 @@ export function creditNow() {
   };
 }
 
+/*
+ * The globe's view-detail patches (basemap-drape.js) are daytime imagery,
+ * unlit, at sea level, drawn without a depth test under these tiles. In flight
+ * the tiles are the ground, so the patches only ever showed through a gap --
+ * bright day at night. Hidden while flying, given back after.
+ */
+const hiddenBackdrop = new Set();
+function hideBackdropPatches(viewer) {
+  for (const o of viewer.globe?.children || []) {
+    if (/^GeoID-BasemapRefine/.test(o.name) && o.visible) { o.visible = false; hiddenBackdrop.add(o); }
+  }
+}
+function restoreBackdropPatches() {
+  for (const o of hiddenBackdrop) if (o.parent) o.visible = true;
+  hiddenBackdrop.clear();
+}
+
 /** Start the flight ground (idempotent). */
 let running = false;
 export async function startFlightTiles() {
@@ -765,6 +801,7 @@ export function stopFlightTiles() {
   queue.length = 0;
   prevShip = null;
   NIGHT.value = 0;
+  restoreBackdropPatches();
   group?.parent?.remove(group);
   group = null;
 }
