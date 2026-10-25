@@ -18,12 +18,12 @@
  * that have no GFS.
  */
 
-import { requestUrl, chunkPoints, pickHour } from "./flow-field.js?v=20261025-3e79514";
-import { pvdText } from "./vtk-export.js?v=20261025-3e79514";
+import { requestUrl, chunkPoints, pickHour } from "./flow-field.js?v=20261025-fdd74bf";
+import { pvdText } from "./vtk-export.js?v=20261025-fdd74bf";
 import {
   LEVELS, levelVariables, readColumn, buildAtmosphereGrid, gridFile, localFrame, LAYER_NAMES,
-} from "./atmosphere-model.js?v=20261025-3e79514";
-import { refreshPolygonOptions, resolvePolygonExtent, signedLon } from "./extent-picker.js?v=20261025-3e79514";
+} from "./atmosphere-model.js?v=20261025-fdd74bf";
+import { refreshPolygonOptions, resolvePolygonExtent, signedLon } from "./extent-picker.js?v=20261025-fdd74bf";
 
 const BASE = "https://api.open-meteo.com/v1/forecast";
 const CHUNK = 24; // two hundred variables a point: the URL is long, so the chunks are short

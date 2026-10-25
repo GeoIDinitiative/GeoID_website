@@ -9,10 +9,10 @@
  * The API is officehours.js in the Worker. Who booked, their note and the
  * meeting link are only ever sent to the two people in the slot.
  */
-import * as api from "../api.js?v=20261025-3e79514";
-import { store } from "../store.js?v=20261025-3e79514";
-import { h, put, clear, field, input, select, textarea, toast, modal, busy, errorBox, loading, dateText, confirmDialog, extLink } from "../dom.js?v=20261025-3e79514";
-import { act, userChip, requireSignIn } from "../components.js?v=20261025-3e79514";
+import * as api from "../api.js?v=20261025-fdd74bf";
+import { store } from "../store.js?v=20261025-fdd74bf";
+import { h, put, clear, field, input, select, textarea, toast, modal, busy, errorBox, loading, dateText, confirmDialog, extLink } from "../dom.js?v=20261025-fdd74bf";
+import { act, userChip, requireSignIn } from "../components.js?v=20261025-fdd74bf";
 
 const when = (s) => `${dateText(s.starts_at, true)} · ${s.minutes} min`;
 
