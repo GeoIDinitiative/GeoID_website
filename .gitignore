@@ -19,6 +19,8 @@ moon.jpg
 # silently swallowed the Moon's baked hero tile — the file was on disk,
 # the bake reported it, and it simply never reached a commit.
 !assets/hero/moon.jpg
+# And the Moon's /explore/ page screenshot (scripts/explore-pages.py).
+!assets/explore/moon.jpg
 /music/
 *.orig
 
