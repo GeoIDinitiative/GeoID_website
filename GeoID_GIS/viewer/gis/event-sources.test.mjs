@@ -745,7 +745,7 @@ check("no timestamp gets a sensible middle", recencyOpacity(null, now, day), 0.8
   const src = readFileSync(new URL("./events.js", import.meta.url), "utf8");
   const code = src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/[^\n]*/g, "");
   check("a launch does not unfold the sidebar section",
-    /if \(active && row && !launch\) row\.open = true;/.test(code), true);
+    /if \(active && row && !launch && !quiet\) row\.open = true;/.test(code), true);
   /* It DOES open the corner drop-down, and it has to claim the slot to keep
      it: the legend opens itself when a layer arrives, which at boot is the
      launch defaults landing a moment later, and there is one slot between
@@ -754,7 +754,16 @@ check("no timestamp gets a sensible middle", recencyOpacity(null, now, day), 0.8
     /if \(active && panel\) \{/.test(code) && !/if \(active && panel && !launch\)/.test(code), true);
   check("and claims the slot so an arriving legend cannot take it",
     /if \(launch\) window\.GeoIDOverlayStack\?\.claim\?\.\("events-overlay"\);/.test(code), true);
-  check("nor stop the globe", /if \(!launch\) \{\s*window\.GeoIDModeManager\?\.setSpin/.test(code), true);
+  check("nor stop the globe", /if \(!launch && !quiet\) \{\s*window\.GeoIDModeManager\?\.setSpin/.test(code), true);
+  /* QUIET is the app stepping the feed aside and back (Earth Flight, for the
+     flight): nothing of the furniture moves either way, so landing does not
+     open a list the reader had shut (owner, 2026-10-25). */
+  check("a quiet step-aside leaves the list's open or shut state alone",
+    /if \(!active && panel && !quiet\) \{/.test(code) && /if \(active && panel && quiet\) \{/.test(code), true);
+  check("nor holds the globe", /if \(!quiet\) document\.body\.dataset\.eventsHold/.test(code), true);
+  const flight = readFileSync(new URL("./earth-flight-entry.js", import.meta.url), "utf8");
+  check("Earth Flight steps the feed aside quietly, both ways",
+    (flight.match(/setActive\??\.?\((?:false|true), \{ remember: false, quiet: true \}\)/g) || []).length, 2);
   check("it waits for the viewer rather than assuming one",
     /if \(!window\.GeoIDViewer\) \{/.test(code) && /armTries >= 40/.test(code), true);
   check("and only arms over a globe",
