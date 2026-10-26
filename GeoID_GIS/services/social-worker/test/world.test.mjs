@@ -140,3 +140,50 @@ test("scholar: ORCID -> OpenAlex works, topics, h-index and co-authors on the Ne
   assert.equal(sch.body.cited_by, 210);
   assert.equal((await call(env, "GET", "/v1/users/ben/scholar")).body.imported_at, null);
 });
+
+// ── Job filters, saved searches, alerts, reminders ──────────────────────────
+
+test("jobs: filters by field, stage, region, remote and closing; saved searches alert; saved adverts remind", async () => {
+  const env = await world();
+  const { readSource } = await import("../importer.js");
+  const { runJobAlerts, runDeadlineReminders } = await import("../jobs.js");
+  const t0 = Math.floor(Date.now() / 1000);
+  const day = (n) => new Date((t0 + n * 86400) * 1000).toUTCString().slice(5, 11);  // "02 Nov"
+  const block = (code, title, dept, org, loc, closes) => `<div class="j-search-result__result ie-border-left" data-advert-id="1">
+    <div class="j-search-result__text"><a href="/job/${code}/x">${title}</a>
+    <div class="j-search-result__department">${dept}</div><div class="j-search-result__employer"><b>${org}</b></div>
+    <div>Location: ${loc}</div></div><div class="j-search-result__date-logos">
+    <span class="j-search-result__date-span j-search-result__date--blue ">${closes}</span></div></div>`;
+  const page = block("A1", "PhD Studentship: Volcanic ash dispersal", "Earth Sciences", "University of Bristol", "Bristol", day(2))
+    + block("A2", "Lecturer in Hydrology", "Geography", "University of Leeds", "Leeds", day(20))
+    + block("A3", "Remote Sensing Analyst", "Space", "EarthSense Ltd", "Remote", day(40));
+  const src = { id: "jobs:jacuk-test", kind: "jobs", name: "jobs.ac.uk", url: "https://www.jobs.ac.uk/search/?subDisciplineFacet%5B0%5D=geology" };
+  await env.DB.prepare("INSERT INTO import_sources (id, kind, name, url) VALUES (?, ?, ?, ?)").bind(src.id, src.kind, src.name, src.url).run();
+  assert.equal((await readSource(env, src, t0, { fetcher: async () => new Response(page) })).posted, 3);
+  const ext = async (qs) => (await call(env, "GET", `/v1/feed?tab=opportunities&origin=external&${qs}`)).body.items.map((p) => p.title);
+  assert.deepEqual(await ext("field=volcanology"), ["PhD Studentship: Volcanic ash dispersal"]);
+  assert.deepEqual(await ext("stage=faculty"), ["Lecturer in Hydrology"]);
+  assert.deepEqual(await ext("region=leeds"), ["Lecturer in Hydrology"]);
+  assert.deepEqual(await ext("remote=1"), ["Remote Sensing Analyst"]);
+  assert.deepEqual(await ext("closing=7"), ["PhD Studentship: Volcanic ash dispersal"]);
+  assert.deepEqual(await ext("q=hydrology"), ["Lecturer in Hydrology"]);
+  assert.deepEqual(await ext("sort=closing"), ["PhD Studentship: Volcanic ash dispersal", "Lecturer in Hydrology", "Remote Sensing Analyst"]);
+
+  // A saved search alerts on what is new since it was saved.
+  const s = await call(env, "POST", "/v1/me/searches", { as: ANA, body: { name: "UK hydrology", query: { field: "hydrology", junk: "x" }, alert: "daily" } });
+  assert.equal(s.status, 200);
+  assert.deepEqual(s.body.query, { field: "hydrology" });
+  assert.equal((await runJobAlerts(env, t0 + 10)).sent, 0, "nothing new yet");
+  await readSource(env, src, t0 + 86400, { fetcher: async () => new Response(page + block("A4", "Flood risk modeller", "Water", "JBA", "Skipton", day(30))) });
+  assert.equal((await runJobAlerts(env, t0 + 86400 + 10)).sent, 1);
+  const notes = (await call(env, "GET", "/v1/notifications", { as: ANA })).body.items;
+  assert.ok(notes.some((n) => n.kind === "job_alert" && /1 new for “UK hydrology”: Flood risk modeller/.test(n.text)));
+  assert.equal((await call(env, "GET", "/v1/me/searches", { as: ANA })).body.items.length, 1);
+
+  // Saving an advert closing in two days brings one reminder.
+  const phd = (await call(env, "GET", "/v1/feed?tab=opportunities&origin=external&field=volcanology")).body.items[0];
+  await call(env, "POST", `/v1/posts/${phd.id}/bookmark`, { as: BEN, body: {} });
+  assert.equal((await runDeadlineReminders(env, t0)).reminded, 1);
+  assert.equal((await runDeadlineReminders(env, t0 + 3600)).reminded, 0, "once");
+  assert.ok((await call(env, "GET", "/v1/notifications", { as: BEN })).body.items.some((n) => n.kind === "deadline" && /Closes in 2 days/.test(n.text)));
+});

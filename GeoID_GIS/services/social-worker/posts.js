@@ -22,6 +22,7 @@ import { enumOf, recountStatement } from "./profiles.js";
 import { cleanContentMeta } from "./content.js";
 import { reshareRows, mergeWithReshares, reshareLines, viewerReshared } from "./reposts.js";
 import { roomForPost } from "./rooms.js";
+import { applyJobFilters, queryFromParams } from "./jobs.js";
 
 export const KINDS = ["text", "scene", "analysis", "monitor", "observation", "workflow", "dataset", "paper",
   "question", "discussion", "event", "opportunity", "challenge", "model", "repo"];
@@ -677,6 +678,7 @@ async function feed(ctx) {
     if (origin === "external") {
       const open = openListingSql(now());
       where.push("p.kind = 'opportunity'", open.sql); binds.push(...open.binds);
+      applyJobFilters(queryFromParams(q), where, binds);
       const source = q.get("source");
       if (source === "employers") {
         where.push("json_extract(p.meta_json, '$.source_id') IN (SELECT id FROM import_sources WHERE kind = 'jobs' AND grp != 'Job boards')");
@@ -693,6 +695,20 @@ async function feed(ctx) {
     if (skill) {
       where.push("EXISTS (SELECT 1 FROM json_each(p.meta_json, '$.skills') WHERE value = ?)"); binds.push(skill);
     }
+  }
+  // External adverts by closing date, soonest first (undated last): an OFFSET
+  // cursor in the same opaque format as discover's.
+  if (tab === "opportunities" && q.get("origin") === "external" && q.get("sort") === "closing") {
+    const c = decodeCursor(q.get("cursor"));
+    const offset = c && c.id === "closing" ? Math.max(0, c.at) : 0;
+    const rows = (await env.DB.prepare(
+      `SELECT p.* FROM posts p WHERE ${where.join(" AND ")}
+        ORDER BY COALESCE(json_extract(p.meta_json, '$.deadline'), 4102444800) ASC, p.created_at DESC, p.id DESC LIMIT ? OFFSET ?`,
+    ).bind(...binds, PAGE + 1, offset).all()).results;
+    return {
+      items: await shapePosts(env, viewer, rows.slice(0, PAGE)),
+      next: rows.length > PAGE ? encodeCursor({ created_at: offset + PAGE, id: "closing" }) : null,
+    };
   }
   const cursor = olderThan(q.get("cursor"));
   const rows = (await env.DB.prepare(

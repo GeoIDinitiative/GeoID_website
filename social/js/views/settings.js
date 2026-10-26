@@ -17,6 +17,7 @@ const NOTIFY = [
   ["invite", "Team and community invitations"], ["review", "Peer review requests and replies"],
   ["message", "New messages"], ["badge", "Badges you earn"], ["mentoring", "Mentoring requests and replies"],
   ["room", "An event room opens near your study areas or in your field, and new posts in rooms you follow"],
+  ["job_alert", "New adverts for your saved job searches"], ["deadline", "A saved advert is about to close"],
 ];
 
 export function render(root, { query = {} } = {}) {
@@ -88,7 +89,7 @@ export function render(root, { query = {} } = {}) {
 
   put(clear(root), h("h1", { class: "s-h1", text: "Settings" }),
     h("p", { class: "s-muted" }, "Your public profile is edited on ", h("a", { href: `#/u/${encodeURIComponent(u.handle)}?edit=1` }, "your profile page"), "."),
-    form, identitySection(query), storageSection(), zenodoSection(query), following, blocked, yourData());
+    form, identitySection(query), searchesSection(), storageSection(), zenodoSection(query), following, blocked, yourData());
 }
 
 // ── Identity & institutions track ──────────────────────────────────────────
@@ -278,6 +279,30 @@ function emailFieldset() {
       state = await api.patch("/v1/me/mail", { digest: mode !== "off", immediate, weekly: !!weekly?.querySelector("input").checked });
     },
   };
+}
+
+// ── Saved job searches ─────────────────────────────────────────────────────
+
+function searchesSection() {
+  const sec = h("section", { class: "s-section", id: "searches", "aria-labelledby": "ss-h" },
+    h("h2", { class: "s-h2", id: "ss-h", text: "Saved job searches" }), loading());
+  const draw = (items) => {
+    clear(sec);
+    put(sec, h("h2", { class: "s-h2", id: "ss-h", text: "Saved job searches" }),
+      items.length ? h("ul", { class: "s-rows" }, items.map((s) => {
+        const alert = select(`alert-${s.id}`, [["daily", "Daily alert"], ["weekly", "Weekly (Mondays)"], ["off", "No alert"]], s.alert);
+        alert.addEventListener("change", () => act(async () => { await api.patch(`/v1/me/searches/${encodeURIComponent(s.id)}`, { alert: alert.value }); toast("Saved."); }));
+        return h("li", { class: "s-row" },
+          h("a", { href: `#/opportunities?tab=external&search=${encodeURIComponent(s.id)}` }, h("strong", { text: s.name })),
+          h("span", { class: "s-muted", text: s.describe }), alert,
+          h("button", { type: "button", class: "s-link-btn s-danger", onClick: () => act(async () => {
+            await api.del(`/v1/me/searches/${encodeURIComponent(s.id)}`); load();
+          }) }, "Delete"));
+      })) : h("p", { class: "s-muted" }, "None yet. Filter the ", h("a", { href: "#/opportunities?tab=external" }, "external adverts"), " and press “Save this search…”."));
+  };
+  const load = () => api.get("/v1/me/searches").then((d) => draw(d.items || [])).catch((error) => put(clear(sec), errorBox(error)));
+  load();
+  return sec;
 }
 
 // ── Files and Zenodo ───────────────────────────────────────────────────────

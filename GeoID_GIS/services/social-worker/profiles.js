@@ -24,7 +24,7 @@ const AVAILABILITY = ["open", "limited", "closed"];
 const JOB_STATUS = ["", "seeking", "hiring", "consulting"];
 const CONTACT = ["anyone", "followers", "nobody"];
 const NOTIFY_KINDS = ["follow", "comment", "reaction", "mention", "invite", "grant", "review", "message",
-  "fork", "verify", "moderation", "badge", "project_update", "mentoring", "repost", "room"];
+  "fork", "verify", "moderation", "badge", "project_update", "mentoring", "repost", "room", "job_alert", "deadline"];
 const ORCID_RE = /^\d{4}-\d{4}-\d{4}-\d{3}[\dX]$/;
 
 /** Reject a value outside an enumeration with 400, as CONTRACT.md asks. */

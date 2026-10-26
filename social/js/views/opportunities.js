@@ -8,7 +8,7 @@
  */
 import * as api from "../api.js?v=20261025-794b342";
 import { store } from "../store.js?v=20261025-794b342";
-import { h, clear, field, input, select, dateToEpoch, epochToDate, put, toast, loading, errorBox, textarea, busy, empty } from "../dom.js?v=20261025-794b342";
+import { h, clear, field, input, select, dateToEpoch, epochToDate, put, toast, loading, errorBox, textarea, busy, empty, modal } from "../dom.js?v=20261025-794b342";
 import { OPP_TYPES, postCard, pagedList, act, userChip, requireSignIn } from "../components.js?v=20261025-794b342";
 import { topicOf } from "../topics.js?v=20261025-794b342";
 
@@ -56,23 +56,107 @@ const shortDate = (s) => (s ? new Date(s * 1000).toLocaleDateString(undefined, {
 function externalBoard(query) {
   const source = query.source || "";
   const box = h("div", {}, loading());
-  api.get("/v1/imports/summary").then((sum) => {
-    let section = "";
-    const row = (p) => {
+  (async () => {
+    // A saved search opened from its alert: its filters become the page's.
+    let saved = null;
+    if (query.search && store.me) {
+      try { saved = (await api.get("/v1/me/searches")).items.find((x) => x.id === query.search) || null; } catch (error) { saved = null; }
+    }
+    const f = { ...(saved?.query || {}), ...Object.fromEntries(["q", "field", "stage", "region", "remote", "closing", "sort"].filter((k) => query[k]).map((k) => [k, query[k]])) };
+    let sum = { last_scan_at: 0 };
+    try { sum = await api.get("/v1/imports/summary"); } catch (error) {
+      if (error?.status === 404) { put(clear(box), empty("Nothing here yet.", "Check back soon.")); return; }
+      throw error;
+    }
+    put(clear(box), jobFilters(f, saved), listings(f, source, sum));
+  })().catch((error) => put(clear(box), errorBox(error)));
+  return box;
+}
+
+const FIELD_OPTIONS = [["", "Any field"], ["volcanology", "Volcanology"], ["seismology", "Seismology"], ["geophysics", "Geophysics & geodesy"],
+  ["geology", "Geology & geochemistry"], ["hydrology", "Hydrology & water"], ["cryosphere", "Glaciers & polar"], ["climate", "Climate & atmosphere"],
+  ["oceans", "Oceans & coasts"], ["remote-sensing", "Remote sensing & EO"], ["gis", "GIS & mapping"], ["hazards", "Hazards & risk"],
+  ["soils", "Soils"], ["geography", "Geography"]];
+const STAGE_OPTIONS = [["", "Any stage"], ["phd", "PhD / studentship"], ["postdoc", "Postdoc / research staff"], ["faculty", "Lecturer / faculty"],
+  ["internship", "Internship"], ["industry", "Industry / consultancy"]];
+
+/** The member's own filters; "Save this search" keeps them, with an alert. */
+function jobFilters(f, saved) {
+  const q = input("q", { type: "search", value: f.q || "", placeholder: "Title, employer or keyword" });
+  const fieldSel = select("field", FIELD_OPTIONS, f.field || "");
+  const stage = select("stage", STAGE_OPTIONS, f.stage || "");
+  const region = input("region", { value: f.region || "", placeholder: "e.g. UK, Norway, California" });
+  const closing = select("closing", [["", "Any deadline"], ["7", "Closing within a week"], ["14", "Within two weeks"], ["30", "Within a month"]], String(f.closing || ""));
+  const sort = select("sort", [["", "Newest first"], ["closing", "Closing soonest"]], f.sort || "");
+  const remote = h("label", { class: "s-check s-check-inline" }, h("input", { type: "checkbox", name: "remote", checked: !!f.remote }), h("span", {}, "Remote or hybrid"));
+  const values = () => ({ q: q.value.trim(), field: fieldSel.value, stage: stage.value, region: region.value.trim(),
+    remote: remote.querySelector("input").checked ? "1" : "", closing: closing.value, sort: sort.value });
+  const go = (extra = {}) => {
+    const v = { ...values(), ...extra };
+    const p = new URLSearchParams({ tab: "external" });
+    for (const [k, val] of Object.entries(v)) if (val) p.set(k, val);
+    location.hash = `#/opportunities?${p.toString()}`;
+  };
+  const form = h("form", { class: "s-filters s-job-filters", role: "search", "aria-label": "Filter external adverts" },
+    field("Search", q), field("Field", fieldSel), field("Stage", stage), field("Region", region), field("Deadline", closing), field("Order", sort),
+    remote,
+    h("div", { class: "s-job-filter-acts" },
+      h("button", { type: "submit", class: "btn-primary" }, "Show"),
+      h("button", { type: "button", class: "btn-ghost", onClick: () => saveSearchDialog(values()) }, "Save this search…")));
+  form.addEventListener("submit", (e) => { e.preventDefault(); go(); });
+  return h("div", {}, saved ? h("p", { class: "s-banner" }, "Your saved search ", h("strong", { text: saved.name }), ". ",
+    h("a", { href: "#/settings#searches" }, "Manage saved searches")) : null, form);
+}
+
+function saveSearchDialog(v) {
+  if (!requireSignIn("save searches")) return;
+  const { sort, ...query } = v;
+  modal("Save this search", (close) => {
+    const name = input("name", { maxlength: 80, placeholder: "e.g. Volcanology PhDs in the UK", required: true });
+    const alert = select("alert", [["daily", "Tell me every day there is something new"], ["weekly", "Once a week, on Mondays"], ["off", "No alerts, just keep it"]], "daily");
+    const form = h("form", { class: "s-form" }, field("Name", name), field("Alerts", alert, "Alerts arrive as notifications, and by email if you have chosen email."),
+      h("div", { class: "s-actions" }, h("button", { type: "submit", class: "btn-primary" }, "Save")));
+    form.addEventListener("submit", (e) => {
+      e.preventDefault();
+      act(async () => {
+        await api.post("/v1/me/searches", { name: name.value.trim(), query, alert: alert.value });
+        toast("Saved. New matches will reach you.");
+        close(true);
+      }, "save searches");
+    });
+    return form;
+  });
+}
+
+function listings(f, source, sum) {
+  let section = "";
+  const row = (p) => {
+    const out = [];
+    // Newest first: the latest batch under its own heading. By deadline, no groups.
+    if (!f.sort) {
       const fresh = sum.last_scan_at && p.created_at >= sum.last_scan_at;
       const want = fresh ? "new" : "open";
-      const out = [];
-      if (want !== section) {
-        section = want;
-        out.push(h("h2", { class: "s-h3 s-scan-group", text: fresh ? "New" : "Still open" }));
-      }
-      out.push(listingCard(p));
-      return out;
-    };
-    put(clear(box), pagedList((cursor) => api.get("/v1/feed", { tab: "opportunities", origin: "external", source, cursor }), row,
-      { emptyTitle: "Nothing here yet.", emptyDetail: "Check back soon.", listClass: "s-list s-listings" }));
-  }).catch((error) => put(clear(box), error?.status === 404 ? empty("Nothing here yet.", "Check back soon.") : errorBox(error)));
-  return box;
+      if (want !== section) { section = want; out.push(h("h2", { class: "s-h3 s-scan-group", text: fresh ? "New" : "Still open" })); }
+    }
+    out.push(listingCard(p));
+    return out;
+  };
+  return pagedList((cursor) => api.get("/v1/feed", { tab: "opportunities", origin: "external", source, ...f, cursor }), row,
+    { emptyTitle: "No adverts match.", emptyDetail: "Widen a filter, or save the search and hear when one arrives.", listClass: "s-list s-listings" });
+}
+
+/** Save an advert: it is kept under Saved, and a reminder comes before it closes. */
+function saveToggle(p) {
+  let on = !!p.viewer?.bookmarked;
+  const btn = h("button", { type: "button", class: "s-act", "aria-pressed": String(on), title: "Saved adverts get a reminder three days before they close" });
+  const draw = () => { btn.textContent = on ? "Saved" : "Save"; btn.setAttribute("aria-pressed", String(on)); };
+  draw();
+  btn.addEventListener("click", () => act(async () => {
+    if (on) await api.del(`/v1/posts/${encodeURIComponent(p.id)}/bookmark`, {}); else await api.post(`/v1/posts/${encodeURIComponent(p.id)}/bookmark`, { collection: "Jobs" });
+    on = !on; draw();
+    if (on && p.meta?.deadline) toast("Saved. You'll get a reminder before it closes.");
+  }, "save adverts"));
+  return btn;
 }
 
 /** One gathered advert: what, who, where, when it closes, where it came from, and the way to apply. */
@@ -96,6 +180,7 @@ function listingCard(p) {
     h("div", { class: "s-listing-side" },
       closes ? h("span", { class: "s-listing-closes", text: closes }) : h("span", { class: "s-muted", text: `Added ${shortDate(p.created_at)}` }),
       h("div", { class: "s-listing-acts" },
+        saveToggle(p),
         h("a", { class: "s-act", href: `#/post/${encodeURIComponent(p.id)}` }, "Details"),
         advert ? h("a", { class: "btn-primary s-btn-sm", href: advert, target: "_blank", rel: "noopener noreferrer" }, `Apply on ${via.replace(/ (Jobs|Career Center)$/, "")} ↗`) : null)));
 }

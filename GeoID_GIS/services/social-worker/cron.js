@@ -21,6 +21,7 @@ import { sendWeekly, weeklyDue } from "./reach.js";
 import { checkins } from "./officehours.js";
 import { runImports } from "./importer.js";
 import { syncRooms } from "./rooms.js";
+import { runJobAlerts, runDeadlineReminders } from "./jobs.js";
 import { routes as reputationRoutes } from "./reputation.js";
 // A namespace import, so this file works before events.js grows dueReminders.
 import * as events from "./events.js";
@@ -133,6 +134,8 @@ export async function runJobs(cron, env, t = now(), { fetchImpl = fetch, mod = e
     await job(report, "badges", () => refreshBadges(env, t));
     await job(report, "orphans", () => sweepOrphans(env, t));
     await job(report, "checkins", () => checkins(env, t));
+    await job(report, "job_alerts", () => runJobAlerts(env, t));
+    await job(report, "deadlines", () => runDeadlineReminders(env, t));
     // The daily scan of job boards, employers' pages and calendars (IMPORTS=0 turns it off).
     if (String(env.IMPORTS ?? "1") !== "0") await job(report, "imports", () => runImports(env, t, { fetcher: fetchImpl }));
     return report;

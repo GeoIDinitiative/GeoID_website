@@ -44,3 +44,23 @@ ALTER TABLE users ADD COLUMN openalex_id TEXT NOT NULL DEFAULT '';
 ALTER TABLE users ADD COLUMN scholar_json TEXT NOT NULL DEFAULT '{}';
 ALTER TABLE profile_items ADD COLUMN source TEXT NOT NULL DEFAULT '';
 CREATE INDEX users_orcid ON users(orcid);
+
+-- ── Saved searches and deadline reminders (jobs.js) ───────────────────────
+-- A member's own filters over the external board, with an alert.
+CREATE TABLE saved_searches (
+  id           TEXT PRIMARY KEY,
+  user_id      TEXT NOT NULL REFERENCES users(id),
+  name         TEXT NOT NULL,
+  query_json   TEXT NOT NULL DEFAULT '{}',    -- {q, field, stage, region, remote, closing}
+  alert        TEXT NOT NULL DEFAULT 'daily', -- daily | weekly | off
+  last_sent_at INTEGER NOT NULL DEFAULT 0,
+  created_at   INTEGER NOT NULL
+);
+CREATE INDEX saved_searches_user ON saved_searches(user_id);
+-- One reminder per saved opportunity before it closes.
+CREATE TABLE deadline_reminders (
+  user_id  TEXT NOT NULL,
+  post_id  TEXT NOT NULL,
+  sent_at  INTEGER NOT NULL,
+  PRIMARY KEY (user_id, post_id)
+);
