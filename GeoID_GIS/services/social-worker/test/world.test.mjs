@@ -354,3 +354,15 @@ test("trust: a scam-shaped opportunity from a new account waits for a moderator;
   assert.equal(rep.due_at - rep.created_at, 24 * 3600);
   assert.equal(rep.overdue, false);
 });
+
+test("licence is optional: research outputs default to CC BY, questions and events to none, and anyone can clear it", async () => {
+  const env = await world();
+  const q = await call(env, "POST", "/v1/posts", { as: ANA, body: { kind: "question", title: "Which InSAR stack for Etna?", visibility: "public" } });
+  assert.equal(q.body.licence, "");
+  const d = await call(env, "POST", "/v1/posts", { as: ANA, body: { kind: "dataset", title: "Tilt records", provenance: "observed", visibility: "public" } });
+  assert.equal(d.body.licence, "CC-BY-4.0");
+  const t = await call(env, "POST", "/v1/posts", { as: ANA, body: { kind: "text", title: "Chapter draft", licence: "", visibility: "public" } });
+  assert.equal(t.body.licence, "");
+  const cleared = await call(env, "PATCH", `/v1/posts/${d.body.id}`, { as: ANA, body: { licence: "" } });
+  assert.equal(cleared.body.licence, "");
+});

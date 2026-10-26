@@ -43,6 +43,7 @@ export const PROVENANCE = {
 };
 
 export const LICENCES = [
+  ["", "No licence — not offered for reuse"],
   ["CC-BY-4.0", "CC BY 4.0 — reuse with credit"],
   ["CC-BY-SA-4.0", "CC BY-SA 4.0 — reuse with credit, share alike"],
   ["CC0-1.0", "CC0 1.0 — public domain"],
@@ -166,6 +167,8 @@ export const plural = (n, word) => `${n} ${word}${n === 1 ? "" : "s"}`;
 
 export const NO_PROVENANCE_KINDS = ["text", "opportunity", "event", "question", "discussion", "challenge", "repo"];
 export const hasProvenance = (kind) => !NO_PROVENANCE_KINDS.includes(kind);
+/** A licence is offered by default only for work others may reuse: data, analyses, scenes, models, papers. */
+export const defaultLicence = (kind) => (hasProvenance(kind) ? "CC-BY-4.0" : "");
 
 export function provenanceBadge(p) {
   const info = PROVENANCE[p];

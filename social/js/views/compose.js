@@ -14,7 +14,7 @@ import {
   dateToEpoch, epochToDate, errorBox, loading, put,
 } from "../dom.js?v=20261025-794b342";
 import {
-  KINDS, PROVENANCE, LICENCES, VISIBILITY, OPP_TYPES, EVENT_FORMATS, WORLDS, requireSignIn, kindLabel,
+  KINDS, PROVENANCE, LICENCES, defaultLicence, VISIBILITY, OPP_TYPES, EVENT_FORMATS, WORLDS, requireSignIn, kindLabel,
   hasProvenance,
 } from "../components.js?v=20261025-794b342";
 import { parseVideoLink } from "../embed.js?v=20261025-794b342";
@@ -78,10 +78,10 @@ export async function render(root, { query }) {
   let room = null;
   if (roomId) { try { room = await api.get(`/v1/rooms/${encodeURIComponent(roomId)}`); } catch (error) { room = null; } }
   const initialKind = existing?.kind || (handed ? handedKind : (KINDS[query.kind] ? query.kind : "text"));
-  return buildForm(root, { existing, handed, initialKind, query });
+  return buildForm(root, { existing, handed, initialKind, query, room });
 }
 
-function buildForm(root, { existing, handed, initialKind, query }) {
+function buildForm(root, { existing, handed, initialKind, query, room }) {
   const p = existing || {};
   const m = p.meta || (handed && handed.meta && typeof handed.meta === "object" ? handed.meta : {});
   let kind = initialKind;
@@ -204,7 +204,10 @@ function buildForm(root, { existing, handed, initialKind, query }) {
     }
   };
   kindGroup.addEventListener("change", (e) => {
-    if (e.target.name === "kind") { kind = e.target.value; drawKindFields(); provHint(); }
+    if (e.target.name === "kind") {
+      kind = e.target.value; drawKindFields(); provHint();
+      if (typeof licence !== "undefined" && !licenceTouched) licence.value = defaultLicence(kind);
+    }
   });
   drawKindFields();
 
@@ -255,7 +258,11 @@ function buildForm(root, { existing, handed, initialKind, query }) {
     provNote.textContent = !asks ? "" : kind === "observation" ? "Field observations are usually “Observed”." : kind === "scene" || kind === "analysis" ? "Model output is “Modelled”; a calculation from data is “Derived”." : "";
   };
   provHint();
-  const licence = select("licence", LICENCES, p.licence || "CC-BY-4.0");
+  // Optional: a question, a job or an event is not offered for reuse. The
+  // default follows the kind until the author picks one themselves.
+  const licence = select("licence", LICENCES, existing ? (p.licence || "") : defaultLicence(kind));
+  let licenceTouched = !!existing;
+  licence.addEventListener("change", () => { licenceTouched = true; });
 
   const sourcesList = h("ol", { class: "s-sources-edit" });
   const addSource = (s = {}) => {
@@ -374,7 +381,7 @@ function buildForm(root, { existing, handed, initialKind, query }) {
     locBox,
     h("fieldset", {}, h("legend", {}, "Provenance & reuse"),
       provGroup, provNote,
-      field("Licence", licence, "What others may do with this."),
+      field("Licence (optional)", licence, "What others may do with this. Leave it unset for questions, events, jobs and documents you're not offering for reuse."),
       h("div", { class: "s-field" }, h("span", { class: "s-label", text: "Sources" }), sourcesList,
         h("button", { type: "button", class: "btn-ghost s-btn-sm", onClick: () => addSource() }, "Add a source")),
       field("Method", methodSummary, "How it was made — enough for someone else to repeat it."),

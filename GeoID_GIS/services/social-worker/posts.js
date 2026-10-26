@@ -31,6 +31,7 @@ const PROVENANCE = ["observed", "derived", "modelled", "forecast", "ai", "unveri
 const VISIBILITY = ["public", "unlisted", "followers", "team", "community", "project", "private"];
 export const REACTIONS = ["like", "insightful", "reproduced", "useful"];
 const COMMENT_KINDS = ["comment", "correction", "suggestion"];
+const NO_LICENCE_KINDS = ["text", "opportunity", "event", "question", "discussion", "challenge", "repo"];
 const OPPORTUNITY_TYPES = ["job", "grant", "fellowship", "internship", "studentship", "project", "consultancy",
   "expedition", "hackathon", "expertise", "service"];
 const EVENT_FORMATS = ["webinar", "seminar", "workshop", "hackathon", "field-course", "poster-session", "conference"];
@@ -314,7 +315,10 @@ async function postFields(env, user, body, base) {
     out.media_json = JSON.stringify(media);
   }
   if (!base || has("links")) out.links_json = JSON.stringify(await withCards(env, cleanLinks(body.links)));
-  if (!base || has("licence")) out.licence = str(body.licence, 60) || "CC-BY-4.0";
+  // A licence is optional: questions, jobs, events and documents need not offer
+  // reuse. Asked for nothing on a new post, research outputs default to CC BY.
+  if (has("licence")) out.licence = str(body.licence, 60);
+  else if (!base) out.licence = NO_LICENCE_KINDS.includes(kind) ? "" : "CC-BY-4.0";
   if (!base || has("provenance")) {
     out.provenance = body.provenance == null ? "observed" : enumOf(body.provenance, PROVENANCE, "provenance");
   }

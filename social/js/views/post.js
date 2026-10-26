@@ -232,20 +232,26 @@ function repoBlock(p) {
 
 /** Always visible: where it came from, what it may be used for, how it was made and where it may be wrong. */
 function provenanceBlock(p) {
-  const lic = LICENCES.find(([v]) => v === p.licence);
+  const lic = LICENCES.find(([v]) => v && v === p.licence);
   const method = p.method || {};
+  const research = hasProvenance(p.kind);
   const notStated = () => h("span", { class: "s-muted", text: "Not stated" });
-  return h("section", { class: "s-provenance", "aria-label": "Provenance and reuse" },
-    h("h2", { class: "s-h3", text: "Provenance & reuse" }),
-    dl([
-      ...(hasProvenance(p.kind) ? [["Provenance", h("span", {}, provenanceBadge(p.provenance), " ", PROVENANCE[p.provenance]?.help || "")]] : []),
-      ["Licence", lic ? lic[1] : (p.licence || notStated())],
-      ["Sources", p.sources?.length ? h("ol", { class: "s-plain" }, p.sources.map((s) => h("li", {},
-        s.url ? extLink(s.url, s.label || s.url) : s.doi ? extLink(`https://doi.org/${s.doi}`, s.label || s.doi) : (s.label || "")))) : notStated()],
-      ["Method", method.summary || method.software ? h("div", {}, method.summary ? h("p", { text: method.summary }) : null,
-        method.software ? h("p", { class: "s-muted", text: `Software: ${method.software}` }) : null) : notStated()],
-      ["Limitations", p.limitations || notStated()],
-    ]));
+  // Research outputs list every row ("not stated" is worth knowing); a
+  // question, job, event or plain post shows only what was given, and no
+  // block at all when nothing was.
+  const rows = [
+    research ? ["Provenance", h("span", {}, provenanceBadge(p.provenance), " ", PROVENANCE[p.provenance]?.help || "")] : null,
+    p.licence ? ["Licence", lic ? lic[1] : p.licence] : null,
+    p.sources?.length ? ["Sources", h("ol", { class: "s-plain" }, p.sources.map((s) => h("li", {},
+      s.url ? extLink(s.url, s.label || s.url) : s.doi ? extLink(`https://doi.org/${s.doi}`, s.label || s.doi) : (s.label || ""))))] : research ? ["Sources", notStated()] : null,
+    method.summary || method.software ? ["Method", h("div", {}, method.summary ? h("p", { text: method.summary }) : null,
+      method.software ? h("p", { class: "s-muted", text: `Software: ${method.software}` }) : null)] : research ? ["Method", notStated()] : null,
+    p.limitations ? ["Limitations", p.limitations] : research ? ["Limitations", notStated()] : null,
+  ].filter(Boolean);
+  if (!rows.length) return null;
+  return h("section", { class: "s-provenance", "aria-label": research ? "Provenance and reuse" : "Sources" },
+    h("h2", { class: "s-h3", text: research ? "Provenance & reuse" : "Sources & reuse" }),
+    dl(rows));
 }
 
 function verifyBlock(p, mine) {
