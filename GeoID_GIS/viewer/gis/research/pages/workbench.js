@@ -1,13 +1,13 @@
-import { registerPage } from "../stages.js?v=20261026-1e1ad03";
-import * as store from "../project-store.js?v=20261026-1e1ad03";
-import * as google from "../google-credentials.js?v=20261026-1e1ad03";
-import { column } from "../table.js?v=20261026-1e1ad03";
-import { linePlot } from "../plot.js?v=20261026-1e1ad03";
-import * as dsp from "../dsp.js?v=20261026-1e1ad03";
+import { registerPage } from "../stages.js?v=20261026-5d95cac";
+import * as store from "../project-store.js?v=20261026-5d95cac";
+import * as google from "../google-credentials.js?v=20261026-5d95cac";
+import { column } from "../table.js?v=20261026-5d95cac";
+import { linePlot } from "../plot.js?v=20261026-5d95cac";
+import * as dsp from "../dsp.js?v=20261026-5d95cac";
 import {
   el, card, field, input, textarea, selectOf, button, row, statGrid, statusLine,
   guard, findTables, loadTable, inferSampling, saveTable,
-} from "./common.js?v=20261026-1e1ad03";
+} from "./common.js?v=20261026-5d95cac";
 
 /**
  * AI trainer, the remaining FEM pages, Publish and Settings.
@@ -457,7 +457,7 @@ const mountPlugins = guard("Plugin Manager", async (host) => {
     "Which pages have been built and which are still to come. A page registers "
     + "itself with the stage list; nothing here is configuration, it is what is "
     + "actually loaded."));
-  const { STAGES: stages, getPage: get } = await import("../stages.js?v=20261026-1e1ad03");
+  const { STAGES: stages, getPage: get } = await import("../stages.js?v=20261026-5d95cac");
   const table = el("div", "research-table");
   const head = el("div", "research-table-row is-head");
   ["Stage", "Pages", "Built", "Remaining"].forEach((h) => head.appendChild(el("span", null, h)));

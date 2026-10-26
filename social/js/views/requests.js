@@ -11,13 +11,13 @@
  * Entry points: "Ask for help…" on a post and on a project open
  * #/requests?new=1&post=<id> or &project=<id>.
  */
-import * as api from "../api.js?v=20261026-1e1ad03";
-import { store } from "../store.js?v=20261026-1e1ad03";
+import * as api from "../api.js?v=20261026-5d95cac";
+import { store } from "../store.js?v=20261026-5d95cac";
 import {
   h, clear, field, input, select, textarea, toast, busy, splitList, errorBox, loading, empty, modal,
   timeEl, dateToEpoch, dateText, put,
-} from "../dom.js?v=20261026-1e1ad03";
-import { act, pagedList, userChip, requireSignIn, confirmDialog } from "../components.js?v=20261026-1e1ad03";
+} from "../dom.js?v=20261026-5d95cac";
+import { act, pagedList, userChip, requireSignIn, confirmDialog } from "../components.js?v=20261026-5d95cac";
 
 export const REQUEST_KINDS = [
   ["join_project", "Join a project"], ["review_method", "Review a method"], ["contribute_dataset", "Contribute a dataset"],
