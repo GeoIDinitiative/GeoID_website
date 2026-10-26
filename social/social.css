@@ -1152,23 +1152,25 @@ a.s-stat:focus-visible, button.s-stat:focus-visible { color: var(--text); outlin
 .s-now { margin: 0.4rem 0 1.1rem; }
 .s-now-head { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; margin-bottom: 0.5rem; }
 .s-now-head .s-h3 { margin: 0; font-size: 0.8rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
-.s-now-row { display: grid; grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr)); gap: 0.6rem; }
-.s-room-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(19rem, 1fr)); gap: 0.7rem; margin-top: 1rem; }
-.s-room-chip {
-  --room: #9aa8ff;
-  display: grid; grid-template-columns: 2.2rem 1fr; gap: 0.7rem; align-items: center; padding: 0.7rem 0.85rem;
-  border: 1px solid var(--line); border-left: 3px solid var(--room); border-radius: var(--n-radius, 12px);
-  background: var(--n-glass, rgba(9, 12, 28, 0.62)); color: var(--text) !important;
-}
-.s-room-chip:hover { text-decoration: none !important; background: rgba(var(--accent-rgb), 0.05); }
-.s-room-chip-main { display: grid; min-width: 0; }
-.s-room-chip-main strong { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 600; }
-.s-room-chip-main .s-muted { font-size: 0.82rem; }
-.s-room-glyph { display: grid; place-items: center; width: 2.2rem; height: 2.2rem; border-radius: 50%; color: var(--room);
-  border: 1px solid color-mix(in srgb, var(--room) 55%, transparent); font-size: 1.05rem; }
+.s-now-row { display: grid; grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr)); gap: 0.7rem; }
+.s-room-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(22rem, 1fr)); gap: 0.9rem; margin-top: 1rem; }
+/* A room is a Network card (.s-post-card): the field's glowing edge, labels, the place, how big, how fresh. */
+.s-room-card { display: grid; gap: 0.35rem; }
+.s-room-card-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 0.8rem; }
+.s-room-card .s-labels { margin: 0; }
+.s-room-figure { font-family: var(--u-display, "Archivo", sans-serif); font-size: 1.35rem; font-weight: 700; line-height: 1;
+  color: rgb(var(--topic-rgb)); font-variant-numeric: tabular-nums; white-space: nowrap; letter-spacing: -0.01em; }
+.s-room-card .s-card-title { margin: 0.15rem 0 0; }
+.s-room-card .s-card-body { margin: 0; }
+.s-room-foot { display: flex; justify-content: space-between; gap: 1rem; font-size: 0.84rem; color: var(--muted); }
+.s-room-card.is-compact { padding: 0.8rem 1rem; }
+.s-room-card.is-compact .s-card-title { font-size: 1rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.s-room-card.is-compact .s-room-figure { font-size: 1.1rem; }
+.s-alert { font-size: 0.72rem; padding: 0.1rem 0.5rem; border-radius: 100px; border: 1px solid; }
+.s-alert-orange { color: #ffb066; border-color: rgba(255, 150, 60, 0.6); background: rgba(255, 150, 60, 0.08); }
+.s-alert-red { color: #ff8a8a; border-color: rgba(255, 80, 80, 0.65); background: rgba(255, 80, 80, 0.1); }
 .s-room-earthquake { --room: #ff8a5c; } .s-room-volcano { --room: #ff5d5d; } .s-room-flood { --room: #4fb3ff; }
 .s-room-cyclone { --room: #b18cff; } .s-room-wildfire { --room: #ffb547; } .s-room-drought { --room: #d9b56b; }
-.s-alert-red .s-room-glyph { box-shadow: 0 0 0 2px rgba(255, 70, 70, 0.35); }
 .s-room-head { border-left: 4px solid var(--room, var(--accent)); padding-left: 1rem; margin-bottom: 1.2rem; }
 .s-room-head .s-h1 { margin: 0.3rem 0; }
 .s-room-open { display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.78rem; color: var(--text); }

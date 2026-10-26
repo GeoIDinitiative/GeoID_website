@@ -16,7 +16,6 @@ import { createMap } from "../mapcore.js?v=20261026-b97ef24";
 
 export const ROOM_LABEL = { earthquake: "Earthquake", cyclone: "Tropical cyclone", flood: "Flood", volcano: "Volcano",
   wildfire: "Wildfire", drought: "Drought" };
-const ROOM_GLYPH = { earthquake: "≋", cyclone: "◉", flood: "≈", volcano: "▲", wildfire: "✶", drought: "☼" };
 
 const ago = (s) => {
   const d = Math.max(0, Date.now() / 1000 - s);
@@ -25,13 +24,42 @@ const ago = (s) => {
   return `${Math.round(d / 86400)} d ago`;
 };
 
-/** A room as a compact card (the feed strip and the list). */
-export function roomChip(r) {
-  return h("a", { class: `s-room-chip s-room-${r.kind} s-alert-${r.alert || "none"}`, href: `#/room/${encodeURIComponent(r.id)}` },
-    h("span", { class: "s-room-glyph", "aria-hidden": "true", text: ROOM_GLYPH[r.kind] || "•" }),
-    h("span", { class: "s-room-chip-main" },
-      h("strong", { text: r.title }),
-      h("span", { class: "s-muted", text: [r.severity, ago(r.started_at), r.posts ? `${r.posts} post${r.posts === 1 ? "" : "s"}` : ""].filter(Boolean).join(" · ") })));
+/** The field each kind of room belongs to: its colour and edge glow are the Network's topic ones (topics.js). */
+const ROOM_TOPIC = {
+  earthquake: { label: "Seismology", rgb: "255, 184, 64" }, volcano: { label: "Volcanology", rgb: "255, 92, 56" },
+  flood: { label: "Hydrology", rgb: "70, 150, 255" }, drought: { label: "Hydrology", rgb: "70, 150, 255" },
+  cyclone: { label: "Atmosphere", rgb: "180, 130, 255" }, wildfire: { label: "Wildfire", rgb: "255, 140, 40" },
+};
+
+/** "M 6.5 - Bonin Islands, Japan region" -> the place; the magnitude is shown on its own. */
+const roomTitle = (r) => (r.kind === "earthquake" ? r.title.replace(/^M\s*[\d.]+\s*-\s*/i, "") : r.title);
+/** The one number that says how big: "M 6.5", "194 km/h", else the feed's words, short. */
+function roomFigure(r) {
+  if (r.kind === "earthquake") return r.severity;
+  const wind = /(\d+)\s*km\/h/.exec(r.severity || "");
+  if (wind) return `${wind[1]} km/h`;
+  return "";
+}
+
+/** A room as a Network card: the field's glowing edge, labels, the place, how big, how fresh. */
+export function roomChip(r, { compact = false } = {}) {
+  const topic = ROOM_TOPIC[r.kind] || { label: ROOM_LABEL[r.kind] || r.kind, rgb: "154, 168, 255" };
+  const figure = roomFigure(r);
+  const alert = ["orange", "red"].includes(r.alert) ? r.alert : "";
+  const card = h("article", { class: `s-card s-post-card s-room-card${compact ? " is-compact" : ""}`, "data-topic": r.kind, "aria-labelledby": `rt-${r.id}` },
+    h("div", { class: "s-room-card-top" },
+      h("div", { class: "s-labels" },
+        h("span", { class: "s-kind", text: ROOM_LABEL[r.kind] || r.kind }),
+        h("span", { class: "s-topic", text: topic.label }),
+        alert ? h("span", { class: `s-alert s-alert-${alert}`, text: `${alert[0].toUpperCase()}${alert.slice(1)} alert` }) : null),
+      figure ? h("span", { class: "s-room-figure", text: figure }) : null),
+    h("h3", { class: "s-card-title", id: `rt-${r.id}` }, h("a", { href: `#/room/${encodeURIComponent(r.id)}` }, roomTitle(r))),
+    compact || !r.place || r.place === roomTitle(r) ? null : h("p", { class: "s-card-body", text: r.place }),
+    h("footer", { class: "s-card-foot s-room-foot" },
+      h("span", {}, r.status === "archived" ? "Archived" : h("span", { class: "s-room-open", text: "Open" }), ` · began ${ago(r.started_at)}`),
+      h("span", { class: "s-muted", text: r.posts ? `${r.posts} post${r.posts === 1 ? "" : "s"}` : "No posts yet" })));
+  card.style.setProperty("--topic-rgb", topic.rgb);
+  return card;
 }
 
 /** The feed's "Happening now" strip: active rooms, newest first. Nothing at all when there are none. */
@@ -41,7 +69,7 @@ export function happeningNow() {
     const items = d?.items || [];
     if (!items.length) return;
     put(box, h("div", { class: "s-now-head" }, h("h2", { class: "s-h3", text: "Happening now" }), h("a", { href: "#/rooms" }, "All event rooms")),
-      h("div", { class: "s-now-row" }, items.slice(0, 6).map(roomChip)));
+      h("div", { class: "s-now-row" }, items.slice(0, 4).map((r) => roomChip(r, { compact: true }))));
     box.hidden = false;
   }).catch(() => {});
   return box;
@@ -58,7 +86,7 @@ export function renderList(root, { query }) {
     list);
   api.get("/v1/rooms", { status: archived ? "archived" : "active", limit: 50 }).then((d) => {
     const items = d?.items || [];
-    put(clear(list), items.length ? items.map(roomChip) : empty(archived ? "No archived rooms yet." : "Nothing significant right now.",
+    put(clear(list), items.length ? items.map((r) => roomChip(r)) : empty(archived ? "No archived rooms yet." : "Nothing significant right now.",
       archived ? "" : "Rooms open by themselves for significant earthquakes, and for orange and red alerts on cyclones, floods, volcanoes, wildfires and droughts."));
   }).catch((error) => put(clear(list), errorBox(error)));
 }
@@ -91,7 +119,7 @@ export async function renderOne(root, { params }) {
     store.me ? followButton("room", r.id, r.viewer?.following, "room") : null);
 
   put(clear(root),
-    h("header", { class: `s-room-head s-room-${r.kind} s-alert-${r.alert || "none"}` },
+    h("header", { class: `s-room-head s-room-${r.kind} s-head-alert-${r.alert || "none"}` },
       h("p", { class: "s-labels" },
         h("span", { class: "s-kind", text: ROOM_LABEL[r.kind] || r.kind }),
         r.status === "archived" ? h("span", { class: "s-vis", text: "Archived" }) : h("span", { class: "s-room-open", text: "Open" })),
