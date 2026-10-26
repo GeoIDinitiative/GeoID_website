@@ -22,7 +22,7 @@
  * dates, and susceptibility is where ground fails, not when.
  */
 
-import { buildStack, cellCentre, featureRows } from "./flood-ml.js?v=20261026-cbf1b2a";
+import { buildStack, cellCentre, featureRows } from "./flood-ml.js?v=20261026-ef953d6";
 
 export const LS_FEATURES = [
   "elevation_m", "slope_deg", "hand_m", "log10_upstream_km2", "channel_distance_m", "twi", "curvature", "relief_m",

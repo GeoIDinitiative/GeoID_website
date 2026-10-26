@@ -35,7 +35,7 @@
  */
 
 import { loadRockProperties, parameterState }
-  from "./rock-properties.js?v=20261026-cbf1b2a";
+  from "./rock-properties.js?v=20261026-ef953d6";
 /**
  * `rampColour` answers [r, g, b], not a string -- the raster repaint contract.
  * A VECTOR repaint wants a CSS string, and handing it the array is not an
@@ -43,7 +43,7 @@ import { loadRockProperties, parameterState }
  * a perfectly correct legend. `hex` is the conversion, and this module is a
  * vector painter, so it converts once at the boundary.
  */
-import { rampColour, hex } from "./symbology.js?v=20261026-cbf1b2a";
+import { rampColour, hex } from "./symbology.js?v=20261026-ef953d6";
 
 /**
  * THREE ANSWERS, THREE COLOURS, and the last two are not the same thing.
