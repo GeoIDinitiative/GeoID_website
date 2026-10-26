@@ -391,7 +391,7 @@ body.picking #stage canvas { cursor: crosshair; }
   <div class="row"><button class="pill" id="popFly">Fly here</button><button class="pill" id="popMap" hidden>On the street map</button></div>
 </div>
 
-<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"}}</script>
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/","three-mesh-bvh":"https://cdn.jsdelivr.net/npm/three-mesh-bvh@0.8.3/build/index.module.js"}}</script>
 <script type="module">
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
@@ -399,6 +399,9 @@ import { loadData, createRenderer, createWorld, applyTime } from './src/scene.js
 import { STADIUM_POS } from './src/masterplan.js';
 import { loadOldTraffordModel } from './src/otmodel.js';
 import { clampToWorld } from './src/horizon.js';
+import { computeBoundsTree, acceleratedRaycast } from 'three-mesh-bvh';
+// label occlusion rays go through a BVH: a few dozen box tests instead of every triangle of every occluder
+THREE.BufferGeometry.prototype.computeBoundsTree = computeBoundsTree; THREE.Mesh.prototype.raycast = acceleratedRaycast;
 import { createStreetMap, THEMES } from './src/streetmap.js';
 
 const $ = (s) => document.querySelector(s);
@@ -457,7 +460,7 @@ await step('Lighting the stands', 0.85);
 // present-day Old Trafford mesh, if one has been supplied in models/ (replaces the procedural 'as now' stadium)
 let otProxy = null, otProxyBox = null;
 loadOldTraffordModel().then((m) => {
-  if (!m) return; groups.oldTraffordToday.clear(); groups.oldTraffordToday.add(m);
+  if (!m) return; groups.oldTraffordToday.clear(); groups.oldTraffordToday.add(m); setTimeout(() => buildBVH?.(m), 0);
   // light stand-in for label occlusion: the model's bounding box, slightly shrunk (raycasting 200k triangles every frame is too slow)
   const G = groups.oldTraffordToday, rot = G.rotation.y; G.rotation.y = 0; G.updateMatrixWorld(true);       // box aligned with the stadium, not the world
   const bb = new THREE.Box3().setFromObject(m); G.rotation.y = rot; G.updateMatrixWorld(true);
@@ -730,32 +733,60 @@ const v3 = new THREE.Vector3(), occRay = new THREE.Raycaster();
 const interiorOccluders = () => groups.stadium.children.filter((c) => c.name !== 'envelope');
 function stepLabels() {
   const show = state.labels && state.site === 'proposed' && state.mode === 'orbit';
-  // occlusion: re-test a few labels per frame
+  if (!show) { if (labelsOn) { tags.forEach((t) => { if (t.shown) { t.el.hidden = true; t.shown = false; } }); labelsOn = false; } return; }
+  labelsOn = true;
   // Stability: a label changes state only when it has to. Occlusion flips only after two tests agree; a label shown
-  // last frame keeps its place against newcomers; distance cut-offs have a 10 % band; and each label's width is
-  // measured once (a hidden element measures 0, which made the overlap test disagree with itself frame to frame).
-  if (show) for (let k = 0; k < 24; k++) {
-    const t = tags[occFrame++ % tags.length], dir = t.p.clone().sub(camera.position), dist = dir.length();
-    occRay.set(camera.position, dir.normalize()); occRay.far = dist - (t.l.interior ? 1.5 : 6);
-    const occ = t.l.interior ? interiorOccluders() : occluders(t.p);
-    const hit = occRay.intersectObjects(occ, true).some((h) => h.object.visible !== false && h.object.material?.visible !== false && !h.object.material?.transparent);
-    if (hit === t.lastHit) t.occluded = hit; t.lastHit = hit;
-  }
-  const placed = [];
+  // last frame keeps its place against newcomers; distance cut-offs have a 10 % band.
+  // Speed: widths are measured once, together (measureTags); positions are written after every read; occlusion is
+  // tested only for labels that could show, round-robin, within a time budget, and not at all while the camera rests.
+  const placed = [], cands = [];
   const order = tags.map((t) => { v3.copy(t.p).project(camera); return { t, x: (v3.x + 1) / 2 * innerWidth, y: (1 - v3.y) / 2 * innerHeight - 14, z: v3.z, d: camera.position.distanceTo(t.p) }; })
     .sort((a, b) => (b.t.l.major - a.t.l.major) || (b.t.shown - a.t.shown) || (a.d - b.d));
   for (const o of order) {
     const t = o.t, band = t.shown ? 1.1 : 1, within = (lim) => o.d < lim * band;
-    let vis = show && catOn[t.l.cat] && (t.l.cat !== 'street' || within(1400)) && (t.l.cat !== 'place' || within(600)) && (t.l.interior ? !state.skin && (t.l.major ? within(700) : within(220)) : true) && o.z < 1 && o.x > 0 && o.x < innerWidth && o.y > 0 && o.y < innerHeight && within(2600) && !t.occluded;
+    o.ok = catOn[t.l.cat] && (t.l.cat !== 'street' || within(1400)) && (t.l.cat !== 'place' || within(600)) && (t.l.interior ? !state.skin && (t.l.major ? within(700) : within(220)) : true) && o.z < 1 && o.x > 0 && o.x < innerWidth && o.y > 0 && o.y < innerHeight && within(2600);
+    if (o.ok) cands.push(t);
+  }
+  camera.updateMatrixWorld();
+  const moved = !lastCam.equals(camera.matrixWorld); if (moved) { lastCam.copy(camera.matrixWorld); restFrames = 0; } else restFrames++;
+  if (cands.length && restFrames < 3) {
+    const t0 = performance.now();
+    for (let k = 0; k < cands.length && performance.now() - t0 < 2.5; k++) {
+      const t = cands[occFrame++ % cands.length], dir = t.p.clone().sub(camera.position), dist = dir.length();
+      occRay.set(camera.position, dir.normalize()); occRay.far = dist - (t.l.interior ? 1.5 : 6);
+      const occ = (t.l.interior ? interiorOccluders() : occluders(t.p)).filter((o) => occRay.ray.intersectsBox(boxOf(o)));   // skip whole groups the ray misses (Old Trafford is 211 meshes)
+      const hit = occRay.intersectObjects(occ, true).some((h) => h.object.visible !== false && h.object.material?.visible !== false && !h.object.material?.transparent);
+      if (hit === t.lastHit) t.occluded = hit; t.lastHit = hit;
+    }
+  }
+  const writes = [];
+  for (const o of order) {
+    const t = o.t;
+    let vis = o.ok && !t.occluded;
     if (vis) {
-      if (!t.w && t.el.offsetWidth) t.w = t.el.offsetWidth;
       const w = t.w || t.l.name.length * 6.6 + 20, h = 26, r = [o.x - w / 2, o.y - h, o.x + w / 2, o.y];
       if (placed.some((p) => !(r[2] < p[0] || r[0] > p[2] || r[3] < p[1] || r[1] > p[3]))) vis = false; else placed.push(r);
     }
+    writes.push([t, vis, o]);
+  }
+  for (const [t, vis, o] of writes) {
     if (t.shown !== vis) { t.el.hidden = !vis; t.shown = vis; }
-    if (vis) t.el.style.transform = `translate(${Math.round(o.x)}px, ${Math.round(o.y)}px) translate(-50%, -100%)`;
+    if (vis) { const tf = `translate(${Math.round(o.x)}px, ${Math.round(o.y)}px) translate(-50%, -100%)`; if (t.tf !== tf) { t.el.style.transform = tf; t.tf = tf; } }
   }
 }
+// every label's width, read in one pass (one layout), so placement never measures mid-frame
+function measureTags() {
+  for (const t of tags) t.el.hidden = false;
+  for (const t of tags) t.w = t.el.offsetWidth || t.l.name.length * 6.6 + 20;
+  for (const t of tags) t.el.hidden = true, (t.shown = false);
+}
+const boxes = new WeakMap(); const boxOf = (o) => { let b = boxes.get(o); if (!b) { b = new THREE.Box3().setFromObject(o).expandByScalar(1); boxes.set(o, b); } return b; };
+let labelsOn = true, restFrames = 0; const lastCam = new THREE.Matrix4();
+document.fonts?.ready.then(measureTags); measureTags();
+// BVHs for every occluder, built once (the Old Trafford model's when it arrives: see buildBVH calls)
+function buildBVH(root) { root?.traverse((m) => { if (m.isMesh && !m.geometry.boundsTree && m.geometry.attributes.position) { try { m.geometry.computeBoundsTree(); } catch {} } }); }
+occRay.firstHitOnly = false;
+buildBVH(groups.stadium); buildBVH(groups.oldTrafford); groups.masterplan.children.filter((c) => c.name.startsWith('bld_') || c.name.startsWith('ground_')).forEach(buildBVH);
 // pop-up card (like GeoHUB): title, description, fly here
 let popLabel = null;
 function openPop(l) {
