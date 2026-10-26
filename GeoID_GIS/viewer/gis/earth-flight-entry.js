@@ -192,6 +192,37 @@ function wire() {
       .observe(host, { childList: true });
   });
 
+  // DAYTIME ONLY, by clicking the clock -- in flight only (owner, 2026-10-26).
+  // The click that opens the date picker in GeoHUB toggles a noon sun over
+  // the aircraft instead (earth-viewer.js, updateSolarModel); the choice is
+  // kept per browser, and landing leaves the GeoHUB's clock as it was.
+  const DAY_KEY = "geoid-flight-daytime";
+  const setDaytime = (on) => {
+    window.__fsDaytime = Boolean(on);
+    document.body.classList.toggle("fs-daytime", Boolean(on));
+    const btn = document.getElementById("time-scrub-toggle");
+    if (btn) btn.title = window.__flightSim?.active
+      ? (on ? "Daytime only (sun at noon over the aircraft) -- click for the live clock" : "Live clock -- click for daytime only")
+      : "Model time — click to jump to a date & time";
+    try { localStorage.setItem(DAY_KEY, on ? "1" : "0"); } catch (_e) { /* per-browser nicety */ }
+  };
+  let daytime = false;
+  try { daytime = localStorage.getItem(DAY_KEY) === "1"; } catch (_e) { /* storage blocked */ }
+  document.getElementById("time-scrub-toggle")?.addEventListener("click", (e) => {
+    if (!window.__flightSim?.active) return;              // GeoHUB: the date picker, as ever
+    e.stopImmediatePropagation();
+    e.preventDefault();
+    daytime = !daytime;
+    setDaytime(daytime);
+  }, true);
+  window.addEventListener("flightsim:engaged", () => setDaytime(daytime));
+  window.addEventListener("flightsim:disengaged", () => {
+    window.__fsDaytime = false;
+    document.body.classList.remove("fs-daytime");
+    const btn = document.getElementById("time-scrub-toggle");
+    if (btn) btn.title = "Model time — click to jump to a date & time";
+  });
+
   // Help and Controls sit under the model clock (styles/flightsim.css). The
   // clock moves with the sidebar and the window, so its foot is re-measured.
   const clock = document.getElementById("time-scrub-toggle");

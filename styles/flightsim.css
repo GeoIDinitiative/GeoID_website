@@ -980,3 +980,14 @@ body.fs-moon-flight #scale-readout { display: none !important; }
 
 /* Earth Flight has no boost: its meter, touch button and help line go. */
 body.fs-open-chrome .fs-boost-only { display: none !important; }
+
+/* DAYTIME ONLY (gis/earth-flight-entry.js): clicking the clock in flight puts
+   the sun at noon over the aircraft; the clock says so while it does. */
+body.fs-flying #time-scrub-toggle { position: relative; }
+body.fs-flying.fs-daytime #time-scrub-toggle::after {
+  content: "\2600  DAY";
+  position: absolute; right: 6px; top: 4px;
+  font: 700 9px/1 "Exo 2", "Segoe UI", sans-serif; letter-spacing: 0.08em;
+  color: #ffd166; text-shadow: 0 0 6px rgba(255, 209, 102, 0.55);
+  pointer-events: none;
+}

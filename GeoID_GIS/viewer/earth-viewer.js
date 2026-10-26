@@ -14350,10 +14350,22 @@ function fmtProp(value) {
       const _zAxis = new THREE.Vector3(0, 0, 1);
       function updateSolarModel() {
         const simulatedUtcMs = getSimulatedUtcMs();
-        const subsolarLat = getSolarDeclinationForUtcMs(simulatedUtcMs);
+        let subsolarLat = getSolarDeclinationForUtcMs(simulatedUtcMs);
         const spinDeg = normalizeDegrees360(THREE.MathUtils.radToDeg(getSpinDeltaRadians()));
         // Lock day/night to spin phase: at spin=0 (00:00 GMT), subsolar lon = 180 (midnight at Greenwich).
-        const subsolarLon = normalizeDegrees360(180 - spinDeg);
+        let subsolarLon = normalizeDegrees360(180 - spinDeg);
+        // EARTH FLIGHT, DAYTIME ONLY (owner, 2026-10-26: "toggle daytime only
+        // which overrides the model live clock (click the clock to activate)
+        // -- flight sim mode only"). The sun stands at local noon over the
+        // aircraft, its latitude the season's own but never more than 40 deg
+        // from the aircraft's, so the noon sun is at least 50 deg up even in a
+        // polar winter. The clock itself runs on; only the sun is moved, and
+        // only while flying (gis/earth-flight-entry.js sets __fsDaytime).
+        const fsShip = window.__fsDaytime && window.__flightSim?.active ? window.__flightSim.shipLatLon : null;
+        if (fsShip && Number.isFinite(fsShip.lat) && Number.isFinite(fsShip.lon)) {
+          subsolarLon = normalizeDegrees360(fsShip.lon);
+          subsolarLat = Math.max(fsShip.lat - 40, Math.min(fsShip.lat + 40, subsolarLat));
+        }
         _sunLocal.copy(latLonToVector3(subsolarLat, subsolarLon, 1)).normalize();
         _sunWorld.copy(_sunLocal)
           .applyAxisAngle(_yAxis, getSpinDeltaRadians())
