@@ -7,12 +7,12 @@
  * account; what members endorse) and why. Two views: the timeline, in the
  * order things happened, and "strongest evidence first".
  */
-import * as api from "../api.js?v=20261026-ce04b62";
-import { store } from "../store.js?v=20261026-ce04b62";
-import { h, put, clear, loading, errorBox, empty, field, input, select, textarea, toast, modal, extLink, busy } from "../dom.js?v=20261026-ce04b62";
-import { postCard, pagedList, followButton, userChip, act, requireSignIn } from "../components.js?v=20261026-ce04b62";
-import { createMap } from "../mapcore.js?v=20261026-ce04b62";
-import { mentoringRequestDialog } from "./settings.js?v=20261026-ce04b62";
+import * as api from "../api.js?v=20261026-7f567ff";
+import { store } from "../store.js?v=20261026-7f567ff";
+import { h, put, clear, loading, errorBox, empty, field, input, select, textarea, toast, modal, extLink, busy } from "../dom.js?v=20261026-7f567ff";
+import { postCard, pagedList, followButton, userChip, act, requireSignIn } from "../components.js?v=20261026-7f567ff";
+import { createMap } from "../mapcore.js?v=20261026-7f567ff";
+import { mentoringRequestDialog } from "./settings.js?v=20261026-7f567ff";
 
 const enc = encodeURIComponent;
 const KIND_LABEL = { paper: "Paper", post: "Network post", link: "Link", milestone: "Milestone" };

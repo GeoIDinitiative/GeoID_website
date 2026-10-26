@@ -1,12 +1,12 @@
 import * as THREE from "../vendor/three.module.js";
 import { latLonToVector3, drapedRadius, looksLikeGeographic, sphericalPolygonAreaKm2 }
-  from "./geo-utils.js?v=20261026-ce04b62";
-import { collectionBounds, geometryCoords, polygonsOf, linesOf } from "./geoprocessing.js?v=20261026-ce04b62";
-import { pointInPolygon } from "./geometry.js?v=20261026-ce04b62";
-import { paintOpacity } from "./layer-opacity.js?v=20261026-ce04b62";
-import { applyCutaway } from "./cutaway.js?v=20261026-ce04b62";
-import { categoricalSymbology, suggestCategoryField } from "./symbology.js?v=20261026-ce04b62";
-import { flightGpuUniforms, DRAPE_MATERIALS } from "./flight-terrain-gpu.js?v=20261026-ce04b62";
+  from "./geo-utils.js?v=20261026-7f567ff";
+import { collectionBounds, geometryCoords, polygonsOf, linesOf } from "./geoprocessing.js?v=20261026-7f567ff";
+import { pointInPolygon } from "./geometry.js?v=20261026-7f567ff";
+import { paintOpacity } from "./layer-opacity.js?v=20261026-7f567ff";
+import { applyCutaway } from "./cutaway.js?v=20261026-7f567ff";
+import { categoricalSymbology, suggestCategoryField } from "./symbology.js?v=20261026-7f567ff";
+import { flightGpuUniforms, DRAPE_MATERIALS } from "./flight-terrain-gpu.js?v=20261026-7f567ff";
 
 // Single renderer for every vector source. Each parser produces a GeoJSON
 // FeatureCollection and this turns it into draped globe geometry, so shapefile,
