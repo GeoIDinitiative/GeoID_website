@@ -73,6 +73,10 @@ export async function render(root, { query }) {
   // A GeoHUB handoff names its kind (scene, model or repo -- CONTRACT v1.1);
   // an older one without a kind is a globe view.
   const handedKind = handed && KINDS[handed.kind] ? handed.kind : "scene";
+  // Posting into an event room (rooms.js): the room is named, and its place fills the location.
+  const roomId = String(query.room || existing?.room_id || "");
+  let room = null;
+  if (roomId) { try { room = await api.get(`/v1/rooms/${encodeURIComponent(roomId)}`); } catch (error) { room = null; } }
   const initialKind = existing?.kind || (handed ? handedKind : (KINDS[query.kind] ? query.kind : "text"));
   return buildForm(root, { existing, handed, initialKind, query });
 }
@@ -460,6 +464,7 @@ function buildForm(root, { existing, handed, initialKind, query }) {
       community_id: commSel.value ? (comms.find((c) => c.slug === commSel.value)?.id || commSel.value) : null,
       project_id: projSel.value || null,
       allow_fork: allowFork.querySelector("input").checked,
+      ...(room ? { room_id: room.id } : {}),
       sponsored_by: kind === "challenge" ? kf.sponsor.value.trim() : "",
     };
     const done = busy(form);
@@ -479,6 +484,7 @@ function buildForm(root, { existing, handed, initialKind, query }) {
   });
 
   put(clear(root), h("h1", { class: "s-h1", text: existing ? "Edit post" : "New post" }),
+    room ? h("p", { class: "s-banner" }, "Posting into the event room ", h("a", { href: `#/room/${encodeURIComponent(room.id)}` }, room.title), ".") : null,
     handed ? h("p", { class: "s-banner", text: handed.kind === "model"
       ? "A model setup from GeoHUB is attached. Readers can open it on the same model page."
       : handed.kind === "repo" ? "A repository from GeoHUB is attached."
@@ -498,6 +504,7 @@ function buildForm(root, { existing, handed, initialKind, query }) {
   });
   [lat, lon].forEach((el) => el.addEventListener("input", () => picker.draw()));
   if (loc && Number.isFinite(Number(loc.lat))) picker.setView(Number(loc.lon), Number(loc.lat), 4);
+  else if (room?.lat != null) picker.setView(room.lon, room.lat, 5);
   return () => picker?.destroy();
 }
 

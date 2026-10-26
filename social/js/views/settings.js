@@ -16,6 +16,7 @@ const NOTIFY = [
   ["project_update", "Updates to projects and monitors you follow"], ["grant", "A project is shared with you"],
   ["invite", "Team and community invitations"], ["review", "Peer review requests and replies"],
   ["message", "New messages"], ["badge", "Badges you earn"], ["mentoring", "Mentoring requests and replies"],
+  ["room", "An event room opens near your study areas or in your field, and new posts in rooms you follow"],
 ];
 
 export function render(root, { query = {} } = {}) {

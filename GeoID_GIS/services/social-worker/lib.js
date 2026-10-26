@@ -465,6 +465,7 @@ export function publicPost(env, row, authors = {}, extra = {}) {
     team_id: row.team_id,
     community_id: row.community_id,
     project_id: row.project_id,
+    room_id: row.room_id || null,
     allow_fork: !!row.allow_fork,
     forked_from: row.forked_from,
     sponsored_by: row.sponsored_by,

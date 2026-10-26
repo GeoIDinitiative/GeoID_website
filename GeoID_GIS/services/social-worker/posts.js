@@ -21,6 +21,7 @@ import {
 import { enumOf, recountStatement } from "./profiles.js";
 import { cleanContentMeta } from "./content.js";
 import { reshareRows, mergeWithReshares, reshareLines, viewerReshared } from "./reposts.js";
+import { roomForPost } from "./rooms.js";
 
 export const KINDS = ["text", "scene", "analysis", "monitor", "observation", "workflow", "dataset", "paper",
   "question", "discussion", "event", "opportunity", "challenge", "model", "repo"];
@@ -340,6 +341,11 @@ async function postFields(env, user, body, base) {
     if (body.community_id && !c) fail(400, "No such community.");
     out.community_id = c ? c.id : null;
   }
+  if (!base || has("room_id")) {
+    // An event room (rooms.js): the post joins that room's thread.
+    const room = body.room_id ? await roomForPost(env, body.room_id) : null;
+    out.room_id = room ? room.id : null;
+  }
   if (!base || has("project_id")) {
     if (body.project_id) {
       const project = await env.DB.prepare("SELECT * FROM projects WHERE id = ?").bind(String(body.project_id)).first();
@@ -372,7 +378,7 @@ async function postFields(env, user, body, base) {
 const POST_COLUMNS = ["id", "author_id", "kind", "title", "body", "tags_json", "lat", "lon", "loc_precision",
   "place_name", "world", "scene_json", "media_json", "links_json", "licence", "provenance", "sources_json",
   "method_json", "limitations", "meta_json", "visibility", "team_id", "community_id", "project_id",
-  "allow_fork", "forked_from", "sponsored_by", "created_at", "updated_at"];
+  "allow_fork", "forked_from", "sponsored_by", "room_id", "created_at", "updated_at"];
 
 export function insertStatements(DB, row) {
   const out = [DB.prepare(
@@ -500,6 +506,7 @@ async function createPost(ctx) {
   const t = now();
   const row = { ...fields, id: id("p"), author_id: user.id, forked_from: null, created_at: t, updated_at: t };
   await env.DB.batch(insertStatements(env.DB, row));
+  if (row.room_id && row.visibility === "public") await tellRoomFollowers(env, user, row);
   const saved = await loadPost(env, row.id);
   await notifyMentions(env, user, saved, `${saved.title}\n${saved.body}`, "post", saved.id);
   return onePost(env, user, saved);
@@ -579,6 +586,7 @@ async function commonFilters(ctx, viewer, where, binds) {
     where.push("p.community_id = ?"); binds.push(c ? c.id : "");
   }
   if (q.get("project")) { where.push("p.project_id = ?"); binds.push(q.get("project")); }
+  if (q.get("room")) { where.push("p.room_id = ?"); binds.push(str(q.get("room"), 40)); }
   if (q.get("author")) {
     const a = await userByHandle(ctx.env, q.get("author"));
     where.push("p.author_id = ?"); binds.push(a ? a.id : "");
@@ -727,6 +735,16 @@ export function openListingSql(t) {
   };
 }
 
+
+/** Followers of an event room hear about a new public post in it (capped; the author excluded). */
+async function tellRoomFollowers(env, user, row) {
+  const rows = (await env.DB.prepare(
+    "SELECT follower_id FROM follows WHERE target_type = 'room' AND target_id = ? AND follower_id != ? LIMIT 300",
+  ).bind(row.room_id, user.id).all()).results || [];
+  for (const f of rows) {
+    await notify(env, f.follower_id, "room", user.id, "post", row.id, `${user.name || user.handle} posted in an event room: ${row.title || row.kind}`);
+  }
+}
 
 // ── Comments ───────────────────────────────────────────────────────────────
 

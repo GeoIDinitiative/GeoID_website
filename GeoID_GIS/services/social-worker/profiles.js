@@ -19,12 +19,12 @@ import { erasureStatements as reshareErasure, exportRows as reshareExport } from
 const ITEM_KINDS =["publication", "dataset", "education", "experience", "credential", "repository", "award",
   "fieldwork", "talk", "other"];
 const ITEM_VISIBILITY = ["public", "unlisted", "private"];
-const FOLLOW_TYPES = ["user", "project", "tag", "place", "community", "post", "org"];
+const FOLLOW_TYPES = ["user", "project", "tag", "place", "community", "post", "org", "room"];
 const AVAILABILITY = ["open", "limited", "closed"];
 const JOB_STATUS = ["", "seeking", "hiring", "consulting"];
 const CONTACT = ["anyone", "followers", "nobody"];
 const NOTIFY_KINDS = ["follow", "comment", "reaction", "mention", "invite", "grant", "review", "message",
-  "fork", "verify", "moderation", "badge", "project_update", "mentoring", "repost"];
+  "fork", "verify", "moderation", "badge", "project_update", "mentoring", "repost", "room"];
 const ORCID_RE = /^\d{4}-\d{4}-\d{4}-\d{3}[\dX]$/;
 
 /** Reject a value outside an enumeration with 400, as CONTRACT.md asks. */
@@ -439,6 +439,12 @@ async function resolveTarget(ctx, user, type, rawId, forWrite) {
       const post = await env.DB.prepare("SELECT * FROM posts WHERE id = ?").bind(given).first();
       if (!post || (forWrite && !(await canSeePost(env, user, post)))) fail(404, "No such post.");
       return { targetId: post.id };
+    }
+    case "room": {
+      // An event room (rooms.js): new posts in it reach its followers.
+      const r = await env.DB.prepare("SELECT id FROM rooms WHERE id = ?").bind(given).first();
+      if (!r) fail(404, "No such event room.");
+      return { targetId: r.id };
     }
     case "org": {
       // An organisation (orgs.js), by slug; removed ones can only be unfollowed.

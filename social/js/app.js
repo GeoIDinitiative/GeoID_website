@@ -27,6 +27,7 @@ import * as map from "./views/map.js?v=20261025-794b342";
 import * as opps from "./views/opportunities.js?v=20261025-794b342";
 import * as mod from "./views/mod.js?v=20261025-794b342";
 import * as settings from "./views/settings.js?v=20261025-794b342";
+import * as rooms from "./views/rooms.js?v=20261025-794b342";
 import * as orgs from "./views/orgs.js?v=20261025-794b342";
 import * as onboarding from "./views/onboarding.js?v=20261025-794b342";
 import * as requests from "./views/requests.js?v=20261025-794b342";
@@ -57,6 +58,8 @@ const ROUTES = [
   ["/map", map.render, "Map"],
   ["/opportunities", opps.renderOpportunities, "Opportunities"],
   ["/events", opps.renderEvents, "Events"],
+  ["/rooms", rooms.renderList, "Event rooms"],
+  ["/room/:id", rooms.renderOne, "Event room"],
   ["/mod", mod.render, "Moderation"],
   ["/settings", settings.render, "Settings"],
   // Identity & institutions track: orgs.js (#/orgs, #/o/:slug) and onboarding.js (#/welcome).
@@ -82,7 +85,7 @@ function parseHash() {
 // ── Header ─────────────────────────────────────────────────────────────────
 
 const NAV = [
-  ["#/", "Feed", "/"], ["#/map", "Map", "/map"], ["#/people", "People", "/people"], ["#/orgs", "Organisations", "/orgs"],
+  ["#/", "Feed", "/"], ["#/rooms", "Now", "/rooms"], ["#/map", "Map", "/map"], ["#/people", "People", "/people"], ["#/orgs", "Organisations", "/orgs"],
   ["#/communities", "Communities", "/communities"], ["#/teams", "Teams", "/teams"], ["#/projects", "Projects", "/projects"],
   ["#/reviews", "Reviews", "/reviews"], ["#/opportunities", "Opportunities", "/opportunities"], ["#/events", "Events", "/events"],
 ];
@@ -142,6 +145,7 @@ function markActive(path) {
   for (const a of header.links) {
     const base = a.dataset.base;
     const on = base === "/" ? path === "/" : path === base || path.startsWith(`${base}/`)
+      || (base === "/rooms" && path.startsWith("/room/"))
       || (base === "/communities" && path.startsWith("/c/")) || (base === "/teams" && path.startsWith("/t/"))
       || (base === "/orgs" && path.startsWith("/o/"))
       || (base === "/projects" && path.startsWith("/p/")) || (base === "/reviews" && path.startsWith("/r/"));

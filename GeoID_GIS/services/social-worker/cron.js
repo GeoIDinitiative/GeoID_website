@@ -20,6 +20,7 @@ import { sweepOrphans } from "./media.js";
 import { sendWeekly, weeklyDue } from "./reach.js";
 import { checkins } from "./officehours.js";
 import { runImports } from "./importer.js";
+import { syncRooms } from "./rooms.js";
 import { routes as reputationRoutes } from "./reputation.js";
 // A namespace import, so this file works before events.js grows dueReminders.
 import * as events from "./events.js";
@@ -141,6 +142,8 @@ export async function runJobs(cron, env, t = now(), { fetchImpl = fetch, mod = e
   const hour = new Date(t * 1000).getUTCHours();
   if (hour >= int(env.DIGEST_HOUR_UTC, 7)) await job(report, "digests", () => sendDigests(env, t, { fetchImpl }));
   if (weeklyDue(t, int(env.DIGEST_HOUR_UTC, 7))) await job(report, "weekly", () => sendWeekly(env, t, { fetchImpl }));
+  // Event rooms from the USGS and GDACS feeds (ROOMS=0 turns it off).
+  if (String(env.ROOMS ?? "1") !== "0") await job(report, "rooms", () => syncRooms(env, t, { fetcher: fetchImpl }));
   return report;
 }
 

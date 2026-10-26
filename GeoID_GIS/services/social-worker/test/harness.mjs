@@ -107,6 +107,7 @@ export function makeEnv(overrides = {}) {
     DEV_AUTH: "1",
     // The importer reads the real web; tests opt in with a canned fetchImpl.
     IMPORTS: "0",
+    ROOMS: "0",
     ...overrides,
   };
 }
