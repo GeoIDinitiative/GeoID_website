@@ -296,7 +296,7 @@ function publicSection(u) {
   const htmlSnip = `<a href="${page}"><img src="${img}" alt="${(u.name || u.handle).replace(/"/g, "")} on GeoID Network" width="420" height="96"></a>`;
   const mdSnip = `[![${u.name || u.handle} on GeoID Network](${img})](${page})`;
   const snippet = (label, text) => h("div", { class: "s-snippet" }, h("span", { class: "s-label", text: label }),
-    h("code", { text }), h("button", { type: "button", class: "btn-ghost s-btn-sm", onClick: () => copyText(text, "Copied") }, "Copy"));
+    h("code", { text, tabindex: "0", "aria-label": `${label}: code to paste` }), h("button", { type: "button", class: "btn-ghost s-btn-sm", onClick: () => copyText(text, "Copied") }, "Copy"));
   const badge = h("img", { src: img, alt: `${u.name || u.handle} on GeoID Network`, width: "420", height: "96", class: "s-badge-preview" });
   return put(sec,
     h("p", { class: "s-muted" }, "Your public page: ", h("a", { href: page, target: "_blank", rel: "noopener noreferrer" }, page.replace(/^https?:\/\//, ""))),

@@ -62,7 +62,8 @@ export async function render(root, { params, query }) {
     const k = `geoid:seen:${p.id}`;
     if (store.me && !mine && !sessionStorage.getItem(k)) { sessionStorage.setItem(k, "1"); api.post(`/v1/posts/${encodeURIComponent(p.id)}/seen`, {}).catch(() => {}); }
   } catch (error) { /* storage off: the count can miss a view */ }
-  if (mine) comments.before(reachPanel(p));
+  // The author's reach sits inside the post, under its actions, where it lines up with the post itself.
+  if (mine) root.querySelector(".s-post-full")?.append(reachPanel(p));
   // A card's comment count links here with ?focus=comments: land on the thread
   // (after the router's own scroll to the top).
   if (query?.focus === "comments") setTimeout(() => comments.scrollIntoView({ block: "start" }), 0);
