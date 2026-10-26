@@ -187,3 +187,47 @@ test("jobs: filters by field, stage, region, remote and closing; saved searches 
   assert.equal((await runDeadlineReminders(env, t0 + 3600)).reminded, 0, "once");
   assert.ok((await call(env, "GET", "/v1/notifications", { as: BEN })).body.items.some((n) => n.kind === "deadline" && /Closes in 2 days/.test(n.text)));
 });
+
+// ── Feedback rounds and reviewer credit ─────────────────────────────────────
+
+test("rounds: volunteers are matched to drafts, mock interviews pair up, and reviewing is credited", async () => {
+  const env = await world();
+  const CAT = "cat@example.com";
+  await call(env, "PATCH", "/v1/me", { as: CAT, body: { handle: "cat", name: "Cat Dunn", skills: ["volcanology"] } });
+  assert.equal((await call(env, "POST", "/v1/rounds", { as: ANA, body: { kind: "abstract", title: "x" } })).status, 403);
+  const t = Math.floor(Date.now() / 1000);
+  const round = (await call(env, "POST", "/v1/rounds", { as: ADMIN, body: { kind: "abstract", title: "EGU abstracts",
+    link: "https://meetingorganizer.copernicus.org/", deadline_at: t + 40 * 86400, closes_at: t + 37 * 86400 } })).body;
+  assert.equal(round.kind_label, "Abstract review");
+  // A draft before any volunteer waits; the volunteer who arrives takes it.
+  const draft = await call(env, "POST", "/v1/reviews", { as: ANA, body: { title: "Ash plume heights at Etna", abstract: "We measure plume heights from webcams and radar.", round_id: round.id, expertise: ["volcanology"] } });
+  assert.equal(draft.status, 200, JSON.stringify(draft.body));
+  await call(env, "POST", `/v1/rounds/${round.id}/volunteer`, { as: BEN, body: { capacity: 1 } });
+  await call(env, "POST", `/v1/rounds/${round.id}/volunteer`, { as: CAT, body: { capacity: 2 } });
+  const benMine = await call(env, "GET", `/v1/rounds/${round.id}/mine`, { as: BEN });
+  const catMine = await call(env, "GET", `/v1/rounds/${round.id}/mine`, { as: CAT });
+  assert.equal(benMine.body.reviewing.length + catMine.body.reviewing.length, 1, "one reviewer per draft");
+  assert.equal(benMine.body.reviewing.length, 1, "the first volunteer with room takes the waiting draft");
+  // The next draft prefers shared expertise: Cat lists volcanology.
+  const d2 = await call(env, "POST", "/v1/reviews", { as: BEN, body: { title: "Tephra fall model", abstract: "A fall model.", round_id: round.id, expertise: ["volcanology"] } });
+  const r2 = await call(env, "GET", `/v1/reviews/${d2.body.review.id}`, { as: BEN });
+  assert.deepEqual(r2.body.reviewers.map((x) => x.user.handle), ["cat"]);
+  assert.equal((await call(env, "POST", "/v1/reviews", { as: ANA, body: { title: "x", abstract: "long enough text", round_id: "fr_nope" } })).status, 400);
+  // Cat submits: credited on her record; the private draft's title is not.
+  await call(env, "POST", `/v1/reviews/${d2.body.review.id}/submit`, { as: CAT, body: { recommendation: "minor", summary: "Clear; add uncertainties." } });
+  const rec = await call(env, "GET", "/v1/users/cat/review-record");
+  assert.equal(rec.body.total, 1);
+  assert.deepEqual([rec.body.items[0].what, rec.body.items[0].round, rec.body.items[0].title], ["Abstract review", "EGU abstracts", null]);
+  // Mock interviews: a mentee waits until a mentor volunteers.
+  const mi = (await call(env, "POST", "/v1/rounds", { as: ADMIN, body: { kind: "mock_interview", title: "Mock interviews, November" } })).body;
+  const ask = await call(env, "POST", `/v1/rounds/${mi.id}/interview`, { as: ANA, body: { note: "PhD interview at Leeds next week" } });
+  assert.equal(ask.body.pairs[0].status, "waiting");
+  await call(env, "POST", `/v1/rounds/${mi.id}/volunteer`, { as: BEN, body: { capacity: 1 } });
+  const paired = await call(env, "GET", `/v1/rounds/${mi.id}/mine`, { as: ANA });
+  assert.equal(paired.body.pairs[0].status, "paired");
+  assert.equal(paired.body.pairs[0].other.handle, "ben");
+  const benSide = await call(env, "GET", `/v1/rounds/${mi.id}/mine`, { as: BEN });
+  assert.equal(benSide.body.pairs[0].note, "PhD interview at Leeds next week", "the mentor sees the note");
+  const list = await call(env, "GET", "/v1/rounds", { as: ANA });
+  assert.equal(list.body.items.length, 2);
+});

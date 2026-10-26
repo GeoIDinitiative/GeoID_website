@@ -28,6 +28,7 @@ import * as opps from "./views/opportunities.js?v=20261025-794b342";
 import * as mod from "./views/mod.js?v=20261025-794b342";
 import * as settings from "./views/settings.js?v=20261025-794b342";
 import * as rooms from "./views/rooms.js?v=20261025-794b342";
+import * as rounds from "./views/rounds.js?v=20261025-794b342";
 import * as orgs from "./views/orgs.js?v=20261025-794b342";
 import * as onboarding from "./views/onboarding.js?v=20261025-794b342";
 import * as requests from "./views/requests.js?v=20261025-794b342";
@@ -52,6 +53,8 @@ const ROUTES = [
   ["/reviews", reviews.renderList, "Peer review"],
   ["/reviews/new", reviews.renderNew, "Request a review"],
   ["/r/:id", reviews.renderOne, "Review"],
+  ["/rounds", rounds.renderList, "Feedback rounds"],
+  ["/u/:handle/record", rounds.renderRecord, "Reviewer record"],
   ["/messages", inbox.renderMessages, "Messages"],
   ["/messages/:id", inbox.renderConversation, "Messages"],
   ["/notifications", inbox.renderNotifications, "Notifications"],
@@ -146,6 +149,7 @@ function markActive(path) {
     const base = a.dataset.base;
     const on = base === "/" ? path === "/" : path === base || path.startsWith(`${base}/`)
       || (base === "/rooms" && path.startsWith("/room/"))
+      || (base === "/reviews" && (path === "/rounds" || path.startsWith("/r/")))
       || (base === "/communities" && path.startsWith("/c/")) || (base === "/teams" && path.startsWith("/t/"))
       || (base === "/orgs" && path.startsWith("/o/"))
       || (base === "/projects" && path.startsWith("/p/")) || (base === "/reviews" && path.startsWith("/r/"));

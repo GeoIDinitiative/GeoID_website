@@ -1190,3 +1190,19 @@ a.s-stat:focus-visible, button.s-stat:focus-visible { color: var(--text); outlin
 .s-job-filter-acts { grid-column: 3 / -1; display: flex; gap: 0.6rem; justify-content: flex-end; }
 @media (max-width: 1100px) { .s-job-filters { grid-template-columns: repeat(3, minmax(0, 1fr)); } .s-job-filters .s-check-inline, .s-job-filter-acts { grid-column: 1 / -1; justify-content: flex-start; } }
 @media (max-width: 600px) { .s-job-filters { grid-template-columns: 1fr; } }
+
+/* Feedback rounds and the reviewer record. */
+.s-rounds { display: grid; gap: 0.8rem; margin-top: 1rem; }
+.s-round { border-left: 3px solid var(--accent); }
+.s-round-mock_interview { border-left-color: #8be28b; }
+.s-round-cv, .s-round-cover_letter { border-left-color: #9aa8ff; }
+.s-round-dates { margin: 0.2rem 0 0.4rem; font-size: 0.92rem; }
+.s-round-yours:empty { display: none; }
+.s-round-yours { margin-top: 0.6rem; padding-top: 0.6rem; border-top: 1px solid var(--line); }
+.s-round-yours p { margin: 0.25rem 0; }
+.s-record .s-table { margin: 1rem 0; }
+@media print {
+  body { background: #fff !important; color: #000 !important; }
+  .s-noprint, .site-nav, header, footer, .s-header, .s-backdrop, [class*="atlas"] { display: none !important; }
+  .s-record, .s-record * { color: #000 !important; background: transparent !important; }
+}

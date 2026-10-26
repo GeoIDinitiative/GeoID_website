@@ -64,3 +64,39 @@ CREATE TABLE deadline_reminders (
   sent_at  INTEGER NOT NULL,
   PRIMARY KEY (user_id, post_id)
 );
+
+-- ── Feedback rounds (rounds.js) ───────────────────────────────────────────
+-- Review timed to a real deadline: abstracts before EGU/AGU, CVs and cover
+-- letters in studentship season, mock interviews. Authors bring a draft;
+-- volunteers are matched to it.
+CREATE TABLE feedback_rounds (
+  id          TEXT PRIMARY KEY,
+  kind        TEXT NOT NULL,                  -- abstract | cv | cover_letter | mock_interview
+  title       TEXT NOT NULL,
+  description TEXT NOT NULL DEFAULT '',
+  link        TEXT NOT NULL DEFAULT '',       -- the call it is timed to
+  deadline_at INTEGER,                        -- the real deadline (an abstract deadline, a closing date)
+  closes_at   INTEGER,                        -- last day to bring a draft
+  status      TEXT NOT NULL DEFAULT 'open',   -- open | closed
+  created_by  TEXT NOT NULL,
+  created_at  INTEGER NOT NULL
+);
+CREATE TABLE round_volunteers (
+  round_id    TEXT NOT NULL,
+  user_id     TEXT NOT NULL,
+  capacity    INTEGER NOT NULL DEFAULT 2,
+  assigned    INTEGER NOT NULL DEFAULT 0,
+  created_at  INTEGER NOT NULL,
+  PRIMARY KEY (round_id, user_id)
+);
+CREATE TABLE round_pairs (
+  id          TEXT PRIMARY KEY,
+  round_id    TEXT NOT NULL,
+  mentee_id   TEXT NOT NULL,
+  mentor_id   TEXT,                           -- null while waiting for a volunteer
+  note        TEXT NOT NULL DEFAULT '',
+  status      TEXT NOT NULL DEFAULT 'waiting',-- waiting | paired | done
+  created_at  INTEGER NOT NULL
+);
+CREATE INDEX round_pairs_round ON round_pairs(round_id, status);
+ALTER TABLE reviews ADD COLUMN round_id TEXT;

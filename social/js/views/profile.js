@@ -100,6 +100,7 @@ export async function render(root, { params, query }) {
       { emptyTitle: "No projects yet.", emptyDetail: "Create one from Projects, or share a workspace from GeoHUB." }));
   }
   reputation(rep, u.handle, data.badges || []);
+  put(rep, h("p", {}, h("a", { href: `#/u/${encodeURIComponent(u.handle)}/record` }, "Reviewer record"), h("span", { class: "s-muted", text: " · every review given here, printable" })));
 }
 
 function facts(u) {
