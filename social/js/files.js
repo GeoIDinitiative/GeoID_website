@@ -13,9 +13,9 @@
  *
  * The CSV parser and the sanitiser are pure and live in filekit.js.
  */
-import * as api from "./api.js?v=20261026-4ff48c3";
-import { h, put, clear, extLink } from "./dom.js?v=20261026-4ff48c3";
-import { sizeText, parseCsv, sanitizeInto } from "./filekit.js?v=20261026-4ff48c3";
+import * as api from "./api.js?v=20261026-0d92fc8";
+import { h, put, clear, extLink } from "./dom.js?v=20261026-0d92fc8";
+import { sizeText, parseCsv, sanitizeInto } from "./filekit.js?v=20261026-0d92fc8";
 
 export { sizeText };
 
@@ -119,7 +119,7 @@ export function fileBlock(m, { pins = null } = {}) {
         const parsed = new DOMParser().parseFromString(`<div>${out.value}</div>`, "text/html");
         put(body, sanitizeInto(h("div", { class: "s-prose s-docpreview" }), parsed.body.firstChild));
       } else if (kind === "pdf") {
-        const { renderPdf } = await import("./pdfview.js?v=20261026-4ff48c3");
+        const { renderPdf } = await import("./pdfview.js?v=20261026-0d92fc8");
         await renderPdf(body, buf, pins || {});
       }
     } catch (error) {
