@@ -308,7 +308,8 @@ export function eventPanel(p) {
       h("div", { class: "s-actions" }, calendarButton(p, "btn-ghost s-btn-sm")),
       attendees(s),
       s.organiser ? capacityForm(p, s, draw) : null);
-    if (s.format === "poster-session") put(section, postersBlock(p, s));
+    if (s.format === "poster-session" || s.format === "conference") put(section, postersBlock(p, s));
+    if (s.format === "conference") put(section, conferenceBlock(p, s));
   };
   const load = async () => {
     put(clear(section), heading(), loading());
@@ -316,6 +317,66 @@ export function eventPanel(p) {
   };
   load();
   return section;
+}
+
+// ── Conferences: the programme members declare, and meet-ups ───────────────
+
+const ITEM_KINDS = [["talk", "Talk"], ["poster", "Poster"], ["pico", "PICO"], ["convening", "Convening a session"]];
+
+/** What members present, by session; meet-ups at the meeting (conference.js). */
+function conferenceBlock(p, s) {
+  const box = h("div", { class: "s-conference" });
+  const prog = h("div", {}, loading());
+  const meets = h("div", {}, loading());
+  const filter = input("session", { placeholder: "Session, e.g. GMPV9", "aria-label": "Filter by session" });
+  const loadProg = () => api.get(`/v1/events/${enc(p.id)}/programme`, { session: filter.value.trim() }).then((d) => {
+    const groups = new Map();
+    for (const it of d.items || []) {
+      const k = it.session || "No session given";
+      if (!groups.has(k)) groups.set(k, []);
+      groups.get(k).push(it);
+    }
+    put(clear(prog), groups.size ? [...groups].map(([session, items]) => h("div", { class: "s-session" },
+      h("h4", { class: "s-session-code", text: session }),
+      h("ul", { class: "s-rows" }, items.map((it) => h("li", { class: "s-row" },
+        h("span", { class: "s-kind", text: it.kind_label }),
+        it.post_id ? h("a", { href: `#/post/${enc(it.post_id)}` }, it.title) : h("span", { text: it.title }),
+        userChip(it.user, { sub: false }),
+        it.starts_at ? h("span", { class: "s-muted", text: new Date(it.starts_at * 1000).toLocaleString(undefined, { weekday: "short", hour: "2-digit", minute: "2-digit" }) }) : null,
+        it.mine ? h("button", { type: "button", class: "s-link-btn s-danger", onClick: () => act(async () => { await api.del(`/v1/events/${enc(p.id)}/programme/${enc(it.id)}`); loadProg(); }) }, "Remove") : null)))))
+      : h("p", { class: "s-muted", text: filter.value ? "Nobody in that session yet." : "Nobody has added a talk or poster yet." }));
+  }).catch((error) => put(clear(prog), errorBox(error)));
+  filter.addEventListener("input", () => { clearTimeout(filter._t); filter._t = setTimeout(loadProg, 300); });
+
+  const kind = select("kind", ITEM_KINDS, "talk");
+  const session = input("session-code", { maxlength: 40, placeholder: "GMPV9.2" });
+  const title = input("title", { maxlength: 300, placeholder: "Title of your talk or poster" });
+  const when = input("when", { type: "datetime-local" });
+  const addForm = h("form", { class: "s-form s-form-inline" }, field("What", kind), field("Session", session), field("When (optional)", when),
+    h("div", { class: "s-span-2" }, field("Title", title)), h("button", { type: "submit", class: "btn-primary s-btn-sm" }, "Add to the programme"));
+  addForm.addEventListener("submit", (e) => {
+    e.preventDefault();
+    act(async () => {
+      await api.post(`/v1/events/${enc(p.id)}/programme`, { kind: kind.value, session: session.value, title: title.value,
+        starts_at: when.value ? Math.floor(new Date(when.value).getTime() / 1000) : null });
+      title.value = ""; toast("Added."); loadProg();
+    }, "add to the programme");
+  });
+  api.get(`/v1/events/${enc(p.id)}/meetups`).then((d) => {
+    const items = d?.items || [];
+    put(clear(meets), items.length ? h("div", { class: "s-list" }, items.map(postCard)) : h("p", { class: "s-muted", text: "No meet-ups yet." }));
+  }).catch(() => clear(meets));
+  loadProg();
+  const canAdd = store.me && (s.mine?.status && s.mine.status !== "not_going" || s.over || s.organiser);
+  return put(box,
+    h("h3", { class: "s-h3", text: "Talks, posters and sessions" }),
+    h("p", { class: "s-hint", text: "What members are presenting or convening, so you can find each other by topic before you arrive." }),
+    filter, prog,
+    canAdd ? h("details", { class: "s-add" }, h("summary", {}, "Add what you're presenting"), addForm)
+      : h("p", { class: "s-hint", text: "Say you're going to add your talk or poster." }),
+    h("div", { class: "s-title-row" }, h("h3", { class: "s-h3", text: "Meet-ups" }),
+      store.me ? h("a", { class: "btn-ghost s-btn-sm", href: `#/compose?kind=event&parent=${enc(p.id)}` }, "Organise a meet-up") : null),
+    meets);
 }
 
 function attendees(s) {

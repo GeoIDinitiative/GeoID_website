@@ -438,6 +438,7 @@ function buildForm(root, { existing, handed, initialKind, query }) {
       Object.assign(meta, { url: kf.rurl.value.trim(), language: kf.language.value, licence: kf.rlicence.value, default_branch: kf.branch.value });
     }
     if (kind === "paper") Object.assign(meta, { doi: kf.doi.value, journal: kf.journal.value, year: Number(kf.year.value) || null, authors: splitList(kf.authors.value) });
+    if (kind === "event" && (query.parent || m.parent_event)) meta.parent_event = query.parent || m.parent_event;
     if (kind === "event") Object.assign(meta, { format: kf.format.value, starts_at: Math.floor(new Date(kf.starts.value).getTime() / 1000), ends_at: kf.ends.value ? Math.floor(new Date(kf.ends.value).getTime() / 1000) : null, where: kf.where.value, url: kf.url.value, capacity: Number(kf.capacity.value) > 0 ? Math.floor(Number(kf.capacity.value)) : null });
     if (kind === "opportunity") Object.assign(meta, { type: kf.type.value, org: kf.org.value, deadline: dateToEpoch(kf.deadline.value, true), skills: splitList(kf.skills.value), paid: kf.paid.value === "" ? null : kf.paid.value === "1", apply_url: kf.apply.value });
 

@@ -1206,3 +1206,11 @@ a.s-stat:focus-visible, button.s-stat:focus-visible { color: var(--text); outlin
   .s-noprint, .site-nav, header, footer, .s-header, .s-backdrop, [class*="atlas"] { display: none !important; }
   .s-record, .s-record * { color: #000 !important; background: transparent !important; }
 }
+
+/* Conferences: the programme members declare, and meet-ups. */
+.s-conference { margin-top: 1.4rem; padding-top: 1rem; border-top: 1px solid var(--line); display: grid; gap: 0.6rem; }
+.s-conference > input { max-width: 20rem; }
+.s-session { margin: 0.4rem 0 0.8rem; }
+.s-session-code { margin: 0 0 0.2rem; font-size: 0.8rem; letter-spacing: 0.06em; color: var(--accent); font-variant-numeric: tabular-nums; }
+.s-add summary { cursor: pointer; color: var(--accent); }
+.s-add[open] summary { margin-bottom: 0.6rem; }

@@ -127,6 +127,8 @@ function cleanMeta(kind, raw) {
     if ("where" in meta) meta.where = str(meta.where, 200);
     if ("url" in meta) meta.url = url(meta.url);
     if (meta.format != null && meta.format !== "") meta.format = enumOf(meta.format, EVENT_FORMATS, "meta.format");
+    // A meet-up at a conference names the conference's event post (conference.js).
+    if ("parent_event" in meta) meta.parent_event = str(meta.parent_event, 40) || undefined;
   }
   if (kind === "workflow" || kind === "dataset") {
     if ("repo" in meta) meta.repo = url(meta.repo);

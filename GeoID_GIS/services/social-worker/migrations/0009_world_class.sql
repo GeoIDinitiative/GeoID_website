@@ -100,3 +100,20 @@ CREATE TABLE round_pairs (
 );
 CREATE INDEX round_pairs_round ON round_pairs(round_id, status);
 ALTER TABLE reviews ADD COLUMN round_id TEXT;
+
+-- ── Conferences (conference.js) ───────────────────────────────────────────
+-- What members are presenting or convening at a conference event, so people
+-- find each other by session. Meet-ups are event posts whose
+-- meta.parent_event names the conference.
+CREATE TABLE conference_items (
+  id          TEXT PRIMARY KEY,
+  event_id    TEXT NOT NULL REFERENCES posts(id),
+  user_id     TEXT NOT NULL REFERENCES users(id),
+  kind        TEXT NOT NULL,                  -- talk | poster | pico | convening
+  session     TEXT NOT NULL DEFAULT '',       -- "GMPV9.2", "V31B"
+  title       TEXT NOT NULL,
+  starts_at   INTEGER,
+  post_id     TEXT,                           -- the abstract or poster as a post, if shared
+  created_at  INTEGER NOT NULL
+);
+CREATE INDEX conference_items_event ON conference_items(event_id, session);

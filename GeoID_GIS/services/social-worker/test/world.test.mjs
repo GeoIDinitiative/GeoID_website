@@ -231,3 +231,33 @@ test("rounds: volunteers are matched to drafts, mock interviews pair up, and rev
   const list = await call(env, "GET", "/v1/rounds", { as: ANA });
   assert.equal(list.body.items.length, 2);
 });
+
+// ── Conferences ──────────────────────────────────────────────────────────────
+
+test("conference: attendees declare talks and posters by session; meet-ups hang off it; posters keep coming for a month", async () => {
+  const env = await world();
+  const t = Math.floor(Date.now() / 1000);
+  const conf = await call(env, "POST", "/v1/posts", { as: ADMIN, body: { kind: "event", title: "EGU General Assembly", visibility: "public",
+    meta: { format: "conference", starts_at: t + 10 * 86400, ends_at: t + 15 * 86400, where: "Vienna" } } });
+  assert.equal(conf.status, 200, JSON.stringify(conf.body));
+  const eid = conf.body.id;
+  const add = (who, body) => call(env, "POST", `/v1/events/${eid}/programme`, { as: who, body });
+  assert.equal((await add(ANA, { kind: "talk", session: "gmpv9.2", title: "Etna's 2025 paroxysms" })).status, 403, "attendees only");
+  await call(env, "POST", `/v1/events/${eid}/rsvp`, { as: ANA, body: { status: "going", show_me: true } });
+  await call(env, "POST", `/v1/events/${eid}/rsvp`, { as: BEN, body: { status: "going" } });
+  assert.equal((await add(ANA, { kind: "talk", session: "gmpv9.2", title: "Etna's 2025 paroxysms" })).status, 200);
+  await add(BEN, { kind: "poster", session: "NH3.1", title: "Landslide inventories from InSAR" });
+  const prog = await call(env, "GET", `/v1/events/${eid}/programme`);
+  assert.deepEqual(prog.body.sessions, ["GMPV9.2", "NH3.1"]);
+  assert.deepEqual((await call(env, "GET", `/v1/events/${eid}/programme?session=GMPV`)).body.items.map((i) => i.user.handle), ["ana"]);
+  // A meet-up names the conference.
+  const meet = await call(env, "POST", "/v1/posts", { as: BEN, body: { kind: "event", title: "Volcano deformation drinks", visibility: "public",
+    meta: { format: "workshop", starts_at: t + 11 * 86400, parent_event: eid } } });
+  assert.equal(meet.status, 200, JSON.stringify(meet.body));
+  assert.deepEqual((await call(env, "GET", `/v1/events/${eid}/meetups`)).body.items.map((p) => p.title), ["Volcano deformation drinks"]);
+  // After the meeting: posters still accepted for a month (the gallery outlasts it).
+  await env.DB.prepare("UPDATE posts SET meta_json = json_set(meta_json, '$.starts_at', ?, '$.ends_at', ?) WHERE id = ?").bind(t - 10 * 86400, t - 5 * 86400, eid).run();
+  const poster = await call(env, "POST", "/v1/posts", { as: BEN, body: { kind: "text", title: "My NH3.1 poster", body: "PDF attached.", visibility: "public" } });
+  const sub = await call(env, "POST", `/v1/events/${eid}/posters`, { as: BEN, body: { post_id: poster.body.id } });
+  assert.ok([200, 201].includes(sub.status), JSON.stringify(sub.body));
+});
