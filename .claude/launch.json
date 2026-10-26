@@ -31,6 +31,17 @@
         "--no-token"
       ],
       "port": 8137
+    },
+    {
+      "name": "worktree-test",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": [
+        "/tmp/claude-1000/-home-owen-GeoID-webpage-v1--claude-worktrees-flightsim-photoreal-earth-6e1e9e/c4351c85-d011-4089-9499-afb11c303d9f/scratchpad/serve_build.py",
+        "8132",
+        "/home/owen/GeoID_webpage_v1/.claude/worktrees/flightsim-photoreal-earth-6e1e9e"
+      ],
+      "port": 8132,
+      "autoPort": false
     }
   ]
 }
