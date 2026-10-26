@@ -290,7 +290,15 @@ async function patchRoom(ctx) {
   return roomShape(await roomOr404(ctx.env, r.id));
 }
 
+/** POST /v1/rooms/sync (admin) -- read the feeds now rather than at the next tick. */
+async function syncNow(ctx) {
+  const user = await requireUser(ctx);
+  if (!isAdmin(ctx.env, user)) fail(403, "Admins only.");
+  return syncRooms(ctx.env, now(), { fetcher: ctx.env.fetchImpl || fetch });
+}
+
 export const routes = [
+  ["POST", "/v1/rooms/sync", syncNow],
   ["GET", "/v1/rooms", listRooms],
   ["POST", "/v1/rooms", createRoom],
   ["GET", "/v1/rooms/:id", getRoom],

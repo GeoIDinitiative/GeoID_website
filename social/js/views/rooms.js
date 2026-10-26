@@ -94,7 +94,7 @@ export async function renderOne(root, { params }) {
     h("header", { class: `s-room-head s-room-${r.kind} s-alert-${r.alert || "none"}` },
       h("p", { class: "s-labels" },
         h("span", { class: "s-kind", text: ROOM_LABEL[r.kind] || r.kind }),
-        r.status === "archived" ? h("span", { class: "s-vis", text: "Archived" }) : h("span", { class: "s-live-dot", text: "Open" })),
+        r.status === "archived" ? h("span", { class: "s-vis", text: "Archived" }) : h("span", { class: "s-room-open", text: "Open" })),
       h("h1", { class: "s-h1", text: r.title }),
       h("p", { class: "s-muted" }, `${r.posts || 0} post${r.posts === 1 ? "" : "s"} from ${r.contributors || 0} member${r.contributors === 1 ? "" : "s"} · data: `,
         r.source_url ? extLink(r.source_url, r.credit) : r.credit),

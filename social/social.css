@@ -1171,10 +1171,10 @@ a.s-stat:focus-visible, button.s-stat:focus-visible { color: var(--text); outlin
 .s-alert-red .s-room-glyph { box-shadow: 0 0 0 2px rgba(255, 70, 70, 0.35); }
 .s-room-head { border-left: 4px solid var(--room, var(--accent)); padding-left: 1rem; margin-bottom: 1.2rem; }
 .s-room-head .s-h1 { margin: 0.3rem 0; }
-.s-live-dot { display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.78rem; color: #ff7a7a; }
-.s-live-dot::before { content: ""; width: 0.5rem; height: 0.5rem; border-radius: 50%; background: #ff5d5d; }
+.s-room-open { display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.78rem; color: var(--text); }
+.s-room-open::before { content: ""; width: 0.5rem; height: 0.5rem; border-radius: 50%; background: #ff5d5d; }
 @media (prefers-reduced-motion: no-preference) {
-  .s-live-dot::before { animation: s-live 2s ease-in-out infinite; }
+  .s-room-open::before { animation: s-live 2s ease-in-out infinite; }
   @keyframes s-live { 50% { opacity: 0.35; } }
 }
 .s-room-map { display: block; width: 100%; height: 15rem; border-radius: var(--n-radius, 12px); border: 1px solid var(--line); background: #050712; }
@@ -1193,7 +1193,8 @@ a.s-stat:focus-visible, button.s-stat:focus-visible { color: var(--text); outlin
 
 /* Feedback rounds and the reviewer record. */
 .s-rounds { display: grid; gap: 0.8rem; margin-top: 1rem; }
-.s-round { border-left: 3px solid var(--accent); }
+.s-round { padding: 1rem 1.2rem; border: 1px solid var(--line); border-left: 3px solid var(--accent); border-radius: var(--n-radius, 12px);
+  background: var(--n-glass, rgba(9, 12, 28, 0.62)); backdrop-filter: var(--n-blur, none); }
 .s-round-mock_interview { border-left-color: #8be28b; }
 .s-round-cv, .s-round-cover_letter { border-left-color: #9aa8ff; }
 .s-round-dates { margin: 0.2rem 0 0.4rem; font-size: 0.92rem; }
@@ -1221,3 +1222,11 @@ a.s-stat:focus-visible, button.s-stat:focus-visible { color: var(--text); outlin
 .s-lite *, .s-lite *::before, .s-lite *::after { animation: none !important; transition: none !important; }
 .s-lite .s-card, .s-lite .s-post-full { box-shadow: none !important; }
 .s-lite .s-card[data-topic] { outline: none !important; }
+
+/* Accessibility audit (axe-core, WCAG 2.1 AA), 2026-10-26. */
+/* A link inside running text is told apart by more than its colour. */
+.s-app :is(p, dd, .s-prose, .s-hint, .s-muted, .s-banner):not(.s-tags, .s-labels) > a:not([class]),
+.s-app .s-prose a:not([class]) { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 2px; }
+/* A pressed RSVP button: dark text on the accent, not white (2.85:1). */
+.s-rsvp .s-act.is-on, .s-rsvp .s-act[aria-pressed="true"] { color: #14001f !important; }
+#device select { max-width: 30rem; }
