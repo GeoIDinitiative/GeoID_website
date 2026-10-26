@@ -8,11 +8,11 @@
  * hazard, and the room's own thread: observations, analyses and questions
  * members post into it.
  */
-import * as api from "../api.js?v=20261026-c3da87a";
-import { store } from "../store.js?v=20261026-c3da87a";
-import { h, put, clear, loading, errorBox, empty, timeEl, extLink, dateText } from "../dom.js?v=20261026-c3da87a";
-import { postCard, pagedList, followButton, userChip } from "../components.js?v=20261026-c3da87a";
-import { createMap } from "../mapcore.js?v=20261026-c3da87a";
+import * as api from "../api.js?v=20261026-c07cde6";
+import { store } from "../store.js?v=20261026-c07cde6";
+import { h, put, clear, loading, errorBox, empty, timeEl, extLink, dateText } from "../dom.js?v=20261026-c07cde6";
+import { postCard, pagedList, followButton, userChip } from "../components.js?v=20261026-c07cde6";
+import { createMap } from "../mapcore.js?v=20261026-c07cde6";
 
 export const ROOM_LABEL = { earthquake: "Earthquake", cyclone: "Tropical cyclone", flood: "Flood", volcano: "Volcano",
   wildfire: "Wildfire", drought: "Drought" };

@@ -21,17 +21,17 @@
 //      frame): aim the globe there, then open pre-flight, whose centre
 //      crosshair takes the site from wherever the globe is aimed.
 
-import { startFlightTerrain, stopFlightTerrain, setVex, primeLaunchSite } from "./flight-terrain.js?v=20261026-c3da87a";
-import { startFlightTerrainGpu, stopFlightTerrainGpu } from "./flight-terrain-gpu.js?v=20261026-c3da87a";
-import { startFlightLabels, stopFlightLabels } from "./flight-labels.js?v=20261026-c3da87a";
-import { startFlightGazetteer, stopFlightGazetteer } from "./flight-gazetteer.js?v=20261026-c3da87a";
-import { showFlightMap, hideFlightMap } from "./flight-map.js?v=20261026-c3da87a";
-import { showFlightSky, hideFlightSky } from "./flight-sky.js?v=20261026-c3da87a";
-import { startFlightTiles, stopFlightTiles } from "./flight-tiles.js?v=20261026-c3da87a";
-import { startFlightClouds, stopFlightClouds } from "./flight-clouds.js?v=20261026-c3da87a";
-import { startFlightLights, stopFlightLights } from "./flight-lights.js?v=20261026-c3da87a";
-import "./flight-place.js?v=20261026-c3da87a";
-import { isEarth } from "./bodies.js?v=20261026-c3da87a";
+import { startFlightTerrain, stopFlightTerrain, setVex, primeLaunchSite } from "./flight-terrain.js?v=20261026-c07cde6";
+import { startFlightTerrainGpu, stopFlightTerrainGpu } from "./flight-terrain-gpu.js?v=20261026-c07cde6";
+import { startFlightLabels, stopFlightLabels } from "./flight-labels.js?v=20261026-c07cde6";
+import { startFlightGazetteer, stopFlightGazetteer } from "./flight-gazetteer.js?v=20261026-c07cde6";
+import { showFlightMap, hideFlightMap } from "./flight-map.js?v=20261026-c07cde6";
+import { showFlightSky, hideFlightSky } from "./flight-sky.js?v=20261026-c07cde6";
+import { startFlightTiles, stopFlightTiles } from "./flight-tiles.js?v=20261026-c07cde6";
+import { startFlightClouds, stopFlightClouds } from "./flight-clouds.js?v=20261026-c07cde6";
+import { startFlightLights, stopFlightLights } from "./flight-lights.js?v=20261026-c07cde6";
+import "./flight-place.js?v=20261026-c07cde6";
+import { isEarth } from "./bodies.js?v=20261026-c07cde6";
 
 /** `?flight=earth&lat=..&lon=..` -> { lat, lon } or { lat: null } or null. */
 export function parseFlightLink(search) {
