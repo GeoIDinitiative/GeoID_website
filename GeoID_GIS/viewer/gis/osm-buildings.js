@@ -36,9 +36,9 @@
 // transparent pass in a group sorted at 190 (see GROUP_ORDER), still
 // depth-tested and depth-writing against the globe and each other.
 
-import { isEarth } from "./bodies.js?v=20261026-c07cde6";
+import { isEarth } from "./bodies.js?v=20261026-cbf1b2a";
 import { facade, roof } from "../../../flight_sim/earth/game/facade.js?v=4";
-import { NIGHT } from "./night-lights.js?v=20261026-c07cde6";
+import { NIGHT } from "./night-lights.js?v=20261026-cbf1b2a";
 
 const BUILDINGS_TILEJSON = "https://tiles.openfreemap.org/planet";
 // blankTile=false: a tile with no imagery is a 404, not Esri's grey "Map data

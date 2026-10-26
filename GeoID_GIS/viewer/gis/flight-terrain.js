@@ -24,7 +24,7 @@
 // Only while flying: `active()` is false otherwise, and every consumer then
 // behaves exactly as before.
 
-import { waterMasks } from "./water-mask.js?v=20261026-c07cde6";
+import { waterMasks } from "./water-mask.js?v=20261026-cbf1b2a";
 
 const UNITS_PER_M = 3.2 / 6371000;
 const ENSURE_EVERY_MS = 1500;

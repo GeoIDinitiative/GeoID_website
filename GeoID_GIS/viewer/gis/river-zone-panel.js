@@ -6,7 +6,7 @@
  */
 
 import { riverZoneState, riverZonePaint, riverZoneLegend, sheetLayer, SHEETS }
-  from "./dem-layer.js?v=20261026-c07cde6";
+  from "./dem-layer.js?v=20261026-cbf1b2a";
 
 function apply() {
   const layer = sheetLayer("riverzones");
