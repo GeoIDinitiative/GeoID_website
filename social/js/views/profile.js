@@ -7,7 +7,7 @@ import {
 } from "../dom.js?v=20261025-794b342";
 import {
   avatar, followButton, messageDialog, reportDialog, act, pagedList, postCard, tagList, requireSignIn,
-  affiliationBadge, mentoringBadge,
+  affiliationBadge, mentoringBadge, userChip,
 } from "../components.js?v=20261025-794b342";
 import { createMap } from "../mapcore.js?v=20261025-794b342";
 import { mentoringRequestDialog } from "./settings.js?v=20261025-794b342";
@@ -117,6 +117,7 @@ function facts(u) {
     u.linkedin ? h("p", {}, extLink(u.linkedin, "LinkedIn")) : null,
     u.plan ? h("p", { class: "s-muted", text: `GeoID ${u.plan}` }) : null,
     u.joined ? h("p", { class: "s-muted", text: `Joined ${dateText(u.joined)}` }) : null);
+  put(box, scholarFacts(u.handle));
   if (u.skills?.length) {
     put(box, h("h2", { class: "s-side-title" }, "Skills ", h("span", { class: "s-selfdecl", text: "self-declared" })),
       h("ul", { class: "s-tags" }, u.skills.map((s) => h("li", {}, h("span", { class: "s-chip" }, s)))));
@@ -124,6 +125,52 @@ function facts(u) {
   if (u.interests?.length) put(box, h("h2", { class: "s-side-title", text: "Interests" }), tagList(u.interests));
   if (u.regions?.length) put(box, h("h2", { class: "s-side-title", text: "Regions" }), h("p", { text: u.regions.join(", ") }));
   put(box, studyAreasView(u.handle));
+  return box;
+}
+
+/**
+ * "Fill my profile from ORCID": the works, topics and co-authors OpenAlex
+ * knows for the member's ORCID iD (scholar.js). One press; the result says
+ * what was added, and co-authors already here are a Follow away.
+ */
+function scholarImport(u) {
+  const box = h("section", { class: "s-section s-import", "aria-labelledby": "imp-h" },
+    h("h2", { class: "s-h2", id: "imp-h", text: "Fill your profile from ORCID" }));
+  const out = h("div", { class: "s-import-out", "aria-live": "polite" });
+  const btn = h("button", { type: "button", class: "btn-primary" }, "Import my works and topics");
+  btn.addEventListener("click", () => act(async () => {
+    btn.disabled = true; btn.textContent = "Reading OpenAlex…";
+    try {
+      const r = await api.post("/v1/me/import-scholar", {});
+      put(clear(out),
+        h("p", {}, h("strong", { text: `${r.added} work${r.added === 1 ? "" : "s"} added` }),
+          ` of ${r.works_found} found${r.verified ? ", verified through your ORCID sign-in" : ", shown as self-declared until your ORCID iD is verified"}.`,
+          r.scholar?.h_index != null ? ` Cited ${r.scholar.cited_by} times, h-index ${r.scholar.h_index}.` : ""),
+        r.scholar?.topics?.length ? h("p", { class: "s-muted", text: `Topics added to your interests: ${r.scholar.topics.slice(0, 6).map((t) => t.name).join(", ")}. Remove any below.` }) : null,
+        r.coauthors?.length ? [h("h3", { class: "s-h3", text: "Co-authors already on GeoID Network" }),
+          h("ul", { class: "s-rows" }, r.coauthors.map((c) => h("li", { class: "s-row" }, userChip(c.user),
+            h("span", { class: "s-muted", text: `${c.shared_works} shared work${c.shared_works === 1 ? "" : "s"}` }),
+            followButton("user", c.user.handle, false))))] : null);
+      btn.textContent = "Import again";
+    } catch (error) { btn.textContent = "Import my works and topics"; throw error; } finally { btn.disabled = false; }
+  }, "import your record"));
+  return put(box,
+    h("p", { class: "s-muted", text: u.orcid
+      ? `Reads the public record OpenAlex holds for ORCID iD ${u.orcid}: your works, citations, research topics and co-authors. Nothing you already listed is added twice, and you can remove anything afterwards.`
+      : "Add your ORCID iD below and save first. The import then reads your public works, citations, topics and co-authors from OpenAlex." }),
+    u.orcid ? btn : null, out);
+}
+
+/** The scholarly record OpenAlex gave, beside the identity facts. */
+function scholarFacts(handle) {
+  const box = h("div", {});
+  api.get(`/v1/users/${encodeURIComponent(handle)}/scholar`).then((s) => {
+    if (!s?.imported_at) return;
+    put(box, h("h2", { class: "s-side-title", text: "Scholarly record" }),
+      h("p", {}, h("strong", { text: String(s.works) }), " works · cited ", h("strong", { text: String(s.cited_by) }),
+        s.h_index != null ? [" · h-index ", h("strong", { text: String(s.h_index) })] : null),
+      h("p", { class: "s-muted" }, "From ", extLink(s.openalex, "OpenAlex"), `, ${dateText(s.imported_at)}`, s.orcid_verified ? "" : " · ORCID iD self-declared"));
+  }).catch(() => {});
   return box;
 }
 
@@ -329,7 +376,7 @@ function editProfile(root, u, items) {
   });
 
   const areas = studyAreasEditor();
-  put(clear(root), h("h1", { class: "s-h1", text: "Edit your profile" }), form,
+  put(clear(root), h("h1", { class: "s-h1", text: "Edit your profile" }), scholarImport(u), form,
     areas.section,
     h("section", { class: "s-section" }, h("h2", { class: "s-h2", text: "Publications & portfolio" }), list, itemForm));
   areas.start();

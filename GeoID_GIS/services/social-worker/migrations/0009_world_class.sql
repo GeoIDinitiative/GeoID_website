@@ -35,3 +35,12 @@ CREATE UNIQUE INDEX rooms_source ON rooms(source, source_id);
 CREATE INDEX rooms_status ON rooms(status, started_at);
 ALTER TABLE posts ADD COLUMN room_id TEXT;
 CREATE INDEX posts_room ON posts(room_id, created_at);
+
+-- ── Profile import (scholar.js) ───────────────────────────────────────────
+-- OpenAlex's author record behind a member's ORCID iD: works, citations,
+-- h-index and topics, read on the member's request. Imported works become
+-- profile items (source = 'openalex'); verified only when the ORCID iD is.
+ALTER TABLE users ADD COLUMN openalex_id TEXT NOT NULL DEFAULT '';
+ALTER TABLE users ADD COLUMN scholar_json TEXT NOT NULL DEFAULT '{}';
+ALTER TABLE profile_items ADD COLUMN source TEXT NOT NULL DEFAULT '';
+CREATE INDEX users_orcid ON users(orcid);

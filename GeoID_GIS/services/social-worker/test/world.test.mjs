@@ -99,3 +99,44 @@ test("rooms: the cron opens a room once, tells people who study the area, archiv
   assert.equal(manual.status, 200, JSON.stringify(manual.body));
   assert.equal(manual.body.credit, "GeoID Network");
 });
+
+// ── Profile import ───────────────────────────────────────────────────────────
+
+test("scholar: ORCID -> OpenAlex works, topics, h-index and co-authors on the Network", async () => {
+  const env = await world();
+  assert.equal((await call(env, "POST", "/v1/me/import-scholar", { as: ANA })).status, 400, "no ORCID iD yet");
+  await call(env, "PATCH", "/v1/me", { as: ANA, body: { orcid: "0000-0002-1825-0097" } });
+  await call(env, "PATCH", "/v1/me", { as: BEN, body: { orcid: "0000-0001-5109-3700" } });
+  // Ana already lists one of the papers by hand.
+  await call(env, "POST", "/v1/me/items", { as: ANA, body: { kind: "publication", title: "Etna flank dynamics", doi: "10.1/etna" } });
+  const author = { id: "https://openalex.org/A123", works_count: 3, cited_by_count: 210, summary_stats: { h_index: 2, i10_index: 1 },
+    last_known_institutions: [{ display_name: "University of Catania" }],
+    topics: [{ display_name: "Volcanic processes and hazards", count: 3 }, { display_name: "Earthquakes & seismology", count: 2 }] };
+  const works = [
+    { id: "W1", doi: "https://doi.org/10.1/ETNA", title: "Etna flank dynamics", publication_year: 2024, authorships: [], primary_location: {} },
+    { id: "W2", doi: "https://doi.org/10.1/insar", title: "InSAR time series at Etna", publication_year: 2023, cited_by_count: 40,
+      primary_location: { source: { display_name: "JGR Solid Earth" } },
+      authorships: [{ author: { orcid: "https://orcid.org/0000-0001-5109-3700" } }, { author: { orcid: "https://orcid.org/0000-0002-1825-0097" } }] },
+    { id: "W3", doi: null, title: "A dataset of tilt records", publication_year: 2022, authorships: [], primary_location: {} },
+  ];
+  env.fetchImpl = async (u) => (String(u).includes("/authors/orcid:") ? json(author)
+    : String(u).includes("/works?") ? json({ results: works, meta: { next_cursor: null } }) : new Response("", { status: 404 }));
+  const r = await call(env, "POST", "/v1/me/import-scholar", { as: ANA });
+  assert.equal(r.status, 200, JSON.stringify(r.body));
+  assert.equal(r.body.added, 2, "the paper she already listed is not doubled (DOI case-insensitive)");
+  assert.equal(r.body.verified, false, "a self-declared ORCID iD imports unverified works");
+  assert.equal(r.body.scholar.h_index, 2);
+  assert.ok(r.body.interests.includes("volcanic-processes-and-hazards"));
+  assert.ok(r.body.interests.includes("earthquakes-and-seismology"));
+  assert.deepEqual(r.body.coauthors.map((c) => [c.user.handle, c.shared_works]), [["ben", 1]]);
+  const again = await call(env, "POST", "/v1/me/import-scholar", { as: ANA });
+  assert.equal(again.body.added, 0, "running it again adds nothing");
+  const prof = await call(env, "GET", "/v1/users/ana");
+  assert.equal(prof.body.user.institution, "University of Catania");
+  const pubs = prof.body.items.filter((i) => i.kind === "publication");
+  assert.equal(pubs.length, 3);
+  assert.ok(pubs.some((p) => p.detail === "JGR Solid Earth" && p.year === 2023));
+  const sch = await call(env, "GET", "/v1/users/ana/scholar");
+  assert.equal(sch.body.cited_by, 210);
+  assert.equal((await call(env, "GET", "/v1/users/ben/scholar")).body.imported_at, null);
+});
