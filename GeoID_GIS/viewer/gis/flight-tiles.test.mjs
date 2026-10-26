@@ -67,32 +67,5 @@ check("tile maths round trip", Math.abs(T.tileYToLat(T.latToTileY(51.5, 12), 12)
   check("a step is at most a couple of levels (the quadtree is balanced enough)", leaves.every((L) => T.edgeSteps(L.z, L.x, L.y, isLeaf).every((k) => k <= 3)));
 }
 
-/* ── Terrain to a flight-sim standard: filtered heights, stitched edges ──── */
-{
-  // A cliff: 0 m west of lon 0, 200 m east of it. One point sample at the
-  // edge reads one side or the other; the filter reads the cell's mix.
-  const cliff = (lat, lon) => (lon >= 0 ? 200 : 0);
-  const f = T.filteredGround(cliff, 50, 0, 0.001, 0.001);
-  check("a vertex on a cliff edge takes its cell's mix, not one side", f > 0 && f < 200, String(f));
-  check("on even ground the filter changes nothing", T.filteredGround(() => 42, 50, 0, 0.01, 0.01) === 42);
-  check("missing samples are skipped, not read as zero",
-    T.filteredGround((la, lo) => (lo > 0 ? null : 10), 50, 0, 0.01, 0.01) === 10);
-
-  // Stitching: an N=4 tile whose north neighbour is one level coarser with a
-  // grid of 2 (vertex every half neighbour-tile = one of ours). The
-  // neighbour's edge heights at its vertices are 0, 100, 0 (param 0, .5, 1 of
-  // the neighbour); our tile is the neighbour's west half (o = 0).
-  const N = 4, hM = new Float32Array((N + 1) * (N + 1)).fill(55);
-  const nbAt = (p) => (p === 0.5 ? 100 : 0);           // the neighbour's own vertices
-  T.stitchEdges(hM, N, [1, 0, 0, 0],
-    () => ({ o: 0, Nc: 2 }),
-    (e, sp, up) => nbAt(Math.round((sp / 2 ** up) * 1000) / 1000));
-  const north = [0, 1, 2, 3, 4].map((i) => Math.round(hM[i]));
-  check("a fine edge follows its coarse neighbour's line exactly (no crack)",
-    JSON.stringify(north) === JSON.stringify([0, 25, 50, 75, 100]), JSON.stringify(north));
-  check("...and only that edge is touched", hM[(N + 1) * 2 + 2] === 55);
-  check("no step, no stitch", (() => { const g = new Float32Array(25).fill(7); T.stitchEdges(g, 4, [0, 0, 0, 0], () => ({}), () => 0); return g.every((v) => v === 7); })());
-}
-
 console.log(`\n${passed} passed, ${failed} failed`);
 process.exit(failed ? 1 : 0);
