@@ -37,7 +37,7 @@
   let on = true;
   try { on = localStorage.getItem(STORE) !== "off"; } catch (e) { /* private mode */ }
 
-  let ctx = null, master = null, graph = null, timer = 0, gustAt = 0, suspendTimer = 0;
+  let ctx = null, master = null, graph = null, meter = null, timer = 0, gustAt = 0, suspendTimer = 0;
   let lastCrashed = false, hazardTimer = 0, hazardBackoff = 0;
   const hazardTier = {};
 
@@ -132,6 +132,9 @@
     ctx = new AC();
     master = gain(ctx, 0);
     master.connect(ctx.destination);
+    meter = ctx.createAnalyser();
+    meter.fftSize = 2048;
+    master.connect(meter);
     graph = build(ctx);
     return ctx;
   }
@@ -310,5 +313,18 @@
     const wait = setInterval(() => { if (wireButton() || ++tries > 60) clearInterval(wait); }, 500);
   }
 
-  window.GeoIDFlightSound = { setOn, isOn: () => on, state: () => ctx?.state || "none" };
+  /** For checking from the console: the output's RMS now, and each voice's level. */
+  function levels() {
+    if (!meter) return null;
+    const buf = new Float32Array(meter.fftSize);
+    meter.getFloatTimeDomainData(buf);
+    let sum = 0;
+    for (const v of buf) sum += v * v;
+    const g = graph, r = (x) => +x.toFixed(3);
+    return { rms: r(Math.sqrt(sum / buf.length)), master: r(master.gain.value), wind: r(g.wind.gain.value),
+      piston: r(g.piston.gain.value), prop: r(g.prop.gain.value), rotor: r(g.slap.gain.value),
+      whine: r(g.whine.gain.value), thrust: r(g.thrust.gain.value), firingHz: r(g.firing.frequency.value) };
+  }
+
+  window.GeoIDFlightSound = { setOn, isOn: () => on, state: () => ctx?.state || "none", levels };
 })();
