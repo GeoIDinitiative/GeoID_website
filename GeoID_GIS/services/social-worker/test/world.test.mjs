@@ -261,3 +261,34 @@ test("conference: attendees declare talks and posters by session; meet-ups hang 
   const sub = await call(env, "POST", `/v1/events/${eid}/posters`, { as: BEN, body: { post_id: poster.body.id } });
   assert.ok([200, 201].includes(sub.status), JSON.stringify(sub.body));
 });
+
+// ── Push ─────────────────────────────────────────────────────────────────────
+
+test("push: a notification sends an empty, VAPID-signed push to each of the member's browsers; dead ones are dropped", async () => {
+  const { vapidJwt } = await import("../push.js");
+  const pair = await crypto.subtle.generateKey({ name: "ECDSA", namedCurve: "P-256" }, true, ["sign", "verify"]);
+  const raw = new Uint8Array(await crypto.subtle.exportKey("raw", pair.publicKey));
+  const pub = Buffer.from(raw).toString("base64url");
+  const env = await world();
+  assert.equal((await call(env, "POST", "/v1/push/subscribe", { as: ANA, body: { endpoint: "https://fcm.googleapis.com/fcm/send/x" } })).status, 503, "off without keys");
+  env.VAPID_PUBLIC_KEY = pub;
+  env.VAPID_PRIVATE_JWK = JSON.stringify(await crypto.subtle.exportKey("jwk", pair.privateKey));
+  assert.equal((await call(env, "POST", "/v1/push/subscribe", { as: ANA, body: { endpoint: "https://evil.example/collect" } })).status, 400);
+  await call(env, "POST", "/v1/push/subscribe", { as: ANA, body: { endpoint: "https://fcm.googleapis.com/fcm/send/abc" } });
+  await call(env, "POST", "/v1/push/subscribe", { as: ANA, body: { endpoint: "https://updates.push.services.mozilla.com/wpush/v2/gone" } });
+  const sent = [];
+  env.fetchImpl = async (u, init) => { sent.push({ u, init }); return new Response("", { status: String(u).includes("gone") ? 410 : 201 }); };
+  await call(env, "POST", "/v1/follow", { as: BEN, body: { type: "user", id: "ana" } });   // notifies Ana
+  assert.equal(sent.length, 2);
+  const fcm = sent.find((s) => s.u.includes("fcm"));
+  assert.equal(fcm.init.headers["Content-Length"], "0", "no payload");
+  const m = /^vapid t=([^,]+), k=(.+)$/.exec(fcm.init.headers.Authorization);
+  assert.equal(m[2], pub);
+  const [h64, c64, s64] = m[1].split(".");
+  assert.equal(JSON.parse(Buffer.from(c64, "base64url")).aud, "https://fcm.googleapis.com");
+  const ok = await crypto.subtle.verify({ name: "ECDSA", hash: "SHA-256" }, pair.publicKey, Buffer.from(s64, "base64url"), new TextEncoder().encode(`${h64}.${c64}`));
+  assert.ok(ok, "a valid ES256 signature");
+  const left = await env.DB.prepare("SELECT endpoint FROM push_subscriptions").all();
+  assert.deepEqual(left.results.map((r) => r.endpoint), ["https://fcm.googleapis.com/fcm/send/abc"], "the 410 one is dropped");
+  assert.ok(typeof vapidJwt === "function");
+});

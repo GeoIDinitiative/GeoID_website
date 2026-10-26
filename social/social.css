@@ -1214,3 +1214,10 @@ a.s-stat:focus-visible, button.s-stat:focus-visible { color: var(--text); outlin
 .s-session-code { margin: 0 0 0.2rem; font-size: 0.8rem; letter-spacing: 0.06em; color: var(--accent); font-variant-numeric: tabular-nums; }
 .s-add summary { cursor: pointer; color: var(--accent); }
 .s-add[open] summary { margin-bottom: 0.6rem; }
+
+/* Lite mode (device.js): no photographs, no previews in lists, no glow. */
+.s-lite .s-backdrop { display: none !important; }
+.s-lite .s-card-media { display: none; }
+.s-lite *, .s-lite *::before, .s-lite *::after { animation: none !important; transition: none !important; }
+.s-lite .s-card, .s-lite .s-post-full { box-shadow: none !important; }
+.s-lite .s-card[data-topic] { outline: none !important; }

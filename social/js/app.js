@@ -29,6 +29,7 @@ import * as mod from "./views/mod.js?v=20261025-794b342";
 import * as settings from "./views/settings.js?v=20261025-794b342";
 import * as rooms from "./views/rooms.js?v=20261025-794b342";
 import * as rounds from "./views/rounds.js?v=20261025-794b342";
+import { isLite, registerWorker } from "./device.js?v=20261025-794b342";
 import * as orgs from "./views/orgs.js?v=20261025-794b342";
 import * as onboarding from "./views/onboarding.js?v=20261025-794b342";
 import * as requests from "./views/requests.js?v=20261025-794b342";
@@ -244,7 +245,10 @@ async function boot() {
   // The photograph behind each section is credited at the foot of the page,
   // out of the way of reading (its source and licence still have to be said).
   const credit = h("p", { class: "s-backdrop-credit" });
-  backdrop = createBackdrop({ onPlate: (frame) => {
+  // Lite mode: no photographs, previews or glow (device.js).
+  document.documentElement.classList.toggle("s-lite", isLite());
+  registerWorker();
+  backdrop = createBackdrop({ lite: isLite, onPlate: (frame) => {
     credit.textContent = frame ? `Background: ${[frame.place, frame.src].filter(Boolean).join(" · ")}` : "";
   } });
   document.body.prepend(backdrop.root);

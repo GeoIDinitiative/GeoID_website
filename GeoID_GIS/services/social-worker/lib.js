@@ -510,6 +510,11 @@ export async function notify(env, userId, kind, actorId, refType, refId, text = 
     await env.DB.prepare("INSERT INTO mail_queue (id, user_id, kind, notification_id, created_at) VALUES (?, ?, ?, ?, ?)")
       .bind(id("mq"), userId, kind, notificationId, t).run().catch(() => {});
   }
+  // A push to the member's browsers, when push is set up (push.js). Imported
+  // on demand so lib.js still imports nothing back at load time.
+  if (env.VAPID_PRIVATE_JWK && kind !== "reaction") {
+    try { const { pushTo } = await import("./push.js"); await pushTo(env, userId); } catch (error) { /* a push is a courtesy */ }
+  }
 }
 
 export async function audit(env, actorId, action, refType, refId, detail = {}) {

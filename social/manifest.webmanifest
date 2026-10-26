@@ -1,0 +1,14 @@
+{
+  "name": "GeoID Network",
+  "short_name": "GeoID Network",
+  "description": "Mentors, feedback, jobs, events and event rooms for geoscientists.",
+  "start_url": "/social/",
+  "scope": "/social/",
+  "display": "standalone",
+  "background_color": "#080014",
+  "theme_color": "#080014",
+  "icons": [
+    { "src": "/social/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "/social/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}

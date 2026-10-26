@@ -250,3 +250,45 @@ self.addEventListener('fetch', (evt) => {
     evt.respondWith(staleWhileRevalidate(STATIC_CACHE, request));
   }
 });
+
+// ── GeoID Network: notifications on this device ─────────────────────────────
+// The Network's server sends an EMPTY push (social-worker/push.js) so that
+// nothing personal passes through the browser vendor's push service. This
+// worker asks for the newest unread notification itself -- the same sign-in
+// the page uses -- and shows it; a click opens the inbox.
+const SOCIAL_API = 'https://social.geoidinitiative.com';
+const AUTH_API = 'https://auth.geoidinitiative.com';
+
+self.addEventListener('push', (evt) => {
+  evt.waitUntil((async () => {
+    let title = 'GeoID Network';
+    let body = 'You have something new.';
+    let tag = 'geoid-network';
+    try {
+      const t = await fetch(`${AUTH_API}/auth/social-token`, { method: 'POST', credentials: 'include' });
+      if (t.ok) {
+        const { token } = await t.json();
+        const r = await fetch(`${SOCIAL_API}/v1/notifications?unread=1`, { headers: { authorization: `Bearer ${token}` } });
+        const latest = r.ok ? (await r.json()).items?.[0] : null;
+        if (latest) {
+          body = latest.text || body;
+          if (latest.actor?.name) title = latest.actor.name;
+          tag = `geoid-network-${latest.id}`;
+        }
+      }
+    } catch (error) { /* the generic line will do */ }
+    await self.registration.showNotification(title, { body, tag, icon: '/assets/GeoID_mark.png', badge: '/assets/GeoID_mark.png', data: { url: '/social/#/notifications' } });
+  })());
+});
+
+self.addEventListener('notificationclick', (evt) => {
+  evt.notification.close();
+  const target = new URL(evt.notification.data?.url || '/social/#/notifications', self.location.origin).href;
+  evt.waitUntil((async () => {
+    const open = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    const tab = open.find((c) => c.url.startsWith(`${self.location.origin}/social/`));
+    if (tab) { await tab.focus(); return tab.navigate ? tab.navigate(target) : null; }
+    return self.clients.openWindow(target);
+  })());
+});
+

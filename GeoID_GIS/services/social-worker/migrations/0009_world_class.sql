@@ -117,3 +117,16 @@ CREATE TABLE conference_items (
   created_at  INTEGER NOT NULL
 );
 CREATE INDEX conference_items_event ON conference_items(event_id, session);
+
+-- ── Push notifications (push.js) ──────────────────────────────────────────
+-- Web Push subscriptions, one per browser a member turns notifications on in.
+-- Pushes carry NO payload: the page's worker fetches what is new itself, so
+-- nothing personal passes through the browser vendor's push service.
+CREATE TABLE push_subscriptions (
+  endpoint    TEXT PRIMARY KEY,
+  user_id     TEXT NOT NULL REFERENCES users(id),
+  created_at  INTEGER NOT NULL,
+  last_ok_at  INTEGER,
+  failures    INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX push_subscriptions_user ON push_subscriptions(user_id);

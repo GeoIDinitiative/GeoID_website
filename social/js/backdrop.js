@@ -71,7 +71,7 @@ export function plateFor(path) {
   return { key: FOR_SECTION[section] || "marbleEast", ofTheDay: false };
 }
 
-export function createBackdrop({ onPlate } = {}) {
+export function createBackdrop({ onPlate, lite = () => false } = {}) {
   const layers = [h("img", { alt: "", decoding: "async" }), h("img", { alt: "", decoding: "async" })];
   const root = h("div", { class: "s-backdrop", "aria-hidden": "true" },
     layers[0], layers[1], h("div", { class: "s-backdrop-veil" }), h("div", { class: "s-backdrop-grid" }));
@@ -85,6 +85,8 @@ export function createBackdrop({ onPlate } = {}) {
   Promise.all([load(EARTH), load(ETNA)]).then(() => { if (current) onPlate?.(meta[current] || null, ofTheDay); });
 
   function show(path) {
+    // Lite mode: a plain ground, no photograph downloaded at all.
+    if (lite()) { document.body.classList.remove("s-has-backdrop"); return; }
     const plate = plateFor(path);
     const file = PLATES[plate.key];
     if (file === current) return;

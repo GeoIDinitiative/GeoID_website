@@ -6,6 +6,7 @@ import { act, userChip, requireSignIn, sharePageUrl } from "../components.js?v=2
 import { sizeText } from "../files.js?v=20261025-794b342";
 import { myAffiliations } from "./orgs.js?v=20261025-794b342";
 import { myOfficeHours } from "./officehours.js?v=20261025-794b342";
+import * as device from "../device.js?v=20261025-794b342";
 
 // The kinds the API knows (NOTIFY_KINDS in social-worker/profiles.js); a
 // toggle for any other name would be silently ignored by the server.
@@ -89,7 +90,7 @@ export function render(root, { query = {} } = {}) {
 
   put(clear(root), h("h1", { class: "s-h1", text: "Settings" }),
     h("p", { class: "s-muted" }, "Your public profile is edited on ", h("a", { href: `#/u/${encodeURIComponent(u.handle)}?edit=1` }, "your profile page"), "."),
-    form, identitySection(query), searchesSection(), storageSection(), zenodoSection(query), following, blocked, yourData());
+    form, deviceSection(), identitySection(query), searchesSection(), storageSection(), zenodoSection(query), following, blocked, yourData());
 }
 
 // ── Identity & institutions track ──────────────────────────────────────────
@@ -279,6 +280,57 @@ function emailFieldset() {
       state = await api.patch("/v1/me/mail", { digest: mode !== "off", immediate, weekly: !!weekly?.querySelector("input").checked });
     },
   };
+}
+
+// ── This device ────────────────────────────────────────────────────────────
+
+const LANGS = [["", "My browser's language"], ["en", "English"], ["es", "Español"], ["fr", "Français"], ["de", "Deutsch"], ["it", "Italiano"],
+  ["pt", "Português"], ["zh", "中文"], ["ja", "日本語"], ["ko", "한국어"], ["ar", "العربية"], ["hi", "हिन्दी"], ["id", "Bahasa Indonesia"],
+  ["tr", "Türkçe"], ["ru", "Русский"], ["uk", "Українська"], ["pl", "Polski"], ["nl", "Nederlands"], ["is", "Íslenska"]];
+
+/** Settings that belong to this browser, not the account: lite mode, the app, notifications, translation. */
+function deviceSection() {
+  const sec = h("section", { class: "s-section", id: "device", "aria-labelledby": "dev-h" },
+    h("h2", { class: "s-h2", id: "dev-h", text: "On this device" }));
+  // Lite mode
+  const lite = select("lite", [["", device.saveDataOn() ? "Automatic (your browser asks to save data: on)" : "Automatic (on when your browser asks to save data)"],
+    ["on", "On: no photographs, previews or animation"], ["off", "Off"]], device.litePreference());
+  lite.addEventListener("change", () => { device.setLite(lite.value); toast(device.isLite() ? "Lite mode on." : "Lite mode off."); });
+  // Translation
+  const lang = select("lang", LANGS, (() => { try { return localStorage.getItem("geoid:social-lang") || ""; } catch (e) { return ""; } })());
+  lang.addEventListener("change", () => { device.setReaderLanguage(lang.value); toast("Saved."); });
+  // The app
+  const installBox = h("div", {});
+  const drawInstall = () => {
+    clear(installBox);
+    if (device.isInstalled()) put(installBox, h("p", { class: "s-muted", text: "You're using the installed app." }));
+    else if (device.canInstall()) put(installBox, h("button", { type: "button", class: "btn-ghost s-btn-sm", onClick: async () => { await device.install(); drawInstall(); } }, "Install GeoID Network as an app"));
+    else put(installBox, h("p", { class: "s-hint", text: "To install it as an app: in Chrome or Edge, the install icon in the address bar; on an iPhone, Share → Add to Home Screen." }));
+  };
+  device.onInstallable(drawInstall);
+  drawInstall();
+  // Notifications
+  const pushBox = h("div", {}, loading("Checking notifications…"));
+  const drawPush = async () => {
+    const st = await device.pushState();
+    clear(pushBox);
+    if (!st.supported) { put(pushBox, h("p", { class: "s-hint", text: "This browser can't show notifications from websites." })); return; }
+    if (!st.configured) { put(pushBox, h("p", { class: "s-hint", text: "Notifications on your devices aren't switched on for GeoID Network yet." })); return; }
+    const btn = h("button", { type: "button", class: st.on ? "btn-ghost s-btn-sm" : "btn-primary s-btn-sm" }, st.on ? "Turn off notifications here" : "Turn on notifications here");
+    btn.addEventListener("click", () => act(async () => {
+      btn.disabled = true;
+      try { if (st.on) await device.disablePush(); else await device.enablePush(); toast(st.on ? "Notifications off on this device." : "Notifications on. You'll hear about messages, rooms near your study areas and everything you've chosen below."); }
+      finally { drawPush(); }
+    }, "turn on notifications"));
+    put(pushBox, btn, st.permission === "denied" ? h("p", { class: "s-hint", text: "Your browser is blocking notifications from this site; allow them in its site settings first." }) : null,
+      h("p", { class: "s-hint", text: "The notification itself is fetched by this browser from GeoID Network; nothing about you passes through the browser maker's push service." }));
+  };
+  drawPush().catch(() => clear(pushBox));
+  return put(sec,
+    field("Lite mode", lite, "For slow or metered connections. Pages stay the same; the heavy parts are left out."),
+    field("Translate posts into", lang, "Posts in another language get a Translate button. Where your browser can translate on the device (recent Chrome and Edge), nothing leaves it."),
+    h("div", { class: "s-field" }, h("span", { class: "s-label", text: "Notifications" }), pushBox),
+    h("div", { class: "s-field" }, h("span", { class: "s-label", text: "The app" }), installBox));
 }
 
 // ── Saved job searches ─────────────────────────────────────────────────────

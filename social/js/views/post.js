@@ -16,6 +16,7 @@ import { compareSlider, resolveImageRef, timeChart, measurementsBlock, gallery }
 import { parseVideoLink, videoEmbed } from "../embed.js?v=20261025-794b342";
 import { eventPanel } from "./opportunities.js?v=20261025-794b342";
 import { linkCard } from "../files.js?v=20261025-794b342";
+import * as device from "../device.js?v=20261025-794b342";
 
 export async function render(root, { params, query }) {
   const id = params.id;
@@ -70,7 +71,49 @@ export async function render(root, { params, query }) {
 
 function body(p) {
   const paras = String(p.body || "").split(/\n{2,}/).filter((s) => s.trim());
-  return h("div", { class: "s-prose" }, paras.map((t) => h("p", {}, t)));
+  const prose = h("div", { class: "s-prose" }, paras.map((t) => h("p", {}, t)));
+  return h("div", {}, prose, translateBar(p, prose));
+}
+
+/**
+ * Translate a post written in another language: on the device where the
+ * browser can (nothing leaves it), else a link the reader may choose to
+ * follow (public posts only).
+ */
+function translateBar(p, prose) {
+  const text = [p.title, p.body].filter(Boolean).join("\n\n");
+  const bar = h("div", { class: "s-translate", hidden: true });
+  if (text.trim().length < 20) return bar;
+  const to = device.readerLanguage();
+  device.detectLanguage(text).then((from) => {
+    // Without an on-device detector, offer it only where the text is plainly not in the reader's script.
+    const foreign = from ? from !== to : (to === "en" && /[^\u0000-\u024f\s\d\p{P}]/u.test(text));
+    if (!foreign) return;
+    bar.hidden = false;
+    const btn = h("button", { type: "button", class: "s-link-btn" }, "Translate");
+    let shown = false;
+    let original = null;
+    btn.addEventListener("click", async () => {
+      if (shown) { prose.replaceWith(original); prose = original; shown = false; btn.textContent = "Translate"; return; }
+      btn.disabled = true; btn.textContent = "Translating…";
+      const out = await device.translate(p.body || "", from, to);
+      btn.disabled = false;
+      if (out == null) {
+        btn.textContent = "Translate";
+        if (p.visibility === "public") window.open(device.translateOutLink(p.body || "", to), "_blank", "noopener");
+        else toast("This browser can't translate on the device.", "error");
+        return;
+      }
+      original = prose;
+      const translated = h("div", { class: "s-prose s-translated" }, out.split(/\n{2,}/).filter((t) => t.trim()).map((t) => h("p", {}, t)),
+        h("p", { class: "s-hint", text: `Translated on this device from ${from}. Check anything that matters against the original.` }));
+      prose.replaceWith(translated);
+      prose = translated;
+      shown = true; btn.textContent = "Show the original";
+    });
+    put(bar, btn);
+  });
+  return bar;
 }
 
 /**
