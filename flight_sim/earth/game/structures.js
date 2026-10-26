@@ -169,6 +169,33 @@ export function drawBridges(api, transport, water, outlines) {
 
   const waterPatch = (P) => api.quad(P.map(([x, z]) => [x, 0.15, z]), [0, 1, 0], RIVER, "wall");
 
+  // GROUND UNDER A SPAN (reported at Clifford Hollow Bridge: "bridges still
+  // can be wrong"). The aerial photo has the bridge in it, and draped on the
+  // terrain its deck and shadow run down into a dry hollow the 3D deck now
+  // spans. Over water the river patch hides that copy; over land a strip is
+  // laid on the ground under the deck -- 2.6 deck widths, to take the shadow
+  // too -- in pieces of ~12 m that follow the slope, textured with the photo
+  // from BESIDE the bridge (3 deck widths to one side), so it reads as the
+  // valley floor and side that the bridge stands over.
+  const GROUND_UNDER_M = 4;               // a deck this far above the ground spans it
+  const groundPatch = (a, b, width) => {
+    const [ax, az] = M(a[0], a[1]), [bx, bz] = M(b[0], b[1]);
+    const L = Math.hypot(bx - ax, bz - az);
+    if (L < 1) return;
+    const nx = -(bz - az) / L, nz = (bx - ax) / L;            // across, unit (metres)
+    const half = width * 1.3;
+    const shift = [nx * width * 3 / s, nz * width * 3 / s];   // tile units, to one side
+    const steps = Math.max(1, Math.ceil(L / 12));
+    const at = (t, side) => {
+      const x = ax + (bx - ax) * t + nx * half * side, z = az + (bz - az) * t + nz * half * side;
+      return [x, ground(x / s, z / s) + 0.6, z];
+    };
+    for (let k = 0; k < steps; k++) {
+      const t0 = k / steps, t1 = (k + 1) / steps;
+      api.quad([at(t0, 1), at(t1, 1), at(t1, -1), at(t0, -1)], [0, 1, 0], [1, 1, 1], "roof", shift);
+    }
+  };
+
   // 1. Polygon decks.
   for (const poly of outlines) {
     const ring = poly.outer;
@@ -235,6 +262,10 @@ export function drawBridges(api, transport, water, outlines) {
         const lift = (RANK[cls] || 0) * 0.08;
         for (let i = 0; i + 1 < line.length; i++) {
           slabSegment(line[i], line[i + 1], hs[i], hs[i + 1], width, rail ? BALLAST : [1, 1, 1], !rail, lift);
+          // A span over dry ground: hide the photo's draped copy under it.
+          const gm = ground((line[i][0] + line[i + 1][0]) / 2, (line[i][1] + line[i + 1][1]) / 2);
+          const um = (line[i][0] + line[i + 1][0]) / 2, vm = (line[i][1] + line[i + 1][1]) / 2;
+          if (!overWater(um, vm) && (hs[i] + hs[i + 1]) / 2 - gm > GROUND_UNDER_M) groundPatch(line[i], line[i + 1], width);
           // Piers and the water patch where the segment is over the river.
           const [ax, az] = M(line[i][0], line[i][1]), [bx, bz] = M(line[i + 1][0], line[i + 1][1]);
           const L = Math.hypot(bx - ax, bz - az), steps = Math.max(1, Math.floor(L / 35));

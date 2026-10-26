@@ -24,7 +24,7 @@
 // GoogleMapsCompatible_Level8, keyless, `Access-Control-Allow-Origin: *`
 // (checked). Credited as a Workspace layer, like everything else on screen.
 
-import { isEarth } from "./bodies.js?v=20261025-794b342";
+import { isEarth } from "./bodies.js?v=20261026-b97ef24";
 
 const GIBS = "https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/VIIRS_Black_Marble/default/2016-01-01/GoogleMapsCompatible_Level8/{z}/{y}/{x}.png";
 const GLOBAL_Z = 4;            // 16 x 16 tiles -> a 4096-px world, ~2.4 km/px at the equator
@@ -42,8 +42,9 @@ const INFO = {
 let THREE = null;
 let shell = null, patch = null, keyLight = null;
 const uniforms = {
-  uSun: { value: null }, uLights: { value: null }, uPatch: { value: null },
-  uPatchBox: { value: null }, uPatchOn: { value: 0 },
+  // never a null vec3/vec4: a null one throws in three's upload, in the render loop
+  uSun: { value: { x: 1, y: 0, z: 0 } }, uLights: { value: null }, uPatch: { value: null },
+  uPatchBox: { value: { x: 0, y: 1, z: 1, w: 0 } }, uPatchOn: { value: 0 },
 };
 /** How dark it is where the camera is, 0 day .. 1 night -- read by osm-buildings.js. */
 export const NIGHT = { value: 0 };

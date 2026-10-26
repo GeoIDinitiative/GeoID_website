@@ -169,17 +169,28 @@ function sigFor(box, T) {
 }
 const sameHeights = (a, b) => a.every((h, i) => Math.abs(h - b[i]) < 2);
 
-/* One drape a tick at most: the one whose box moved, else the stalest due. */
+/**
+ * Something drawn into the drapes changed -- a time bar stepped a frame, a
+ * layer was switched -- so each drape is redrawn at its next turn rather than
+ * on its timer (up to 6 s for the far one: a played sequence trailed by
+ * seconds on the ground round the aircraft). One drape a tick still.
+ */
+export function markDrapesDirty() {
+  for (const s of drapeState) s.dirty = true;
+}
+
+/* One drape a tick at most: the one whose box moved, else a dirty one, else the stalest due. */
 function drapeStep(lat, lon, U) {
   const now = performance.now();
-  let pick = -1;
+  let moved = -1, dirty = -1, stale = -1;
   for (let i = 0; i < DRAPES.length; i++) {
     const s = drapeState[i], box = boxFor(lat, lon, DRAPES[i].halfKm);
-    const moved = !s.box || box.lon0 !== s.box.lon0 || box.lat0 !== s.box.lat0;
-    if (moved) { pick = i; break; }
-    if (pick < 0 && now - s.at > DRAPES[i].everyMs) pick = i;
+    if (!s.box || box.lon0 !== s.box.lon0 || box.lat0 !== s.box.lat0) { moved = i; break; }
+    if (dirty < 0 && s.dirty) dirty = i;
+    if (stale < 0 && now - s.at > DRAPES[i].everyMs) stale = i;
   }
-  if (pick >= 0) renderDrape(pick, boxFor(lat, lon, DRAPES[pick].halfKm), U);
+  const pick = moved >= 0 ? moved : dirty >= 0 ? dirty : stale;
+  if (pick >= 0) { drapeState[pick].dirty = false; renderDrape(pick, boxFor(lat, lon, DRAPES[pick].halfKm), U); }
   let ready = 0;
   drapeState.forEach((s, i) => { if (s.box) ready = DRAPES[i].halfKm; });
   const coverM = drapeCoverM(ready, window.__geoidFlightTileReachM);
@@ -269,5 +280,5 @@ export function stopFlightTerrainGpu() {
 }
 
 if (typeof window !== "undefined") {
-  window.GeoIDFlightTerrainGpu = { startFlightTerrainGpu, stopFlightTerrainGpu, uniforms: flightGpuUniforms };
+  window.GeoIDFlightTerrainGpu = { startFlightTerrainGpu, stopFlightTerrainGpu, uniforms: flightGpuUniforms, markDrapesDirty };
 }

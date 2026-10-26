@@ -45,7 +45,7 @@ import * as THREE from "../vendor/three.module.js";
 import { TIER_WINDOW, TIER_SIZE, SMALL_REACH_KM, distanceKm } from "../../../flight_sim/earth/game/gazetteer.js?v=2";
 // The Mars module, loaded when flight labels start: it imports three.js by an
 // absolute web path, which only a browser resolves (Node tests import this file).
-const MARS_LABELS = "../../../planet_explorer/mars/viewer/label-layer.js?v=20261025-794b342";
+const MARS_LABELS = "../../../planet_explorer/mars/viewer/label-layer.js?v=20261026-b97ef24";
 let buildLabelLayer = null, updateLabelVisibility = null, updateLabelAnchors = null, makeLabelTexture = null;
 
 /* ── What the Mars viewer's scope provided, from Earth ─────────────────── */
@@ -334,6 +334,8 @@ function disposeProxies(e) {
     if (at !== -1) io.splice(at, 1);
     e[k] = null;
   }
+  e._fsPill?.tex?.dispose?.();
+  e._fsPill = null;
 }
 
 function dispose() {
@@ -474,6 +476,23 @@ function step() {
    * no mipmaps: nothing is resampled, so it is as sharp as page text.
    * Returns { tex, w, h } with w, h in CSS pixels. Cached by text and style.
    */
+  /** The place's own label chip, drawn crisp at `px` tall: { tex, w, h } in CSS px. */
+  const crispPill = (entry, px) => {
+    const dpr = Math.min(3, Math.max(1, window.devicePixelRatio || 1));
+    const key = `${px}|${dpr}`;
+    if (entry._fsPill?.key === key) return entry._fsPill;
+    entry._fsPill?.tex?.dispose?.();
+    const item = entry.item || {};
+    const t = makeLabelTexture(item, {
+      ...(item.label_palette ? { customPalette: item.label_palette } : { theme: item.theme }),
+      backingScale: dpr * px / 34,
+    });
+    t.texture.generateMipmaps = false;
+    t.texture.minFilter = THREE.LinearFilter;
+    t.texture.magFilter = THREE.LinearFilter;
+    entry._fsPill = { key, tex: t.texture, w: t.width * px / 34, h: px };
+    return entry._fsPill;
+  };
   if (!window.__fsCrisp) window.__fsCrisp = new Map();
   const crispText = (txt, px, fill, weight = 600) => {
     const dpr = Math.min(3, Math.max(1, window.devicePixelRatio || 1));
@@ -906,13 +925,14 @@ function step() {
       entry._fsDist.scale.set(uppH * dt.w, uppH * dt.h, 1);
     }
     if (entry._fsHLabel && c.named) {
-      // Its own crisp text (crispText), not the in-view chip squeezed down:
-      // 13 px for the most significant places, 12 px for the rest, at the
-      // label's own ink. Size no longer shrinks with distance (that is what
-      // softened it); the fade below still does.
-      const name = String(entry.item?.name || "").replace(/\s*\([^)]*\)\s*/g, " ").trim();
-      const ink = entry.item?.label_colour || "#eef3fb";
-      const ct = crispText(name, (c.sig || 3) <= 2 ? 13 : 12, ink);
+      // THE SAME PILL AS IN VIEW, AND SHARP (owner, 2026-10-26: the skyline
+      // names "should be the same font and within a pill like the others").
+      // The plain crisp text that replaced the squeezed chip was sharp but
+      // not a label; this is the label's own chip -- its palette, its accent
+      // bar, Orbitron -- drawn at the size it is shown (crispPill: one canvas
+      // pixel per screen pixel, no mipmaps), 24 px tall for the most
+      // significant places, 21 px for the rest.
+      const ct = crispPill(entry, (c.sig || 3) <= 2 ? 24 : 21);
       if (entry._fsHLabel.material.map !== ct.tex) {
         entry._fsHLabel.material.map = ct.tex;
         entry._fsHLabel.material.needsUpdate = true;

@@ -36,9 +36,9 @@
 // transparent pass in a group sorted at 190 (see GROUP_ORDER), still
 // depth-tested and depth-writing against the globe and each other.
 
-import { isEarth } from "./bodies.js?v=20261025-794b342";
+import { isEarth } from "./bodies.js?v=20261026-b97ef24";
 import { facade, roof } from "../../../flight_sim/earth/game/facade.js?v=4";
-import { NIGHT } from "./night-lights.js?v=20261025-794b342";
+import { NIGHT } from "./night-lights.js?v=20261026-b97ef24";
 
 const BUILDINGS_TILEJSON = "https://tiles.openfreemap.org/planet";
 // blankTile=false: a tile with no imagery is a 404, not Esri's grey "Map data
@@ -298,7 +298,7 @@ function heightAboveGround(viewer, eye) {
 
 function ensureWorker() {
   if (worker) return;
-  worker = new Worker(new URL("../../../flight_sim/earth/game/buildings-worker.js?v=9", import.meta.url), { type: "module" });
+  worker = new Worker(new URL("../../../flight_sim/earth/game/buildings-worker.js?v=10", import.meta.url), { type: "module" });
   worker.onmessage = (e) => {
     const job = jobs.get(e.data.id);
     if (!job) return;
@@ -507,11 +507,16 @@ function shadowed(material) {
    tested and opaque), the ground drape by alpha. The cover is the union of two
    circles -- round the aircraft and round the point ahead -- passed in world
    space each frame; off in orbit (uFadeOn 0). */
+// NEVER NULL. A vec3 uniform whose value is null throws inside three.js's
+// upload, and that throw is in the viewer's render loop: one building drawn
+// before the first cover update stopped the loop for good -- a frozen frame
+// of flat ground, no aircraft (reported: "flight sim is now very broken").
+// So each starts as a plain {x,y,z}, which three uploads as it is.
 const FADE = {
   uFadeOn: { value: 0 },
-  uFadeA: { value: null },      // world centre of the aircraft circle
-  uFadeB: { value: null },      // world centre of the circle ahead
-  uFadeR: { value: null },      // (rA, rB, fade) in world units
+  uFadeA: { value: { x: 0, y: 0, z: 0 } },   // world centre of the aircraft circle
+  uFadeB: { value: { x: 0, y: 0, z: 0 } },   // world centre of the circle ahead
+  uFadeR: { value: { x: 0, y: 0, z: 0 } },   // (rA, rB, fade) in world units
 };
 function edgeFaded(material, mode) {
   const prev = material.onBeforeCompile;
@@ -873,7 +878,7 @@ function flightCover(viewer, altM) {
 function updateFade(viewer, cover) {
   FADE.uFadeOn.value = cover ? 1 : 0;
   if (!cover) return;
-  if (!FADE.uFadeA.value) { FADE.uFadeA.value = new THREE.Vector3(); FADE.uFadeB.value = new THREE.Vector3(); FADE.uFadeR.value = new THREE.Vector3(); }
+  if (!FADE.uFadeA.value?.isVector3) { FADE.uFadeA.value = new THREE.Vector3(); FADE.uFadeB.value = new THREE.Vector3(); FADE.uFadeR.value = new THREE.Vector3(); }
   FADE.uFadeA.value.copy(viewer.globe.localToWorld(groundPoint(viewer, cover.eye.lat, cover.eye.lon)));
   FADE.uFadeB.value.copy(viewer.globe.localToWorld(groundPoint(viewer, cover.ahead.lat, cover.ahead.lon)));
   // The cover reaches a tile's FAR corner, so the fade sits just inside the

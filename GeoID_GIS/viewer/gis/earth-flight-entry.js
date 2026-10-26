@@ -21,17 +21,17 @@
 //      frame): aim the globe there, then open pre-flight, whose centre
 //      crosshair takes the site from wherever the globe is aimed.
 
-import { startFlightTerrain, stopFlightTerrain, setVex, primeLaunchSite } from "./flight-terrain.js?v=20261025-794b342";
-import { startFlightTerrainGpu, stopFlightTerrainGpu } from "./flight-terrain-gpu.js?v=20261025-794b342";
-import { startFlightLabels, stopFlightLabels } from "./flight-labels.js?v=20261025-794b342";
-import { startFlightGazetteer, stopFlightGazetteer } from "./flight-gazetteer.js?v=20261025-794b342";
-import { showFlightMap, hideFlightMap } from "./flight-map.js?v=20261025-794b342";
-import { showFlightSky, hideFlightSky } from "./flight-sky.js?v=20261025-794b342";
-import { startFlightTiles, stopFlightTiles } from "./flight-tiles.js?v=20261025-794b342";
-import { startFlightClouds, stopFlightClouds } from "./flight-clouds.js?v=20261025-794b342";
-import { startFlightLights, stopFlightLights } from "./flight-lights.js?v=20261025-794b342";
-import "./flight-place.js?v=20261025-794b342";
-import { isEarth } from "./bodies.js?v=20261025-794b342";
+import { startFlightTerrain, stopFlightTerrain, setVex, primeLaunchSite } from "./flight-terrain.js?v=20261026-b97ef24";
+import { startFlightTerrainGpu, stopFlightTerrainGpu } from "./flight-terrain-gpu.js?v=20261026-b97ef24";
+import { startFlightLabels, stopFlightLabels } from "./flight-labels.js?v=20261026-b97ef24";
+import { startFlightGazetteer, stopFlightGazetteer } from "./flight-gazetteer.js?v=20261026-b97ef24";
+import { showFlightMap, hideFlightMap } from "./flight-map.js?v=20261026-b97ef24";
+import { showFlightSky, hideFlightSky } from "./flight-sky.js?v=20261026-b97ef24";
+import { startFlightTiles, stopFlightTiles } from "./flight-tiles.js?v=20261026-b97ef24";
+import { startFlightClouds, stopFlightClouds } from "./flight-clouds.js?v=20261026-b97ef24";
+import { startFlightLights, stopFlightLights } from "./flight-lights.js?v=20261026-b97ef24";
+import "./flight-place.js?v=20261026-b97ef24";
+import { isEarth } from "./bodies.js?v=20261026-b97ef24";
 
 /** `?flight=earth&lat=..&lon=..` -> { lat, lon } or { lat: null } or null. */
 export function parseFlightLink(search) {
@@ -190,6 +190,50 @@ function wire() {
     const host = document.getElementById("geoid-controls-host");
     if (host) new MutationObserver(() => { if (host.firstChild !== section) placePanel(section); })
       .observe(host, { childList: true });
+  });
+
+  // DAYTIME ONLY, by clicking the clock -- in flight only (owner, 2026-10-26).
+  // The click that opens the date picker in GeoHUB toggles a noon sun over
+  // the aircraft instead (earth-viewer.js, updateSolarModel); the choice is
+  // kept per browser, and landing leaves the GeoHUB's clock as it was.
+  const DAY_KEY = "geoid-flight-daytime";
+  const setDaytime = (on) => {
+    window.__fsDaytime = Boolean(on);
+    document.body.classList.toggle("fs-daytime", Boolean(on));
+    const btn = document.getElementById("time-scrub-toggle");
+    if (btn) btn.title = window.__flightSim?.active
+      ? (on ? "Daytime only (sun at noon over the aircraft) -- click for the live clock" : "Live clock -- click for daytime only")
+      : "Model time — click to jump to a date & time";
+    try { localStorage.setItem(DAY_KEY, on ? "1" : "0"); } catch (_e) { /* per-browser nicety */ }
+  };
+  let daytime = false;
+  try { daytime = localStorage.getItem(DAY_KEY) === "1"; } catch (_e) { /* storage blocked */ }
+  document.getElementById("time-scrub-toggle")?.addEventListener("click", (e) => {
+    if (!window.__flightSim?.active) return;              // GeoHUB: the date picker, as ever
+    e.stopImmediatePropagation();
+    e.preventDefault();
+    daytime = !daytime;
+    setDaytime(daytime);
+  }, true);
+  window.addEventListener("flightsim:engaged", () => {
+    setDaytime(daytime);
+    // A time bar opened before take-off hid the clock; flight keeps it.
+    const c = document.getElementById("time-scrub-toggle");
+    if (c && c.style.display === "none") c.style.display = "";
+  });
+  // A layer switched on or off in flight reaches the ground at once, not on
+  // the drapes' timers (gis/flight-terrain-gpu.js markDrapesDirty).
+  const hookDrapes = (n = 0) => {
+    const m = window.GeoIDImportManager;
+    if (m?.onChange) m.onChange(() => { if (window.__flightSim?.active) window.GeoIDFlightTerrainGpu?.markDrapesDirty?.(); });
+    else if (n < 80) setTimeout(() => hookDrapes(n + 1), 250);
+  };
+  hookDrapes();
+  window.addEventListener("flightsim:disengaged", () => {
+    window.__fsDaytime = false;
+    document.body.classList.remove("fs-daytime");
+    const btn = document.getElementById("time-scrub-toggle");
+    if (btn) btn.title = "Model time — click to jump to a date & time";
   });
 
   // Help and Controls sit under the model clock (styles/flightsim.css). The

@@ -57,7 +57,7 @@ let mesh = null, timer = null, running = false, building = false;
 let patch = null;                  // { x0, y0, key }
 let anyCloud = false;
 const U = {
-  uCloud: { value: null }, uSun: { value: null }, uTime: { value: 0 },
+  uCloud: { value: null }, uSun: { value: { x: 1, y: 0, z: 0 } }, uTime: { value: 0 },   // never a null vec3 (osm-buildings.js FADE)
 };
 
 function loadImage(url) {
@@ -224,7 +224,7 @@ async function tick() {
   const sunW = viewer.getSunDirection?.();
   if (sunW && mesh) {
     const sunL = sunW.clone().normalize().transformDirection(new THREE.Matrix4().copy(viewer.globe.matrixWorld).invert());
-    U.uSun.value = U.uSun.value || new THREE.Vector3();
+    if (!U.uSun.value?.isVector3) U.uSun.value = new THREE.Vector3();
     U.uSun.value.set(mesh.position.clone().normalize().dot(sunL), 0, 0);
   }
   // A new patch once the aircraft leaves the middle two tiles of this one.

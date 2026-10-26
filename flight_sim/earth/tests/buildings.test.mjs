@@ -209,6 +209,32 @@ for (let k = 0; k < bm.position.length; k += 3) { if (bm.position[k + 1] < -1.9)
 check("piers reach down into the river", piers > 0, String(piers));
 check("a water patch hides the photo's bridge under the deck", patch > 0, String(patch));
 
+// A bridge over a DRY hollow (reported at Clifford Hollow Bridge): banks at
+// 60 m, the valley floor at 0, no water. The deck spans at bank height, and a
+// strip on the ground under it -- textured from beside the bridge -- hides the
+// aerial photo's copy of the deck draped down the hollow.
+{
+  const hollowDem = new Float32Array(256 * 256);
+  for (let y = 0; y < 256; y++) for (let x = 0; x < 256; x++) hollowDem[y * 256 + x] = Math.min(60, Math.abs(y - 128) * 1.5);
+  const viaduct = { extent: 4096, features: [
+    { id: 4, type: 2, props: { class: "motorway", brunnel: "bridge", layer: 1 }, geometry: [9, zz(2000), zz(400), 10, zz(0), zz(3296)] },
+  ] };
+  const vm = extrudeTile({ extent: 4096, features: [] }, hollowDem, 256, 1000, tri, { transport: viaduct, water: { extent: 4096, features: [] } });
+  let deckLow = Infinity, patchVerts = 0, shifted = 0;
+  const S = 1000 / 4096;
+  for (let k = 0, j = 0; k < vm.position.length; k += 3, j += 2) {
+    const x = vm.position[k], y = vm.position[k + 1], z = vm.position[k + 2];
+    if (Math.abs(z - 500) < 30 && y > 30) deckLow = Math.min(deckLow, y);          // deck over mid-valley
+    if (Math.abs(z - 500) < 120 && y < 20) {                                         // the strip on the floor
+      patchVerts++;
+      if (Math.abs(vm.uv[j] * 4096 * S - x) > 5) shifted++;
+    }
+  }
+  check("the deck spans the hollow at bank height", deckLow > 55, String(deckLow));
+  check("a strip is laid on the valley floor under the span", patchVerts > 0, String(patchVerts));
+  check("textured from the photo beside the bridge, not under it", shifted > 0 && shifted === patchVerts, `${shifted}/${patchVerts}`);
+}
+
 /* ── Trees (parks only) ─────────────────────────────────────────────────── */
 // A 200 x 200 m park in a 1 km tile: ~40,000 m^2 / 700 = ~57 trees, all inside.
 const woodRing = [[1000, 1000], [1000 + 819, 1000], [1000 + 819, 1000 + 819], [1000, 1000 + 819]];

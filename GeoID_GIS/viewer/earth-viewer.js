@@ -2,15 +2,15 @@ import * as THREE from "./vendor/three.module.js";
 // The polygon-area rule lives in one place, with a test. Stamped by hand
 // once: stamp.py only rewrites a ?v= that already exists.
 import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
-  from "./gis/geo-utils.js?v=20261025-794b342";
+  from "./gis/geo-utils.js?v=20261026-b97ef24";
 import { attachReliefAttributes, followRelief }
-  from "./gis/vector-render.js?v=20261025-794b342";
+  from "./gis/vector-render.js?v=20261026-b97ef24";
 import { rockClass, crustalSetting, rockClassLabel, classificationBasis }
-  from "./gis/rock-class.js?v=20261025-794b342";
+  from "./gis/rock-class.js?v=20261026-b97ef24";
 import { lithologyLabel }
-  from "./gis/lithology-label.js?v=20261025-794b342";
+  from "./gis/lithology-label.js?v=20261026-b97ef24";
 import { formatLatLon }
-  from "./gis/coord-format.js?v=20261025-794b342";
+  from "./gis/coord-format.js?v=20261026-b97ef24";
 
 /**
  * This module's own cache stamp, read off its own URL.
@@ -1401,6 +1401,7 @@ function fmtProp(value) {
     let activeGeoPopupLatLon = null;
     let selectedGeologyBoundaryGroup = null;
     let lastTimestamp = 0;
+    let lastRenderError = "";   // the last kind of frame failure reported (render loop)
     let activeSearchResults = [];
     let activeSearchIndex = -1;
     let viewerCamera = null;
@@ -14349,10 +14350,22 @@ function fmtProp(value) {
       const _zAxis = new THREE.Vector3(0, 0, 1);
       function updateSolarModel() {
         const simulatedUtcMs = getSimulatedUtcMs();
-        const subsolarLat = getSolarDeclinationForUtcMs(simulatedUtcMs);
+        let subsolarLat = getSolarDeclinationForUtcMs(simulatedUtcMs);
         const spinDeg = normalizeDegrees360(THREE.MathUtils.radToDeg(getSpinDeltaRadians()));
         // Lock day/night to spin phase: at spin=0 (00:00 GMT), subsolar lon = 180 (midnight at Greenwich).
-        const subsolarLon = normalizeDegrees360(180 - spinDeg);
+        let subsolarLon = normalizeDegrees360(180 - spinDeg);
+        // EARTH FLIGHT, DAYTIME ONLY (owner, 2026-10-26: "toggle daytime only
+        // which overrides the model live clock (click the clock to activate)
+        // -- flight sim mode only"). The sun stands at local noon over the
+        // aircraft, its latitude the season's own but never more than 40 deg
+        // from the aircraft's, so the noon sun is at least 50 deg up even in a
+        // polar winter. The clock itself runs on; only the sun is moved, and
+        // only while flying (gis/earth-flight-entry.js sets __fsDaytime).
+        const fsShip = window.__fsDaytime && window.__flightSim?.active ? window.__flightSim.shipLatLon : null;
+        if (fsShip && Number.isFinite(fsShip.lat) && Number.isFinite(fsShip.lon)) {
+          subsolarLon = normalizeDegrees360(fsShip.lon);
+          subsolarLat = Math.max(fsShip.lat - 40, Math.min(fsShip.lat + 40, subsolarLat));
+        }
         _sunLocal.copy(latLonToVector3(subsolarLat, subsolarLon, 1)).normalize();
         _sunWorld.copy(_sunLocal)
           .applyAxisAngle(_yAxis, getSpinDeltaRadians())
@@ -25054,7 +25067,17 @@ ${error && error.message ? error.message : error}`;
         }
         updateMeasureVisualScale();
         refreshMeasureForViewDistance();
-        renderer.render(scene, camera);
+        // ONE BAD FRAME MUST NOT END THE LOOP. The next frame is scheduled
+        // after this draw, so a throw inside three's render (a null uniform,
+        // reported from Earth Flight as a frozen frame of flat ground with no
+        // aircraft) stopped the viewer for good. Drawn in a try: the error is
+        // reported once per kind and the loop carries on.
+        try {
+          renderer.render(scene, camera);
+        } catch (error) {
+          const kind = String(error?.message || error);
+          if (kind !== lastRenderError) { lastRenderError = kind; console.error("[earth-viewer] a frame failed to draw; carrying on:", error); }
+        }
         requestAnimationFrame((timestamp) => {
           lastTimestamp = Math.max(16, timestamp - (lastTimestamp || timestamp));
           render();
