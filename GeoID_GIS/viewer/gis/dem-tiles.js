@@ -204,6 +204,81 @@ export function despikePoints(heights, width, height, floor = POINT_SPIKE_M) {
 }
 
 /**
+ * Pure: repair CLUSTERS of bad posts, in place.
+ *
+ * Reported from Earth Flight as a needle on the horizon over Mýrdalsjökull
+ * (2026-10-26). Terrarium's z12 there (63.543 N, 19.089 W) holds three bad
+ * posts side by side -- 5,409, 2,798 and 2,045 m on ground of 435-983 m (z15)
+ * -- and `despikePoints` compares a post with its 8 neighbours, so each bad
+ * post vouched for the others: the cluster came out at 3,010 and 1,819 m, a
+ * 2.6 km needle. Here a post is compared with the RING of posts 2, then 3,
+ * away -- outside a small cluster -- by that ring's median, and replaced when
+ * further from it than CLUSTER_SPIKE_M, than four robust spreads (1.4826 x
+ * the median absolute deviation), AND than the ring's distance at a 70 deg
+ * slope (`metresPerPost`). On a cliff the ring spans the drop, so the spread
+ * does; a symmetric summit has a level ring, which is what the slope term is
+ * for -- at low zoom a post is hundreds of metres and a real peak stands that
+ * far over posts 3 away. Over the Matterhorn, El Capitan and Everest (z12,
+ * z13) not one post changes; around Katla 0.0014 % do.
+ * Ring sums come from a summed-area table, so only the few posts far from
+ * their ring's mean are sorted: 2-6 ms a 256 px tile.
+ */
+export const CLUSTER_SPIKE_M = 250;
+export function despikeClusters(heights, width, height, metresPerPost = 0, floor = CLUSTER_SPIKE_M) {
+  let repaired = 0;
+  const ring = new Float64Array(24), dev = new Float64Array(24);
+  const W1 = width + 1, sat = new Float64Array(W1 * (height + 1));
+  const median = (a, k) => {
+    for (let p = 1; p < k; p += 1) {
+      const v = a[p];
+      let q = p - 1;
+      while (q >= 0 && a[q] > v) { a[q + 1] = a[q]; q -= 1; }
+      a[q + 1] = v;
+    }
+    const mid = k >> 1;
+    return k % 2 ? a[mid] : (a[mid - 1] + a[mid]) / 2;
+  };
+  for (const r of [2, 3]) {
+    const src = Float32Array.from(heights);
+    for (let y = 0; y < height; y += 1) {
+      let row = 0;
+      for (let x = 0; x < width; x += 1) {
+        row += src[(y * width) + x];
+        sat[((y + 1) * W1) + x + 1] = sat[(y * W1) + x + 1] + row;
+      }
+    }
+    const box = (x0, y0, x1, y1) => sat[((y1 + 1) * W1) + x1 + 1] - sat[(y0 * W1) + x1 + 1]
+      - sat[((y1 + 1) * W1) + x0] + sat[(y0 * W1) + x0];
+    const k = 8 * r;
+    const steep = 2.75 * r * metresPerPost;          // tan 70 deg x the ring's reach
+    for (let y = r; y < height - r; y += 1) {
+      for (let x = r; x < width - r; x += 1) {
+        const i = (y * width) + x;
+        const v = src[i];
+        if (!(v >= NO_DATA_BELOW)) continue;
+        const mean = (box(x - r, y - r, x + r, y + r) - box(x - r + 1, y - r + 1, x + r - 1, y + r - 1)) / k;
+        if (Math.abs(v - mean) <= Math.max(floor, steep) * 0.75) continue;
+        let n = 0;
+        for (let d = -r; d <= r; d += 1) {
+          ring[n++] = src[((y - r) * width) + x + d];
+          ring[n++] = src[((y + r) * width) + x + d];
+          if (d > -r && d < r) {
+            ring[n++] = src[((y + d) * width) + x - r];
+            ring[n++] = src[((y + d) * width) + x + r];
+          }
+        }
+        const m = median(ring, n);
+        if (Math.abs(v - m) <= Math.max(floor, steep)) continue;
+        for (let j = 0; j < n; j += 1) dev[j] = Math.abs(ring[j] - m);
+        const bound = Math.max(floor, steep, 4 * 1.4826 * median(dev, n));
+        if (Math.abs(v - m) > bound) { heights[i] = m; repaired += 1; }
+      }
+    }
+  }
+  return repaired;
+}
+
+/**
  * The exact bytes of a tile image, or null where the browser cannot say.
  *
  * `createImageBitmap` with colour conversion and premultiplication OFF is the
@@ -226,13 +301,16 @@ async function exactPixels(url, size) {
   return ctx.getImageData(0, 0, size, size).data;
 }
 
-function heightsFrom(data, size) {
+function heightsFrom(data, size, tile) {
   const heights = new Float32Array(size * size);
   for (let i = 0; i < heights.length; i += 1) {
     heights[i] = decodeTerrarium(data[i * 4], data[i * 4 + 1], data[i * 4 + 2]);
   }
   despike(heights, size, size);
   despikePoints(heights, size, size);
+  // The tile's post size at its middle latitude, for despikeClusters' slope limit.
+  const lat = tile ? Math.atan(Math.sinh(Math.PI * (1 - (2 * (tile.y + 0.5)) / (2 ** tile.z)))) * 180 / Math.PI : 0;
+  despikeClusters(heights, size, size, tile ? groundMetresPerPixel(tile.z, lat) : 0);
   return heights;
 }
 
@@ -459,7 +537,7 @@ function loadTile(tile, pin = false) {
         const ctx = canvas.getContext("2d", { willReadFrequently: true });
         ctx.imageSmoothingEnabled = false;
         ctx.drawImage(image, 0, 0, size, size);
-        resolve(keep(heightsFrom(ctx.getImageData(0, 0, size, size).data, size)));
+        resolve(keep(heightsFrom(ctx.getImageData(0, 0, size, size).data, size, tile)));
       } catch (error) {
         // A tainted canvas or a decode failure is a MISS, never a wrong height.
         resolve(null);
@@ -472,7 +550,7 @@ function loadTile(tile, pin = false) {
   const pending = exactPixels(urlFor(tile), size)
     .then((data) => {
       if (data?.missing) return null;
-      return data ? keep(heightsFrom(data, size)) : viaImage();
+      return data ? keep(heightsFrom(data, size, tile)) : viaImage();
     })
     .catch(() => viaImage())
     .finally(() => INFLIGHT.delete(key));

@@ -6,7 +6,7 @@
  * Run: node GeoID_GIS/viewer/gis/dem-tiles.test.mjs
  */
 
-import { decodeTerrarium, despike, despikePoints, POINT_SPIKE_M, sampleGrid, chooseZoom, groundMetresPerPixel,
+import { decodeTerrarium, despike, despikePoints, despikeClusters, POINT_SPIKE_M, sampleGrid, chooseZoom, groundMetresPerPixel,
   normaliseBounds, INFO_ZOOM, DESPIKE_M, TERRARIUM, coverFor, COVER_CEILING, planCover
 } from "./dem-tiles.js";
 import { tilesForBounds, mercatorTile } from "./mvt.js";
@@ -280,6 +280,38 @@ check("ensure reports what is still HELD, not only what arrived", () => {
   ok(/held: kept/.test(src) && /coverFor\(bounds, options\)/.test(src), "ensure must go through coverFor and count held tiles");
 });
 
+
+/* ── despikeClusters: side-by-side bad posts (Mýrdalsjökull, z12) ────────── */
+check("a cluster of bad posts is repaired; summits and cliffs are not", () => {
+  const N = 64;
+  // Gently rolling ground about 600 m.
+  const ground = () => Float32Array.from({ length: N * N }, (_, i) => 600 + 30 * Math.sin((i % N) / 7) + 20 * Math.cos(((i / N) | 0) / 9));
+  const g = ground();
+  // Katla's three: 5,409 / 2,798 / 2,045 m, side by side.
+  g[(30 * N) + 30] = 5409; g[(30 * N) + 31] = 2798; g[(31 * N) + 30] = 2045;
+  despikePoints(g, N, N);
+  ok(g[(30 * N) + 30] > 1500, "the 8-neighbour pass alone leaves the needle (the bug)");
+  despikeClusters(g, N, N, 17);                   // z12 at 63.5 N: 17 m a post
+  for (const i of [(30 * N) + 30, (30 * N) + 31, (31 * N) + 30]) near(g[i], 600, 80, `cluster post ${i}`);
+  // Real peaks keep their summits, a level ring round them: a 60 deg cone at
+  // z12 (17 m posts), and at z9 (300 m posts) a 45 deg one a post wide.
+  for (const [mpp, rise, label] of [[17, 17 * 1.73, "z12"], [300, 300, "z9"]]) {
+    const peak = ground();
+    for (let y = 0; y < N; y += 1) for (let x = 0; x < N; x += 1) {
+      peak[(y * N) + x] += Math.max(0, 2000 - rise * Math.hypot(x - 32, y - 32));
+    }
+    const top = peak[(32 * N) + 32];
+    eq(despikeClusters(peak, N, N, mpp), 0, `posts changed on a real ${label} summit`);
+    eq(peak[(32 * N) + 32], top, `the ${label} summit post`);
+  }
+  // A 700 m cliff: a step across the grid.
+  const cliff = Float32Array.from({ length: N * N }, (_, i) => ((i % N) < 32 ? 200 : 900));
+  eq(despikeClusters(cliff, N, N, 17), 0, "posts changed on a cliff");
+  // No-data is left to despikePoints.
+  const nd = ground(); nd[(10 * N) + 10] = -32768;
+  despikeClusters(nd, N, N, 17);
+  eq(nd[(10 * N) + 10], -32768, "a void is not this pass's to fill");
+});
 
 /* ── despikePoints: the fast version answers exactly as the sorting one ──── */
 check("despikePoints (fast) is identical to the sorting version, and faster", () => {
