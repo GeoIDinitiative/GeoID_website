@@ -17,12 +17,12 @@
  * The panel carries the same content as text for keyboard and screen
  * readers: the canvas is a picture, the lists are the content.
  */
-import * as api from "../api.js?v=20261026-0d92fc8";
-import { store } from "../store.js?v=20261026-0d92fc8";
-import { h, clear, input, select, errorBox, loading, put } from "../dom.js?v=20261026-0d92fc8";
-import { kindLabel, userChip, followButton, messageDialog, requireSignIn } from "../components.js?v=20261026-0d92fc8";
-import { createMap } from "../mapcore.js?v=20261026-0d92fc8";
-import { groupMarkers, placeLabels } from "../declutter.js?v=20261026-0d92fc8";
+import * as api from "../api.js?v=20261026-27b1bef";
+import { store } from "../store.js?v=20261026-27b1bef";
+import { h, clear, input, select, errorBox, loading, put } from "../dom.js?v=20261026-27b1bef";
+import { kindLabel, userChip, followButton, messageDialog, requireSignIn } from "../components.js?v=20261026-27b1bef";
+import { createMap } from "../mapcore.js?v=20261026-27b1bef";
+import { groupMarkers, placeLabels } from "../declutter.js?v=20261026-27b1bef";
 
 const CYAN = [0, 212, 192];
 const AMBER = [240, 176, 48];
