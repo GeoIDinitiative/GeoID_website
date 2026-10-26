@@ -9,9 +9,9 @@ export function render(root, { query }) {
     put(clear(root), h("h1", { class: "s-h1", text: "Moderation" }), empty("Sign in as a moderator to see reports."));
     return;
   }
-  const tab = ["audit", "closed", "imports"].includes(query.tab) ? query.tab : "open";
+  const tab = ["audit", "closed", "imports", "held"].includes(query.tab) ? query.tab : "open";
   const tabLink = (id, label) => h("a", { href: `#/mod?tab=${id}`, class: id === tab ? "is-active" : "", "aria-current": id === tab ? "page" : null }, label);
-  const body = tab === "imports" ? importsPanel() : tab === "audit"
+  const body = tab === "imports" ? importsPanel() : tab === "held" ? heldPanel() : tab === "audit"
     ? pagedList((cursor) => api.get("/v1/mod/audit", { cursor }), (a) => h("div", { class: "s-card s-audit" },
       h("p", {}, a.actor ? userChip(a.actor, { sub: false }) : h("span", { text: "system" }), " ", h("strong", {}, a.action), ` ${a.ref_type || ""} ${a.ref_id || ""}`),
       a.detail ? h("pre", { class: "s-pre" }, JSON.stringify(a.detail, null, 2)) : null, timeEl(a.created_at, true)),
@@ -21,6 +21,7 @@ export function render(root, { query }) {
   put(clear(root), h("h1", { class: "s-h1", text: "Moderation" }),
     h("p", { class: "s-muted", text: "Every action here is recorded in the audit log and the author is notified. Reading reported private content is logged too." }),
     h("nav", { class: "s-tabs", "aria-label": "Moderation" }, tabLink("open", "Open reports"), tabLink("closed", "Closed"), store.me.admin ? tabLink("audit", "Audit log") : null,
+      store.me.admin ? tabLink("held", "Held opportunities") : null,
       store.me.admin ? tabLink("imports", "Imported listings") : null),
     body);
 }
@@ -30,7 +31,9 @@ function reportCard(r, open) {
   const card = h("article", { class: "s-card s-report" },
     h("header", { class: "s-card-head" },
       h("span", {}, h("strong", {}, r.kind === "appeal" ? "Appeal" : "Report"), `: ${r.reason || "no reason"} · ${r.target_type} `),
-      timeEl(r.created_at)),
+      timeEl(r.created_at),
+      open && r.due_at ? h("span", { class: r.overdue ? "s-vis s-overdue" : "s-vis", title: "The response time the code of conduct promises" },
+        r.overdue ? `Overdue since ${new Date(r.due_at * 1000).toLocaleString()}` : `Answer by ${new Date(r.due_at * 1000).toLocaleString()}`) : null),
     r.reporter ? h("p", { class: "s-hint" }, "Reported by ", userChip(r.reporter, { sub: false })) : null,
     r.note ? h("blockquote", { class: "s-quote", text: r.note }) : null,
     h("div", { class: "s-report-target" },
@@ -119,3 +122,27 @@ function importsPanel() {
   load();
   return box;
 }
+
+// ── Held opportunities (trust.js) ──────────────────────────────────────────
+
+/** Opportunities that read like recruitment scams, from new accounts: publish or reject. */
+function heldPanel() {
+  const box = h("div", {}, h("p", { class: "s-muted", text: "Loading…" }));
+  const load = () => api.get("/v1/mod/held").then((d) => {
+    const items = d.items || [];
+    put(clear(box), h("p", { class: "s-muted", text: "Opportunities held because they read like recruitment scams and came from a new or unverified account. They stay private to their author until you decide." }),
+      items.length ? items.map((p) => {
+        const note = input("note", { placeholder: "Reason, sent to the author if you reject" });
+        return h("article", { class: "s-card s-report" },
+          h("p", { class: "s-labels" }, h("span", { class: "s-kind", text: "Held" }), h("span", { class: "s-vis", text: p.held_reasons })),
+          h("p", {}, h("strong", { text: p.title })), userChip(p.author),
+          h("p", { class: "s-muted", text: String(p.body || "").slice(0, 1200) }),
+          h("div", { class: "s-actions" }, note,
+            h("button", { type: "button", class: "btn-primary s-btn-sm", onClick: () => act(async () => { await api.post(`/v1/mod/held/${encodeURIComponent(p.id)}`, { approve: true }); toast(`Published as ${p.wanted}.`); load(); }) }, "Publish"),
+            h("button", { type: "button", class: "btn-ghost s-btn-sm s-danger", onClick: () => act(async () => { await api.post(`/v1/mod/held/${encodeURIComponent(p.id)}`, { approve: false, note: note.value }); toast("Rejected."); load(); }) }, "Reject")));
+      }) : empty("Nothing held.", "Opportunities that look like scams from new accounts wait here."));
+  }).catch((error) => put(clear(box), h("p", { class: "s-error", text: error.message })));
+  load();
+  return box;
+}
+

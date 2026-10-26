@@ -9,6 +9,7 @@
  * Nothing is deleted: remove sets removed_at, restore clears it, so a wrong
  * call can be undone and the record of it stays.
  */
+import { dueAt } from "./trust.js";
 import {
   fail, now, id, str, oneOf, int, requireUser, rateLimit, notify, audit, isAdmin, usersById, userByHandle,
   publicUser, publicPost, canSeePost, parse,
@@ -161,6 +162,8 @@ async function queue(ctx) {
       status: r.status, resolution: r.resolution, reporter: people[r.reporter_id] || null,
       handled_by: people[r.handled_by] || null, created_at: r.created_at, handled_at: r.handled_at,
       target: target ? target.content : null,
+      // The response target for this reason (trust.js RESPONSE_HOURS), published in the code of conduct.
+      due_at: dueAt(r), overdue: r.status === "open" && dueAt(r) < now(),
     });
   }
   if (items.length) await audit(env, user.id, "mod.read", "reports", status, { reports: items.map((i) => i.id) });

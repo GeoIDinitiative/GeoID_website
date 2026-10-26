@@ -1230,3 +1230,18 @@ a.s-stat:focus-visible, button.s-stat:focus-visible { color: var(--text); outlin
 /* A pressed RSVP button: dark text on the accent, not white (2.85:1). */
 .s-rsvp .s-act.is-on, .s-rsvp .s-act[aria-pressed="true"] { color: #14001f !important; }
 #device select { max-width: 30rem; }
+
+/* Reach, verified employers, held posts, the public badge. */
+.s-reach-stats { display: grid; grid-template-columns: repeat(auto-fill, minmax(7rem, 1fr)); gap: 0.6rem; margin: 0.4rem 0 0.8rem; }
+.s-reach-stats div { padding: 0.5rem 0.7rem; border: 1px solid var(--line); border-radius: 10px; }
+.s-reach-stats dt { font-size: 0.78rem; color: var(--muted); }
+.s-reach-stats dd { margin: 0; font-size: 1.25rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+.s-reach .s-spark { max-width: 300px; height: 40px; color: var(--accent); }
+.s-held { border-left-color: #f0b030; background: rgba(240, 176, 48, 0.08); }
+.s-overdue { color: #ffb0b0; border-color: #ff5d5d; }
+.s-badge-preview { display: block; max-width: 100%; height: auto; margin: 0.6rem 0; border-radius: 12px; }
+.s-snippet { display: grid; grid-template-columns: 11rem 1fr auto; gap: 0.6rem; align-items: center; margin: 0.4rem 0; }
+.s-snippet code { overflow-x: auto; white-space: nowrap; font-size: 0.78rem; padding: 0.35rem 0.5rem; border: 1px solid var(--line); border-radius: 8px; }
+@media (max-width: 720px) { .s-snippet { grid-template-columns: 1fr; } }
+.s-conduct { max-width: 46rem; }
+.s-conduct .s-table th { text-align: right; white-space: nowrap; }

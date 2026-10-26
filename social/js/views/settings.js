@@ -1,7 +1,7 @@
 /** #/settings — privacy, contact, matcher, notifications, follows, blocks, and your data. */
 import * as api from "../api.js?v=20261025-794b342";
 import { store, refreshMe, myHandle } from "../store.js?v=20261025-794b342";
-import { h, clear, field, input, select, checkbox, toast, busy, errorBox, loading, empty, modal, put, confirmDialog } from "../dom.js?v=20261025-794b342";
+import { h, clear, field, input, select, checkbox, toast, busy, errorBox, loading, empty, modal, put, confirmDialog, copyText } from "../dom.js?v=20261025-794b342";
 import { act, userChip, requireSignIn, sharePageUrl } from "../components.js?v=20261025-794b342";
 import { sizeText } from "../files.js?v=20261025-794b342";
 import { myAffiliations } from "./orgs.js?v=20261025-794b342";
@@ -90,7 +90,7 @@ export function render(root, { query = {} } = {}) {
 
   put(clear(root), h("h1", { class: "s-h1", text: "Settings" }),
     h("p", { class: "s-muted" }, "Your public profile is edited on ", h("a", { href: `#/u/${encodeURIComponent(u.handle)}?edit=1` }, "your profile page"), "."),
-    form, deviceSection(), identitySection(query), searchesSection(), storageSection(), zenodoSection(query), following, blocked, yourData());
+    form, publicSection(u), deviceSection(), identitySection(query), searchesSection(), storageSection(), zenodoSection(query), following, blocked, yourData());
 }
 
 // ── Identity & institutions track ──────────────────────────────────────────
@@ -280,6 +280,30 @@ function emailFieldset() {
       state = await api.patch("/v1/me/mail", { digest: mode !== "off", immediate, weekly: !!weekly?.querySelector("input").checked });
     },
   };
+}
+
+// ── Your public profile, carried elsewhere ────────────────────────────────
+
+/** For members with a public profile: the badge for a CV or lab page, and where they're listed. */
+function publicSection(u) {
+  const sec = h("section", { class: "s-section", id: "public", "aria-labelledby": "pub-h" }, h("h2", { class: "s-h2", id: "pub-h", text: "Your public profile" }));
+  if (!u.public_profile) {
+    return put(sec, h("p", { class: "s-muted", text: "Tick “Let search engines and link previews show my profile” above and save, and you get a public page, an embeddable badge, and a place in the public directory for your fields." }));
+  }
+  const base = api.base();
+  const page = `${base}/s/u/${encodeURIComponent(u.handle)}`;
+  const img = `${base}/s/badge/${encodeURIComponent(u.handle)}.svg`;
+  const htmlSnip = `<a href="${page}"><img src="${img}" alt="${(u.name || u.handle).replace(/"/g, "")} on GeoID Network" width="420" height="96"></a>`;
+  const mdSnip = `[![${u.name || u.handle} on GeoID Network](${img})](${page})`;
+  const snippet = (label, text) => h("div", { class: "s-snippet" }, h("span", { class: "s-label", text: label }),
+    h("code", { text }), h("button", { type: "button", class: "btn-ghost s-btn-sm", onClick: () => copyText(text, "Copied") }, "Copy"));
+  const badge = h("img", { src: img, alt: `${u.name || u.handle} on GeoID Network`, width: "420", height: "96", class: "s-badge-preview" });
+  return put(sec,
+    h("p", { class: "s-muted" }, "Your public page: ", h("a", { href: page, target: "_blank", rel: "noopener noreferrer" }, page.replace(/^https?:\/\//, ""))),
+    badge,
+    snippet("For a web page", htmlSnip), snippet("For a README or Markdown CV", mdSnip),
+    (u.interests || []).length ? h("p", { class: "s-hint" }, "You're listed in the public directory under ",
+      (u.interests || []).slice(0, 6).map((t, i) => [i ? ", " : "", h("a", { href: `#/people?directory=${encodeURIComponent(t)}` }, t)]), ".") : null);
 }
 
 // ── This device ────────────────────────────────────────────────────────────

@@ -14,6 +14,7 @@ async function world() {
   return env;
 }
 const json = (data) => new Response(JSON.stringify(data), { headers: { "content-type": "application/json" } });
+const textOf = (r) => (typeof r.body === "string" ? r.body : new TextDecoder().decode(r.body));
 
 // ── Event rooms ──────────────────────────────────────────────────────────────
 
@@ -291,4 +292,65 @@ test("push: a notification sends an empty, VAPID-signed push to each of the memb
   const left = await env.DB.prepare("SELECT endpoint FROM push_subscriptions").all();
   assert.deepEqual(left.results.map((r) => r.endpoint), ["https://fcm.googleapis.com/fcm/send/abc"], "the 410 one is dropped");
   assert.ok(typeof vapidJwt === "function");
+});
+
+// ── Reach and visibility ────────────────────────────────────────────────────
+
+test("reach: views once per reader per day (never the author's), link visits from people not bots, shares; only the author sees them", async () => {
+  const env = await world();
+  const p = (await call(env, "POST", "/v1/posts", { as: ANA, body: { title: "Ash plume heights", body: "Webcam and radar.", visibility: "public" } })).body;
+  await call(env, "POST", `/v1/posts/${p.id}/seen`, { as: ANA });
+  await call(env, "POST", `/v1/posts/${p.id}/seen`, { as: BEN });
+  await call(env, "POST", `/v1/posts/${p.id}/seen`, { as: BEN });
+  await call(env, "POST", `/v1/posts/${p.id}/seen`, { as: ADMIN });
+  await call(env, "POST", `/v1/posts/${p.id}/shared`, { as: BEN });
+  await call(env, "GET", `/s/p/${p.id}`, { headers: { "user-agent": "Mozilla/5.0 (Windows NT 10.0) Chrome/130" } });
+  await call(env, "GET", `/s/p/${p.id}`, { headers: { "user-agent": "Slackbot-LinkExpanding 1.0" } });
+  assert.equal((await call(env, "GET", `/v1/posts/${p.id}/reach`, { as: BEN })).status, 404, "the author's only");
+  const r = await call(env, "GET", `/v1/posts/${p.id}/reach`, { as: ANA });
+  assert.deepEqual([r.body.total.views, r.body.total.shares, r.body.total.link_visits], [2, 1, 1]);
+  assert.equal(r.body.last_30_days.length, 30);
+});
+
+test("visibility: a badge and a directory for members who chose a public profile, and nobody else", async () => {
+  const env = await world();
+  await call(env, "PATCH", "/v1/me", { as: ANA, body: { headline: "Volcano geodesist", interests: ["volcanology"], public_profile: true } });
+  await call(env, "PATCH", "/v1/me", { as: BEN, body: { interests: ["volcanology"] } });
+  const b = await call(env, "GET", "/s/badge/ana.svg");
+  assert.match(textOf(b), /Ana Reyes/);
+  assert.match(textOf(b), /Volcano geodesist/);
+  assert.match(textOf(b), /^<svg/);
+  assert.match(textOf(await call(env, "GET", "/s/badge/ben.svg")), /isn&#39;t public/);
+  const dir = await call(env, "GET", "/v1/directory?field=volcanology");
+  assert.deepEqual(dir.body.items.map((u) => u.handle), ["ana"]);
+  const page = await call(env, "GET", "/s/people/volcanology");
+  assert.match(textOf(page), /Ana Reyes/);
+  assert.doesNotMatch(textOf(page), /Ben Cole/);
+});
+
+// ── Trust ────────────────────────────────────────────────────────────────────
+
+test("trust: a scam-shaped opportunity from a new account waits for a moderator; ordinary ones don't; reports carry a due time", async () => {
+  const env = await world();
+  const scam = await call(env, "POST", "/v1/posts", { as: BEN, body: { kind: "opportunity", title: "Remote geologist, earn $500 per day",
+    body: "Contact us on WhatsApp. A registration fee of $50 secures your place.", visibility: "public" } });
+  assert.equal(scam.status, 200);
+  assert.equal(scam.body.visibility, "private");
+  assert.match(scam.body.held.reasons, /chat app/);
+  assert.equal((await call(env, "GET", `/v1/posts/${scam.body.id}`, { as: ANA })).status, 404, "nobody else sees it yet");
+  const fine = await call(env, "POST", "/v1/posts", { as: ANA, body: { kind: "opportunity", title: "Field assistant, Etna", body: "Two weeks in June; travel paid.", visibility: "public" } });
+  assert.equal(fine.body.visibility, "public");
+  assert.equal(fine.body.held, null);
+  assert.equal((await call(env, "GET", "/v1/mod/held", { as: ANA })).status, 403);
+  const q = await call(env, "GET", "/v1/mod/held", { as: ADMIN });
+  assert.equal(q.body.items[0].id, scam.body.id);
+  assert.equal(q.body.items[0].wanted, "public");
+  await call(env, "POST", `/v1/mod/held/${scam.body.id}`, { as: ADMIN, body: { approve: false, note: "Asks for a fee." } });
+  assert.equal((await call(env, "GET", `/v1/posts/${scam.body.id}`, { as: BEN })).status, 404, "rejected is removed");
+  // Reports show when they are due.
+  await call(env, "POST", "/v1/reports", { as: BEN, body: { target_type: "post", target_id: fine.body.id, reason: "harassment" } });
+  const reports = await call(env, "GET", "/v1/mod/reports?status=open", { as: ADMIN });
+  const rep = reports.body.items[0];
+  assert.equal(rep.due_at - rep.created_at, 24 * 3600);
+  assert.equal(rep.overdue, false);
 });

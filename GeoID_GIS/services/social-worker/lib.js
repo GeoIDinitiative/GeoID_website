@@ -466,6 +466,8 @@ export function publicPost(env, row, authors = {}, extra = {}) {
     community_id: row.community_id,
     project_id: row.project_id,
     room_id: row.room_id || null,
+    // Waiting for a moderator (trust.js); only its author can see it then.
+    held: row.held_at ? { since: row.held_at, reasons: row.held_reasons } : null,
     allow_fork: !!row.allow_fork,
     forked_from: row.forked_from,
     sponsored_by: row.sponsored_by,

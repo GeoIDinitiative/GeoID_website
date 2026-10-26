@@ -23,6 +23,7 @@ import { cleanContentMeta } from "./content.js";
 import { reshareRows, mergeWithReshares, reshareLines, viewerReshared } from "./reposts.js";
 import { roomForPost } from "./rooms.js";
 import { applyJobFilters, queryFromParams } from "./jobs.js";
+import { holdReasons, hold } from "./trust.js";
 
 export const KINDS = ["text", "scene", "analysis", "monitor", "observation", "workflow", "dataset", "paper",
   "question", "discussion", "event", "opportunity", "challenge", "model", "repo"];
@@ -381,12 +382,12 @@ async function postFields(env, user, body, base) {
 const POST_COLUMNS = ["id", "author_id", "kind", "title", "body", "tags_json", "lat", "lon", "loc_precision",
   "place_name", "world", "scene_json", "media_json", "links_json", "licence", "provenance", "sources_json",
   "method_json", "limitations", "meta_json", "visibility", "team_id", "community_id", "project_id",
-  "allow_fork", "forked_from", "sponsored_by", "room_id", "created_at", "updated_at"];
+  "allow_fork", "forked_from", "sponsored_by", "room_id", "held_at", "held_reasons", "created_at", "updated_at"];
 
 export function insertStatements(DB, row) {
   const out = [DB.prepare(
     `INSERT INTO posts (${POST_COLUMNS.join(", ")}) VALUES (${POST_COLUMNS.map(() => "?").join(", ")})`,
-  ).bind(...POST_COLUMNS.map((c) => row[c] ?? null))];
+  ).bind(...POST_COLUMNS.map((c) => row[c] ?? (c === "held_reasons" ? "" : null)))];
   for (const tag of parse(row.tags_json, [])) {
     out.push(DB.prepare("INSERT OR IGNORE INTO post_tags (post_id, tag) VALUES (?, ?)").bind(row.id, tag));
   }
@@ -454,6 +455,10 @@ export async function shapePosts(env, viewer, rows) {
       viewer.id, ...authorIds)).map((r) => r.target_id));
   }
   const reshared = await viewerReshared(env, viewer, ids);
+  // Posted as an organisation: is it a verified one? (a verified employer, on opportunities)
+  const orgIds = [...new Set(rows.map((r) => r.org_id).filter(Boolean))];
+  const verifiedOrgs = new Set(orgIds.length ? ((await env.DB.prepare(
+    `SELECT id FROM orgs WHERE verified = 1 AND removed_at IS NULL AND id IN (${inList(orgIds.length)})`).bind(...orgIds).all()).results || []).map((r) => r.id) : []);
   return rows.map((row) => {
     const extra = {};
     if (viewer) {
@@ -466,7 +471,9 @@ export async function shapePosts(env, viewer, rows) {
       };
     }
     if (row.kind === "observation") extra.verification = verification[row.id];
-    return publicPost(env, row, authors, extra);
+    const shaped = publicPost(env, row, authors, extra);
+    if (shaped.org) shaped.org.verified = verifiedOrgs.has(row.org_id);
+    return shaped;
   });
 }
 
@@ -507,7 +514,10 @@ async function createPost(ctx) {
   const body = await readJson(ctx.request);
   const fields = await postFields(env, user, body, null);
   const t = now();
-  const row = { ...fields, id: id("p"), author_id: user.id, forked_from: null, created_at: t, updated_at: t };
+  let row = { ...fields, id: id("p"), author_id: user.id, forked_from: null, created_at: t, updated_at: t };
+  // A likely recruitment scam waits for a moderator (trust.js).
+  const reasons = await holdReasons(env, user, row, { org: ctx._org || null, t });
+  if (reasons.length) row = hold(row, reasons, t);
   await env.DB.batch(insertStatements(env.DB, row));
   if (row.room_id && row.visibility === "public") await tellRoomFollowers(env, user, row);
   const saved = await loadPost(env, row.id);
@@ -529,6 +539,13 @@ async function patchPost(ctx) {
   if (post.author_id !== user.id) fail(403, "Only the author can edit this post.");
   const body = await readJson(ctx.request);
   const fields = await postFields(env, user, body, post);
+  // A held post stays private until a moderator decides; what the author asks for is remembered.
+  if (post.held_at && fields.visibility !== undefined) {
+    const meta = parse(fields.meta_json ?? post.meta_json, {});
+    meta.held_visibility = fields.visibility;
+    fields.meta_json = JSON.stringify(meta);
+    fields.visibility = "private";
+  }
   fields.updated_at = now();
   const cols = Object.keys(fields);
   const statements = [env.DB.prepare(`UPDATE posts SET ${cols.map((c) => `${c} = ?`).join(", ")} WHERE id = ?`)

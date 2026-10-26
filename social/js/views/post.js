@@ -36,6 +36,7 @@ export async function render(root, { params, query }) {
           p.kind === "observation" ? verificationBadge(p.verification) : null,
           p.visibility !== "public" ? h("span", { class: "s-vis", text: VISIBILITY[p.visibility] || p.visibility }) : null,
           p.sponsored_by ? h("span", { class: "s-sponsor", text: `Sponsored by ${p.sponsored_by}` }) : null,
+          p.kind === "opportunity" && p.org?.verified ? h("span", { class: "s-verified", title: "Posted by a verified organisation on GeoID Network", text: `Verified employer · ${p.org.name}` }) : null,
           importedBadge(p),
           p.forked_from ? h("a", { class: "s-vis", href: `#/post/${encodeURIComponent(p.forked_from)}` }, "Forked from another post") : null),
         h("h1", { class: "s-h1", text: p.title || kindLabel(p.kind) }),
@@ -43,6 +44,8 @@ export async function render(root, { params, query }) {
           h("span", { class: "s-muted" }, timeEl(p.created_at, true),
             p.updated_at && p.updated_at > p.created_at + 60 ? h("span", {}, " · edited ", timeEl(p.updated_at)) : null),
           store.me && !mine && p.author ? followButton("user", p.author.handle, p.viewer?.following_author, "author") : null)),
+      p.held && mine ? h("p", { class: "s-banner s-held" }, h("strong", { text: "Waiting for a moderator. " }),
+        `Only you can see this opportunity until it is checked (${p.held.reasons}). Most are checked within a day.`) : null,
       body(p),
       mediaBlock(p),
       kindBlock(p),
@@ -54,6 +57,12 @@ export async function render(root, { params, query }) {
       actionBar(p, mine, () => comments.querySelector("textarea")?.focus())),
     comments);
   loadComments(comments, p, mine);
+  // A view, once per post per tab session (the server counts each reader once a day, never the author).
+  try {
+    const k = `geoid:seen:${p.id}`;
+    if (store.me && !mine && !sessionStorage.getItem(k)) { sessionStorage.setItem(k, "1"); api.post(`/v1/posts/${encodeURIComponent(p.id)}/seen`, {}).catch(() => {}); }
+  } catch (error) { /* storage off: the count can miss a view */ }
+  if (mine) comments.before(reachPanel(p));
   // A card's comment count links here with ?focus=comments: land on the thread
   // (after the router's own scroll to the top).
   if (query?.focus === "comments") setTimeout(() => comments.scrollIntoView({ block: "start" }), 0);
@@ -293,7 +302,10 @@ function actionBar(p, mine, focusComment) {
     p.visibility === "public" && store.me && !mine ? h("button", { type: "button", class: "s-act", onClick: () => quoteDialog(p) }, "Quote") : null,
     h("button", { type: "button", class: "s-act", onClick: () => (store.me ? sendPostDialog(p) : requireSignIn("send posts")) }, "Send to…"),
     // A public post shares its preview page (title, summary and card on any site); others the app link.
-    h("button", { type: "button", class: "s-act", onClick: () => share(p.visibility === "public" ? sharePageUrl("p", p.id) : postUrl(p.id), p.title || "GeoID Network") }, "Share link"),
+    h("button", { type: "button", class: "s-act", onClick: () => {
+      api.post(`/v1/posts/${encodeURIComponent(p.id)}/shared`, {}).catch(() => {});
+      share(p.visibility === "public" ? sharePageUrl("p", p.id) : postUrl(p.id), p.title || "GeoID Network");
+    } }, "Share link"),
     h("button", { type: "button", class: "s-act", onClick: () => citeDialog(p.id) }, "Cite"));
   // Collaboration track: ask specialists for help with (or about) this post.
   put(bar, h("a", { class: "s-act", href: `#/requests?new=1&post=${encodeURIComponent(p.id)}` }, "Ask for help…"));
@@ -494,3 +506,30 @@ async function zenodoDialog(p) {
         h("button", { type: "button", class: "btn-ghost", onClick: () => go(true) }, "Publish with a DOI")));
   });
 }
+
+/** The author's own view of a post's reach: counts only, never who. */
+function reachPanel(p) {
+  const box = h("section", { class: "s-section s-reach", "aria-labelledby": "reach-h" }, h("h2", { class: "s-h3", id: "reach-h", text: "Reach (only you see this)" }));
+  api.get(`/v1/posts/${encodeURIComponent(p.id)}/reach`).then((r) => {
+    const t = r.total || {};
+    const max = Math.max(1, ...r.last_30_days.map((d) => d.views + d.link_visits));
+    const W = 300, H = 40;
+    const pts = r.last_30_days.map((d, i) => `${(i / 29) * W},${H - ((d.views + d.link_visits) / max) * (H - 4) - 2}`).join(" ");
+    put(box,
+      h("dl", { class: "s-reach-stats" }, [["Views", t.views], ["Link visits", t.link_visits], ["Shares", t.shares], ["Saves", t.saves],
+        ["Reshares", t.reshares], ["Reactions", t.reactions], ["Comments", t.comments]].map(([k, v]) => h("div", {}, h("dt", { text: k }), h("dd", { text: String(v || 0) })))),
+      (() => {
+        const ns = "http://www.w3.org/2000/svg";
+        const svg = document.createElementNS(ns, "svg");
+        svg.setAttribute("viewBox", `0 0 ${W} ${H}`); svg.setAttribute("class", "s-spark"); svg.setAttribute("role", "img");
+        svg.setAttribute("aria-label", "Views and link visits over the last 30 days");
+        const line = document.createElementNS(ns, "polyline");
+        line.setAttribute("points", pts); line.setAttribute("fill", "none"); line.setAttribute("stroke", "currentColor"); line.setAttribute("stroke-width", "2");
+        svg.append(line);
+        return svg;
+      })(),
+      h("p", { class: "s-hint", text: "Views count signed-in readers once a day; link visits are people opening its share link elsewhere (link previews aren't counted)." }));
+  }).catch(() => box.remove());
+  return box;
+}
+

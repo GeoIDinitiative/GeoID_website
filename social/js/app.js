@@ -29,6 +29,7 @@ import * as mod from "./views/mod.js?v=20261025-794b342";
 import * as settings from "./views/settings.js?v=20261025-794b342";
 import * as rooms from "./views/rooms.js?v=20261025-794b342";
 import * as rounds from "./views/rounds.js?v=20261025-794b342";
+import * as conduct from "./views/conduct.js?v=20261025-794b342";
 import { isLite, registerWorker } from "./device.js?v=20261025-794b342";
 import * as orgs from "./views/orgs.js?v=20261025-794b342";
 import * as onboarding from "./views/onboarding.js?v=20261025-794b342";
@@ -55,6 +56,7 @@ const ROUTES = [
   ["/reviews/new", reviews.renderNew, "Request a review"],
   ["/r/:id", reviews.renderOne, "Review"],
   ["/rounds", rounds.renderList, "Feedback rounds"],
+  ["/conduct", conduct.render, "Code of conduct"],
   ["/u/:handle/record", rounds.renderRecord, "Reviewer record"],
   ["/messages", inbox.renderMessages, "Messages"],
   ["/messages/:id", inbox.renderConversation, "Messages"],

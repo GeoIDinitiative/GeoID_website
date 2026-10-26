@@ -547,6 +547,7 @@ async function postAsOrg(ctx) {
     ...ctx,
     params: {},
     _user: user,
+    _org: org,
     request: new Request(ctx.request.url, {
       method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ ...b, kind, meta }),
     }),
