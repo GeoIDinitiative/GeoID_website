@@ -1,12 +1,12 @@
-import { compileScalar } from "../field-calculator.js?v=20261026-4a041f9";
-import { wire, wirePattern } from "./spec-page.js?v=20261026-4a041f9";
-import * as store from "./project-store.js?v=20261026-4a041f9";
-import * as bridge from "./bridge.js?v=20261026-4a041f9";
-import * as dsp from "./dsp.js?v=20261026-4a041f9";
-import * as stats from "./stats.js?v=20261026-4a041f9";
-import { linePlot } from "./plot.js?v=20261026-4a041f9";
-import { parseTable, column } from "./table.js?v=20261026-4a041f9";
-import { findTables, loadTable, saveTable, saveFigure } from "./pages/common.js?v=20261026-4a041f9";
+import { compileScalar } from "../field-calculator.js?v=20261026-29486bd";
+import { wire, wirePattern } from "./spec-page.js?v=20261026-29486bd";
+import * as store from "./project-store.js?v=20261026-29486bd";
+import * as bridge from "./bridge.js?v=20261026-29486bd";
+import * as dsp from "./dsp.js?v=20261026-29486bd";
+import * as stats from "./stats.js?v=20261026-29486bd";
+import { linePlot } from "./plot.js?v=20261026-29486bd";
+import { parseTable, column } from "./table.js?v=20261026-29486bd";
+import { findTables, loadTable, saveTable, saveFigure } from "./pages/common.js?v=20261026-29486bd";
 
 /**
  * The rest of the spec's controls.
@@ -761,7 +761,7 @@ wire("Preprocessing Transforms", {
     const { path, table } = await firstTable();
     const { latAt, lonAt } = coordinateColumns(table);
     if (latAt < 0 || lonAt < 0) throw new Error("No latitude/longitude columns to transform.");
-    const projection = await import(`../projection.js?v=20261026-4a041f9`);
+    const projection = await import(`../projection.js?v=20261026-29486bd`);
     const zones = new Set();
     let projected = 0;
     const rows = table.rows.map((r) => {
@@ -1095,7 +1095,7 @@ wire("Post Processing", {
  */
 wire("Storyboard", {
   "AI Outline": async ({ say }) => {
-    const sidecar = await import("./sidecar.js?v=20261026-4a041f9");
+    const sidecar = await import("./sidecar.js?v=20261026-29486bd");
     if (!sidecar.isConnected()) {
       throw new Error("This drafts with your own model through the sidecar — "
         + "connect it in Settings ▸ Sidecar first.");
