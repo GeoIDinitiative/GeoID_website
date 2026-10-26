@@ -8,6 +8,7 @@
  */
 
 import { decodeLayer, rings, polygons, clipRing, ringArea } from "../game/mvt.js?v=1";
+import { tileId, parseDirectory, gapFill } from "../game/overture.js?v=1";
 import { extrudeTile, pitched, inflateBy, inflateRing, monumentForm, STYLE_STONE, STYLE_CHURCH } from "../game/extrude.js?v=9";
 import { clipLine, pointInRing, fitWheel, scatterTrees } from "../game/structures.js?v=2";
 import { extrudeCanopy, crownHeight, CANOPY_KINDS } from "../game/canopy.js?v=2";
@@ -396,6 +397,36 @@ check("a church nave gets a steep gable at any size", pitched([[0, 0], [60, 0], 
   const tops = new Set(); for (let i = 1; i < ml.position.length; i += 3) tops.add(Math.round(ml.position[i] * 100) / 100);
   check("a 5 m part inside a stadium is the stadium's, drawn plain", ml.landmarks === 1 && ml.style.every((v) => v === 127), String(ml.landmarks));
   check("...and flat-topped (only parts from 8 m are raked)", Math.max(...tops) === 5, JSON.stringify([...tops]));
+}
+
+// Overture gap-fill (overture.js). PMTiles ids from the spec's examples.
+check("PMTiles tile ids", tileId(0, 0, 0) === 0 && tileId(1, 0, 0) === 1 && tileId(1, 0, 1) === 2
+  && tileId(1, 1, 1) === 3 && tileId(1, 1, 0) === 4 && tileId(2, 0, 0) === 5, [tileId(1, 0, 1), tileId(1, 1, 0)].join());
+{
+  // Two entries: ids 3 then 7, runs 1/0 (a leaf), lengths 10/20, offsets 0 then "follows on" (0).
+  const d = parseDirectory(Uint8Array.from([2, 3, 4, 1, 0, 10, 20, 1, 0]));
+  check("PMTiles directory: deltas, runs, lengths, follow-on offsets",
+    d.length === 2 && d[1].id === 7 && d[1].run === 0 && d[1].off === 10 && d[0].len === 10, JSON.stringify(d));
+  // An offset past 2^32 (the archive is ~180 GB) survives the varint.
+  const big = parseDirectory(Uint8Array.from([1, 1, 1, 5, 0x81, 0x80, 0x80, 0x80, 0x80, 0x01]));
+  check("PMTiles offsets past 2^32", big[0].off === 2 ** 35, String(big[0].off));
+}
+{
+  const sq = (x, y, w, props) => ({ id: 0, type: 3, props, geometry: geom([[[x, y], [x + w, y], [x + w, y + w], [x, y + w]]]) });
+  const osm = { extent: 4096, features: [sq(100, 100, 60, { render_height: 5 })] };
+  const ov = { extent: 4096, features: [
+    sq(105, 105, 50, { "@geometry_source": "Microsoft ML Buildings", height: 6 }),   // the OSM house again
+    sq(80, 80, 100, { "@geometry_source": "Microsoft ML Buildings" }),             // around it, its centre inside
+    sq(400, 400, 40, { "@geometry_source": "Microsoft ML Buildings", height: 7.5 }), // unmapped: kept
+    sq(600, 600, 40, { "@geometry_source": "OpenStreetMap", height: 9 }),           // OSM via Overture: never
+    sq(800, 800, 6, { "@geometry_source": "Microsoft ML Buildings" }),              // a 2 m sliver
+    sq(1000, 1000, 40, { "@geometry_source": "Microsoft ML Buildings", height: 1 }),  // implausible height
+  ] };
+  const got = gapFill(osm, ov, 0.37);
+  check("gap-fill keeps only unmapped machine-traced buildings", got.length === 2, String(got.length));
+  check("...with their own height, or 5 m where it is implausible",
+    got[0].props.render_height === 7.5 && got[1].props.render_height === 5, JSON.stringify(got.map((f) => f.props)));
+  check("...and nothing from a missing tile", gapFill(osm, null, 0.37).length === 0);
 }
 
 process.exit(failed ? 1 : 0);

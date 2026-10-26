@@ -8,15 +8,46 @@
 import { ShapeUtils, Vector2 } from "../../../everest/vendor/three.module.js?v=84ebb99-a7f30c15";
 import { decodeLayer } from "./mvt.js?v=1";
 import { extrudeTile } from "./extrude.js?v=10";
+import { overtureTile, gapFill } from "./overture.js?v=1";
 
 // three's earcut wrapper wants Vector2s (it calls .equals on them).
 const v2 = (pts) => pts.map((p) => new Vector2(p.x, p.y));
 const triangulate = (c, h) => ShapeUtils.triangulateShape(v2(c), h.map(v2));
 
-self.onmessage = (e) => {
+// The Overture gap-fill waits at most this long; past it the tile is drawn
+// from OSM alone rather than held back.
+const GAP_FILL_MS = 4000;
+// Started by a `prefetch` message as the page begins fetching the OSM tile,
+// so the two downloads overlap instead of queueing.
+const early = new Map();
+function overtureFor(x, y) {
+  const k = x + "/" + y;
+  let p = early.get(k);
+  if (!p) {
+    p = overtureTile(14, x, y).catch(() => null);
+    early.set(k, p);
+    if (early.size > 96) early.delete(early.keys().next().value);
+  }
+  return p;
+}
+async function machineTraced(origin) {
+  const [x, y] = origin || [];
+  if (!Number.isFinite(x)) return null;
+  const tile = overtureFor(x, y);
+  const late = new Promise((r) => setTimeout(() => r(null), GAP_FILL_MS));
+  const bytes = await Promise.race([tile, late]);
+  early.delete(x + "/" + y);
+  return bytes ? decodeLayer(bytes, "building") : null;
+}
+
+self.onmessage = async (e) => {
+  if (e.data.prefetch) { overtureFor(...e.data.prefetch); return; }
   const { id, buf, dem, demSize, sizeLocal, origin } = e.data;
   try {
     const layer = decodeLayer(buf, "building") || { extent: 4096, features: [] };
+    // Buildings OSM has not traced, from Microsoft's footprints (overture.js).
+    const ml = gapFill(layer, await machineTraced(origin), sizeLocal / (layer.extent || 4096));
+    if (ml.length) layer.features = layer.features.concat(ml);
     // Bridges and the water they cross come from the same tile (structures.js).
     const transport = decodeLayer(buf, "transportation");
     const water = decodeLayer(buf, "water");

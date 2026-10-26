@@ -36,9 +36,9 @@
 // transparent pass in a group sorted at 190 (see GROUP_ORDER), still
 // depth-tested and depth-writing against the globe and each other.
 
-import { isEarth } from "./bodies.js?v=20261026-b992463";
+import { isEarth } from "./bodies.js?v=20261026-4ff48c3";
 import { facade, roof } from "../../../flight_sim/earth/game/facade.js?v=4";
-import { NIGHT } from "./night-lights.js?v=20261026-b992463";
+import { NIGHT } from "./night-lights.js?v=20261026-4ff48c3";
 
 const BUILDINGS_TILEJSON = "https://tiles.openfreemap.org/planet";
 // blankTile=false: a tile with no imagery is a 404, not Esri's grey "Map data
@@ -298,7 +298,7 @@ function heightAboveGround(viewer, eye) {
 
 function ensureWorker() {
   if (worker) return;
-  worker = new Worker(new URL("../../../flight_sim/earth/game/buildings-worker.js?v=10", import.meta.url), { type: "module" });
+  worker = new Worker(new URL("../../../flight_sim/earth/game/buildings-worker.js?v=11", import.meta.url), { type: "module" });
   worker.onmessage = (e) => {
     const job = jobs.get(e.data.id);
     if (!job) return;
@@ -364,6 +364,8 @@ function groundPlane(t, sizeM, y) {
 
 async function loadTile(viewer, t) {
   const url = template.replace("{z}", Z).replace("{x}", t.x).replace("{y}", t.y);
+  // The worker starts the tile's Overture gap-fill now, beside this fetch.
+  worker?.postMessage({ prefetch: [t.x, t.y] });
   let buf;
   try {
     const r = await fetch(url);
@@ -688,10 +690,10 @@ function build(viewer, t, m, count, lat, sizeM) {
    Every node keeps its own draw order (`keepRenderOrder`): the ground drape is
    imagery (41) and the buildings are depth-tested solids drawn after every
    ground layer (190). */
-const LAYER_NAME = "3D buildings & trees (OpenStreetMap)";
+const LAYER_NAME = "3D buildings & trees (OpenStreetMap, Overture)";
 const LAYER_INFO = {
-  source: "OpenStreetMap via OpenFreeMap vector tiles (OpenMapTiles schema, z14): building, transportation, water, landcover; roof imagery Esri World Imagery z16-z17",
-  citation: "Buildings, bridges, trees: © OpenStreetMap contributors, ODbL 1.0 (openstreetmap.org/copyright); tiles: OpenFreeMap (openfreemap.org), OpenMapTiles schema © OpenMapTiles. Imagery: Esri World Imagery — Source: Esri, Vantor, Earthstar Geographics, and the GIS User Community. Facades and pitched roofs are procedural.",
+  source: "OpenStreetMap via OpenFreeMap vector tiles (OpenMapTiles schema, z14): building, transportation, water, landcover; buildings OSM lacks from Overture Maps (Microsoft ML Buildings, z14 PMTiles, latest release); roof imagery Esri World Imagery z16-z17",
+  citation: "Buildings, bridges, trees: © OpenStreetMap contributors, ODbL 1.0 (openstreetmap.org/copyright); tiles: OpenFreeMap (openfreemap.org), OpenMapTiles schema © OpenMapTiles. Buildings OSM lacks: Overture Maps Foundation (overturemaps.org), Microsoft ML Buildings, ODbL 1.0. Imagery: Esri World Imagery — Source: Esri, Vantor, Earthstar Geographics, and the GIS User Community. Facades and pitched roofs are procedural.",
   crs: "EPSG:3857 tiles, drawn on the globe",
   licence: "ODbL 1.0 (OpenStreetMap data); Esri terms of use (imagery)",
 };
