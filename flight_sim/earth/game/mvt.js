@@ -175,6 +175,39 @@ export function polygons(rs) {
   return out;
 }
 
+/** One polygon (outer, then holes) as a command stream: the inverse of rings(). */
+export function encodePolygon(pl) {
+  const g = [], zz = (n) => (n << 1) ^ (n >> 31);
+  let x = 0, y = 0;
+  for (const r of [pl.outer, ...pl.holes]) {
+    g.push(9, zz(r[0][0] - x), zz(r[0][1] - y)); x = r[0][0]; y = r[0][1];
+    g.push(2 | ((r.length - 1) << 3));
+    for (let k = 1; k < r.length; k++) { g.push(zz(r[k][0] - x), zz(r[k][1] - y)); x = r[k][0]; y = r[k][1]; }
+    g.push(15);
+  }
+  return g;
+}
+
+/**
+ * One feature per building. OpenFreeMap packs a tile's buildings of one
+ * height into a single multipolygon -- at Ballykelly 574 outlines are ONE
+ * feature -- and everything decided per feature was decided for all of them:
+ * a church POI in one outline made the whole village churches, and one
+ * outline's centre on a bridge deck dropped the lot. Split, each outline
+ * keeps the props; the id goes (it was the group's), so colours vary by
+ * outline as for any feature without one.
+ */
+export function splitPolygons(features) {
+  const out = [];
+  for (const f of features) {
+    if (f.type !== 3) { out.push(f); continue; }
+    const pls = polygons(rings(f.geometry));
+    if (pls.length <= 1) { out.push(f); continue; }
+    for (const pl of pls) out.push({ id: null, type: 3, props: f.props, geometry: encodePolygon(pl) });
+  }
+  return out;
+}
+
 /**
  * Sutherland–Hodgman against the square [0, ext]². Tiles carry a buffer of
  * geometry past their edge, so a building straddling a tile boundary arrives

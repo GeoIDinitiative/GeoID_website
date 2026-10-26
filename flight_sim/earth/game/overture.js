@@ -20,7 +20,7 @@
  * Plain ES module with no DOM and no three.js (worker and node test).
  */
 
-import { rings, polygons } from "./mvt.js?v=1";
+import { rings, polygons } from "./mvt.js?v=2";
 
 const STAC = "https://stac.overturemaps.org/catalog.json";
 const BASE = "https://overturemaps-extras-us-west-2.s3.us-west-2.amazonaws.com/tiles/";

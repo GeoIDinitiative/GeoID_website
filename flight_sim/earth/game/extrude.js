@@ -20,7 +20,7 @@
  * one footprint. A sunk wall is invisible; a floating one is not.
  */
 
-import { rings, polygons, clipRing, ringArea } from "./mvt.js?v=1";
+import { rings, polygons, clipRing, ringArea, splitPolygons } from "./mvt.js?v=2";
 import { bridgeOutlines, drawBridges, latticeClusters, drawWheel, inPolys } from "./structures.js?v=4";
 
 const SINK = 4;
@@ -242,6 +242,9 @@ function parseColour(c) {
  *                    (structures.js)
  */
 export function extrudeTile(layer, dem, demSize, sizeLocal, triangulate, extra = {}) {
+  // Every decision below is per feature, so first one feature per building
+  // (mvt.js splitPolygons: OpenFreeMap packs many into one).
+  layer = { ...layer, features: splitPolygons(layer.features) };
   const ext = layer.extent || 4096;
   const s = sizeLocal / ext;
   const pos = [], nrm = [], uv = [], col = [], sty = [], roofIdx = [], wallIdx = [];

@@ -6,8 +6,8 @@
  */
 
 import { ShapeUtils, Vector2 } from "../../../everest/vendor/three.module.js?v=84ebb99-a7f30c15";
-import { decodeLayer } from "./mvt.js?v=1";
-import { extrudeTile } from "./extrude.js?v=10";
+import { decodeLayer } from "./mvt.js?v=2";
+import { extrudeTile } from "./extrude.js?v=11";
 import { overtureTile, gapFill } from "./overture.js?v=1";
 
 // three's earcut wrapper wants Vector2s (it calls .equals on them).

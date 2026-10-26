@@ -7,9 +7,9 @@
  * Picked up by GeoID_GIS/tests/run.mjs as well.
  */
 
-import { decodeLayer, rings, polygons, clipRing, ringArea } from "../game/mvt.js?v=1";
+import { decodeLayer, rings, polygons, clipRing, ringArea } from "../game/mvt.js?v=2";
 import { tileId, parseDirectory, gapFill } from "../game/overture.js?v=1";
-import { extrudeTile, pitched, inflateBy, inflateRing, monumentForm, STYLE_STONE, STYLE_CHURCH } from "../game/extrude.js?v=9";
+import { extrudeTile, pitched, inflateBy, inflateRing, monumentForm, STYLE_STONE, STYLE_CHURCH } from "../game/extrude.js?v=11";
 import { clipLine, pointInRing, fitWheel, scatterTrees } from "../game/structures.js?v=2";
 import { extrudeCanopy, crownHeight, CANOPY_KINDS } from "../game/canopy.js?v=2";
 import { ShapeUtils, Vector2 } from "../../../everest/vendor/three.module.js";
@@ -427,6 +427,21 @@ check("PMTiles tile ids", tileId(0, 0, 0) === 0 && tileId(1, 0, 0) === 1 && tile
   check("...with their own height, or 5 m where it is implausible",
     got[0].props.render_height === 7.5 && got[1].props.render_height === 5, JSON.stringify(got.map((f) => f.props)));
   check("...and nothing from a missing tile", gapFill(osm, null, 0.37).length === 0);
+}
+
+// OpenFreeMap packs buildings of one height into ONE feature (Ballykelly: 574
+// outlines). A church POI in one outline is that outline's church, not the
+// village's: the others stay houses.
+{
+  const village = { extent: 4096, features: [{ id: 5, type: 3, props: { render_height: 8 }, geometry: geom([
+    [[3000, 500], [3600, 500], [3600, 700], [3000, 700]],      // holds the church POI (3300, 600)
+    [[1000, 3000], [1100, 3000], [1100, 3080], [1000, 3080]],  // a house
+    [[1300, 3000], [1400, 3000], [1400, 3080], [1300, 3080]],  // a house
+  ]) }] };
+  const vm = extrudeTile(village, null, 256, 1000, tri, { poi, inflate: false });
+  const church = vm.style.filter((v) => v === sty(STYLE_CHURCH)).length;
+  check("one church in a packed feature is one building, not all of them", vm.landmarks === 1 && church > 0
+    && church < vm.style.length / 2, `${vm.landmarks} landmarks, ${church}/${vm.style.length} church vertices`);
 }
 
 process.exit(failed ? 1 : 0);
