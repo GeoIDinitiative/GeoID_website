@@ -36,9 +36,9 @@
 // transparent pass in a group sorted at 190 (see GROUP_ORDER), still
 // depth-tested and depth-writing against the globe and each other.
 
-import { isEarth } from "./bodies.js?v=20261025-baef467";
-import { facade, roof } from "../../../flight_sim/earth/game/facade.js?v=3";
-import { NIGHT } from "./night-lights.js?v=20261025-baef467";
+import { isEarth } from "./bodies.js?v=20261025-794b342";
+import { facade, roof } from "../../../flight_sim/earth/game/facade.js?v=4";
+import { NIGHT } from "./night-lights.js?v=20261025-794b342";
 
 const BUILDINGS_TILEJSON = "https://tiles.openfreemap.org/planet";
 // blankTile=false: a tile with no imagery is a 404, not Esri's grey "Map data
@@ -60,10 +60,13 @@ const MAX_TILES = 16;
 // a circle round it and a larger one ahead along the heading, further out the
 // higher it flies, on a bigger budget. At the edge of that cover everything
 // fades out over FADE_M (see edgeFaded) instead of ending in a wall.
-const FLIGHT_RADIUS_M = 3000;
-const FLIGHT_AHEAD_RADIUS_M = 4500;
-const FLIGHT_MAX_TILES = 32;
-const FADE_M = 800;
+// About a third further than the first cut (3.0 / 4.5 km, 32 tiles, 800 m
+// fade; owner, 2026-10-25: "extending the mapping radius of the higher res
+// and 3D buildings"), with a longer fade so the edge is a horizon, not a line.
+const FLIGHT_RADIUS_M = 3800;
+const FLIGHT_AHEAD_RADIUS_M = 6000;
+const FLIGHT_MAX_TILES = 44;
+const FADE_M = 1100;
 const FETCH_BUDGET = 3;       // vector tiles + worker jobs in flight
 const IMAGE_BUDGET = 6;       // roof imagery requests in flight
 const UNITS_PER_M = 3.2 / 6371000;
@@ -295,7 +298,7 @@ function heightAboveGround(viewer, eye) {
 
 function ensureWorker() {
   if (worker) return;
-  worker = new Worker(new URL("../../../flight_sim/earth/game/buildings-worker.js?v=7", import.meta.url), { type: "module" });
+  worker = new Worker(new URL("../../../flight_sim/earth/game/buildings-worker.js?v=10", import.meta.url), { type: "module" });
   worker.onmessage = (e) => {
     const job = jobs.get(e.data.id);
     if (!job) return;
@@ -443,7 +446,10 @@ function roofTexture(t) {
           if (t.dead) return;
           const sub = 256 / s;
           ctx.drawImage(img, (x - px * s) * sub, (y - py * s) * sub, sub, sub, i * 256, j * 256, 256, 256);
-          tex.needsUpdate = true;
+          // Coalesced, as basemap-drape.js's scheduleUpload: up to 64 pieces
+          // land in a 2048 px canvas, and uploading all of it for each one
+          // stalled the GUI as the city came in.
+          if (!t.roofUpload) t.roofUpload = setTimeout(() => { t.roofUpload = null; if (!t.dead) tex.needsUpdate = true; }, 200);
         }).catch(() => { if (!t.dead && up < 4) draw(z - 1, up + 1); });
       };
       draw(zoom, 0);
@@ -455,23 +461,40 @@ function roofTexture(t) {
    made of the surface. The shadow-casting light has zero intensity -- adding
    light to a globe that is already balanced would brighten every lit material
    in it -- so its shadow would otherwise darken nothing. */
+/* The shadow map covers a square round the eye and stops dead at its edge:
+   inside, buildings are shadowed; one texel beyond, not -- and as the snapped
+   map steps a texel (updateShadows), that boundary row toggled: measured as
+   the one line of flicker left in a paused flight over London. So shadows
+   fade out over the outer part of the map instead of ending. */
+const SHADOW_FADE = { uShC: { value: null }, uShR: { value: null } };
 function shadowed(material) {
+  if (!SHADOW_FADE.uShC.value) {
+    // Never null in a shader: before the first shadow update the fade is off
+    // (a huge radius), and with no shadow map the mask is 1 anyway.
+    SHADOW_FADE.uShC.value = new THREE.Vector3();
+    SHADOW_FADE.uShR.value = new THREE.Vector2(1e9, 2e9);
+  }
   const prev = material.onBeforeCompile;
   material.userData.night = NIGHT;
   material.onBeforeCompile = (shader) => {
     prev(shader);
+    Object.assign(shader.uniforms, SHADOW_FADE);
+    shader.vertexShader = shader.vertexShader
+      .replace("#include <common>", "#include <common>\nvarying vec3 vShW;")
+      .replace("#include <project_vertex>", "#include <project_vertex>\n  vShW = (modelMatrix * vec4(transformed, 1.0)).xyz;");
     // Night (night-lights.js): the scene's ambient keeps lit materials bright
     // at midnight, so the buildings are dimmed to a fifth with the ground.
     if (!shader.fragmentShader.includes("uniform float uNight;")) {
       shader.fragmentShader = shader.fragmentShader.replace("#include <common>", "#include <common>\nuniform float uNight;");
     }
+    shader.fragmentShader = shader.fragmentShader.replace("#include <common>", "#include <common>\nvarying vec3 vShW;\nuniform vec3 uShC;\nuniform vec2 uShR;");
     shader.uniforms.uNight = NIGHT;
     shader.fragmentShader = shader.fragmentShader
       .replace("#include <shadowmap_pars_fragment>", "#include <shadowmap_pars_fragment>\n#include <shadowmask_pars_fragment>")
-      .replace("#include <dithering_fragment>", "#include <dithering_fragment>\n  gl_FragColor.rgb *= mix(0.55, 1.0, getShadowMask()) * mix(1.0, 0.2, uNight);");
+      .replace("#include <dithering_fragment>", "#include <dithering_fragment>\n  float shFade = 1.0 - smoothstep(uShR.x, uShR.y, distance(vShW, uShC));\n  gl_FragColor.rgb *= mix(0.55, 1.0, mix(1.0, getShadowMask(), shFade)) * mix(1.0, 0.2, uNight);");
   };
   const key = material.customProgramCacheKey?.bind(material);
-  material.customProgramCacheKey = () => (key ? key() : "") + "|night";
+  material.customProgramCacheKey = () => (key ? key() : "") + "|night2";
   return material;
 }
 
@@ -501,13 +524,17 @@ function edgeFaded(material, mode) {
     prev?.call(material, shader, renderer);
     Object.assign(shader.uniforms, FADE);
     shader.vertexShader = shader.vertexShader
-      .replace("#include <common>", "#include <common>\nvarying vec3 vFadeW;")
-      .replace("#include <project_vertex>", "#include <project_vertex>\n  vFadeW = (modelMatrix * vec4(transformed, 1.0)).xyz;");
+      .replace("#include <common>", "#include <common>\nvarying vec3 vFadeW;\nvarying vec3 vFadeL;")
+      .replace("#include <project_vertex>", "#include <project_vertex>\n  vFadeW = (modelMatrix * vec4(transformed, 1.0)).xyz;\n  vFadeL = transformed;");
+    // The dissolve's threshold is hashed on the surface's own metres (the
+    // tile frame, 0.6 m cells), not on the screen pixel: a screen-space
+    // pattern stays put while the buildings slide under it, and every wall in
+    // the fade band sparkled as the camera moved.
     const body = mode === "dither"
-      ? "if (edgeFade < 0.999 && edgeFade < fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715))))) discard;"
+      ? "if (edgeFade < 0.999 && edgeFade < fract(sin(dot(floor(vFadeL / 0.6), vec3(12.9898, 78.233, 37.719))) * 43758.5453)) discard;"
       : "gl_FragColor.a *= edgeFade;";
     shader.fragmentShader = shader.fragmentShader
-      .replace("#include <common>", "#include <common>\nvarying vec3 vFadeW;\nuniform float uFadeOn;\nuniform vec3 uFadeA;\nuniform vec3 uFadeB;\nuniform vec3 uFadeR;")
+      .replace("#include <common>", "#include <common>\nvarying vec3 vFadeW;\nvarying vec3 vFadeL;\nuniform float uFadeOn;\nuniform vec3 uFadeA;\nuniform vec3 uFadeB;\nuniform vec3 uFadeR;")
       .replace("#include <dithering_fragment>", `#include <dithering_fragment>
   {
     float edgeFade = 1.0;
@@ -520,7 +547,7 @@ function edgeFaded(material, mode) {
   }`);
   };
   const key = material.customProgramCacheKey?.bind(material);
-  material.customProgramCacheKey = () => (key ? key() : "") + "|edge-" + mode;
+  material.customProgramCacheKey = () => (key ? key() : "") + "|edge2-" + mode;
   return material;
 }
 
@@ -553,9 +580,16 @@ function build(viewer, t, m, count, lat, sizeM) {
 
   // The ground under the buildings, showing only where a shadow falls.
   const onTerrain = Boolean(t.dem);
+  // Lifted by POLYGON OFFSET, not only by its 0.4 m: in flight the near plane
+  // is ~2 m (the aircraft is drawn at its true size), and a 24-bit depth
+  // buffer then resolves only centimetres at a kilometre and tens of them a
+  // few km out -- so a catcher 0.4 m over a terrain mesh of different
+  // triangulation fought it, and the shadows on the streets flickered. An
+  // offset in depth units holds at every distance.
   const catcher = noPick(new THREE.Mesh(
     groundPlane(t, sizeM, 0.4),
-    new THREE.ShadowMaterial({ opacity: 0.38, transparent: true, depthWrite: false })));
+    new THREE.ShadowMaterial({ opacity: 0.38, transparent: true, depthWrite: false,
+      polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -8 })));
   catcher.renderOrder = ORDER_CATCHER;
 
   // The same imagery, on the ground under the tile, in the streamed-imagery
@@ -758,7 +792,12 @@ function findKeyLight(scene) {
   return best;
 }
 
+let _lightUp = null, _lightRight = null, _sunL = null, _pole = null, _invGlobe = null;
 function updateShadows(viewer, altitude, eye) {
+  if (!_lightUp) {
+    _lightUp = new THREE.Vector3(); _lightRight = new THREE.Vector3(); _sunL = new THREE.Vector3();
+    _pole = new THREE.Vector3(); _invGlobe = new THREE.Matrix4();
+  }
   const want = shadowsWanted && altitude < SHADOW_BELOW_M && stats.tiles > 0;
   if (!sun) {
     if (!want) return;
@@ -781,11 +820,42 @@ function updateShadows(viewer, altitude, eye) {
   sun.castShadow = Boolean(want && lit);
   stats.shadows = sun.castShadow;
   if (!sun.castShadow) return;
-  const halfM = Math.min(3000, Math.max(700, altitude * 1.5 + 600));
+  // STABLE SHADOWS. The shadow camera used to follow the eye's ground point
+  // continuously and size itself to the exact altitude, so every frame the
+  // map's texels (1-3 m each) slid and stretched across every wall and
+  // street: edges crawled and shimmered the whole time anything moved. Now
+  // the extent comes in 250 m steps, and the centre is snapped to whole
+  // texels -- in the GLOBE's frame, with the pole as the shadow camera's up,
+  // because in flight the planet turns at its real rate (~290 m/s of ground
+  // at London) and a grid fixed in world space would still slide across it.
+  // A texel stays on its patch of ground until the view has moved a whole
+  // texel, and then steps by one; only the sun's own slow drift remains.
+  const halfM = Math.min(3000, Math.max(750, Math.ceil((altitude * 1.5 + 600) / 250) * 250));
   const half = halfM * UNITS_PER_M;
   const D = 6000 * UNITS_PER_M;
+  const texel = (2 * half) / sun.shadow.mapSize.x;
+  const globe = viewer.globe;
+  const inv = _invGlobe.copy(globe.matrixWorld).invert();
+  const sunL = _sunL.copy(sunDir).transformDirection(inv);
+  const pole = _pole.set(0, 1, 0);
+  _lightRight.crossVectors(pole, sunL);
+  if (_lightRight.lengthSq() > 1e-8) {
+    _lightRight.normalize();
+    _lightUp.crossVectors(sunL, _lightRight).normalize();
+    const cL = groundPoint(viewer, eye.lat, eye.lon);
+    const along = cL.dot(sunL);
+    const r = Math.round(cL.dot(_lightRight) / texel) * texel;
+    const u = Math.round(cL.dot(_lightUp) / texel) * texel;
+    cL.copy(sunL).multiplyScalar(along).addScaledVector(_lightRight, r).addScaledVector(_lightUp, u);
+    centre.copy(globe.localToWorld(cL));
+    sun.shadow.camera.up.copy(pole).transformDirection(globe.matrixWorld);
+  }
   sun.position.copy(centre).addScaledVector(sunDir, D);
   sun.target.position.copy(centre);
+  // A circle well inside the square map (whose half-width is `half`): full
+  // shadows to 70 % of it, none by 92 %.
+  SHADOW_FADE.uShC.value.copy(centre);
+  SHADOW_FADE.uShR.value.set(0.70 * half, 0.92 * half);
   sun.target.updateMatrixWorld();
   const cam = sun.shadow.camera;
   cam.left = -half; cam.right = half; cam.top = half; cam.bottom = -half;

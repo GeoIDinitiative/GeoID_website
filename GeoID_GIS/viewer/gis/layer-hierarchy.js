@@ -10,18 +10,18 @@
 // everything below. That is the opposite of three.js renderOrder, so the two are
 // inverted when applied.
 
-import { escapeHtml } from "./escape-html.js?v=20261025-baef467";
-import { bandOf } from "./draw-order.js?v=20261025-baef467";
-import { paintOpacity } from "./layer-opacity.js?v=20261025-baef467";
-import { currentBody } from "./bodies.js?v=20261025-baef467";
-import { samplerToRaster } from "./raster-analysis.js?v=20261025-baef467";
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20261025-baef467";
-import { datasetInfoButton } from "./catalogue-list.js?v=20261025-baef467";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20261025-baef467";
+import { escapeHtml } from "./escape-html.js?v=20261025-794b342";
+import { bandOf } from "./draw-order.js?v=20261025-794b342";
+import { paintOpacity } from "./layer-opacity.js?v=20261025-794b342";
+import { currentBody } from "./bodies.js?v=20261025-794b342";
+import { samplerToRaster } from "./raster-analysis.js?v=20261025-794b342";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20261025-794b342";
+import { datasetInfoButton } from "./catalogue-list.js?v=20261025-794b342";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20261025-794b342";
 import {
   openSymbologyDialog, geometrySummary, geometryKind,
-} from "./symbology-dialog.js?v=20261025-baef467";
-import { tagOf, DATA_TYPES, typeSelect, applyTag, descriptionOf, isUserInput } from "./data-tags.js?v=20261025-baef467";
+} from "./symbology-dialog.js?v=20261025-794b342";
+import { tagOf, DATA_TYPES, typeSelect, applyTag, descriptionOf, isUserInput } from "./data-tags.js?v=20261025-794b342";
 
 /**
  * The row grew a column and gained a tile, and .layer-row is declared twice --
@@ -1191,10 +1191,28 @@ function setMoonLabelsHidden(hidden) {
   }));
 }
 
+/**
+ * IN FLIGHT THE ROW IS THE FLIGHT'S LABELS (owner, 2026-10-25: "location
+ * labels are toggled off in the workspace even if active ... required turn
+ * on -> off to toggle them off"). Earth Flight draws its own all-encompassing
+ * set, on by default, while Earth's Locations boxes open OFF -- so the row,
+ * reading only the boxes, said off over a sky full of place names, and the
+ * first click "switched on" what was already on. While flying the row (and
+ * the Locations master) show what is actually drawn, and set it directly.
+ */
+function flyingLabels() {
+  return window.__flightSim?.active && window.GeoIDFlightLabels ? window.GeoIDFlightLabels : null;
+}
+/** The row was switched off by hand (and not back on): a flight starts with its labels off too. */
+export function labelsSwitchedOff() {
+  return locationsOnBeforeOff !== null;
+}
+
 function locationLabelsRow() {
   const boxes = locationBoxes();
   if (!boxes.length) return null;
-  const on = boxes.some((box) => box.checked);
+  const fl = flyingLabels();
+  const on = fl ? fl.isOn() : boxes.some((box) => box.checked);
   const node = document.createElement("div");
   node.className = "layer-row layer-row-basemap layer-row-labels";
   node.innerHTML = `
@@ -1235,6 +1253,8 @@ function locationLabelsRow() {
     node.appendChild(wrap);
   }
   node.querySelector('[data-role="visible"]').addEventListener("change", (e) => {
+    // Before the render below reads it back.
+    flyingLabels()?.setOn(e.target.checked);
     const all = locationBoxes();
     if (e.target.checked) {
       const back = locationsOnBeforeOff?.size ? locationsOnBeforeOff : null;
@@ -1258,6 +1278,10 @@ if (typeof document !== "undefined" && typeof document.addEventListener === "fun
     if (e.target?.id === "locations-master-toggle") setMoonLabelsHidden(!e.target.checked);
     if (e.target?.closest?.("#locations-section")) queueMicrotask(() => { if (mounted) render(); });
   });
+  // Taking off, landing, and the flight's labels switched from anywhere.
+  for (const type of ["flightsim:engaged", "flightsim:disengaged", "geoid:flight-labels-changed"]) {
+    window.addEventListener(type, () => setTimeout(() => { if (mounted) render(); }, 80));
+  }
 }
 
 function basemapRow() {
@@ -2089,4 +2113,4 @@ if (document.readyState === "loading") {
   init();
 }
 
-window.GeoIDLayerHierarchy = { render, setOpacity, setVisible };
+window.GeoIDLayerHierarchy = { render, setOpacity, setVisible, labelsSwitchedOff };

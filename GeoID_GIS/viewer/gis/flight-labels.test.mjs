@@ -89,5 +89,34 @@ check("the small tiers are capped at 5 km in flight too (curated ones included)"
 check("skyline flags are held steady: quick up, slow down, reset when hidden",
   /eRaw > ePrev \? 0\.3 : 0\.04/.test(src) && /e\._fsSky = undefined;/.test(src), true);
 
+// ONE SWITCH (owner, 2026-10-25: the Workspace row read off over a sky full of
+// labels, and needed on -> off to switch them off).
+{
+  const lh = readFileSync(new URL("./layer-hierarchy.js", import.meta.url), "utf8");
+  check("in flight the Workspace row shows the flight's labels, not the globe's boxes",
+    /const on = fl \? fl\.isOn\(\) : boxes\.some\(\(box\) => box\.checked\);/.test(lh), true);
+  check("...and its click sets them before it re-renders",
+    /flyingLabels\(\)\?\.setOn\(e\.target\.checked\);[\s\S]{0,80}const all = locationBoxes\(\);/.test(lh), true);
+  check("it re-renders on take-off, landing and every change of the flight's switch",
+    /"flightsim:engaged", "flightsim:disengaged", "geoid:flight-labels-changed"/.test(lh), true);
+  check("a flight starts with labels off only if GeoHUB's were switched off by hand",
+    /control\.on = !window\.GeoIDLayerHierarchy\?\.labelsSwitchedOff\?\.\(\);\s*announce\(\);/.test(src), true);
+  check("the switch is exposed for the row and announced when it moves",
+    /window\.GeoIDFlightLabels = \{ isOn: \(\) => control\.on, setOn: setLabelsOn \};/.test(src)
+      && /new CustomEvent\("geoid:flight-labels-changed"/.test(src), true);
+  const ev = readFileSync(new URL("./events.js", import.meta.url), "utf8");
+  check("Events: a stale stored 'off' from older builds no longer holds the feed off",
+    /const ACTIVE_KEY = "geoid-gis:events-active-2";/.test(ev) && /removeItem\("geoid-gis:events-active"\)/.test(ev), true);
+}
+
+// CRISP SKYLINE TEXT (owner, 2026-10-25: "distant labels over the horizon are
+// super blurry and stretched").
+check("skyline names and ranges have their own text, drawn at the size shown, no mipmaps",
+  /tex\.generateMipmaps = false;\s*tex\.minFilter = THREE\.LinearFilter;/.test(src)
+    && /entry\._fsHLabel\.scale\.set\(uppH \* ct\.w, uppH \* ct\.h, 1\);/.test(src)
+    && /entry\._fsDist\.scale\.set\(uppH \* dt\.w, uppH \* dt\.h, 1\);/.test(src), true);
+check("...one canvas pixel per screen pixel (x devicePixelRatio)",
+  /Math\.round\(px \* dpr\)/.test(src) && /w: cv\.width \/ dpr, h: cv\.height \/ dpr/.test(src), true);
+
 console.log(`\n${failures ? `${failures} failed` : "all passed"}`);
 process.on("exit", () => { process.exitCode = failures ? 1 : 0; });

@@ -1,6 +1,33 @@
 {
-  "_readme": "Site news feed. Edit this file, run scripts/make-updates.py, commit. The script regenerates the homepage 'What's new' grid between its UPDATES markers. First entry = lead story (large tile). 'status' is one of: live, update, dev, research, resources.",
+  "_readme": "Site news feed. Edit this file, run scripts/make-updates.py, commit. The script regenerates the homepage 'What's new' grid between its UPDATES markers. Tiles are all the same size in a three-column grid, so keep the count a multiple of three; newest first. 'status' is one of: live, update, dev, research, resources.",
   "updates": [
+    {
+      "status": "live",
+      "kicker": "New release",
+      "title": "Earth Flight: fly the real planet",
+      "desc": "A light aircraft or a helicopter anywhere on Earth, over satellite imagery on true terrain, with OpenStreetMap buildings, a real night and places named as you fly. Inside GeoHUB, so its layers fly too.",
+      "href": "/explore/earth-flight-simulator/",
+      "image": "/assets/opt/earth-flight.webp",
+      "alt": "Earth Flight in GeoHUB: a light aircraft over forested ridges with the map inset and HUD"
+    },
+    {
+      "status": "live",
+      "kicker": "Live now",
+      "title": "GeoID Network, for the work itself",
+      "desc": "Share a 3D scene that opens as you left it, post analyses with their provenance, ask for peer review of a draft and find who works where you do. Ranked by discussion, not follower counts.",
+      "href": "/social/",
+      "image": "/assets/opt/geoid-network.webp",
+      "alt": "The GeoID Network feed: discover tab, trending topics and filters by kind of post"
+    },
+    {
+      "status": "live",
+      "kicker": "Taking enquiries",
+      "title": "Freelance geohazard consultancy",
+      "desc": "One site, one question: landslide, flood, volcanic, seismic or glacial, answered with a model built for it and the assumptions written down. Free scoping call, then a fixed fee.",
+      "href": "/consultancy/",
+      "image": "/assets/opt/geohub-radar.webp",
+      "alt": "Rainfall radar over the British Isles in GeoHUB"
+    },
     {
       "status": "live",
       "kicker": "Live now",
@@ -21,21 +48,21 @@
     },
     {
       "status": "live",
-      "kicker": "New release",
-      "title": "ASCENT — climb Everest in your browser",
-      "desc": "Walk the real mountain: Esri imagery over a live elevation model, the South Col route, oxygen, weather and crevasses. Pick a camp and go.",
-      "href": "/everest/",
-      "image": "/assets/opt/everest_ascent.webp",
-      "alt": "ASCENT — the Everest climbing game"
-    },
-    {
-      "status": "live",
       "kicker": "Live now",
       "title": "The Mars Flight Simulator",
       "desc": "MOLA relief with the CTX mosaic streamed beneath you, from an 8 km low pass to 300 km orbit. Launch from anywhere on the planet.",
       "href": "/?world=mars",
       "image": "/assets/opt/hero_marsflight.webp",
       "alt": "Mars flight simulator"
+    },
+    {
+      "status": "live",
+      "kicker": "New release",
+      "title": "ASCENT — climb Everest in your browser",
+      "desc": "Walk the real mountain: Esri imagery over a live elevation model, the South Col route, oxygen, weather and crevasses. Pick a camp and go.",
+      "href": "/everest/",
+      "image": "/assets/opt/everest_ascent.webp",
+      "alt": "ASCENT — the Everest climbing game"
     },
     {
       "status": "live",

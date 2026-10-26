@@ -21,7 +21,7 @@
  * feeds is `sampleElevationMeters`, never `sampleElevationNormalized`.
  */
 
-import { tilesForBounds, tileCountForBounds, mercatorTile } from "./mvt.js?v=20261025-baef467";
+import { tilesForBounds, tileCountForBounds, mercatorTile } from "./mvt.js?v=20261025-794b342";
 
 /**
  * Terrarium: height packed into RGB, EGM96 metres.
@@ -135,32 +135,68 @@ export function despike(heights, width, height, threshold = DESPIKE_M) {
 export const POINT_SPIKE_M = 150;
 const NO_DATA_BELOW = -12000;
 export function despikePoints(heights, width, height, floor = POINT_SPIKE_M) {
+  /*
+   * FAST, SAME ANSWER (owner, 2026-10-25: "when we zoom right in ... the gui
+   * freezes"). Profiled zooming GeoHUB down over London: this was the main
+   * thread's largest cost from 20 km to 1 km, 400-800 ms in every 12 s, in
+   * blocks up to ~400 ms -- every streamed tile ran 65,536 posts x 2 passes,
+   * each pushing 8 neighbours into an array and sorting it with a comparator.
+   * Now:
+   *   - a post can only be repaired if it is further from the median than
+   *     max(floor, 3 x spread), and the median lies between the neighbours'
+   *     min and max, so a post within that bound of BOTH min and max cannot
+   *     be repaired: no median needed. That is nearly every post on real
+   *     ground, so the sort runs for a handful;
+   *   - when it does run, it is an insertion sort in a fixed buffer, no
+   *     allocation;
+   *   - the second pass only fills no-data, so it runs only if there is any.
+   * The results are identical to the sorting version (dem-tiles.test.mjs).
+   */
   let repaired = 0, filled = 0;
+  const nb = new Float64Array(8);
+  const medianOf = (k) => {
+    for (let a = 1; a < k; a += 1) {
+      const v = nb[a];
+      let b = a - 1;
+      while (b >= 0 && nb[b] > v) { nb[b + 1] = nb[b]; b -= 1; }
+      nb[b + 1] = v;
+    }
+    const mid = k >> 1;
+    return k % 2 ? nb[mid] : (nb[mid - 1] + nb[mid]) / 2;
+  };
+  let voids = 0;
+  for (let i = 0; i < heights.length; i += 1) if (!(heights[i] >= NO_DATA_BELOW)) voids += 1;
   for (let pass = 0; pass < 2; pass += 1) {
+    if (pass && !voids) break;
     const src = Float32Array.from(heights);
-    const nb = [];
     for (let y = 0; y < height; y += 1) {
       for (let x = 0; x < width; x += 1) {
         const i = (y * width) + x;
-        nb.length = 0;
+        const v = src[i];
+        const valid = v >= NO_DATA_BELOW;
+        if (pass && valid) continue;           // the second pass only fills
+        let k = 0, lo = Infinity, hi = -Infinity;
         for (let dy = -1; dy <= 1; dy += 1) {
+          const yy = y + dy;
+          if (yy < 0 || yy >= height) continue;
           for (let dx = -1; dx <= 1; dx += 1) {
             if (!dx && !dy) continue;
-            const xx = x + dx, yy = y + dy;
-            if (xx < 0 || yy < 0 || xx >= width || yy >= height) continue;
-            const v = src[(yy * width) + xx];
-            if (v >= NO_DATA_BELOW) nb.push(v);
+            const xx = x + dx;
+            if (xx < 0 || xx >= width) continue;
+            const n = src[(yy * width) + xx];
+            if (n >= NO_DATA_BELOW) {
+              nb[k] = n; k += 1;
+              if (n < lo) lo = n;
+              if (n > hi) hi = n;
+            }
           }
         }
-        if (nb.length < 3) continue;
-        nb.sort((a, b) => a - b);
-        const mid = nb.length >> 1;
-        const median = nb.length % 2 ? nb[mid] : (nb[mid - 1] + nb[mid]) / 2;
-        const v = src[i];
-        if (!(v >= NO_DATA_BELOW)) { heights[i] = median; filled += 1; continue; }
-        if (pass) continue;
-        const spread = nb[nb.length - 1] - nb[0];
-        if (Math.abs(v - median) > Math.max(floor, 3 * spread)) { heights[i] = median; repaired += 1; }
+        if (k < 3) continue;
+        if (!valid) { heights[i] = medianOf(k); filled += 1; continue; }
+        const bound = Math.max(floor, 3 * (hi - lo));
+        if (Math.abs(v - lo) <= bound && Math.abs(v - hi) <= bound) continue;
+        const median = medianOf(k);
+        if (Math.abs(v - median) > bound) { heights[i] = median; repaired += 1; }
       }
     }
   }

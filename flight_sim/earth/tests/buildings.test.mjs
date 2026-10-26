@@ -8,7 +8,7 @@
  */
 
 import { decodeLayer, rings, polygons, clipRing, ringArea } from "../game/mvt.js?v=1";
-import { extrudeTile, pitched } from "../game/extrude.js?v=2";
+import { extrudeTile, pitched, inflateBy, inflateRing, monumentForm, STYLE_STONE, STYLE_CHURCH } from "../game/extrude.js?v=9";
 import { clipLine, pointInRing, fitWheel, scatterTrees } from "../game/structures.js?v=2";
 import { extrudeCanopy, crownHeight, CANOPY_KINDS } from "../game/canopy.js?v=2";
 import { ShapeUtils, Vector2 } from "../../../everest/vendor/three.module.js";
@@ -84,7 +84,8 @@ const v2 = (pts) => pts.map((p) => new Vector2(p.x, p.y));
 const tri = (c, h) => ShapeUtils.triangulateShape(v2(c), h.map(v2));
 const dem = new Float32Array(256 * 256).fill(50);
 const S = 1000;                                    // tile = 1 km
-const m = extrudeTile(L, dem, 256, S, tri);
+// Exact-geometry fixtures: no inflation (see the coincident-walls tests below).
+const m = extrudeTile(L, dem, 256, S, tri, { inflate: false });
 const P = m.position, I = m.index;
 
 check("two buildings extruded", m.polygons === 2, String(m.polygons));
@@ -156,7 +157,7 @@ check("a near-collinear extra vertex is ignored", pitched([[0, 0], [10, 0.05], [
 // A one-house tile end to end: roof faces up, walls stop at the eave.
 const houseTile = { extent: 4096, features: [{ id: 42, type: 3, props: { render_height: 8 },
   geometry: geom([[[100, 100], [100 + 82, 100], [100 + 82, 100 + 33], [100, 100 + 33]]]) }] };
-const hm = extrudeTile(houseTile, null, 256, 1000, tri);
+const hm = extrudeTile(houseTile, null, 256, 1000, tri, { inflate: false });
 let roofUp = true, maxWall = -Infinity;
 for (let t = 0; t < hm.roofCount; t += 3) {
   const [a, b, c] = [0, 1, 2].map((k) => [hm.position[hm.index[t + k] * 3], hm.position[hm.index[t + k] * 3 + 1], hm.position[hm.index[t + k] * 3 + 2]]);
@@ -301,5 +302,100 @@ const scrub = extrudeCanopy(canopyApi, { extent: 4096, features: [{ id: 9, type:
 let scrubMax = 0; for (let i = 1; i < scrub.position.length; i += 3) scrubMax = Math.max(scrubMax, scrub.position[i] - 7);
 check("scrub is a low canopy", scrub.polygons === 1 && scrubMax <= CANOPY_KINDS.scrub.h1 + CANOPY_KINDS.scrub.lump, String(scrubMax));
 check("a park is not a canopy", extrudeCanopy(canopyApi, lc, [0, 0]).polygons === 0);
+
+/* ── Coincident walls (the flicker) ───────────────────────────────────── */
+// Two overlapping parts sharing their west edge: a 12 m block and a 30 m
+// tower on its corner. Before inflation their west walls lie in one plane.
+const part = (ring, h, id) => ({ id, type: 3, props: { render_height: h }, geometry: geom([ring]) });
+const twoParts = { extent: 4096, features: [
+  part([[1000, 1000], [1400, 1000], [1400, 1400], [1000, 1400]], 12, 7),
+  part([[1000, 1000], [1100, 1000], [1100, 1100], [1000, 1100]], 30, 8),
+] };
+const westX = (mm) => {
+  const xs = new Map();
+  for (let t = mm.roofCount; t < mm.roofCount + mm.wallCount; t += 3) {
+    const i = mm.index[t];
+    if (mm.normal[i * 3] > -120) continue;                 // west-facing walls only
+    const top = Math.max(...[0, 1, 2].map((k) => mm.position[mm.index[t + k] * 3 + 1]));
+    xs.set(top > 20 ? "tower" : "block", mm.position[i * 3]);
+  }
+  return xs;
+};
+const flat = westX(extrudeTile(twoParts, null, 256, 1000, tri, { inflate: false }));
+check("without inflation the two west walls share a plane (the fight)", Math.abs(flat.get("tower") - flat.get("block")) < 1e-9);
+const grown = westX(extrudeTile(twoParts, null, 256, 1000, tri));
+check("with it the taller part stands proud, by more than 15 cm",
+  flat.get("tower") - grown.get("tower") > grown.get("block") - flat.get("block") + 0.15 - 1e-9 || (flat.get("block") - grown.get("block")) + 0.15 < (flat.get("tower") - grown.get("tower")),
+  JSON.stringify([...grown]));
+// Above 16 m the height term is gentle and the hash can reorder two parts a
+// few metres apart -- they are still separated, which is what stops the fight.
+check("inflation grows with height and stays a metre or so", inflateBy(5, 0) < inflateBy(8, 0) && inflateBy(51, 0) < inflateBy(61, 0) && inflateBy(300, 4) < 1.6);
+check("equal heights are split by the hash, but never past a storey's difference",
+  inflateBy(5, 1) !== inflateBy(5, 2) && inflateBy(5, 4) < inflateBy(8, 0));
+const edgeRing = [[0, 100], [200, 100], [200, 300], [0, 300]];
+const ge = inflateRing(edgeRing, 5, 4096, true);
+check("vertices on the tile edge stay put (no overlap across the seam)", ge.filter((q) => q[0] === 0).length === 2);
+check("vertices inside move outward", ge.some((q) => q[0] > 200) && ge.some((q) => q[1] > 300));
+
+/* ── Landmarks ────────────────────────────────────────────────────────── */
+// A tile with a stadium (a bowl with the pitch as its hole), a castle keep,
+// a church and a column, each found from the tile's landuse and poi layers.
+const pt = (u, v) => [9 | (1 << 3), zz(u), zz(v)];
+const enc = (name, feats, k, v) => decodeLayer(new Uint8Array(bytes(3, layer(name, feats, k, v))), name);
+const lmKeys = ["class", "name", "subclass"];
+const lmVals = [valueStr("stadium"), valueStr("pitch"), valueStr("castle"), valueStr("Keep Castle"),
+  valueStr("place_of_worship"), valueStr("St Test"), valueStr("monument"), valueStr("Test Column"), valueStr("christian")];
+const landuse = enc("landuse", [
+  { tags: [0, 0], geometry: geom([[[400, 400], [1600, 400], [1600, 1600], [400, 1600]]]) },
+  { tags: [0, 1], geometry: geom([[[800, 800], [1200, 800], [1200, 1200], [800, 1200]]]) },
+], lmKeys, lmVals);
+const poi = { extent: 4096, features: [
+  { type: 1, props: { class: "castle", name: "Keep Castle" }, geometry: pt(2500, 2500) },
+  { type: 1, props: { class: "place_of_worship", subclass: "christian", name: "St Test" }, geometry: pt(3300, 600) },
+  { type: 1, props: { class: "monument", name: "Test Column" }, geometry: pt(3800, 3800) },
+] };
+const lmTile = { extent: 4096, features: [
+  { id: 1, type: 3, props: { render_height: 40 }, geometry: geom([[[500, 500], [1500, 500], [1500, 1500], [500, 1500]], [[700, 700], [700, 1300], [1300, 1300], [1300, 700]]]) },
+  part([[2400, 2400], [2600, 2400], [2600, 2600], [2400, 2600]], 20, 2),
+  part([[3000, 500], [3600, 500], [3600, 700], [3000, 700]], 18, 3),
+] };
+const lm = extrudeTile(lmTile, null, 256, 1000, tri, { landuse, poi, inflate: false });
+check("three landmark buildings and one point monument", lm.landmarks === 3 && lm.monuments === 1, `${lm.landmarks} / ${lm.monuments}`);
+const sty = (v) => Math.trunc(v * 255);          // as the Uint8Array stores it
+check("the castle is dressed stone, the church its own style", lm.style.includes(sty(STYLE_STONE)) && lm.style.includes(sty(STYLE_CHURCH)));
+// The bowl: roof vertices on the pitch side are low, on the outside full height.
+let lowIn = Infinity, highOut = -Infinity;
+const kk = 1000 / 4096;
+for (let t = 0; t < lm.roofCount; t++) {
+  const i = lm.index[t], x = lm.position[i * 3] / kk, z = lm.position[i * 3 + 2] / kk, y = lm.position[i * 3 + 1];
+  if (x > 1700) continue;
+  if (Math.abs(x - 1000) < 310 && Math.abs(z - 1000) < 310) lowIn = Math.min(lowIn, y);
+  if (Math.abs(x - 1000) > 490 || Math.abs(z - 1000) > 490) highOut = Math.max(highOut, y);
+}
+check("stadium stands rake down to the pitch", Math.abs(highOut - 40) < 1e-6 && lowIn < 10, `${lowIn} .. ${highOut}`);
+// Battlements: castle geometry rises above its 20 m roof.
+let castleTop = 0;
+for (let i = 0; i < lm.position.length / 3; i++) {
+  const x = lm.position[i * 3] / kk, z = lm.position[i * 3 + 2] / kk;
+  if (x > 2380 && x < 2620 && z > 2380 && z < 2620) castleTop = Math.max(castleTop, lm.position[i * 3 + 1]);
+}
+check("the castle carries battlements above its roof", Math.abs(castleTop - 21.1) < 1e-6, String(castleTop));
+check("monument forms come from the name", monumentForm("monument", "Nelson's Column") === "column"
+  && monumentForm("attraction", "Cleopatra's Needle") === "obelisk" && monumentForm("monument", "George III") === "statue"
+  && monumentForm("art_gallery", "Statue of Queen Anne") === "statue" && monumentForm("monument", "Lombard Street Ventilation Shaft") === null
+  && monumentForm("art_gallery", "Faceted Column") === "column" && monumentForm("shop", "Cross Keys") === null);
+check("a church nave gets a steep gable at any size", pitched([[0, 0], [60, 0], [60, 20], [0, 20]], 1, 25, 6,
+  { maxHeight: 45, minArea: 30, maxArea: 4000, angle: 50, maxRise: 16, flat: false, gableRatio: 1.15 })?.kind === "gable");
+
+// A low part inside a stadium (Old Trafford's 5 m concourse ring) is the
+// stadium too: plain, not an office block with a band of windows, and flat.
+{
+  const st = enc("landuse", [{ tags: [0, 0], geometry: geom([[[400, 400], [1600, 400], [1600, 1600], [400, 1600]]]) }], lmKeys, lmVals);
+  const low = { extent: 4096, features: [part([[450, 450], [1550, 450], [1550, 520], [450, 520]], 5, 9)] };
+  const ml = extrudeTile(low, null, 256, 1000, tri, { landuse: st, inflate: false });
+  const tops = new Set(); for (let i = 1; i < ml.position.length; i += 3) tops.add(Math.round(ml.position[i] * 100) / 100);
+  check("a 5 m part inside a stadium is the stadium's, drawn plain", ml.landmarks === 1 && ml.style.every((v) => v === 127), String(ml.landmarks));
+  check("...and flat-topped (only parts from 8 m are raked)", Math.max(...tops) === 5, JSON.stringify([...tops]));
+}
 
 process.exit(failed ? 1 : 0);

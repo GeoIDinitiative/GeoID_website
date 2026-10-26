@@ -1,0 +1,932 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>The Flowers of Manchester Arena | GeoID</title>
+<meta name="description" content="The Flowers of Manchester Arena and the Sir Matt Busby Complex: an interactive 3D concept for a 100,020-seat Manchester United stadium at Trafford Wharf, with Old Trafford kept.">
+<meta name="robots" content="noindex, nofollow">
+<link rel="icon" type="image/png" href="assets/crest.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Big+Shoulders+Display:wght@500;600;700;800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: full-bleed 3D model. Everything interactive lives in one GeoHUB-style mission panel on the left
+   (mode switch, collapsible sections with icons and switches, a label workspace with colour bars); it
+   collapses to a tab, and becomes a bottom sheet on phones. The street map opens beside it. */
+:root {
+  --ink: #0f0d0e;
+  --panel: rgba(20, 16, 18, 0.9);
+  --row: rgba(242, 236, 230, 0.035);
+  --line: rgba(242, 236, 230, 0.13);
+  --paper: #f2ece6;
+  --muted: #a99d98;
+  --red: #c8102e;
+  --aqua: #5fb8ad;
+  --display: "Big Shoulders Display", "Arial Narrow", Impact, sans-serif;
+  --body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+  --navw: 372px;
+  color-scheme: dark;
+}
+[hidden] { display: none !important; }
+html, body { height: 100%; }
+body { background: var(--ink); color: var(--paper); font-family: var(--body); overflow: hidden; margin: 0; }
+#stage { position: fixed; inset: 0; }
+#stage canvas { display: block; width: 100%; height: 100%; touch-action: none; }
+button { font: inherit; }
+
+/* loading */
+#loader { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; background: var(--ink); transition: opacity .6s; }
+#loader.done { opacity: 0; pointer-events: none; }
+.load-card { display: grid; gap: 14px; justify-items: center; text-align: center; padding-inline: max(16px, env(safe-area-inset-left, 0px)) max(16px, env(safe-area-inset-right, 0px)); }
+.load-card h1 { font-family: var(--display); font-weight: 800; font-size: clamp(34px, 6vw, 64px); letter-spacing: .02em; line-height: .95; margin: 0; text-transform: uppercase; text-wrap: balance; }
+.load-card h1 span { color: var(--red); }
+#loadStep { font-family: var(--mono); font-size: 12px; color: var(--muted); letter-spacing: .06em; text-transform: uppercase; }
+.bar { width: min(320px, 70vw); height: 3px; background: var(--line); overflow: hidden; }
+.bar i { display: block; height: 100%; width: 0; background: var(--red); transition: width .4s; }
+
+/* ---------- mission panel ---------- */
+#nav { position: fixed; z-index: 10; left: max(12px, env(safe-area-inset-left, 0px)); top: calc(12px + env(safe-area-inset-top, 0px)); bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+  width: var(--navw); display: flex; flex-direction: column; gap: 8px; }
+#nav.collapsed { display: none; }
+.card { background: var(--panel); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border: 1px solid var(--line); border-radius: 6px; }
+.main { display: flex; flex-direction: column; min-height: 0; flex: 1; }
+.topbar { display: flex; gap: 6px; padding: 8px; border-bottom: 1px solid var(--line); align-items: center; }
+.modes { display: flex; flex: 1; gap: 4px; }
+.modes button, .iconbtn { all: unset; box-sizing: border-box; cursor: pointer; font-family: var(--mono); font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase; text-align: center;
+  padding: 7px 8px; border: 1px solid var(--line); border-radius: 4px; color: var(--muted); }
+.modes button { flex: 1; }
+.modes button[aria-pressed="true"] { background: var(--red); border-color: var(--red); color: #fff; }
+.modes button:hover, .iconbtn:hover { color: var(--paper); border-color: rgba(242, 236, 230, .4); }
+.iconbtn { width: 30px; padding: 6px 0; font-size: 14px; letter-spacing: 0; }
+:is(.modes button, .iconbtn, .sec-h, .seg button, .ch > button, .pill, .street-row, .lcat label):focus-visible { outline: 2px solid var(--aqua); outline-offset: -2px; }
+.masthead { padding: 12px 16px 10px; display: grid; gap: 3px; border-bottom: 1px solid var(--line); }
+.eyebrow { font-family: var(--mono); font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
+.masthead h1 { margin: 0; font-family: var(--display); font-weight: 800; font-size: 30px; line-height: .92; text-transform: uppercase; letter-spacing: .01em; }
+.masthead h1 em { font-style: normal; color: var(--red); }
+.stats { display: grid; grid-template-columns: repeat(4, 1fr); border-bottom: 1px solid var(--line); }
+.stat { padding: 8px 10px; display: grid; gap: 2px; border-right: 1px solid var(--line); }
+.stat:last-child { border-right: 0; }
+.stat b { font-family: var(--display); font-weight: 800; font-size: 19px; line-height: 1; font-variant-numeric: tabular-nums; }
+.stat span { font-size: 9.5px; color: var(--muted); line-height: 1.25; }
+.sections { flex: 1; min-height: 0; overflow-y: auto; padding: 8px; display: grid; gap: 6px; align-content: start; scrollbar-width: thin; }
+.sec { border: 1px solid var(--line); border-radius: 4px; background: var(--row); }
+.sec-h { all: unset; box-sizing: border-box; cursor: pointer; width: 100%; display: grid; grid-template-columns: 12px 18px 1fr auto; gap: 10px; align-items: center; padding: 10px 12px;
+  font-family: var(--mono); font-size: 11px; font-weight: 500; letter-spacing: .14em; text-transform: uppercase; }
+.sec-h .chev { color: var(--red); transition: transform .15s; }
+.sec-h[aria-expanded="true"] .chev { transform: rotate(90deg); }
+.sec-h svg { width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.sec-h .val { font-size: 10px; letter-spacing: .06em; color: var(--muted); text-transform: none; }
+.sec-b { padding: 2px 12px 12px; display: grid; gap: 10px; }
+.sec-h[aria-expanded="false"] + .sec-b { display: none; }
+.field { display: grid; gap: 5px; }
+.field > span { font-family: var(--mono); font-size: 9.5px; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
+.seg { display: flex; border: 1px solid var(--line); border-radius: 4px; overflow: hidden; }
+.seg button { all: unset; box-sizing: border-box; cursor: pointer; flex: 1; text-align: center; padding: 7px 6px; font-family: var(--mono); font-size: 10.5px; letter-spacing: .06em; text-transform: uppercase; border-right: 1px solid var(--line); }
+.seg button:last-child { border-right: 0; }
+.seg button:hover { background: rgba(242, 236, 230, .07); }
+.seg button[aria-pressed="true"] { background: var(--paper); color: var(--ink); }
+.sw { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 13px; cursor: pointer; }
+.sw small { display: block; font-size: 11px; color: var(--muted); }
+.sw input, .lcat input { appearance: none; -webkit-appearance: none; flex: none; width: 30px; height: 16px; border-radius: 8px; background: rgba(242, 236, 230, .16); position: relative; cursor: pointer; margin: 0; transition: background .15s; }
+.sw input::after, .lcat input::after { content: ""; position: absolute; top: 2px; left: 2px; width: 12px; height: 12px; border-radius: 50%; background: var(--paper); transition: transform .15s; }
+.sw input:checked, .lcat input:checked { background: var(--red); }
+.sw input:checked::after, .lcat input:checked::after { transform: translateX(14px); }
+.sw input:focus-visible, .lcat input:focus-visible { outline: 2px solid var(--aqua); outline-offset: 2px; }
+#cutDial { display: flex; align-items: center; gap: 10px; font-family: var(--mono); font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+#cutDial input { flex: 1; accent-color: var(--red); }
+#cutDial output { color: var(--paper); font-variant-numeric: tabular-nums; min-width: 4ch; text-align: right; }
+.hint { font-family: var(--mono); font-size: 10.5px; color: var(--muted); line-height: 1.5; margin: 0; }
+/* story */
+#chapters { list-style: none; margin: 0 -12px; padding: 0; }
+.ch { border-top: 1px solid var(--line); }
+.ch > button { all: unset; box-sizing: border-box; width: 100%; cursor: pointer; display: grid; grid-template-columns: 28px 1fr; gap: 8px; align-items: baseline; padding: 8px 12px; }
+.ch .no { font-family: var(--mono); font-size: 11px; color: var(--muted); }
+.ch .t { font-family: var(--display); font-weight: 600; font-size: 18px; text-transform: uppercase; letter-spacing: .02em; }
+.ch .body { display: none; padding: 0 12px 12px 48px; font-size: 13px; line-height: 1.55; color: #d9d0cb; }
+.ch .body p { margin: 0 0 8px; }
+.ch.on { background: linear-gradient(90deg, rgba(200, 16, 46, .22), transparent 70%); box-shadow: inset 3px 0 0 var(--red); }
+.ch.on .no { color: var(--red); }
+.ch.on .body { display: block; }
+.inline-btn { all: unset; cursor: pointer; font-family: var(--mono); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--aqua); border-bottom: 1px solid currentColor; margin-right: 12px; }
+.pill { all: unset; box-sizing: border-box; cursor: pointer; font-family: var(--mono); font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase; padding: 7px 12px; border: 1px solid var(--line); border-radius: 4px; text-align: center; }
+.pill:hover { border-color: var(--paper); }
+.pill[aria-pressed="true"] { background: var(--red); border-color: var(--red); color: #fff; }
+/* streets list */
+.street-theme { font-family: var(--mono); font-size: 9.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); margin: 4px 0 2px; display: flex; gap: 8px; align-items: center; }
+.street-theme i { width: 10px; height: 3px; background: var(--c); }
+.street-row { all: unset; box-sizing: border-box; cursor: pointer; display: grid; grid-template-columns: 3px 1fr auto; gap: 10px; align-items: center; width: 100%; padding: 5px 6px; border-radius: 3px; font-size: 12.5px; }
+.street-row::before { content: ""; align-self: stretch; background: var(--c); border-radius: 2px; }
+.street-row small { color: var(--muted); font-size: 11px; }
+.street-row:hover { background: rgba(242, 236, 230, .06); }
+.about { font-size: 11px; color: var(--muted); line-height: 1.5; margin: 0; }
+/* label workspace */
+.workspace { flex: none; }
+.ws-h { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-bottom: 1px solid var(--line); font-family: var(--mono); font-size: 11px; letter-spacing: .14em; text-transform: uppercase; }
+.ws-h svg { width: 16px; height: 16px; stroke: var(--red); fill: none; stroke-width: 1.6; }
+.ws-h span { flex: 1; }
+#labelCats { list-style: none; margin: 0; padding: 6px; display: grid; grid-template-columns: 1fr 1fr; gap: 4px; max-height: 27vh; overflow-y: auto; }
+.lcat label { display: grid; grid-template-columns: 4px 1fr auto; gap: 8px; align-items: center; padding: 5px 8px 5px 0; border: 1px solid var(--line); border-radius: 3px; font-size: 11.5px; cursor: pointer; background: var(--row); overflow: hidden; }
+.lcat label::before { content: ""; align-self: stretch; background: var(--c); margin: -5px 0; }
+.lcat input { transform: scale(.8); }
+.lcat em { font-style: normal; color: var(--muted); font-size: 10px; margin-left: 4px; }
+#navTab { position: fixed; z-index: 10; left: max(12px, env(safe-area-inset-left, 0px)); top: calc(12px + env(safe-area-inset-top, 0px)); font-family: var(--mono); font-size: 11px; letter-spacing: .12em; text-transform: uppercase;
+  padding: 9px 12px; background: var(--panel); border: 1px solid var(--line); border-left: 3px solid var(--red); border-radius: 4px; color: var(--paper); cursor: pointer; }
+#hint { position: fixed; z-index: 9; right: max(16px, env(safe-area-inset-right, 0px)); bottom: calc(16px + env(safe-area-inset-bottom, 0px)); font-family: var(--mono); font-size: 10.5px; color: var(--muted); letter-spacing: .05em; background: var(--panel); padding: 8px 10px; border: 1px solid var(--line); border-radius: 4px; max-width: 360px; line-height: 1.5; }
+
+/* ---------- labels in the scene: a colour bar per category ---------- */
+#labels { position: fixed; inset: 0; pointer-events: none; z-index: 5; overflow: hidden; }
+.tag { position: absolute; left: 0; top: 0; transform: translate(-50%, -100%); white-space: nowrap; font-family: var(--body); font-size: 11px; font-weight: 500; color: var(--ink); background: var(--paper);
+  padding: 4px 8px 4px 9px; border: 0; border-left: 5px solid var(--c, var(--red)); pointer-events: auto; cursor: pointer; }
+.tag::after { content: ""; position: absolute; left: 50%; top: 100%; width: 1px; height: 14px; background: var(--paper); }
+.tag.major { font-family: var(--display); font-weight: 800; font-size: 15px; text-transform: uppercase; letter-spacing: .03em; }
+.tag.street { background: rgba(20, 16, 18, .85); color: var(--paper); font-family: var(--mono); font-size: 10.5px; letter-spacing: .04em; }
+.tag.street::after { background: rgba(242, 236, 230, .5); }
+.tag:hover, .tag:focus-visible { background: #fff; color: var(--ink); outline: 2px solid var(--c, var(--red)); }
+#pop { position: fixed; z-index: 20; width: min(340px, calc(100vw - 32px)); background: var(--panel); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border: 1px solid var(--line); border-top: 3px solid var(--c, var(--red)); border-radius: 4px; padding: 14px 16px 12px; display: grid; gap: 8px; }
+#pop .kicker { font-family: var(--mono); font-size: 9.5px; letter-spacing: .14em; text-transform: uppercase; color: var(--c, var(--muted)); }
+#pop h2 { margin: 0; font-family: var(--display); font-weight: 800; font-size: 22px; line-height: 1; text-transform: uppercase; letter-spacing: .02em; text-wrap: balance; padding-right: 28px; }
+#pop p { margin: 0; font-size: 13px; line-height: 1.55; color: #d9d0cb; }
+#pop .row { display: flex; gap: 8px; flex-wrap: wrap; }
+#popClose { all: unset; position: absolute; top: 8px; right: 10px; cursor: pointer; font-family: var(--mono); font-size: 16px; color: var(--muted); padding: 4px 6px; }
+#popClose:focus-visible { outline: 2px solid var(--aqua); }
+#cross { position: fixed; left: 50%; top: 50%; width: 14px; height: 14px; margin: -7px 0 0 -7px; z-index: 6; pointer-events: none; }
+#cross::before, #cross::after { content: ""; position: absolute; background: rgba(255,255,255,.8); }
+#cross::before { left: 6px; top: 0; width: 2px; height: 14px; } #cross::after { top: 6px; left: 0; height: 2px; width: 14px; }
+
+/* ---------- street map ---------- */
+#streetmap { position: fixed; z-index: 8; inset: 0; background: #151213; }
+.smap { position: absolute; inset: 0; width: 100%; height: 100%; cursor: grab; touch-action: none; user-select: none; }
+.smap:active { cursor: grabbing; }
+.m-parcel { fill: rgba(200, 16, 46, .05); stroke: rgba(200, 16, 46, .35); stroke-dasharray: 6 4; vector-effect: non-scaling-stroke; }
+.m-block { fill: rgba(242, 236, 230, .045); stroke: none; }
+.m-water { fill: #1e3340; }
+.m-canal { fill: none; stroke: #1e3340; stroke-linecap: round; stroke-linejoin: round; }
+.m-rail { fill: none; stroke: #6c625e; stroke-width: 1.5px; stroke-dasharray: 8 5; vector-effect: non-scaling-stroke; }
+.m-road { fill: none; stroke: #2c2627; stroke-linecap: round; stroke-linejoin: round; }
+.m-road.keep { stroke: #4a4244; }
+.m-walk { fill: none; stroke: rgba(232, 181, 74, .35); stroke-linecap: round; }
+.m-bridge { stroke: #e9e3dc; stroke-linecap: butt; opacity: .55; }
+.m-ground { fill: rgba(200, 16, 46, .28); stroke: var(--red); stroke-width: 1.5px; vector-effect: non-scaling-stroke; }
+.m-place { fill: var(--paper); font-family: var(--display); font-weight: 800; text-transform: uppercase; letter-spacing: .04em; font-size: calc(var(--u) * 15px); text-anchor: middle; paint-order: stroke; stroke: #151213; stroke-width: calc(var(--u) * 4px); pointer-events: none; }
+.m-street { cursor: pointer; outline: none; }
+.m-hit { fill: none; stroke: transparent; stroke-linecap: round; }
+.m-line { fill: none; stroke: var(--c); stroke-linecap: round; stroke-linejoin: round; transition: stroke-width .1s; }
+.m-street:hover .m-line, .m-street:focus-visible .m-line, .m-street.sel .m-line { stroke: #fff; filter: drop-shadow(0 0 calc(var(--u) * 6px) var(--c)); }
+.m-name.real { fill: #9c918c; font-style: italic; }
+.m-name.small { font-size: calc(var(--u) * 9.5px); fill: #e6ddd6; }
+.m-line.thin { opacity: .6; }
+.m-area { fill: color-mix(in srgb, var(--c) 22%, transparent); stroke: var(--c); stroke-width: 1.2px; vector-effect: non-scaling-stroke; }
+.m-place-g:hover .m-area, .m-place-g.sel .m-area { fill: color-mix(in srgb, var(--c) 45%, transparent); }
+.m-legend i.lanes { background: repeating-linear-gradient(90deg, #cfc8c2 0 5px, transparent 5px 8px); }
+#streetFilter { all: unset; box-sizing: border-box; width: 100%; padding: 7px 10px; border: 1px solid var(--line); border-radius: 4px; font-size: 12.5px; background: rgba(0,0,0,.2); }
+#streetFilter:focus-visible { outline: 2px solid var(--aqua); }
+.street-sub { font-family: var(--mono); font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: var(--paper); margin: 10px 0 2px; border-top: 1px solid var(--line); padding-top: 8px; }
+.m-name { fill: var(--paper); font-family: var(--mono); font-weight: 500; font-size: calc(var(--u) * 11px); paint-order: stroke; stroke: #151213; stroke-width: calc(var(--u) * 3.5px); pointer-events: none; }
+.m-card { position: absolute; right: 16px; top: 16px; width: min(320px, calc(100vw - 32px)); background: var(--panel); border: 1px solid var(--line); border-top: 3px solid var(--c); border-radius: 4px; padding: 14px 16px; display: grid; gap: 6px; }
+.m-card h3 { margin: 0; font-family: var(--display); font-weight: 800; font-size: 24px; text-transform: uppercase; line-height: 1; padding-right: 24px; }
+.m-card p { margin: 0; font-size: 13px; line-height: 1.5; color: #d9d0cb; }
+.m-card .m-theme { font-family: var(--mono); font-size: 9.5px; letter-spacing: .14em; text-transform: uppercase; color: var(--c); }
+.m-card .m-meta { font-family: var(--mono); font-size: 11px; color: var(--muted); }
+.m-card .pill { justify-self: start; margin-top: 4px; }
+.m-x { all: unset; position: absolute; top: 8px; right: 10px; cursor: pointer; color: var(--muted); font-size: 15px; padding: 4px 6px; }
+.m-tools { position: absolute; right: 16px; bottom: 16px; display: grid; gap: 4px; }
+.m-tools button { all: unset; cursor: pointer; width: 34px; height: 34px; display: grid; place-items: center; background: var(--panel); border: 1px solid var(--line); border-radius: 4px; font-size: 16px; }
+.m-tools button:hover { border-color: var(--paper); }
+.m-legend { position: absolute; right: 64px; bottom: 16px; background: var(--panel); border: 1px solid var(--line); border-radius: 4px; padding: 10px 12px; display: grid; gap: 5px; font-size: 11.5px; }
+.m-legend h4 { margin: 0 0 2px; font-family: var(--mono); font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); font-weight: 500; }
+.m-legend div { display: flex; gap: 8px; align-items: center; }
+.m-legend i { width: 18px; height: 4px; border-radius: 2px; background: var(--c); }
+.m-legend i.walk { background: rgba(232, 181, 74, .45); height: 7px; } .m-legend i.keep { background: #4a4244; height: 5px; }
+.m-legend span { color: var(--muted); font-family: var(--mono); font-size: 10px; }
+body.map-open #labels, body.map-open #hint, body.map-open #pop { display: none; }
+
+/* walk: pick a starting spot */
+body.picking #stage canvas { cursor: crosshair; }
+#pickHint { position: fixed; z-index: 12; left: 50%; top: calc(16px + env(safe-area-inset-top, 0px)); transform: translateX(-50%); background: var(--red); color: #fff; font-family: var(--display); font-weight: 700; font-size: 17px; letter-spacing: .06em; text-transform: uppercase; padding: 10px 16px; border-radius: 4px; box-shadow: 0 6px 24px rgba(0,0,0,.4); white-space: nowrap; }
+#pickHint span { opacity: .75; margin-left: 10px; font-weight: 500; font-size: 14px; }
+/* the panel speaks in the title's typeface: Big Shoulders Display throughout, sized up for its narrow letters */
+#nav, #navTab { --mono: var(--display); --body: var(--display); font-family: var(--display); }
+#nav { font-size: 16px; letter-spacing: .02em; }
+#nav .eyebrow { font-size: 12px; letter-spacing: .16em; font-weight: 600; }
+#nav .stat span { font-size: 12px; font-weight: 500; line-height: 1.1; }
+#nav .modes button, #nav .iconbtn { font-size: 14px; font-weight: 700; letter-spacing: .12em; }
+#nav .sec-h { font-size: 16px; font-weight: 700; letter-spacing: .1em; }
+#nav .sec-h .val { font-size: 14px; font-weight: 500; letter-spacing: .04em; }
+#nav .field > span { font-size: 12.5px; font-weight: 700; }
+#nav .seg button { font-size: 14px; font-weight: 700; letter-spacing: .06em; }
+#nav .sw { font-size: 17px; font-weight: 600; }
+#nav .sw small { font-size: 14px; font-weight: 500; letter-spacing: .03em; }
+#nav .hint, #nav .about { font-size: 15.5px; font-weight: 500; line-height: 1.4; letter-spacing: .03em; }
+#nav .ch .no { font-size: 15px; font-weight: 600; }
+#nav .ch .t { font-size: 20px; }
+#nav .ch .body { font-size: 16px; font-weight: 500; line-height: 1.4; letter-spacing: .03em; }
+#nav .inline-btn, #nav .pill { font-size: 14px; font-weight: 700; }
+#nav .street-theme, #nav .street-sub { font-size: 13px; font-weight: 700; }
+#nav .street-row { font-size: 16.5px; font-weight: 600; }
+#nav .street-row small { font-size: 14px; font-weight: 500; }
+#nav #streetFilter { font-size: 16px; font-family: var(--display); }
+#nav .ws-h { font-size: 15px; font-weight: 700; }
+#nav .lcat label { font-size: 15px; font-weight: 600; }
+#nav .lcat em { font-size: 13px; }
+#navTab { font-size: 15px; font-weight: 700; }
+/* an open section is one bound card: a red outline round header and contents, the header in red, the contents on a darker ground */
+#nav .sec { transition: border-color .15s; }
+#nav .sec-h { border-radius: 3px 3px 0 0; }
+#nav .sec-h[aria-expanded="false"] { border-radius: 3px; }
+#nav .sec:has(> .sec-h[aria-expanded="true"]) { border-color: var(--red); box-shadow: 0 0 0 1px rgba(200, 16, 46, .35); }
+#nav .sec-h[aria-expanded="true"] { background: var(--red); color: #fff; }
+#nav .sec-h[aria-expanded="true"] .chev { color: #fff; }
+#nav .sec-h[aria-expanded="true"] .val { color: rgba(255, 255, 255, .8); }
+#nav .sec-h[aria-expanded="true"] + .sec-b { background: rgba(8, 6, 7, .55); border-top: 1px solid rgba(200, 16, 46, .5); padding-top: 12px; }
+#nav .sec-h:hover { background: rgba(242, 236, 230, .06); }
+#nav .sec-h[aria-expanded="true"]:hover { background: #d4183a; }
+#nav .about h3 { margin: 14px 0 4px; font-size: 17px; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; color: var(--paper); }
+#nav .about h3:first-child { margin-top: 2px; }
+#nav .about p { margin: 0 0 8px; }
+#nav .about small { display: block; margin-top: 10px; font-size: 13.5px; color: var(--muted); }
+@media (min-width: 861px) { #streetmap { left: calc(var(--navw) + 24px); } body.nav-collapsed #streetmap { left: 0; } }
+@media (max-width: 860px) {
+  :root { --navw: auto; }
+  #nav { top: auto; left: 0; right: 0; bottom: 0; width: auto; max-height: 56vh; gap: 0; }
+  #nav .card { border-radius: 8px 8px 0 0; border-left: 0; border-right: 0; }
+  #nav .workspace { border-radius: 0; border-left: 0; border-right: 0; border-bottom: 0; }
+  #labelCats { max-height: 15vh; }
+  .masthead { padding-inline: max(14px, env(safe-area-inset-left, 0px)) max(14px, env(safe-area-inset-right, 0px)); }
+  .masthead h1 { font-size: 24px; }
+  .stats { display: none; }
+  .sections { padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px)); }
+  #navTab { top: auto; bottom: calc(12px + env(safe-area-inset-bottom, 0px)); }
+  #hint { display: none; }
+  .m-legend { left: 16px; right: auto; top: 16px; bottom: auto; }
+  .m-card { top: auto; bottom: 16px; left: 16px; right: 64px; width: auto; }
+}
+@media (prefers-reduced-motion: reduce) { #loader, .bar i, .sec-h .chev { transition: none; } }
+</style>
+</head>
+<body>
+
+<div id="stage"></div>
+<div id="labels"></div>
+<div id="streetmap" hidden></div>
+
+<div id="loader" role="status" aria-live="polite">
+  <div class="load-card">
+    <div class="eyebrow">Sir Matt Busby Complex · Trafford Wharf</div>
+    <h1>The Flowers of<br><span>Manchester</span> Arena</h1>
+    <div class="bar"><i id="loadBar"></i></div>
+    <div id="loadStep">Loading the site</div>
+  </div>
+</div>
+
+<aside id="nav" aria-label="Controls">
+  <div class="card main">
+    <div class="topbar">
+      <div class="modes" role="group" aria-label="View">
+        <button id="modeModel" aria-pressed="true">3D model</button>
+        <button id="modeMap" aria-pressed="false">Street map</button>
+      </div>
+      <button class="iconbtn" id="navCollapse" aria-label="Collapse the panel" title="Collapse">‹</button>
+    </div>
+    <header class="masthead">
+      <div class="eyebrow">A proposal to Manchester United · 2026</div>
+      <h1>The Flowers of <em>Manchester</em> Arena</h1>
+    </header>
+    <div class="stats">
+      <div class="stat"><b>100,020</b><span>seats in the new arena</span></div>
+      <div class="stat"><b>c.35k</b><span>at Old Trafford, kept</span></div>
+      <div class="stat"><b id="homesStat">1,700</b><span>new homes (est.)</span></div>
+      <div class="stat"><b id="streetsStat">0</b><span>streets, lanes & courts named for legends</span></div>
+    </div>
+    <div class="sections">
+      <section class="sec">
+        <button class="sec-h" aria-expanded="true"><span class="chev">›</span><svg viewBox="0 0 24 24"><path d="M4 5h7a3 3 0 0 1 3 3v12a2 2 0 0 0-2-2H4zM20 5h-5a3 3 0 0 0-3 3"/><path d="M20 5v13h-6"/></svg><span>Story</span><span class="val" id="storyVal"></span></button>
+        <div class="sec-b">
+          <ol id="chapters"></ol>
+          <button class="pill" id="tour" aria-pressed="false">Play the tour</button>
+        </div>
+      </section>
+      <section class="sec">
+        <button class="sec-h" aria-expanded="false"><span class="chev">›</span><svg viewBox="0 0 24 24"><path d="M3 6l6-2 6 2 6-2v14l-6 2-6-2-6 2z"/><path d="M9 4v14M15 6v14"/></svg><span>Site</span><span class="val" id="siteVal"></span></button>
+        <div class="sec-b">
+          <div class="field"><span>The land</span><div class="seg"><button id="siteToday" aria-pressed="false">Today</button><button id="siteProposed" aria-pressed="true">Proposed</button></div></div>
+          <div class="field"><span>Old Trafford</span><div class="seg"><button id="otToday" aria-pressed="false">As now</button><button id="otAfter" aria-pressed="true">Reimagined</button></div></div>
+        </div>
+      </section>
+      <section class="sec">
+        <button class="sec-h" aria-expanded="false"><span class="chev">›</span><svg viewBox="0 0 24 24"><ellipse cx="12" cy="12" rx="9" ry="6"/><ellipse cx="12" cy="12" rx="4" ry="2.5"/></svg><span>Arena</span><span class="val" id="arenaVal"></span></button>
+        <div class="sec-b">
+          <label class="sw">Façade<input type="checkbox" id="skin" checked></label>
+          <label class="sw"><span>Cutaway<small>Slice the bowl to see the tiers</small></span><input type="checkbox" id="cut"></label>
+          <label id="cutDial" hidden>Angle <input id="cutAngle" type="range" min="0" max="360" step="1" value="90"><output id="cutOut">90°</output></label>
+        </div>
+      </section>
+      <section class="sec">
+        <button class="sec-h" aria-expanded="false"><span class="chev">›</span><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.5 1.5M17.5 17.5L19 19M5 19l1.5-1.5M17.5 6.5L19 5"/></svg><span>Light</span><span class="val" id="lightVal"></span></button>
+        <div class="sec-b">
+          <div class="seg"><button data-time="day" aria-pressed="true">Day</button><button data-time="golden" aria-pressed="false">Evening</button><button data-time="night" aria-pressed="false">Matchday night</button></div>
+        </div>
+      </section>
+      <section class="sec">
+        <button class="sec-h" aria-expanded="false"><span class="chev">›</span><svg viewBox="0 0 24 24"><rect x="3" y="7" width="13" height="10" rx="1.5"/><path d="M16 11l5-3v8l-5-3"/></svg><span>Camera</span><span class="val" id="camVal"></span></button>
+        <div class="sec-b">
+          <div class="seg"><button id="orbitBtn" aria-pressed="true">Orbit</button><button id="flyBtn" aria-pressed="false">Fly</button><button id="walkBtn" aria-pressed="false">Walk</button></div>
+          <p class="hint" id="camHint"></p>
+        </div>
+      </section>
+      <section class="sec">
+        <button class="sec-h" aria-expanded="false"><span class="chev">›</span><svg viewBox="0 0 24 24"><path d="M12 3l9 5-9 5-9-5z"/><path d="M3 13l9 5 9-5"/></svg><span>Layers</span><span class="val" id="layersVal"></span></button>
+        <div class="sec-b" id="layerList"></div>
+      </section>
+      <section class="sec">
+        <button class="sec-h" aria-expanded="false"><span class="chev">›</span><svg viewBox="0 0 24 24"><path d="M12 2v20"/><path d="M5 5h11l3 3-3 3H5z"/><path d="M19 13H8l-3 3 3 3h11"/></svg><span>Streets</span><span class="val" id="streetsVal"></span></button>
+        <div class="sec-b">
+          <p class="about">Every new street and bridge is named after a United icon: the Busby Babes by the Munich Memorial garden, the 1968 side on the Freightliner land, the Treble at the arena, Ferguson’s later sides on the north bank. Pick one to see it on the street map.</p>
+          <input id="streetFilter" type="search" placeholder="Find a street, lane or player" aria-label="Find a street, lane or player">
+          <div id="streetList"></div>
+        </div>
+      </section>
+      <section class="sec">
+        <button class="sec-h" aria-expanded="false"><span class="chev">›</span><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.5"/></svg><span>About</span></button>
+        <div class="sec-b">
+          <div class="about">
+            <h3>The name</h3>
+            <p>“The Flowers of Manchester” is the lament written after the Munich air disaster of 6 February 1958, for the Busby Babes who did not come home. The arena carries its name so that the club’s new home starts from the memory of the team that made it.</p>
+            <h3>The rose</h3>
+            <p>The building is a flower laid on the city. A single skin of milky ETFE wraps the bowl: aqua at the base, the colour of the Old Trafford windows, warming to white at the crown. Two families of spirals, 13 one way and 21 the other, the Fibonacci numbers of a real flower head, cross to make the netting. Over them, 15 petals leave the roof opening, each turned 137.5°, the golden angle at which a rose sets its petals, and run down to the ground. The wall leans out 20° and turns over a curved eave into a roof that falls to the opening, so the whole arena reads as one bloom. The crest and the club’s name are set into the skin, and the crest is inlaid in the arrival square.</p>
+            <h3>The arena</h3>
+            <p>100,020 seats in three tiers on the 25-acre Indurent site at Trafford Wharf, its centre spot about 840 m from Old Trafford’s. Between the skin and the bowl is an eight-storey atrium: shops, restaurants and bars on stepped galleries, the museum, trophy room and Munich Memorial Gallery, the lounges and a sky restaurant. It works as an arcade every day of the week and as the concourse on matchdays.</p>
+            <h3>Old Trafford, kept</h3>
+            <p>Old Trafford is not demolished. Its upper tiers come off every stand, leaving one even tier of about 35,000 seats under a roof in the style of today’s South Stand: the home of the women’s team and the academy. The pitch, the tunnel, the Munich clock and memorial and the Holy Trinity statue stay where they are, and Legends’ Field sits behind the North Stand. The club keeps its two grounds, a short walk apart.</p>
+            <h3>The Sir Matt Busby Complex</h3>
+            <p>Around the two grounds, a new neighbourhood is named for the manager who built the Babes and rebuilt the club after Munich. Shops, bars, the galleria and the cinema cluster in the Matchday Quarter at the arena’s door, then give way to streets of courtyard homes on the Freightliner land, the north bank and the canal side, with hotels and bars by the East Stand.</p>
+            <h3>Arrival and the walks</h3>
+            <p>A new station on the Liverpool–Manchester line has two 230 m island platforms for 12-car matchday trains. From its square, the Busby Way, a 22 m fan walk with its own canal bridge, runs to the arena’s south gate and the Crest Plaza; the Trinity Walk leads to Old Trafford; and the Avenue of Legends runs along the canal between the two grounds.</p>
+            <h3>The garden and the Trinity Light</h3>
+            <p>At the heart of the neighbourhood, a botanic garden with a palm house holds the Munich Memorial: 23 red rose beds, one for each of the 23 lives lost. In it, exactly halfway between the two centre spots, stands the Trinity Light. Every evening it sends three beams into the sky, white, blue and green, for Bobby Charlton, Denis Law and George Best, the trinity of the 1968 European Cup side whose statue stands outside Old Trafford.</p>
+            <h3>The street names</h3>
+            <p>Every new street, bridge, lane, courtyard, arcade and yard is named after someone from the club’s story, district by district: the Busby Babes and Munich around the memorial garden, the 1968 side on the Freightliner land, the Treble at the arena, the pioneers by Old Trafford, and Ferguson’s later sides on the north bank, with Ella Toone for the women’s team. Bridges carry Eric Cantona and Bryan Robson.</p>
+            <h3>The wider world</h3>
+            <p>The scheme sits in Greater Manchester as the GeoHUB flight sim draws it: real buildings from OpenStreetMap, imagery out to the Pennines on real terrain, and at night NASA’s Black Marble city lights with lamps along every road.</p>
+            <small>Concept proposal, not affiliated with Manchester United. Street names and figures are proposals. Imagery © Esri, Maxar, Earthstar Geographics. Map data and city buildings © OpenStreetMap contributors (via OpenFreeMap). Terrain: AWS Terrain Tiles. Night lights: NASA Black Marble (public domain).</small>
+          </div>
+        </div>
+      </section>
+    </div>
+  </div>
+  <div class="card workspace">
+    <div class="ws-h"><svg viewBox="0 0 24 24"><path d="M12 3l9 5-9 5-9-5z"/><path d="M3 13l9 5 9-5"/></svg><span>Labels</span><label class="sw" style="font-size:11px">All<input type="checkbox" id="labelsAll" checked></label></div>
+    <ul id="labelCats"></ul>
+  </div>
+</aside>
+<button id="navTab" hidden aria-label="Open the panel">Panel ›</button>
+<div id="cross" hidden></div>
+<div id="pickHint" hidden role="status">Click any spot in the complex to start walking there <span>Esc to cancel</span></div>
+<div id="pop" hidden role="dialog" aria-labelledby="popTitle">
+  <button id="popClose" aria-label="Close">✕</button>
+  <div class="kicker" id="popKicker"></div>
+  <h2 id="popTitle"></h2>
+  <p id="popBody"></p>
+  <div class="row"><button class="pill" id="popFly">Fly here</button><button class="pill" id="popMap" hidden>On the street map</button></div>
+</div>
+
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/","three-mesh-bvh":"https://cdn.jsdelivr.net/npm/three-mesh-bvh@0.8.3/build/index.module.js"}}</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { loadData, createRenderer, createWorld, applyTime } from './src/scene.js';
+import { STADIUM_POS } from './src/masterplan.js';
+import { loadOldTraffordModel } from './src/otmodel.js';
+import { clampToWorld } from './src/horizon.js';
+import { computeBoundsTree, acceleratedRaycast } from 'three-mesh-bvh';
+// label occlusion rays go through a BVH: a few dozen box tests instead of every triangle of every occluder
+THREE.BufferGeometry.prototype.computeBoundsTree = computeBoundsTree; THREE.Mesh.prototype.raycast = acceleratedRaycast;
+import { createStreetMap, THEMES } from './src/streetmap.js';
+
+const $ = (s) => document.querySelector(s);
+const step = (t, f) => { $('#loadStep').textContent = t; $('#loadBar').style.width = (f * 100) + '%'; return new Promise((r) => setTimeout(r, 30)); };
+const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+await step('Loading imagery and map data', 0.1);
+const data = await loadData('./data/', { onProgress: (f) => step('Raising the city', 0.1 + f * 0.25) });
+const SP = data.plan.special, SX = STADIUM_POS.x, SZ = STADIUM_POS.z;
+$('#homesStat').textContent = data.plan.stats.homes.toLocaleString('en-GB');
+$('#streetsStat').textContent = data.plan.streets.length + data.plan.places.length;
+
+// arena-local -> world
+const AL = (x, y, z) => { const c = Math.cos(STADIUM_POS.rot), s = Math.sin(STADIUM_POS.rot); return [SX + x * c + z * s, y, SZ - x * s + z * c]; };
+const ST = SP.station;
+
+// ---------------- chapters: the pitch, in order ----------------
+const CHAPTERS = [
+  { id: 'land', t: 'The land', site: 'today', time: 'day', cam: [[-420, 900, 560], [-600, 0, -190]],
+    body: ['In June 2026 the club bought 25 acres from Indurent, north of John Gilbert Way between Wharfside Way and Europa Way. It is outlined here in red.',
+      'The new centre spot sits about 840 m west-north-west of Old Trafford’s, across the Bridgewater Canal. The freight terminal stays in use.'] },
+  { id: 'arena', t: 'The Arena', time: 'day', cam: [[-700, 440, 70], [-795, 20, -300]],
+    body: ['100,020 seats in three tiers under one continuous skin of milky ETFE: aqua at the base, the colour of the Old Trafford windows, warming to white at the crown.',
+      'The club crest and name are set into the façade on the north and south walls, and the crest is inlaid in the arrival square.'] },
+  { id: 'rose', t: 'The rose', time: 'golden', cam: [[-600, 25, -60], [-790, 34, -290]],
+    body: ['The wall leans out 20° from the base and turns over a 12 m curved eave into a roof that falls gently to the opening.',
+      'Two families of spirals, 13 one way and 21 the other, cross to make the netting. Over them, 15 rose petals leave the roof opening, each turned 137.5°, the golden angle of a real rose, and run down to the ground.'] },
+  { id: 'atrium', t: 'The atrium', time: 'day', camL: [[-40, 1.7, 112], [10, 28, 78]],
+    body: ['Between the glass skin and the bowl is an open, eight-storey atrium: galleries of shops, restaurants and bars stepping out with the leaning wall, inclined white columns and escalators, lit through the skin.',
+      'It works like a shopping arcade every day of the week, and as the concourse on matchdays.'] },
+  { id: 'inside', t: 'Inside the bowl', time: 'day', cut: true, camL: [[0, 95, 210], [0, 18, -30]],
+    body: ['The cutaway shows the three tiers, the hospitality glass between them and the atrium behind. Turn the cut angle to slice the arena from any side.',
+      '“MANCHESTER” and “UNITED” are picked out in the North Stand seats, adidas in the south. The halo screen and the pitch-side boards run live.'], walk: true },
+  { id: 'arrival', t: 'Arrival by train', time: 'day', cam: [[ST.x + 230, 210, ST.z + 120], [ST.x - 200, 0, ST.z - 160]],
+    body: ['A new station on the Liverpool–Manchester line, with two 230 m island platforms for 12-car matchday trains.',
+      'The Busby Way, a 22 m fan walk with its own canal bridge, runs from the station square to the arena’s south gate. The Trinity Walk leads to Old Trafford.'] },
+  { id: 'ot', t: 'Old Trafford, kept', time: 'day', cam: [[250, 190, 260], [0, 8, 0]],
+    body: ['Tiers 2 and 3 come off every stand, leaving one even tier of about 35,000 seats under 1990s-style cantilever roofs: the home of the women’s team and the academy.',
+      'Legends’ Field sits behind the North Stand. Pitch, tunnel, Munich memorial and the Holy Trinity statue stay where they are.'], compare: true },
+  { id: 'complex', t: 'The Sir Matt Busby Complex', time: 'day', labels: true, cam: [[380, 620, 720], [-470, 0, -110]],
+    body: ['Shops, bars, the galleria and the cinema cluster at the arena’s door, then give way to streets of courtyard homes towards Old Trafford, with a botanic garden at the heart of the neighbourhood.',
+      'Tap any label for details.'] },
+  { id: 'night', t: 'Matchday night', time: 'night', cam: [[120, 420, 460], [-480, 60, -160]],
+    body: ['The skin lights from within, street lamps light every road, and in the botanic garden the Trinity Light sends three beams into the sky: white, blue and green, for Charlton, Law and Best.'] },
+];
+
+await step('Building the city', 0.35);
+const renderer = createRenderer($('#stage'), innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.localClippingEnabled = true;
+await step('Weaving the rose skin and the atrium', 0.55);
+const world = createWorld(renderer, data, { opt: 'R5', time: 'day', shadowSize: 4096, withToday: true });
+const { scene, groups } = world;
+await step('Lighting the stands', 0.85);
+
+// present-day Old Trafford mesh, if one has been supplied in models/ (replaces the procedural 'as now' stadium)
+let otProxy = null, otProxyBox = null;
+loadOldTraffordModel().then((m) => {
+  if (!m) return; groups.oldTraffordToday.clear(); groups.oldTraffordToday.add(m); setTimeout(() => buildBVH?.(m), 0);
+  // light stand-in for label occlusion: the model's bounding box, slightly shrunk (raycasting 200k triangles every frame is too slow)
+  const G = groups.oldTraffordToday, rot = G.rotation.y; G.rotation.y = 0; G.updateMatrixWorld(true);       // box aligned with the stadium, not the world
+  const bb = new THREE.Box3().setFromObject(m); G.rotation.y = rot; G.updateMatrixWorld(true);
+  const size = bb.getSize(new THREE.Vector3()).multiplyScalar(0.94), c = bb.getCenter(new THREE.Vector3()).sub(G.position);
+  const proxy = new THREE.Mesh(new THREE.BoxGeometry(size.x, size.y * 0.85, size.z), new THREE.MeshBasicMaterial({ visible: false }));
+  proxy.position.set(c.x, size.y * 0.425, c.z); proxy.name = 'otProxy'; G.add(proxy); proxy.updateMatrixWorld(true);
+  otProxy = proxy; otProxyBox = { containsPoint: (p) => new THREE.Box3().setFromCenterAndSize(new THREE.Vector3(), new THREE.Vector3(size.x, size.y * 0.85, size.z)).containsPoint(proxy.worldToLocal(p.clone())) };
+  console.info('Old Trafford model:', m.userData.file);
+}).catch((e) => console.warn('Old Trafford model failed to load', e));
+// purchased plot outline (shown with the site as it is today)
+const plot = new THREE.Line(new THREE.BufferGeometry().setFromPoints(data.site.stadiumSite.map(([x, z]) => new THREE.Vector3(x, 1.5, z))), new THREE.LineBasicMaterial({ color: 0xc8102e }));
+const plotFill = new THREE.Mesh(new THREE.ShapeGeometry(new THREE.Shape(data.site.stadiumSite.map(([x, z]) => new THREE.Vector2(x, -z)))), new THREE.MeshBasicMaterial({ color: 0xc8102e, transparent: true, opacity: 0.18, depthWrite: false }));
+plotFill.rotation.x = -Math.PI / 2; plotFill.position.y = 1.2;
+const plotGroup = new THREE.Group(); plotGroup.add(plot, plotFill); plotGroup.visible = false; scene.add(plotGroup);
+
+// cutaway: a vertical plane through the arena centre, turnable through 360°
+const clip = new THREE.Plane();
+function setCut(deg) {
+  const a = THREE.MathUtils.degToRad(deg) - STADIUM_POS.rot;
+  clip.normal.set(-Math.cos(a), 0, -Math.sin(a)); clip.constant = -clip.normal.dot(new THREE.Vector3(SX, 0, SZ));
+  $('#cutOut').textContent = Math.round(deg) + '°';
+  if (window.__capReady) { const p0 = new THREE.Vector3(SX, 32, SZ); cap.position.copy(p0); cap.lookAt(p0.clone().sub(clip.normal)); }
+}
+groups.stadium.traverse((o) => { if (o.isMesh || o.isInstancedMesh) { o.material = Array.isArray(o.material) ? o.material.map((m) => { const c = m.clone(); c.clippingPlanes = []; return c; }) : Object.assign(o.material.clone(), { clippingPlanes: [] }); } });
+const envelope = groups.stadium.getObjectByName('envelope');
+// section fill: stencil-capped cut faces so the tiers, cores and structure read as solid when sliced
+const capMat = new THREE.MeshStandardMaterial({ color: 0x9e9a93, roughness: 0.9, side: THREE.DoubleSide, stencilWrite: true, stencilRef: 0,
+  stencilFunc: THREE.NotEqualStencilFunc, stencilFail: THREE.ReplaceStencilOp, stencilZFail: THREE.ReplaceStencilOp, stencilZPass: THREE.ReplaceStencilOp });
+capMat.map = (() => { const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d'); g.fillStyle = '#a19c95'; g.fillRect(0, 0, 64, 64); g.strokeStyle = '#7d7871'; g.lineWidth = 3; for (let i = -64; i < 128; i += 16) { g.beginPath(); g.moveTo(i, 64); g.lineTo(i + 64, 0); g.stroke(); } const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(120, 120); t.colorSpace = THREE.SRGBColorSpace; return t; })();
+const cap = new THREE.Mesh(new THREE.PlaneGeometry(320, 64), capMat);   // just the arena's section: 320 m across, ground to roof cap.renderOrder = 2; cap.visible = false;
+cap.onAfterRender = (r) => r.clearStencil(); scene.add(cap);
+const stencilHelpers = [];
+for (const solid of groups.stadium.userData.solids || []) {
+  for (const [side, op] of [[THREE.BackSide, THREE.IncrementWrapStencilOp], [THREE.FrontSide, THREE.DecrementWrapStencilOp]]) {
+    const h = new THREE.Mesh(solid.geometry, new THREE.MeshBasicMaterial({ depthWrite: false, depthTest: false, colorWrite: false, stencilWrite: true, stencilFunc: THREE.AlwaysStencilFunc,
+      side, clippingPlanes: [], stencilFail: op, stencilZFail: op, stencilZPass: op }));
+    h.renderOrder = 1; h.visible = false; solid.add(h); stencilHelpers.push(h);
+  }
+}
+window.__capReady = true; setCut(90);
+// matchday floodlighting inside the bowl, on at night only
+const flood = new THREE.Group();
+for (const [dx, dz] of [[-40, -30], [40, -30], [-40, 30], [40, 30]]) { const l = new THREE.PointLight(0xfff4e0, 9000, 150, 2); l.position.set(dx, 48, dz); flood.add(l); }
+flood.position.set(SX, 0, SZ); flood.rotation.y = STADIUM_POS.rot; flood.visible = false; scene.add(flood);
+const otFlood = new THREE.Group();
+for (const [dx, dz] of [[-35, -25], [35, -25], [-35, 25], [35, 25]]) { const l = new THREE.PointLight(0xfff4e0, 5000, 110, 2); l.position.set(dx, 18, dz); otFlood.add(l); }
+otFlood.rotation.y = 0.335; otFlood.visible = false; scene.add(otFlood);
+
+// camera + controls
+const camera = new THREE.PerspectiveCamera(38, innerWidth / innerHeight, 0.5, 250000);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true; controls.maxPolarAngle = Math.PI * 0.495; controls.minDistance = 8; controls.maxDistance = 4200;   // with clampToWorld: always inside the mapped world, below the clouds
+
+// ---------------- state ----------------
+const state = { site: 'proposed', ot: 'after', skin: true, cut: false, labels: true, time: 'day', mode: 'orbit', cutDeg: 90, view: 'model' };
+function apply() {
+  const today = state.site === 'today';
+  groups.context.visible = !today; groups.contextToday.visible = today;
+  groups.stadium.visible = groups.masterplan.visible = !today;
+  plotGroup.visible = today;
+  groups.city.userData.dev.visible = today;   // the buildings the scheme replaces
+  const otNow = today || state.ot === 'today';
+  groups.oldTrafford.visible = !otNow; groups.oldTraffordToday.visible = otNow;
+  envelope.visible = state.skin;
+  groups.stadium.traverse((o) => { for (const m of [].concat(o.material || [])) if (m.clippingPlanes) m.clippingPlanes = state.cut ? [clip] : []; });
+  cap.visible = false; stencilHelpers.forEach((h) => { h.visible = false; });   // section fill off: the tiers are open (exits cut through), so a stencil cap can't be bounded
+  if (world.time !== state.time) applyTime(world, renderer, state.time);
+  flood.visible = state.time === 'night' && !today;
+  otFlood.visible = state.time === 'night' && !otNow;
+  $('#cutDial').hidden = !state.cut;
+  $('#cross').hidden = state.mode !== 'walk';
+  const press = (sel, v) => $(sel).setAttribute('aria-pressed', v);
+  press('#siteToday', today); press('#siteProposed', !today); press('#otToday', state.ot === 'today'); press('#otAfter', state.ot === 'after');
+  $('#skin').checked = state.skin; $('#cut').checked = state.cut; $('#labelsAll').checked = state.labels;
+  document.querySelectorAll('[data-time]').forEach((b) => b.setAttribute('aria-pressed', b.dataset.time === state.time));
+  press('#orbitBtn', state.mode === 'orbit'); press('#flyBtn', state.mode === 'fly'); press('#walkBtn', state.mode === 'walk');
+  press('#modeModel', state.view === 'model'); press('#modeMap', state.view === 'map');
+  const hint = state.mode === 'fly' ? 'Fly: W A S D to move · R / F up and down · drag to look · Shift for speed'
+    : state.mode === 'walk' ? 'Walk: click to look around (Esc to release) · W A S D to walk · Shift to run · Space to jump'
+    : '';
+  $('#camHint').textContent = hint; $('#camHint').hidden = !hint;
+  // section summaries, GeoHUB style: the current setting shows on the closed header
+  $('#siteVal').textContent = (today ? 'Today' : 'Proposed') + ' · OT ' + (otNow ? 'as now' : 'reimagined');
+  $('#arenaVal').textContent = [state.skin ? 'Façade' : 'No façade', state.cut ? 'cut' : ''].filter(Boolean).join(' · ');
+  $('#lightVal').textContent = { day: 'Day', golden: 'Evening', night: 'Matchday night' }[state.time];
+  $('#camVal').textContent = state.mode[0].toUpperCase() + state.mode.slice(1);
+}
+const set = (patch) => { Object.assign(state, patch); apply(); };
+$('#siteToday').onclick = () => set({ site: 'today' });
+$('#siteProposed').onclick = () => set({ site: 'proposed' });
+$('#otToday').onclick = () => set({ ot: 'today' });
+$('#otAfter').onclick = () => set({ ot: 'after' });
+$('#skin').onchange = (e) => set({ skin: e.target.checked });
+$('#cut').onchange = (e) => set({ cut: e.target.checked });
+$('#labelsAll').onchange = (e) => set({ labels: e.target.checked });
+$('#cutAngle').oninput = (e) => { state.cutDeg = +e.target.value; setCut(state.cutDeg); };
+document.querySelectorAll('[data-time]').forEach((b) => (b.onclick = () => set({ time: b.dataset.time })));
+$('#orbitBtn').onclick = () => setMode('orbit');
+$('#flyBtn').onclick = () => setMode('fly');
+$('#walkBtn').onclick = () => startPick();
+
+// ---------------- camera flights ----------------
+let flight = null;
+function flyTo(pos, tgt, dur = 2600) {
+  const p0 = camera.position.clone(), t0 = controls.target.clone(), p1 = new THREE.Vector3(...pos), t1 = new THREE.Vector3(...tgt);
+  if (reduceMotion) { camera.position.copy(p1); controls.target.copy(t1); return; }
+  flight = { start: performance.now(), dur, p0, t0, p1, t1, lift: Math.min(400, p0.distanceTo(p1) * 0.25) };
+}
+function stepFlight(now) {
+  if (!flight) return;
+  const k = Math.min(1, (now - flight.start) / flight.dur), e = k < 0.5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2;
+  camera.position.lerpVectors(flight.p0, flight.p1, e); camera.position.y += Math.sin(Math.PI * e) * flight.lift;
+  controls.target.lerpVectors(flight.t0, flight.t1, e);
+  if (state.mode !== 'orbit') camera.lookAt(controls.target);
+  if (k >= 1) flight = null;
+}
+const ray = new THREE.Raycaster();
+const pickables = () => [groups.context, groups.contextToday, groups.masterplan, groups.stadium, groups.oldTrafford, groups.oldTraffordToday, groups.city, groups.horizon.getObjectByName('ground_mid')].filter((g) => g?.visible);
+renderer.domElement.addEventListener('dblclick', (ev) => {
+  if (state.mode !== 'orbit') return;
+  ray.setFromCamera(new THREE.Vector2(ev.clientX / innerWidth * 2 - 1, -(ev.clientY / innerHeight) * 2 + 1), camera);
+  const hit = ray.intersectObjects(pickables(), true).find((h) => h.object.visible && h.object.material?.visible !== false);
+  if (!hit) return;
+  const dir = camera.position.clone().sub(hit.point).normalize(), dist = Math.min(500, Math.max(80, camera.position.distanceTo(hit.point) * 0.45));
+  const pos = hit.point.clone().addScaledVector(dir, dist); pos.y = Math.max(pos.y, hit.point.y + 30);
+  flyTo(pos.toArray(), hit.point.toArray(), 1800);
+});
+
+// ---------------- fly + walk ----------------
+const keys = new Set(); let yaw = 0, pitch = 0, drag = null, vy = 0;
+function lookFromCamera() { const d = new THREE.Vector3(); camera.getWorldDirection(d); yaw = Math.atan2(-d.x, -d.z); pitch = Math.asin(THREE.MathUtils.clamp(d.y, -1, 1)); }
+function setMode(m) {
+  if (state.mode === 'walk' && m !== 'walk' && document.pointerLockElement) document.exitPointerLock();
+  state.mode = m; controls.enabled = m === 'orbit';
+  if (m !== 'orbit') { const d = controls.target.clone().sub(camera.position).normalize(); yaw = Math.atan2(-d.x, -d.z); pitch = Math.asin(d.y); }
+  else { const d = new THREE.Vector3(); camera.getWorldDirection(d); controls.target.copy(camera.position).addScaledVector(d, Math.max(60, camera.position.y * 2)); }
+  apply();
+}
+function startWalk() {
+  flight = null; stopTour();
+  setMode('walk');
+  if (state.time === 'night') {} // keep the chosen light
+  const p = AL(0, 0, 20);          // pitch, just south of the centre spot, facing the North Stand
+  camera.position.set(p[0], 1.7, p[2]); yaw = STADIUM_POS.rot; pitch = 0.12;
+  camera.lookAt(camera.position.clone().add(new THREE.Vector3(-Math.sin(yaw), Math.sin(pitch), -Math.cos(yaw))));
+}
+// walk anywhere: Walk asks for a spot; a click on any ground, floor, stand or walkway puts you there at eye height,
+// still facing the way the camera was looking. The view stays in orbit (drag, zoom) until you click.
+const pickRay = new THREE.Raycaster(), pickDown = { x: 0, y: 0 };
+const pickTargets = () => [...walkables(), ...groups.context.children.filter((c) => c.name.startsWith('ortho_')), groups.horizon.getObjectByName('ground_mid')].filter(Boolean);
+function startPick() {
+  flight = null; stopTour();
+  if (state.mode !== 'orbit') setMode('orbit');
+  state.picking = true; document.body.classList.add('picking'); $('#pickHint').hidden = false;
+}
+function endPick() { state.picking = false; document.body.classList.remove('picking'); $('#pickHint').hidden = true; }
+renderer.domElement.addEventListener('pointerdown', (e) => { pickDown.x = e.clientX; pickDown.y = e.clientY; });
+renderer.domElement.addEventListener('click', (e) => {
+  if (!state.picking || Math.hypot(e.clientX - pickDown.x, e.clientY - pickDown.y) > 5) return;   // a drag is still orbiting
+  pickRay.setFromCamera(new THREE.Vector2(e.clientX / innerWidth * 2 - 1, -(e.clientY / innerHeight) * 2 + 1), camera);
+  const hit = pickRay.intersectObjects(pickTargets(), false).find((h) => !state.cut || clip.distanceToPoint(h.point) > 0);
+  if (!hit) return;
+  const d = new THREE.Vector3(); camera.getWorldDirection(d);
+  endPick(); setMode('walk');
+  camera.position.set(hit.point.x, hit.point.y + 1.7, hit.point.z); yaw = Math.atan2(-d.x, -d.z); pitch = 0; vy = 0;
+  camera.lookAt(camera.position.clone().add(new THREE.Vector3(-Math.sin(yaw), 0, -Math.cos(yaw))));
+});
+addEventListener('keydown', (e) => { if (e.key === 'Escape' && state.picking) endPick(); });
+addEventListener('keydown', (e) => { if (state.mode !== 'orbit' && !e.target.closest?.('input')) { keys.add(e.key.toLowerCase()); if (e.key === ' ') e.preventDefault(); } });
+addEventListener('keyup', (e) => keys.delete(e.key.toLowerCase()));
+renderer.domElement.addEventListener('pointerdown', (e) => {
+  if (state.mode === 'fly' || (state.mode === 'walk' && !document.pointerLockElement)) drag = { x: e.clientX, y: e.clientY };
+  if (state.mode === 'walk' && !document.pointerLockElement) renderer.domElement.requestPointerLock?.()?.catch?.(() => {});
+});
+addEventListener('pointermove', (e) => {
+  if (document.pointerLockElement === renderer.domElement) { yaw -= e.movementX * 0.0025; pitch = THREE.MathUtils.clamp(pitch - e.movementY * 0.0025, -1.45, 1.45); return; }
+  if (!drag) return; yaw -= (e.clientX - drag.x) * 0.004; pitch = THREE.MathUtils.clamp(pitch - (e.clientY - drag.y) * 0.004, -1.45, 1.45); drag = { x: e.clientX, y: e.clientY };
+});
+addEventListener('pointerup', () => (drag = null));
+const walkables = () => [...(groups.stadium.userData.walkable || []), ...groups.masterplan.children.filter((c) => c.name.startsWith('ground_') || c.name === 'crestPlaza')];
+const down = new THREE.Raycaster(); down.far = 6;
+function groundAt(p) {
+  down.set(new THREE.Vector3(p.x, p.y + 0.9, p.z), new THREE.Vector3(0, -1, 0)); down.far = 40;
+  const h = down.intersectObjects(walkables(), false).find((i) => !state.cut || clip.distanceToPoint(i.point) > 0);
+  return h ? h.point.y : 0.3;
+}
+function stepMove(dt) {
+  if (state.mode === 'orbit' || flight) return;
+  const fwd = new THREE.Vector3(-Math.sin(yaw) * Math.cos(pitch), Math.sin(pitch), -Math.cos(yaw) * Math.cos(pitch));
+  const right = new THREE.Vector3(Math.cos(yaw), 0, -Math.sin(yaw)), m = new THREE.Vector3();
+  if (state.mode === 'walk') { fwd.y = 0; fwd.normalize(); }
+  if (keys.has('w') || keys.has('arrowup')) m.add(fwd); if (keys.has('s') || keys.has('arrowdown')) m.sub(fwd);
+  if (keys.has('d') || keys.has('arrowright')) m.add(right); if (keys.has('a') || keys.has('arrowleft')) m.sub(right);
+  if (state.mode === 'fly') {
+    if (keys.has('r')) m.y += 1; if (keys.has('f')) m.y -= 1;
+    camera.position.addScaledVector(m, (keys.has('shift') ? 240 : 60) * dt); camera.position.y = Math.max(1.8, camera.position.y);
+  } else {
+    const speed = keys.has('shift') ? 9 : 4.2, feet = camera.position.clone(); feet.y -= 1.7;
+    const g0 = groundAt(feet);
+    if (m.lengthSq()) {
+      m.normalize().multiplyScalar(speed * dt);
+      const next = feet.clone().add(m), g1 = groundAt(next);
+      if (g1 - g0 < 0.65) { camera.position.x = next.x; camera.position.z = next.z; }   // steps up to 0.65 m; walls block
+    }
+    const fy = groundAt(new THREE.Vector3(camera.position.x, camera.position.y - 1.7, camera.position.z));
+    if (keys.has(' ') && camera.position.y - 1.7 <= fy + 0.05) vy = 4.2;
+    vy -= 9.8 * dt; camera.position.y = Math.max(fy + 1.7, camera.position.y + vy * dt); if (camera.position.y <= fy + 1.7 + 1e-3) vy = 0;
+  }
+  camera.lookAt(camera.position.clone().add(new THREE.Vector3(-Math.sin(yaw) * Math.cos(pitch), Math.sin(pitch), -Math.cos(yaw) * Math.cos(pitch))));
+}
+
+// ---------------- labels: clickable, occlusion-tested, decluttered ----------------
+const labelLayer = $('#labels');
+labelLayer.removeAttribute('aria-hidden');
+const occluders = (p) => [groups.stadium.getObjectByName('occluder'), ...groups.masterplan.children.filter((c) => c.name.startsWith('bld_')),
+  groups.oldTrafford.visible ? groups.oldTrafford : null,
+  groups.oldTraffordToday.visible ? (otProxy ? (otProxyBox.containsPoint(p) ? null : otProxy) : groups.oldTraffordToday) : null].filter(Boolean);
+groups.stadium.updateMatrixWorld(true);
+const interiorLabels = (groups.stadium.userData.interiorLabels || []).map((l) => { const v = groups.stadium.localToWorld(new THREE.Vector3(l.x, l.y, l.z)); return { ...l, x: v.x, y: v.y - 4, z: v.z }; });
+// categories: each label gets a colour bar, and each category its switch in the label workspace
+const CATS = {
+  arena:    { t: 'Stadiums', c: '#c8102e' },
+  heritage: { t: 'Heritage', c: '#d9a92e' },
+  transport:{ t: 'Transport & walks', c: '#3b8fe0' },
+  homes:    { t: 'Neighbourhoods', c: '#3fae6a' },
+  food:     { t: 'Food & drink', c: '#f08a24' },
+  retail:   { t: 'Shops', c: '#e0569b' },
+  vip:      { t: 'Hospitality', c: '#9b7bea' },
+  civic:    { t: 'Club & community', c: '#22b5a8' },
+  city:     { t: 'Wider Manchester', c: '#8fa1b3' },
+  street:   { t: 'Street names', c: '#f2ece6', off: true },
+  place:    { t: 'Lanes, courts & yards', c: '#d9c7a8', off: true },
+};
+const KIND_CAT = { mega: 'retail', retail: 'retail', food: 'food', cafe: 'food', bar: 'food', rest: 'food', museum: 'heritage', vip: 'vip', office: 'civic', service: 'civic' };
+function catOf(l) {
+  if (l.cat) return l.cat; if (l.kind) return KIND_CAT[l.kind] || 'civic';
+  const n = l.name.toLowerCase();
+  if (/matchday quarter/.test(n)) return 'food';
+  if (/arena|old trafford|crest plaza/.test(n)) return 'arena';
+  if (/station|bridge|walk|busby way|avenue of legends/.test(n)) return 'transport';
+  if (/memorial|trinity|legends|garden/.test(n)) return 'heritage';
+  if (/quarter|homes|neighbourhood/.test(n)) return 'homes';
+  if (/megastore|shop/.test(n)) return 'retail';
+  return 'civic';
+}
+const catOn = Object.fromEntries(Object.entries(CATS).map(([k, v]) => [k, !v.off]));
+// a label at the middle of every named street
+const streetLabels = data.plan.streets.map((s, sid) => {
+  const segs = [...data.plan.roads, ...data.plan.bridges.map((b) => ({ l: [b.a, b.b], sid: b.sid }))].filter((r) => r.sid === sid); if (!segs.length) return null;
+  const L = (l) => l.reduce((a, p, i) => (i ? a + Math.hypot(p[0] - l[i - 1][0], p[1] - l[i - 1][1]) : 0), 0);
+  const l = segs.reduce((a, r) => (L(r.l) > L(a.l) ? r : a)).l, m = l[Math.floor(l.length / 2)];
+  return { name: s.name, x: m[0], y: 3, z: m[1], cat: 'street', sid, desc: `Named for ${s.person} · ${s.honour}. ${s.note}` };
+}).filter(Boolean);
+for (const [i, s] of data.plan.places.entries()) {
+  const P = s.polys[0], l = s.lines.length ? s.lines.reduce((a, b) => (b.length > a.length ? b : a)) : null;
+  const m = P && (s.kind === 'court' || s.kind === 'park' || !l) ? [P.reduce((a, p) => a + p[0], 0) / P.length, P.reduce((a, p) => a + p[1], 0) / P.length] : l ? l[Math.floor(l.length / 2)] : null;
+  if (m) streetLabels.push({ name: s.name, x: m[0], y: 2, z: m[1], cat: 'place', sid: 'p' + i, desc: `Named for ${s.person} · ${s.honour}. ${s.note}` });
+}
+const tags = [...world.labels, ...interiorLabels, ...streetLabels].map((l) => {
+  const cat = catOf(l);
+  const el = document.createElement('button'); el.className = 'tag' + (l.major ? ' major' : '') + (cat === 'street' || cat === 'place' ? ' street' : ''); el.textContent = l.name;
+  el.style.setProperty('--c', CATS[cat].c); l.cat = cat;
+  el.onclick = (e) => { e.stopPropagation(); openPop(l); };
+  labelLayer.appendChild(el);
+  return { el, l, p: new THREE.Vector3(l.x, l.y + 4, l.z), occluded: false, lastHit: false, shown: true, w: 0, sx: 0, sy: 0 };
+});
+let occFrame = 0;
+const v3 = new THREE.Vector3(), occRay = new THREE.Raycaster();
+// interior labels are tested against the bowl, floors, units, columns and cores (not the hidden façade)
+const interiorOccluders = () => groups.stadium.children.filter((c) => c.name !== 'envelope');
+function stepLabels() {
+  const show = state.labels && state.site === 'proposed' && state.mode === 'orbit';
+  if (!show) { if (labelsOn) { tags.forEach((t) => { if (t.shown) { t.el.hidden = true; t.shown = false; } }); labelsOn = false; } return; }
+  labelsOn = true;
+  // Stability: a label changes state only when it has to. Occlusion flips only after two tests agree; a label shown
+  // last frame keeps its place against newcomers; distance cut-offs have a 10 % band.
+  // Speed: widths are measured once, together (measureTags); positions are written after every read; occlusion is
+  // tested only for labels that could show, round-robin, within a time budget, and not at all while the camera rests.
+  const placed = [], cands = [];
+  const order = tags.map((t) => { v3.copy(t.p).project(camera); return { t, x: (v3.x + 1) / 2 * innerWidth, y: (1 - v3.y) / 2 * innerHeight - 14, z: v3.z, d: camera.position.distanceTo(t.p) }; })
+    .sort((a, b) => (b.t.l.major - a.t.l.major) || (b.t.shown - a.t.shown) || (a.d - b.d));
+  for (const o of order) {
+    const t = o.t, band = t.shown ? 1.1 : 1, within = (lim) => o.d < lim * band;
+    o.ok = catOn[t.l.cat] && (t.l.cat !== 'street' || within(1400)) && (t.l.cat !== 'place' || within(600)) && (t.l.interior ? !state.skin && (t.l.major ? within(700) : within(220)) : true) && o.z < 1 && o.x > 0 && o.x < innerWidth && o.y > 0 && o.y < innerHeight && within(2600);
+    if (o.ok) cands.push(t);
+  }
+  camera.updateMatrixWorld();
+  const moved = !lastCam.equals(camera.matrixWorld); if (moved) { lastCam.copy(camera.matrixWorld); restFrames = 0; } else restFrames++;
+  if (cands.length && restFrames < 3) {
+    const t0 = performance.now();
+    for (let k = 0; k < cands.length && performance.now() - t0 < 2.5; k++) {
+      const t = cands[occFrame++ % cands.length], dir = t.p.clone().sub(camera.position), dist = dir.length();
+      occRay.set(camera.position, dir.normalize()); occRay.far = dist - (t.l.interior ? 1.5 : 6);
+      const occ = (t.l.interior ? interiorOccluders() : occluders(t.p)).filter((o) => occRay.ray.intersectsBox(boxOf(o)));   // skip whole groups the ray misses (Old Trafford is 211 meshes)
+      const hit = occRay.intersectObjects(occ, true).some((h) => h.object.visible !== false && h.object.material?.visible !== false && !h.object.material?.transparent);
+      if (hit === t.lastHit) t.occluded = hit; t.lastHit = hit;
+    }
+  }
+  const writes = [];
+  for (const o of order) {
+    const t = o.t;
+    let vis = o.ok && !t.occluded;
+    if (vis) {
+      const w = t.w || t.l.name.length * 6.6 + 20, h = 26, r = [o.x - w / 2, o.y - h, o.x + w / 2, o.y];
+      if (placed.some((p) => !(r[2] < p[0] || r[0] > p[2] || r[3] < p[1] || r[1] > p[3]))) vis = false; else placed.push(r);
+    }
+    writes.push([t, vis, o]);
+  }
+  for (const [t, vis, o] of writes) {
+    if (t.shown !== vis) { t.el.hidden = !vis; t.shown = vis; }
+    if (vis) { const tf = `translate(${Math.round(o.x)}px, ${Math.round(o.y)}px) translate(-50%, -100%)`; if (t.tf !== tf) { t.el.style.transform = tf; t.tf = tf; } }
+  }
+}
+// every label's width, read in one pass (one layout), so placement never measures mid-frame
+function measureTags() {
+  for (const t of tags) t.el.hidden = false;
+  for (const t of tags) t.w = t.el.offsetWidth || t.l.name.length * 6.6 + 20;
+  for (const t of tags) t.el.hidden = true, (t.shown = false);
+}
+const boxes = new WeakMap(); const boxOf = (o) => { let b = boxes.get(o); if (!b) { b = new THREE.Box3().setFromObject(o).expandByScalar(1); boxes.set(o, b); } return b; };
+let labelsOn = true, restFrames = 0; const lastCam = new THREE.Matrix4();
+document.fonts?.ready.then(measureTags); measureTags();
+// BVHs for every occluder, built once (the Old Trafford model's when it arrives: see buildBVH calls)
+function buildBVH(root) { root?.traverse((m) => { if (m.isMesh && !m.geometry.boundsTree && m.geometry.attributes.position) { try { m.geometry.computeBoundsTree(); } catch {} } }); }
+occRay.firstHitOnly = false;
+buildBVH(groups.stadium); buildBVH(groups.oldTrafford); groups.masterplan.children.filter((c) => c.name.startsWith('bld_') || c.name.startsWith('ground_')).forEach(buildBVH);
+// pop-up card (like GeoHUB): title, description, fly here
+let popLabel = null;
+function openPop(l) {
+  popLabel = l; $('#popTitle').textContent = l.name; $('#popBody').textContent = l.desc; $('#pop').hidden = false;
+  const c = CATS[l.cat] || CATS.civic; $('#pop').style.setProperty('--c', c.c); $('#popKicker').textContent = c.t; $('#popMap').hidden = l.sid == null;
+  // always the bottom-right corner (above the panel's bottom sheet on phones)
+  const r = innerWidth > 860 ? { left: '', right: '16px', top: '', bottom: '16px' } : { left: '', right: '16px', top: '', bottom: 'calc(58vh + 8px)' };
+  Object.assign($('#pop').style, r); $('#popClose').focus({ preventScroll: true });
+}
+$('#popClose').onclick = () => { $('#pop').hidden = true; popLabel = null; };
+$('#popFly').onclick = () => {
+  if (!popLabel) return; const l = popLabel, d = l.major ? 520 : 260;
+  if (state.mode !== 'orbit') setMode('orbit');
+  flyTo([l.x + d * 0.6, Math.max(120, l.y + d * 0.45), l.z + d * 0.6], [l.x, l.y * 0.4, l.z], 2000);
+};
+$('#popMap').onclick = () => { if (popLabel?.sid != null) { $('#popClose').click(); openMap(popLabel.sid); } };
+addEventListener('keydown', (e) => { if (e.key === 'Escape' && !$('#pop').hidden) $('#popClose').click(); });
+
+// label workspace: one switch per category, with its colour bar and count
+const counts = {}; tags.forEach((t) => (counts[t.l.cat] = (counts[t.l.cat] || 0) + 1));
+for (const [k, v] of Object.entries(CATS)) {
+  if (!counts[k]) continue;
+  const li = document.createElement('li'); li.className = 'lcat'; li.style.setProperty('--c', v.c);
+  li.innerHTML = `<label><span>${v.t}<em>${counts[k]}</em></span><input type="checkbox" ${catOn[k] ? 'checked' : ''} aria-label="Show ${v.t} labels"></label>`;
+  li.querySelector('input').onchange = (e) => { catOn[k] = e.target.checked; if (e.target.checked && !state.labels) set({ labels: true }); };
+  $('#labelCats').appendChild(li);
+}
+
+// layers
+const H = groups.horizon, MP = groups.masterplan;
+const LAYERS = [
+  ['Manchester', 'The city’s buildings, bridges and street lamps', [groups.city]],
+  ['Terrain & horizon', 'Imagery on real relief out to 40 km', [H.getObjectByName('terrain')]],
+  ['Clouds', 'A drifting deck at 2,600 m', [H.getObjectByName('clouds')]],
+  ['Trees', 'Street and garden trees', [MP.getObjectByName('trees')]],
+  ['Street lamps', 'Along every street and walk', [MP.getObjectByName('streetlights')]],
+  ['New buildings', 'The masterplan’s blocks', MP.children.filter((c) => c.name.startsWith('bld_'))],
+];
+for (const [t, sub, objs] of LAYERS) {
+  const lab = document.createElement('label'); lab.className = 'sw';
+  lab.innerHTML = `<span>${t}<small>${sub}</small></span><input type="checkbox" checked>`;
+  lab.querySelector('input').onchange = (e) => objs.forEach((o) => o && (o.visible = e.target.checked));
+  $('#layerList').appendChild(lab);
+}
+$('#layersVal').textContent = LAYERS.length + ' layers';
+
+// street map + the streets list
+const smap = createStreetMap($('#streetmap'), data, { arena: STADIUM_POS, onShow: (mid) => { closeMap(); setMode('orbit'); flyTo([mid[0] + 160, 170, mid[1] + 160], [mid[0], 0, mid[1]], 2000); } });
+function openMap(sid) { state.view = 'map'; document.body.classList.add('map-open'); smap.open(sid); stopTour(); apply(); }
+function closeMap() { state.view = 'model'; document.body.classList.remove('map-open'); smap.close(); apply(); }
+$('#modeMap').onclick = () => openMap();
+$('#modeModel').onclick = () => closeMap();
+$('#streetsVal').textContent = (data.plan.streets.length + data.plan.places.length) + ' named';
+for (const [k, th] of Object.entries(THEMES)) {
+  const ss = data.plan.streets.map((s, sid) => ({ s, sid })).filter(({ s }) => s.theme === k); if (!ss.length) continue;
+  const h = document.createElement('div'); h.className = 'street-theme'; h.style.setProperty('--c', th.c); h.innerHTML = `<i></i>${th.t}`; $('#streetList').appendChild(h);
+  for (const { s, sid } of ss) {
+    const b = document.createElement('button'); b.className = 'street-row'; b.style.setProperty('--c', th.c);
+    b.innerHTML = `<span>${s.name}</span><small>${s.person}</small>`; b.onclick = () => openMap(sid); $('#streetList').appendChild(b);
+  }
+}
+{ const h = document.createElement('div'); h.className = 'street-sub'; h.textContent = `Lanes, courts, arcades & yards · ${data.plan.places.length}`; $('#streetList').appendChild(h); }
+for (const [k, th] of Object.entries(THEMES)) {
+  const ps = data.plan.places.map((s, i) => ({ s, i })).filter(({ s }) => s.theme === k); if (!ps.length) continue;
+  const h = document.createElement('div'); h.className = 'street-theme'; h.style.setProperty('--c', th.c); h.innerHTML = `<i></i>${th.t}`; $('#streetList').appendChild(h);
+  for (const { s, i } of ps) {
+    const b = document.createElement('button'); b.className = 'street-row'; b.style.setProperty('--c', th.c);
+    b.innerHTML = `<span>${s.name}</span><small>${s.person}</small>`; b.onclick = () => openMap('p' + i); $('#streetList').appendChild(b);
+  }
+}
+$('#streetFilter').oninput = (e) => {
+  const q = e.target.value.trim().toLowerCase();
+  document.querySelectorAll('#streetList .street-row').forEach((b) => { b.hidden = q && !b.textContent.toLowerCase().includes(q); });
+  document.querySelectorAll('#streetList .street-theme, #streetList .street-sub').forEach((h) => { h.hidden = !!q; });
+};
+
+// sections open and close like GeoHUB's
+document.querySelectorAll('.sec-h').forEach((h) => (h.onclick = () => h.setAttribute('aria-expanded', h.getAttribute('aria-expanded') !== 'true')));
+// collapse to a tab
+function setCollapsed(c) { $('#nav').classList.toggle('collapsed', c); $('#navTab').hidden = !c; document.body.classList.toggle('nav-collapsed', c); if (!$('#streetmap').hidden) smap.open(); }
+$('#navCollapse').onclick = () => setCollapsed(true);
+$('#navTab').onclick = () => setCollapsed(false);
+
+// ---------------- chapters UI ----------------
+const list = $('#chapters');
+CHAPTERS.forEach((c, i) => {
+  const li = document.createElement('li'); li.className = 'ch'; li.id = 'ch-' + c.id;
+  li.innerHTML = `<button aria-expanded="false"><span class="no">${String(i + 1).padStart(2, '0')}</span><span class="t">${c.t}</span></button>
+    <div class="body">${c.body.map((p) => `<p>${p}</p>`).join('')}${c.compare ? '<button class="inline-btn" data-compare>Compare with Old Trafford today</button>' : ''}${c.walk ? '<button class="inline-btn" data-walk>Walk onto the pitch</button>' : ''}</div>`;
+  li.querySelector(':scope > button').onclick = () => go(i);
+  list.appendChild(li);
+});
+list.addEventListener('click', (e) => {
+  if (e.target.matches('[data-compare]')) set({ ot: state.ot === 'today' ? 'after' : 'today' });
+  if (e.target.matches('[data-walk]')) startWalk();
+});
+function camOf(c) { return c.camL ? [AL(...c.camL[0]), AL(...c.camL[1])] : c.cam; }
+function go(i, { fly = true } = {}) {
+  const c = CHAPTERS[i];
+  document.querySelectorAll('.ch').forEach((li, k) => { li.classList.toggle('on', k === i); li.querySelector(':scope > button').setAttribute('aria-expanded', k === i); });
+  if (state.mode !== 'orbit') setMode('orbit');
+  set({ site: c.site || 'proposed', cut: !!c.cut, time: c.time, skin: true, ot: 'after', ...(c.labels ? { labels: true } : {}) });
+  const [p, t] = camOf(c);
+  if (fly) flyTo(p, t); else { camera.position.set(...p); controls.target.set(...t); }
+  try { history.replaceState(null, '', '#' + c.id); } catch {}
+  $('#storyVal').textContent = String(i + 1).padStart(2, '0') + ' / ' + String(CHAPTERS.length).padStart(2, '0');
+  if (state.view === 'map') closeMap();
+  document.getElementById('ch-' + c.id).scrollIntoView({ block: 'nearest', behavior: reduceMotion ? 'auto' : 'smooth' });
+}
+let tourTimer = null;
+function stopTour() { clearTimeout(tourTimer); tourTimer = null; $('#tour').setAttribute('aria-pressed', 'false'); $('#tour').textContent = 'Play the tour'; }
+$('#tour').onclick = () => {
+  if (tourTimer) return stopTour();
+  $('#tour').setAttribute('aria-pressed', 'true'); $('#tour').textContent = 'Stop the tour';
+  const next = (i) => { go(i); tourTimer = setTimeout(() => (i + 1 < CHAPTERS.length ? next(i + 1) : stopTour()), 9000); };
+  next(0);
+};
+renderer.domElement.addEventListener('pointerdown', () => { if (tourTimer) stopTour(); if (state.mode === 'orbit') flight = null; });
+renderer.domElement.addEventListener('wheel', () => { flight = null; }, { passive: true });
+addEventListener('resize', () => { camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight); });
+
+// ---------------- loop ----------------
+apply();
+const startIdx = Math.max(0, CHAPTERS.findIndex((c) => '#' + c.id === location.hash));
+go(startIdx >= 0 && location.hash ? startIdx : 1, { fly: false });
+let last = performance.now();
+renderer.setAnimationLoop((now) => {
+  const dt = Math.min(0.1, (now - last) / 1000); last = now;
+  stepFlight(now); stepMove(dt);
+  if (state.mode === 'orbit') controls.update();
+  if (state.mode !== 'walk') clampToWorld(camera.position, state.mode === 'orbit' ? controls.target : null);
+  groups.stadium.userData.animate?.(now / 1000);
+  groups.oldTrafford.userData.animate?.(now / 1000);
+  groups.masterplan.userData.trinity?.userData.animate?.(now / 1000);
+  if (state.view !== 'map') { renderer.render(scene, camera); stepLabels(); }   // the street map covers the scene: no need to draw it
+});
+await step('Ready', 1);
+$('#loader').classList.add('done');
+window.__view = { camera, controls, groups };
+window.__ready = true;
+</script>
+</body>
+</html>

@@ -348,7 +348,7 @@
  * without `:has` drops the rule and gets the header it always had, which is
  * the right way to fail.
  */
-@media (min-width: 1400px) {
+@media (min-width: 1600px) {
   .site-nav:has(.nav-modebar:not([hidden])) .nav-wordmark { flex: 0 0 auto; }
   .site-nav:has(.nav-modebar:not([hidden])) .nav-links {
     position: absolute;
@@ -363,9 +363,10 @@
    * Measured with a project open: the label at 568..660 against links beginning
    * at 598, drawn straight through "Dashboard".
    *
-   * The links are 360px wide, so the right-hand group may reach no further
-   * left than half the viewport plus 180 and a gap. Capped, the one thing in it
-   * that can give way does: the project label and the recording's caption both
+   * The links are 574px wide (measured 2026-10-25; they were 360 before the
+   * type was unified), so the right-hand group may reach no further left than
+   * half the viewport plus 287, the 24px edge padding and a gap. Capped, the
+   * one thing in it that can give way does: the project label and the recording's caption both
    * ellipsise, and the actions keep their size. One rule, rather than a
    * breakpoint per combination of what happens to be in the row.
    */
@@ -378,18 +379,21 @@
        thing in it that can give way -- the recording's caption -- ellipsise
        instead. */
     margin-left: auto;
-    max-width: calc(50vw - 220px);
+    max-width: calc(50vw - 330px);
   }
 }
 
-/* BELOW 1400px THE TWO CANNOT BOTH BE HAD, and that is arithmetic rather than
- * taste: the logo and the bar together reach 518px, and a centred 360px link
- * block starts at half the width less 180 -- so they meet at about 1396. Under
+/* BELOW 1600px THE TWO CANNOT BOTH BE HAD, and that is arithmetic rather than
+ * taste: the logo and the bar together reach 484px, and a centred 574px link
+ * block starts at half the width less 287 -- so with a 16px gap they meet at
+ * about 1574. A 1920 laptop at Windows' default 125% scaling is 1536 wide,
+ * which is where they were drawn through each other while 1920 at 100% was
+ * fine. Under
  * it the header hands the bar back to the page, which is where it lived
  * before and is a perfectly good place for it. The shell watches this same
  * width, or a screen would have no mode switch anywhere at all.
  */
-@media (max-width: 1399px) {
+@media (max-width: 1599px) {
   .site-nav .nav-modebar { display: none; }
 }
 

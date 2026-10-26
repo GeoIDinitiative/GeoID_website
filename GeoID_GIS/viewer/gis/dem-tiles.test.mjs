@@ -280,6 +280,62 @@ check("ensure reports what is still HELD, not only what arrived", () => {
   ok(/held: kept/.test(src) && /coverFor\(bounds, options\)/.test(src), "ensure must go through coverFor and count held tiles");
 });
 
+
+/* ── despikePoints: the fast version answers exactly as the sorting one ──── */
+check("despikePoints (fast) is identical to the sorting version, and faster", () => {
+  // The previous implementation, kept here as the reference.
+  const reference = (heights, width, height, floor = POINT_SPIKE_M) => {
+    let repaired = 0, filled = 0;
+    for (let pass = 0; pass < 2; pass += 1) {
+      const src = Float32Array.from(heights);
+      const nb = [];
+      for (let y = 0; y < height; y += 1) for (let x = 0; x < width; x += 1) {
+        const i = (y * width) + x;
+        nb.length = 0;
+        for (let dy = -1; dy <= 1; dy += 1) for (let dx = -1; dx <= 1; dx += 1) {
+          if (!dx && !dy) continue;
+          const xx = x + dx, yy = y + dy;
+          if (xx < 0 || yy < 0 || xx >= width || yy >= height) continue;
+          const v = src[(yy * width) + xx];
+          if (v >= -12000) nb.push(v);
+        }
+        if (nb.length < 3) continue;
+        nb.sort((a, b) => a - b);
+        const mid = nb.length >> 1;
+        const median = nb.length % 2 ? nb[mid] : (nb[mid - 1] + nb[mid]) / 2;
+        const v = src[i];
+        if (!(v >= -12000)) { heights[i] = median; filled += 1; continue; }
+        if (pass) continue;
+        const spread = nb[nb.length - 1] - nb[0];
+        if (Math.abs(v - median) > Math.max(floor, 3 * spread)) { heights[i] = median; repaired += 1; }
+      }
+    }
+    return { repaired, filled };
+  };
+  let seed = 12345;
+  const rnd = () => { seed = (seed * 1103515245 + 12345) % 2147483648; return seed / 2147483648; };
+  let same = true, cases = 0, tFast = 0, tRef = 0;
+  for (let c = 0; c < 12; c += 1) {
+    const N = c < 10 ? 64 : 256;
+    const h = new Float32Array(N * N);
+    for (let y = 0; y < N; y += 1) for (let x = 0; x < N; x += 1) {
+      h[y * N + x] = 400 * Math.sin(x / (7 + c)) * Math.cos(y / (9 + c)) + (x > N * 0.6 ? 900 : 0) + rnd() * 20 * (c % 4);
+    }
+    for (let k = 0; k < N * N / 200 * (1 + c % 3); k += 1) {
+      const i = Math.floor(rnd() * N * N), r = rnd();
+      h[i] = r < 0.4 ? h[i] + (rnd() - 0.5) * 3000 : r < 0.7 ? -32768 : h[i] + (rnd() - 0.5) * 200;
+    }
+    const a = Float32Array.from(h), b = Float32Array.from(h);
+    let t = performance.now(); const ra = despikePoints(a, N, N); tFast += performance.now() - t;
+    t = performance.now(); const rb = reference(b, N, N); tRef += performance.now() - t;
+    if (ra.repaired !== rb.repaired || ra.filled !== rb.filled || a.some((v, i) => v !== b[i])) same = false;
+    cases += 1;
+  }
+  eq(same, true, `fast despikePoints is identical to the sorting version on ${cases} spiky, voided grids`);
+  eq(tFast < tRef, true, `...and faster (${tFast.toFixed(0)} ms against ${tRef.toFixed(0)} ms)`);
+  console.log(`     fast ${tFast.toFixed(0)} ms, sorting ${tRef.toFixed(0)} ms over ${cases} grids`);
+});
+
 /* ── isolated spikes and voids (despikePoints) ───────────────────────────── */
 
 // Real relief: El Capitan, 1,284 to 2,296 m across a 64-post crop, with

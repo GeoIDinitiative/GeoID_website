@@ -29,7 +29,7 @@
 //   * Depth-tested: hills and buildings hide what is behind them. Night only
 //     (the ship's NIGHT from flight-tiles.js); nothing runs by day.
 
-import { NIGHT } from "./night-lights.js?v=20261025-baef467";
+import { NIGHT } from "./night-lights.js?v=20261025-794b342";
 
 const TILEJSON = "https://tiles.openfreemap.org/planet";
 const BM = "https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/VIIRS_Black_Marble/default/2016-01-01/GoogleMapsCompatible_Level8/{z}/{y}/{x}.png";
@@ -169,8 +169,16 @@ const LAMP_VERT = /* glsl */`
   #include <common>
   #include <logdepthbuf_pars_vertex>
   void main() {
+    // THE LAMPS STAND STILL (owner, 2026-10-25: "the streetlights move up and
+    // down on the surface"). Position goes through modelViewMatrix, which
+    // three multiplies on the CPU in double precision, NOT viewMatrix *
+    // (modelMatrix * position) here: the tile's model matrix carries its place
+    // on a globe of radius 3.2, where a 32-bit float resolves ~0.4 m, and as
+    // the planet turns that rounding changed every frame -- every lamp shook
+    // by about a pixel at a few hundred metres. wp is kept for the
+    // distance fades below, where half a metre is nothing.
     vec4 wp = modelMatrix * vec4(position, 1.0);
-    vec4 mv = viewMatrix * wp;
+    vec4 mv = modelViewMatrix * vec4(position, 1.0);
     float upm = ${UNITS_PER_M.toExponential(8)};
     float dCam = max(-mv.z, 1e-9);
     // DEPTH MARGIN: the lamps stand on a 33 x 33 height grid per road tile,
@@ -258,7 +266,9 @@ const POOL_VERT = /* glsl */`
   void main() {
     vUv = uv;
     vec4 wp = modelMatrix * instanceMatrix * vec4(position, 1.0);
-    gl_Position = projectionMatrix * viewMatrix * wp;
+    // As the lamps: modelViewMatrix (CPU, double precision), so the pools
+    // do not shake as the globe turns; wp only for the fade.
+    gl_Position = projectionMatrix * modelViewMatrix * instanceMatrix * vec4(position, 1.0);
     #include <logdepthbuf_vertex>
     float dShip = distance(wp.xyz, uShipW) / ${UNITS_PER_M.toExponential(8)};
     vA = uNight * (1.0 - smoothstep(3000.0, 4500.0, dShip)) * (1.0 - uDiffuse);

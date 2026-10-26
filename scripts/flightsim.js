@@ -244,6 +244,9 @@
       <dt class="fs-boost-only"><kbd>Shift</kbd><span class="fs-pad-eq"><kbd>R2</kbd></span></dt><dd class="fs-boost-only">Boost<span class="fs-pad-eq fs-pad-note"> (squeeze for less)</span></dd>
       <dt><kbd>Space</kbd><span class="fs-pad-eq"><kbd>R1</kbd></span></dt><dd>Brake</dd>
       <dt><kbd>C</kbd><span class="fs-pad-eq"><kbd>&#9633;</kbd></span></dt><dd>Camera — chase / cockpit</dd>
+      <dt>Drag view</dt><dd>Orbit the camera round the craft</dd>
+      <dt>Scroll view</dt><dd>Camera closer / further</dd>
+      <dt><kbd>V</kbd> / double-click<span class="fs-pad-eq"><kbd>R3</kbd></span></dt><dd>Recentre the camera behind</dd>
       <dt><kbd>R</kbd><span class="fs-pad-eq"><kbd>L3</kbd></span></dt><dd>Re-level</dd>
       <dt><kbd>P</kbd><span class="fs-pad-eq"><kbd>Options</kbd></span></dt><dd>Pause / resume</dd>
       <dt><kbd>H</kbd></dt><dd>Show / hide HUD</dd>
@@ -783,6 +786,10 @@
     warping: false,
     braking: false,
     cam: "chase",
+    // Orbit of the chase camera around the craft, set by dragging the view:
+    // yaw all the way round, pitch over and under, distance by the wheel.
+    // t* are where the pointer put it; the plain fields ease toward them.
+    orbit: { yaw: 0, pitch: 0, dist: 1, tYaw: 0, tPitch: 0, tDist: 1 },
     hudVisible: true,
     lastT: 0,
     crashed: false,
@@ -1908,7 +1915,7 @@
   // each geometry in as it arrives, calling `onReady` so the builder can attach
   // late parts — builders stay synchronous and the ship appears at once.
   const _bakedGeo = {};
-  function loadBakedGeometry(ship, keys, dir = "/assets/ships") {
+  function loadBakedGeometry(ship, keys, dir = "/assets/ships", ver = "") {
     if (_bakedGeo[ship]) return _bakedGeo[ship];
     const rec = _bakedGeo[ship] = {};
     for (const k of keys) rec[k] = null;
@@ -1921,8 +1928,14 @@
     import(new URL("vendor/STLLoader.js", document.baseURI).href).then((mod) => {
       const loader = new mod.STLLoader();
       for (const key of keys) {
-        loader.load(`${dir}/${ship}_${key}.stl`, (geo) => {
-          geo.computeVertexNormals();
+        // `ver`: a cache key for meshes that change in place (the aircraft were
+        // rebuilt 2026-10-25 under the same names; the CDN holds a file 4 h).
+        loader.load(`${dir}/${ship}_${key}.stl${ver ? "?v=" + ver : ""}`, (geo) => {
+          // STL carries one flat normal per triangle, so a smooth hull drew
+          // faceted. Rebuild them with a crease: smooth across gentle bends,
+          // sharp where faces meet at more than ~35 deg (trailing edges,
+          // window frames, the spinner's tip).
+          creaseNormals(geo, 35);
           geo.userData.shared = true;   // cached per ship; disposeGroup must skip it
           rec[key] = geo;
           rec.onReady?.(key, geo);
@@ -1930,6 +1943,55 @@
       }
     }).catch(() => { /* builder falls back to whatever it draws procedurally */ });
     return rec;
+  }
+
+  /** Smooth vertex normals with a crease angle, for a non-indexed geometry
+   *  (one vertex per triangle corner, as STLLoader makes). Corners at the
+   *  same position share normals with each neighbouring face that bends less
+   *  than `degrees` from their own face. */
+  function creaseNormals(geo, degrees) {
+    const pos = geo.attributes.position.array;
+    const nTri = pos.length / 9;
+    const fn = new Float32Array(nTri * 3);
+    for (let t = 0; t < nTri; t++) {
+      const o = t * 9;
+      const ux = pos[o + 3] - pos[o], uy = pos[o + 4] - pos[o + 1], uz = pos[o + 5] - pos[o + 2];
+      const vx = pos[o + 6] - pos[o], vy = pos[o + 7] - pos[o + 1], vz = pos[o + 8] - pos[o + 2];
+      let nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx;
+      const l = Math.hypot(nx, ny, nz) || 1;
+      fn[t * 3] = nx / l; fn[t * 3 + 1] = ny / l; fn[t * 3 + 2] = nz / l;
+    }
+    // Corners grouped by position (to 0.1 mm).
+    const groups = new Map();
+    for (let c = 0; c < nTri * 3; c++) {
+      const k = `${Math.round(pos[c * 3] * 1e4)},${Math.round(pos[c * 3 + 1] * 1e4)},${Math.round(pos[c * 3 + 2] * 1e4)}`;
+      let g = groups.get(k);
+      if (!g) groups.set(k, (g = []));
+      g.push(c);
+    }
+    const cosLim = Math.cos(degrees * Math.PI / 180);
+    const out = new Float32Array(pos.length);
+    for (const g of groups.values()) {
+      for (const c of g) {
+        const t = (c / 3) | 0;
+        let sx = 0, sy = 0, sz = 0;
+        for (const d of g) {
+          const u = (d / 3) | 0;
+          if (fn[t * 3] * fn[u * 3] + fn[t * 3 + 1] * fn[u * 3 + 1] + fn[t * 3 + 2] * fn[u * 3 + 2] < cosLim) continue;
+          sx += fn[u * 3]; sy += fn[u * 3 + 1]; sz += fn[u * 3 + 2];
+        }
+        const l = Math.hypot(sx, sy, sz) || 1;
+        out[c * 3] = sx / l; out[c * 3 + 1] = sy / l; out[c * 3 + 2] = sz / l;
+      }
+    }
+    geo.setAttribute("normal", new THREE.BufferAttribute(out, 3));
+  }
+
+  /** Navigation lights: red port, green starboard, white tail -- emissive, so
+   *  they read at night and in shadow. */
+  function navLightMats() {
+    const lamp = (c) => new THREE.MeshStandardMaterial({ color: c, emissive: c, emissiveIntensity: 1.6, roughness: 0.3 });
+    return { navred: lamp(0xff2a1a), navgreen: lamp(0x22ff66), navwhite: lamp(0xfff6e0) };
   }
 
   // TEXTURED MESH LOADER (.gmsh), for sources that arrive with UVs and maps.
@@ -2048,6 +2110,9 @@
     }
   }
 
+  // Bump when scripts/make-aircraft-stl.py rebuilds the aircraft STLs.
+  const AIRCRAFT_MESH_VER = "2";
+
   // LIGHT AIRCRAFT -- Earth Flight's default. A Cessna 172-class high-wing
   // monoplane, built as STLs by scripts/make-aircraft-stl.py (original geometry,
   // see assets/aircraft/README.md): metres, nose toward -Z, so it attaches at
@@ -2062,12 +2127,15 @@
       trim: new THREE.MeshStandardMaterial({ color: 0x3b4148, metalness: 0.3, roughness: 0.55 }),
       glass: new THREE.MeshStandardMaterial({ color: 0x3e5a72, metalness: 0.4, roughness: 0.15 }),
       prop: new THREE.MeshStandardMaterial({ color: 0x24282c, metalness: 0.35, roughness: 0.5 }),
+      ...navLightMats(),
     };
-    attachBaked(group, loadBakedGeometry("cessna", Object.keys(mats), "/assets/aircraft"), mats, 1);
+    attachBaked(group, loadBakedGeometry("cessna", Object.keys(mats), "/assets/aircraft", AIRCRAFT_MESH_VER), mats, 1);
     addLivery(group, [
-      // Wings: 1.62 m chord from z -1.95 at y 1.18; the panel spans 20-75 %
-      // of the chord, tangent to the upper surface at mid-panel (slope 0.083).
-      { file: "livery-site-panel.png", face: "top", w: 2.6, h: 0.89, x: 2.75, y: 1.29, z: -1.18, tilt: 0.083 },
+      // Wings: 1.62 m chord from z -1.95, now a NACA 2412 with 1.7 deg of
+      // dihedral (make-aircraft-stl.py prints this spot): the panel spans
+      // 20-75 % of the chord, tangent to the upper surface at mid-panel
+      // (slope 0.066), 12 mm proud of it.
+      { file: "livery-site-panel.png", face: "top", w: 2.6, h: 0.89, x: 2.75, y: 1.392, z: -1.186, tilt: 0.066 },
       // Rear fuselage z 0.80..2.00: half-width 0.48 -> 0.32 there, ~7 deg of taper.
       { file: "livery-site-panel.png", w: 1.2, h: 0.41, x: 0.42, y: 0.31, z: 1.40, taper: 0.127 },
       // Fin, mid-height: chord ~0.97 m, faces ~0.045 m off the centre plane.
@@ -2107,14 +2175,19 @@
     const mats = {
       hull: new THREE.MeshStandardMaterial({ color: 0x2b4f80, metalness: 0.25, roughness: 0.45 }),
       trim: new THREE.MeshStandardMaterial({ color: 0x30353b, metalness: 0.35, roughness: 0.55 }),
-      glass: new THREE.MeshStandardMaterial({ color: 0x3e5a72, metalness: 0.4, roughness: 0.15 }),
+      // Darker and glossier than the Cessna's: the Cessna's blue-grey glass
+      // was the same tone as this navy paint, and the bubble and door
+      // windows disappeared into the hull.
+      glass: new THREE.MeshStandardMaterial({ color: 0x141d26, metalness: 0.6, roughness: 0.06 }),
       rotor: new THREE.MeshStandardMaterial({ color: 0x1d2024, metalness: 0.3, roughness: 0.5 }),
       tailrotor: new THREE.MeshStandardMaterial({ color: 0x1d2024, metalness: 0.3, roughness: 0.5 }),
+      ...navLightMats(),
     };
-    attachBaked(group, loadBakedGeometry("heli", Object.keys(mats), "/assets/aircraft"), mats, 1);
+    attachBaked(group, loadBakedGeometry("heli", Object.keys(mats), "/assets/aircraft", AIRCRAFT_MESH_VER), mats, 1);
     addLivery(group, [
       // Aft cabin z -0.70..0.60, under the engine fairing: half-width 0.75 -> 0.62.
-      { file: "livery-site.png", w: 1.25, h: 0.37, x: 0.725, y: 0.86, z: -0.05, taper: 0.10 },
+      // (The spline hull's flank is exactly 0.725 here; a centimetre proud.)
+      { file: "livery-site.png", w: 1.25, h: 0.37, x: 0.735, y: 0.86, z: -0.05, taper: 0.10 },
       // Upper fin, mid-height: chord ~0.6 m, faces ~0.03 m off the centre plane.
       { file: "livery-site-mark.png", w: 0.34, h: 0.34, x: 0.045, y: 1.75, z: 5.99 },
     ]);
@@ -2898,6 +2971,7 @@
     // Chase offset is damped, so a stale one from a previous flight would be
     // eased out of visibly on the first frames. Snap it on the next update.
     state._camOff = null;
+    recentreOrbit(true);   // every flight starts from behind the craft
     state.cam = cameraModeSelect?.value || "chase";
     state.lastT = 0;
     state.spinRef = NaN;     // co-rotation starts from this frame's spin
@@ -2998,6 +3072,36 @@
 
   function updateCamTag() {
     if (hudCamTag) hudCamTag.textContent = "CAM: " + state.cam.toUpperCase();
+  }
+
+  // The chase camera's orbit, as one rotation: pitch about the craft's right
+  // axis (up x forward, so +pitch raises the camera), then yaw about its up.
+  // Made on first use, NOT at load: THREE is only bound once the viewer hands
+  // over its hooks (adoptHooks), so `new THREE.Vector3()` up here threw while
+  // the script booted and the whole sim never started.
+  let _orbitAxis = null, _orbitPitchQ = null, _orbitYawQ = null;
+  function orbitQuat(up, fwd, yaw, pitch) {
+    if (!_orbitAxis) {
+      _orbitAxis = new THREE.Vector3();
+      _orbitPitchQ = new THREE.Quaternion();
+      _orbitYawQ = new THREE.Quaternion();
+    }
+    _orbitAxis.crossVectors(up, fwd).normalize();
+    _orbitPitchQ.setFromAxisAngle(_orbitAxis, pitch);
+    _orbitYawQ.setFromAxisAngle(up, yaw);
+    return _orbitYawQ.clone().multiply(_orbitPitchQ);
+  }
+  // Pitch stops short of straight over or under, where lookAt has no "up" to
+  // hold and the view would flip. The base chase view already sits ~19 degrees
+  // up, so these are about 80 degrees above the craft and 55 below it.
+  const ORBIT_PITCH_MIN = -1.3, ORBIT_PITCH_MAX = 1.06;
+  const ORBIT_DIST_MIN = 0.45, ORBIT_DIST_MAX = 6;
+  function recentreOrbit(snap) {
+    const o = state.orbit;
+    o.tYaw = 0; o.tPitch = 0; o.tDist = 1;
+    // Unwind whole turns so the ease back takes the short way round.
+    o.yaw = Math.atan2(Math.sin(o.yaw), Math.cos(o.yaw));
+    if (snap) { o.yaw = 0; o.pitch = 0; o.dist = 1; }
   }
 
   function toggleCam() {
@@ -3581,6 +3685,10 @@
     // And its clip planes: the sim manages the near plane every frame, and
     // the viewer's own rule pushed it past the aircraft 24 m away.
     h.near = camera.near; h.far = camera.far;
+    // And the orbit it was taken at, so a drag while paused turns the held
+    // view about the craft by the CHANGE since (holdPausedCamera).
+    const o = state.orbit;
+    h.orbit = { yaw: o.yaw, pitch: o.pitch, dist: o.dist };
   }
   function holdPausedCamera(camera) {
     const h = state._camPose;
@@ -3591,6 +3699,20 @@
     camera.position.copy(state.pos).add(h.off.clone().applyQuaternion(state.quat));
     camera.up.copy(h.up).applyQuaternion(state.quat);
     camera.quaternion.copy(state.quat).multiply(h.rot);
+    // Orbiting a paused craft: the held pose, turned about the craft by the
+    // orbit's change since the pause (targets, unsmoothed: nothing eases
+    // while paused), and moved in or out by the distance's ratio.
+    const o = state.orbit, r = h.orbit;
+    if (state.cam === "chase" && r && (o.tYaw !== r.yaw || o.tPitch !== r.pitch || o.tDist !== r.dist)) {
+      const up = new THREE.Vector3(0, 1, 0).applyQuaternion(state.quat);
+      const fwd = new THREE.Vector3(0, 0, -1).applyQuaternion(state.quat);
+      const then = orbitQuat(up, fwd, r.yaw, r.pitch).clone();
+      const now = orbitQuat(up, fwd, o.tYaw, o.tPitch).clone();
+      const delta = now.multiply(then.invert());
+      const off = camera.position.clone().sub(state.pos).applyQuaternion(delta).multiplyScalar(o.tDist / (r.dist || 1));
+      camera.position.copy(state.pos).add(off);
+      camera.quaternion.premultiply(delta);
+    }
     if (h.near && (camera.near !== h.near || camera.far !== h.far)) {
       camera.near = h.near; camera.far = h.far;
       camera.updateProjectionMatrix();
@@ -4082,7 +4204,26 @@
       // Residual offset error. Now that translation cannot lag, this only moves
       // during attitude changes, and should sit at ~0 in straight flight.
       s._camGapKm = s._camOff.distanceTo(desiredOff) * METERS_PER_UNIT / 1000;
-      const look = s.pos.clone().addScaledVector(fwd, 4 * L).addScaledVector(shipUp, -0.4 * L);
+      // ORBIT, applied AFTER the damping, never inside it. The damped offset is
+      // still the plain chase offset, so everything measured above (no lag at
+      // speed, soft turns) holds; the drag then turns that offset about the
+      // craft. Damping a target that swings through 180 degrees would lerp the
+      // vector straight through the ship instead of round it.
+      const o = s.orbit;
+      const ease = 1 - Math.exp(-12 * camDt);
+      o.yaw += (o.tYaw - o.yaw) * ease;
+      o.pitch += (o.tPitch - o.pitch) * ease;
+      o.dist += (o.tDist - o.dist) * ease;
+      const orbiting = Math.abs(o.yaw) > 1e-4 || Math.abs(o.pitch) > 1e-4 || Math.abs(o.dist - 1) > 1e-4;
+      let look = s.pos.clone().addScaledVector(fwd, 4 * L).addScaledVector(shipUp, -0.4 * L);
+      if (orbiting) {
+        // Pitch about the craft's right-hand axis (up x forward), so a positive
+        // angle lifts the camera over the top; then yaw about its up axis.
+        const q = orbitQuat(shipUp, fwd, o.yaw, o.pitch);
+        const off = camera.position.clone().sub(s.pos).applyQuaternion(q).multiplyScalar(o.dist);
+        camera.position.copy(s.pos).add(off);
+        look = look.sub(s.pos).applyQuaternion(q).add(s.pos);
+      }
       camera.lookAt(look);
     } else {
       // Seat the view in the orbiter's crew module: forward of centre, just
@@ -4305,6 +4446,7 @@
     }
     if (pressed(e, "KeyX")) { setThrottle(0); flash("THROTTLE CUT"); e.preventDefault(); return; }
     if (pressed(e, "KeyC")) toggleCam();
+    if (pressed(e, "KeyV") && state.cam === "chase") { recentreOrbit(false); flash("VIEW RECENTRED"); }
     if (pressed(e, "KeyR")) levelOut();
     if (pressed(e, "KeyP")) setPaused(!fs.paused);
     if (pressed(e, "KeyH")) {
@@ -4314,6 +4456,74 @@
     if (e.code === "Escape") disengage();
   });
   window.addEventListener("keyup", (e) => { for (const t of keyTokens(e)) keys[t] = false; });
+
+  // ---- orbit the chase camera with the pointer ----
+  // Drag the view to swing the camera all the way round the craft and over or
+  // under it; the wheel moves it in and out; double-click (or V) puts it back
+  // behind. A press only becomes a drag past a few pixels, and the click that
+  // ends a real drag is swallowed, so clicking a place label or a feature in
+  // flight still works exactly as before.
+  (function wireOrbitCamera() {
+    const DRAG_PX = 4;
+    let drag = null;
+    let swallowClick = false;
+    const view = () => hooks?.renderer?.domElement || null;
+    // Paused too: the held view turns with the orbit (holdPausedCamera).
+    const live = () => fs.active && state.cam === "chase";
+    window.addEventListener("pointerdown", (e) => {
+      if (!live() || e.button !== 0 || e.target !== view()) return;
+      drag = { id: e.pointerId, x: e.clientX, y: e.clientY, moved: false };
+    }, true);
+    window.addEventListener("pointermove", (e) => {
+      if (!drag || e.pointerId !== drag.id) return;
+      const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+      if (!drag.moved) {
+        if (Math.hypot(dx, dy) < DRAG_PX) return;
+        drag.moved = true;
+        const el = view(); if (el) el.style.cursor = "grabbing";
+      }
+      drag.x = e.clientX; drag.y = e.clientY;
+      // One full turn per ~1.6 view-heights of drag, OrbitControls' feel:
+      // drag right and the camera swings left round the craft.
+      const h = Math.max(200, view()?.clientHeight || window.innerHeight);
+      const o = state.orbit;
+      o.tYaw -= (dx / h) * Math.PI * 1.25;
+      o.tPitch = Math.max(ORBIT_PITCH_MIN, Math.min(ORBIT_PITCH_MAX, o.tPitch + (dy / h) * Math.PI));
+    }, true);
+    const end = (e) => {
+      if (!drag || (e && e.pointerId !== drag.id)) return;
+      if (drag.moved) {
+        swallowClick = true;
+        setTimeout(() => { swallowClick = false; }, 0);
+        const el = view(); if (el) el.style.cursor = "";
+      }
+      drag = null;
+    };
+    window.addEventListener("pointerup", end, true);
+    window.addEventListener("pointercancel", end, true);
+    window.addEventListener("blur", () => end(null));
+    window.addEventListener("click", (e) => {
+      if (!swallowClick) return;
+      swallowClick = false;
+      e.preventDefault();
+      e.stopImmediatePropagation();
+    }, true);
+    // Capture phase on the window, so the globe's own wheel zoom never sees it
+    // in flight (the sim owns the camera, and that zoom would fight it).
+    window.addEventListener("wheel", (e) => {
+      if (!live() || e.target !== view()) return;
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      const unit = e.deltaMode === 1 ? 16 : (e.deltaMode === 2 ? 100 : 1);
+      const o = state.orbit;
+      o.tDist = Math.max(ORBIT_DIST_MIN, Math.min(ORBIT_DIST_MAX, o.tDist * Math.exp(e.deltaY * unit * 0.0015)));
+    }, { capture: true, passive: false });
+    window.addEventListener("dblclick", (e) => {
+      if (!live() || e.target !== view()) return;
+      recentreOrbit(false);
+      flash("VIEW RECENTRED");
+    }, true);
+  })();
 
   // ---- pause ----
   // Nothing here paused before; a controller's Options button needs it to, and
@@ -4377,7 +4587,7 @@
     { control: "cross", text: "Select, or open the focused panel" },
     { control: "triangle", text: "Show or hide this map" },
     { heading: "Not used here" },
-    { control: "r3", text: "Free look: this sim has no free-look camera", unused: true },
+    { control: "r3", text: "Recentre the camera behind the craft (drag the view to orbit it)" },
     { control: "share", text: "Screenshot: this sim has no screenshot", unused: true },
     { control: "touchpad", text: "Not read by the sim: it stays the pointer", unused: true },
   ];
@@ -4401,6 +4611,7 @@
     P.setHelp(PAD_HELP);          // this page's "Flying" map, for the overlay
     P.on("square", () => { if (fs.active && !fs.paused) toggleCam(); });
     P.on("l3", () => { if (fs.active && !fs.paused) levelOut(); });
+    P.on("r3", () => { if (fs.active && !fs.paused && state.cam === "chase") recentreOrbit(false); });
     P.on("options", () => { if (fs.active) setPaused(!fs.paused); });
     P.onBack(() => (fs.active ? controlCentre() : false));
     // Circle must not fold the flight section shut from under a running sim:

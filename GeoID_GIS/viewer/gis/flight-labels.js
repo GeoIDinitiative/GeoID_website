@@ -45,7 +45,7 @@ import * as THREE from "../vendor/three.module.js";
 import { TIER_WINDOW, TIER_SIZE, SMALL_REACH_KM, distanceKm } from "../../../flight_sim/earth/game/gazetteer.js?v=2";
 // The Mars module, loaded when flight labels start: it imports three.js by an
 // absolute web path, which only a browser resolves (Node tests import this file).
-const MARS_LABELS = "../../../planet_explorer/mars/viewer/label-layer.js?v=20261025-baef467";
+const MARS_LABELS = "../../../planet_explorer/mars/viewer/label-layer.js?v=20261025-794b342";
 let buildLabelLayer = null, updateLabelVisibility = null, updateLabelAnchors = null, makeLabelTexture = null;
 
 /* ── What the Mars viewer's scope provided, from Earth ─────────────────── */
@@ -232,10 +232,31 @@ const control = { on: true, off: new Set() };
 export function flightLabelAllowed(item, c = control) {
   return c.on && !c.off.has(item?.category);
 }
+/**
+ * ONE SWITCH, SEEN FROM EVERYWHERE. The Workspace row and the Locations
+ * master read this while flying (layer-hierarchy.js flyingLabels) and are told
+ * whenever it moves; a flight starts with labels off only if they were
+ * switched off by hand in GeoHUB, and the master is put back to what the
+ * globe's own boxes say on landing.
+ */
+function announce() {
+  const master = document.getElementById("locations-master-toggle");
+  if (master && window.__flightSim?.active) master.checked = control.on;
+  window.dispatchEvent(new CustomEvent("geoid:flight-labels-changed", { detail: { on: control.on } }));
+}
+function setLabelsOn(on) {
+  if (control.on === Boolean(on)) return;
+  control.on = Boolean(on);
+  lastItemsAt = 0;
+  announce();
+}
+if (typeof window !== "undefined") {
+  window.GeoIDFlightLabels = { isOn: () => control.on, setOn: setLabelsOn };
+}
 function onLabelControl(e) {
   const t = e.target;
   if (!t || !window.__flightSim?.active) return;
-  if (t.id === "locations-master-toggle" || t.matches?.('.layer-row-labels [data-role="visible"]')) control.on = t.checked;
+  if (t.id === "locations-master-toggle" || t.matches?.('.layer-row-labels [data-role="visible"]')) { setLabelsOn(t.checked); return; }
   else if (e.isTrusted && t.dataset?.placeCategory) {
     for (const id of t.dataset.placeCategory.split(" ")) {
       if (t.checked) control.off.delete(id); else control.off.add(id);
@@ -443,39 +464,47 @@ function step() {
     e._fsRamp = 0;
     e._fsSky = undefined;   // a flag that comes back starts from its own skyline
   };
-  // Cached distance-readout textures. Cached by STRING, and the value is
-  // rounded to coarse steps, so a feature 300 km out does not mint a new
-  // texture every frame as the range ticks down.
-  if (!window.__fsDistTex) window.__fsDistTex = new Map();
-  const fsDistTexture = (txt) => {
-    const cache = window.__fsDistTex;
-    const hit = cache.get(txt);
+  /**
+   * CRISP TEXT FOR THE SKYLINE (owner, 2026-10-25: "distant labels over the
+   * horizon are super blurry and stretched"). The flags borrowed the in-view
+   * label's chip -- 34 px tall at 1x, 15 px text -- and squeezed it into a
+   * 14-20 px tag, so the name came out at ~7 px through mipmaps: smeared.
+   * Each skyline name (and range) now has its own texture drawn at the size
+   * it is shown, one canvas pixel to one screen pixel (x devicePixelRatio),
+   * no mipmaps: nothing is resampled, so it is as sharp as page text.
+   * Returns { tex, w, h } with w, h in CSS pixels. Cached by text and style.
+   */
+  if (!window.__fsCrisp) window.__fsCrisp = new Map();
+  const crispText = (txt, px, fill, weight = 600) => {
+    const dpr = Math.min(3, Math.max(1, window.devicePixelRatio || 1));
+    const key = `${txt}|${px}|${fill}|${weight}|${dpr}`;
+    const cache = window.__fsCrisp;
+    const hit = cache.get(key);
     if (hit) return hit;
-    const fsz = 34, pad = 9;
+    const font = `${weight} ${Math.round(px * dpr)}px "Exo 2", "Segoe UI", sans-serif`;
+    const pad = Math.round(4 * dpr), stroke = Math.max(2, Math.round(3 * dpr));
     const meas = document.createElement("canvas").getContext("2d");
-    meas.font = `600 ${fsz}px "Exo 2", sans-serif`;
+    meas.font = font;
     const cv = document.createElement("canvas");
-    cv.width = Math.max(8, Math.ceil(meas.measureText(txt).width) + pad * 2);
-    cv.height = fsz + pad * 2;
-    const g2 = cv.getContext("2d");
-    g2.font = `600 ${fsz}px "Exo 2", sans-serif`;
-    g2.textAlign = "center";
-    g2.textBaseline = "middle";
-    g2.lineWidth = 6;
-    g2.strokeStyle = "rgba(8,10,14,0.92)";
-    g2.strokeText(txt, cv.width / 2, cv.height / 2);
-    g2.fillStyle = "#bfe0ff";
-    g2.fillText(txt, cv.width / 2, cv.height / 2);
+    cv.width = Math.max(4, Math.ceil(meas.measureText(txt).width) + pad * 2);
+    cv.height = Math.round(px * dpr * 1.35) + pad * 2;
+    const g = cv.getContext("2d");
+    g.font = font; g.textAlign = "center"; g.textBaseline = "middle";
+    g.lineJoin = "round"; g.lineWidth = stroke; g.strokeStyle = "rgba(6, 9, 14, 0.94)";
+    g.strokeText(txt, cv.width / 2, cv.height / 2);
+    g.fillStyle = fill;
+    g.fillText(txt, cv.width / 2, cv.height / 2);
     const tex = new THREE.CanvasTexture(cv);
-    if (cache.size > 160) {
-      for (const k of cache.keys()) {
-        cache.get(k)?.dispose?.();
-        cache.delete(k);
-        if (cache.size <= 120) break;
-      }
+    tex.generateMipmaps = false;
+    tex.minFilter = THREE.LinearFilter;
+    tex.magFilter = THREE.LinearFilter;
+    tex.colorSpace = THREE.SRGBColorSpace;
+    const out = { tex, w: cv.width / dpr, h: cv.height / dpr };
+    if (cache.size > 400) {
+      for (const k of cache.keys()) { cache.get(k)?.tex?.dispose?.(); cache.delete(k); if (cache.size <= 300) break; }
     }
-    cache.set(txt, tex);
-    return tex;
+    cache.set(key, out);
+    return out;
   };
   // Screen box of a sprite, in CSS pixels. Sprites are sized in WORLD
   // units, so the pixel size follows from the perspective relation
@@ -794,9 +823,7 @@ function step() {
     // skyline reads as a hierarchy instead of a wall of equal flags.
     const sigScale = 1.18 - 0.075 * (c.sig || 3);   // lod1 1.10 → lod5 0.81
     const triPx = (16 - t * 5) * sigScale;
-    const labPx = (18 - t * 4) * sigScale;
-    const triH = uppH * triPx, labH = uppH * labPx;
-    const liveMap = entry.sprite.material?.map || null;
+    const triH = uppH * triPx;
     if (!entry._fsTri) {
       entry._fsTri = new THREE.Sprite(new THREE.SpriteMaterial({ map: window.__fsTriTex, transparent: true, depthTest: true, depthWrite: false }));
       entry._fsTri.renderOrder = 93; entry._fsTri.frustumCulled = false; grp.add(entry._fsTri);
@@ -807,8 +834,8 @@ function step() {
       entry._fsTri.userData.feature = entry.item;
       labelLayer.interactiveObjects.push(entry._fsTri);
     }
-    if (!entry._fsHLabel && liveMap) {
-      entry._fsHLabel = new THREE.Sprite(new THREE.SpriteMaterial({ map: liveMap, transparent: true, depthTest: true, depthWrite: false }));
+    if (!entry._fsHLabel) {
+      entry._fsHLabel = new THREE.Sprite(new THREE.SpriteMaterial({ transparent: true, depthTest: true, depthWrite: false }));
       entry._fsHLabel.renderOrder = 93; entry._fsHLabel.frustumCulled = false; grp.add(entry._fsHLabel);
       entry._fsHLabel.userData.feature = entry.item;
       labelLayer.interactiveObjects.push(entry._fsHLabel);
@@ -817,7 +844,11 @@ function step() {
     entry._fsRamp = Math.min(1, (entry._fsRamp || 0) + 0.08); // fade-in, no popping
     const op = fade * entry._fsRamp;
     // Sightline elevation for the triangle: skyline + 8 px pad + half its height.
-    const eTri = eSky + (8 + triPx * 0.5) * anglePerPx;
+    // A named flag carries its range UNDER the glyph: room is made for it
+    // between the skyline and the glyph, or the ground at the skyline hides
+    // the lower half of the figures (depth-tested, rightly, for nearer hills).
+    const distRoom = c.named ? 16 : 0;
+    const eTri = eSky + (8 + distRoom + triPx * 0.5) * anglePerPx;
     sDir.copy(tang).multiplyScalar(Math.cos(eTri)).addScaledVector(Chat, Math.sin(eTri));
     entry._fsTri.visible = true;
     entry._fsTri.material.opacity = op;
@@ -855,42 +886,45 @@ function step() {
         entry._fsDist.userData.feature = entry.item;
         labelLayer.interactiveObjects.push(entry._fsDist);
       }
-      if (entry._fsDistTxt !== txt) {
-        entry._fsDist.material.map = fsDistTexture(txt);
+      // Crisp, as the name above it (crispText): 11 px, one texel a pixel.
+      const dt = crispText(txt, 11, "#bfe0ff");
+      if (entry._fsDist.material.map !== dt.tex) {
+        entry._fsDist.material.map = dt.tex;
         entry._fsDist.material.needsUpdate = true;
         entry._fsDistTxt = txt;
       }
-      const dmap = entry._fsDist.material.map;
-      const dImg = dmap && dmap.image;
-      const dAspect = dImg && dImg.height ? dImg.width / dImg.height : 3;
-      const distPx = 13 - t * 3;
-      const distH = uppH * distPx;
+      const distPx = dt.h;
       // BELOW the glyph: subtract, where the name label adds.
-      const eDist = eTri - (triPx * 0.5 + distPx * 0.62) * anglePerPx;
+      // By the text, not its padded box: the crisp texture carries 4 px of
+      // padding a side, and centring on the whole box dropped the figures
+      // into the skyline, where the depth test hid them.
+      const eDist = eTri - (triPx * 0.5 + 1 + (distPx - 8) * 0.5) * anglePerPx;
       sDir.copy(tang).multiplyScalar(Math.cos(eDist)).addScaledVector(Chat, Math.sin(eDist));
       entry._fsDist.visible = c.named;
       entry._fsDist.material.opacity = Math.min(1, op * 1.35);
       entry._fsDist.position.copy(camLocal).addScaledVector(sDir, Dh);
-      entry._fsDist.scale.set(distH * dAspect, distH, 1);
+      entry._fsDist.scale.set(uppH * dt.w, uppH * dt.h, 1);
     }
-    if (entry._fsHLabel && liveMap && c.named) {
-      // Keep the proxy's texture in lockstep with the live label texture:
-      // rebuildLabelTextures() swaps/disposes label maps, and a proxy left
-      // holding a disposed map draws NOTHING — the "triangle with no name".
-      if (entry._fsHLabel.material.map !== liveMap) {
-        entry._fsHLabel.material.map = liveMap;
+    if (entry._fsHLabel && c.named) {
+      // Its own crisp text (crispText), not the in-view chip squeezed down:
+      // 13 px for the most significant places, 12 px for the rest, at the
+      // label's own ink. Size no longer shrinks with distance (that is what
+      // softened it); the fade below still does.
+      const name = String(entry.item?.name || "").replace(/\s*\([^)]*\)\s*/g, " ").trim();
+      const ink = entry.item?.label_colour || "#eef3fb";
+      const ct = crispText(name, (c.sig || 3) <= 2 ? 13 : 12, ink);
+      if (entry._fsHLabel.material.map !== ct.tex) {
+        entry._fsHLabel.material.map = ct.tex;
         entry._fsHLabel.material.needsUpdate = true;
       }
-      const img = liveMap.image;
-      const labAspect = img && img.height ? img.width / img.height : 4;
-      const eLab = eTri + (triPx * 0.5 + labPx * 0.62) * anglePerPx;
+      const eLab = eTri + (triPx * 0.5 + ct.h * 0.55) * anglePerPx;
       sDir.copy(tang).multiplyScalar(Math.cos(eLab)).addScaledVector(Chat, Math.sin(eLab));
       entry._fsHLabel.visible = true;
       // Thin outlined text vanishes at the triangle's far-fade alpha —
       // boost it so the name stays legible as far as the glyph itself.
       entry._fsHLabel.material.opacity = Math.min(1, op * 1.45);
       entry._fsHLabel.position.copy(camLocal).addScaledVector(sDir, Dh);
-      entry._fsHLabel.scale.set(labH * labAspect, labH, 1);
+      entry._fsHLabel.scale.set(uppH * ct.w, uppH * ct.h, 1);
     } else if (entry._fsHLabel) {
       entry._fsHLabel.visible = false;
     }
@@ -1025,6 +1059,8 @@ export async function startFlightLabels() {
   if (frame) return;
   if (!buildLabelLayer) ({ buildLabelLayer, updateLabelVisibility, updateLabelAnchors, makeLabelTexture } = await import(MARS_LABELS));
   if (frame || !window.__flightSim?.active) return;
+  control.on = !window.GeoIDLayerHierarchy?.labelsSwitchedOff?.();
+  announce();
   frame = requestAnimationFrame(step);
   window.GeoIDViewer?.renderer?.domElement?.addEventListener("click", onClick, true);
   document.addEventListener("change", onLabelControl);
@@ -1039,4 +1075,8 @@ export function stopFlightLabels() {
   dispose();
   itemsKey = "";
   window.__fsTriActive = false;
+  // Landed: the master says what the globe's own boxes say again.
+  const master = document.getElementById("locations-master-toggle");
+  if (master) master.checked = Boolean(document.querySelector("#locations-section input[type=checkbox]:checked:not(#locations-master-toggle):not(#moon-toggle)"));
+  window.dispatchEvent(new CustomEvent("geoid:flight-labels-changed", { detail: { on: false } }));
 }
