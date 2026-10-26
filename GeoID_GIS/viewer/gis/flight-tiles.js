@@ -171,7 +171,69 @@ function localPoint(viewer, lat, lon) {
   return v;
 }
 
-const fullGrid = (z) => (z >= 16 ? 32 : z >= 15 ? 24 : z >= 12 ? 16 : 10);
+/*
+ * TERRAIN TO A FLIGHT-SIM STANDARD (owner, 2026-10-26: "spurious spikes at
+ * discontinuities like slopes, cliffs and coastlines"). Measured over the
+ * Cliffs of Moher: the elevation is clean (5.8 m posts, no step over 24 m
+ * along the cliff top), but a zoom-14 tile was 16 cells of ~95 m, each vertex
+ * ONE point sample of that 5.8 m grid -- some on the cliff top, some at its
+ * foot -- so a cliff came out as a saw of slivers, and where a tile met a
+ * coarser one the gap opened wider than the skirt hid. Now, as terrain
+ * engines do it:
+ *   - DENSER near the aircraft: 32 cells from zoom 14 (~46 m at 53 N);
+ *   - FILTERED heights: each vertex is the tent-weighted mean of five samples
+ *     over its own cell (filteredGround), so a vertex stands for its ground,
+ *     not for the one post under it;
+ *   - STITCHED edges: on an edge whose neighbour is coarser (edgeSteps), the
+ *     edge vertices take the neighbour's own edge line (stitchEdges), so the
+ *     two meshes meet exactly and no crack opens at a cliff or a coast;
+ *   - SKIRTS as deep as the tile's relief needs (up to 400 m), for what
+ *     the stitching cannot know (a neighbour still on its first coarse grid).
+ */
+const fullGrid = (z) => (z >= 14 ? 32 : z >= 12 ? 24 : 12);
+
+/** The tent-weighted mean of five samples over a cell (`sample(lat, lon)` -> metres or null). */
+export function filteredGround(sample, lat, lon, dLat, dLon) {
+  let sum = 0, w = 0;
+  const take = (la, lo, k) => { const h = sample(la, lo); if (Number.isFinite(h)) { sum += h * k; w += k; } };
+  take(lat, lon, 0.5);
+  const a = dLat / 3, b = dLon / 3;
+  take(lat + a, lon + b, 0.125); take(lat + a, lon - b, 0.125);
+  take(lat - a, lon + b, 0.125); take(lat - a, lon - b, 0.125);
+  return w ? sum / w : null;
+}
+
+/**
+ * Edge vertices onto a coarser neighbour's edge. `hM` is the (N+1)^2 grid,
+ * row 0 north; `steps` [N, S, W, E] levels up to the neighbour (edgeSteps);
+ * `at(edge, i)` -> { o, Nc } the tile's offset inside the neighbour along that
+ * edge and the neighbour's grid; `edgeHeight(edge, sParam)` -> metres on the
+ * shared edge line at our own parameter sParam (0..1 along our edge, may run
+ * past it). Each edge vertex takes the neighbour's straight line between its
+ * two nearest edge vertices -- exactly what the neighbour draws there.
+ */
+export function stitchEdges(hM, N, steps, at, edgeHeight) {
+  const idx = [
+    (i) => i,                              // north: row 0
+    (i) => N * (N + 1) + i,                // south: row N
+    (i) => i * (N + 1),                    // west: column 0
+    (i) => i * (N + 1) + N,                // east: column N
+  ];
+  for (let e = 0; e < 4; e += 1) {
+    const up = steps[e] | 0;
+    if (up <= 0) continue;
+    const { o, Nc } = at(e, up);
+    const span = 2 ** up;
+    for (let i = 0; i <= N; i += 1) {
+      const np = (o + i / N) / span;                     // 0..1 along the neighbour's edge
+      const k0 = Math.min(Nc - 1, Math.floor(np * Nc));
+      const f = np * Nc - k0;
+      const sA = (k0 / Nc) * span - o, sB = ((k0 + 1) / Nc) * span - o;
+      hM[idx[e](i)] = edgeHeight(e, sA, up, Nc) * (1 - f) + edgeHeight(e, sB, up, Nc) * f;
+    }
+  }
+  return hM;
+}
 const FIRST_GRID = 6;
 
 /** A few heights across the tile: has the terrain under it actually changed? */
@@ -189,7 +251,7 @@ function heightSignature(t) {
  * skirts. A new tile goes up at once on a coarse grid (coverage first) and is
  * refined to its full grid as the work budget allows.
  */
-function liftGeometry(viewer, t, N) {
+function liftGeometry(viewer, t, N, steps = t.steps || [0, 0, 0, 0]) {
   let geo = t.mesh?.geometry;
   if (!geo || t.N !== N) {
     geo?.dispose();
@@ -198,20 +260,50 @@ function liftGeometry(viewer, t, N) {
   }
   t.N = N;
   t.sig = heightSignature(t);
+  // Stitched to the neighbours only once the tile is on its full grid; the
+  // first coarse grid is a stand-in for a moment.
+  const stitch = N >= fullGrid(t.z) ? steps : [0, 0, 0, 0];
+  t.stitch = stitch.join(",");
   const verts = (N + 1) * (N + 1);
   const pos = geo.attributes.position ? geo.attributes.position.array : new Float32Array(verts * 2 * 3);
   const centre = localPoint(viewer, tileYToLat(t.y + 0.5, t.z), tileXToLon(t.x + 0.5, t.z));
-  const skirt = Math.max(30, tileSizeM(t.z, t.y) * 0.03) * UNITS_PER_M;
   const v = new THREE.Vector3();
   const T = window.GeoIDFlightTerrain;
+  const on = Boolean(T?.active?.());
+  const ground = (lat, lon) => (on ? T.groundMetres(lat, lon) : 0);
   const hM = new Float32Array(verts);
+  // Filtered heights: each vertex over its own cell (filteredGround).
+  const cellLat = (n) => Math.abs(tileYToLat(t.y, t.z) - tileYToLat(t.y + 1, t.z)) / n;
+  const cellLon = (n) => 360 / 2 ** t.z / n;
+  for (let j = 0; j <= N; j++) {
+    const lat = tileYToLat(t.y + j / N, t.z);
+    for (let i = 0; i <= N; i++) {
+      hM[j * (N + 1) + i] = filteredGround(ground, lat, tileXToLon(t.x + i / N, t.z), cellLat(N), cellLon(N)) ?? 0;
+    }
+  }
+  // Stitched edges (stitchEdges): the coarser neighbour's own edge line,
+  // sampled as that neighbour samples it (its cell, its grid).
+  stitchEdges(hM, N, stitch,
+    (e, up) => ({ o: e < 2 ? t.x - ((t.x >> up) << up) : t.y - ((t.y >> up) << up), Nc: fullGrid(t.z - up) }),
+    (e, sp, up, Nc) => {
+      const dLa = cellLat(1) * 2 ** up / Nc, dLo = cellLon(1) * 2 ** up / Nc;
+      const lat = e === 0 ? tileYToLat(t.y, t.z) : e === 1 ? tileYToLat(t.y + 1, t.z) : tileYToLat(t.y + sp, t.z);
+      const lon = e === 2 ? tileXToLon(t.x, t.z) : e === 3 ? tileXToLon(t.x + 1, t.z) : tileXToLon(t.x + sp, t.z);
+      return filteredGround(ground, lat, lon, dLa, dLo) ?? 0;
+    });
+  // Skirts as deep as the relief needs: what stitching cannot cover.
+  let lo = Infinity, hi = -Infinity;
+  for (const h of hM) { if (h < lo) lo = h; if (h > hi) hi = h; }
+  const skirt = Math.max(30, tileSizeM(t.z, t.y) * 0.03, Math.min(400, (hi - lo) * 0.5)) * UNITS_PER_M;
+  const vex = T?.getVex?.() || 1;
   for (let j = 0; j <= N; j++) {
     const lat = tileYToLat(t.y + j / N, t.z);
     for (let i = 0; i <= N; i++) {
       const lon = tileXToLon(t.x + i / N, t.z);
-      v.copy(localPoint(viewer, lat, lon));
       const k = j * (N + 1) + i;
-      hM[k] = T?.active?.() ? (T.groundMetres(lat, lon) ?? 0) : 0;
+      const p = viewer.surfacePoint(lat, lon, 0);
+      v.set(-p.x, p.y, -p.z);
+      if (on) v.setLength(v.length() + hM[k] * vex * UNITS_PER_M);
       pos[k * 3] = v.x - centre.x; pos[k * 3 + 1] = v.y - centre.y; pos[k * 3 + 2] = v.z - centre.z;
       v.setLength(v.length() - skirt);                     // the skirt vertex, below
       const s = verts + k;
@@ -732,6 +824,11 @@ function tick() {
     t.want = true; t.d = L.d; t.used = now;
     return t;
   });
+  // Coarser neighbours across each edge (edgeSteps): the seam blend, and the
+  // edges the mesh is stitched along (liftGeometry).
+  const leafSet = new Set(leaves.map((L) => key(L.z, L.x, L.y)));
+  const isLeaf = (z, x, y) => leafSet.has(key(z, x, y));
+  for (const t of wanted) t.steps = edgeSteps(t.z, t.x, t.y, isLeaf);
   for (const t of wanted) if (!t.mesh && performance.now() < now + WORK_MS) ensureMesh(viewer, t);
   for (const t of wanted) {
     if (!t.mesh || performance.now() > now + 2 * WORK_MS) continue;
@@ -740,13 +837,11 @@ function tick() {
       if (heightSignature(t) !== t.sig) { liftGeometry(viewer, t, t.N); continue; }
     }
     if (t.N < fullGrid(t.z)) liftGeometry(viewer, t, fullGrid(t.z));
+    else if (t.stitch !== t.steps.join(",")) liftGeometry(viewer, t, t.N);   // a neighbour changed level
   }
-  // Coarser neighbours across each edge (edgeSteps), for the seam blend.
-  const leafSet = new Set(leaves.map((L) => key(L.z, L.x, L.y)));
-  const isLeaf = (z, x, y) => leafSet.has(key(z, x, y));
   for (const t of wanted) {
     if (!t.uniforms) continue;
-    const st = edgeSteps(t.z, t.x, t.y, isLeaf);
+    const st = t.steps;
     t.uniforms.uEdgeLod.value.set(...st);
     const lacks = (fromZ) => st.map((k) => (t.z >= fromZ && k > 0 && t.z - k < fromZ ? 1 : 0));
     t.uniforms.uEdgeVeg.value.set(...lacks(VEG_FROM_Z));
