@@ -21,6 +21,9 @@ import {
 import { enumOf, recountStatement } from "./profiles.js";
 import { cleanContentMeta } from "./content.js";
 import { reshareRows, mergeWithReshares, reshareLines, viewerReshared } from "./reposts.js";
+import { roomForPost } from "./rooms.js";
+import { applyJobFilters, queryFromParams } from "./jobs.js";
+import { holdReasons, hold } from "./trust.js";
 
 export const KINDS = ["text", "scene", "analysis", "monitor", "observation", "workflow", "dataset", "paper",
   "question", "discussion", "event", "opportunity", "challenge", "model", "repo"];
@@ -28,6 +31,7 @@ const PROVENANCE = ["observed", "derived", "modelled", "forecast", "ai", "unveri
 const VISIBILITY = ["public", "unlisted", "followers", "team", "community", "project", "private"];
 export const REACTIONS = ["like", "insightful", "reproduced", "useful"];
 const COMMENT_KINDS = ["comment", "correction", "suggestion"];
+const NO_LICENCE_KINDS = ["text", "opportunity", "event", "question", "discussion", "challenge", "repo"];
 const OPPORTUNITY_TYPES = ["job", "grant", "fellowship", "internship", "studentship", "project", "consultancy",
   "expedition", "hackathon", "expertise", "service"];
 const EVENT_FORMATS = ["webinar", "seminar", "workshop", "hackathon", "field-course", "poster-session", "conference"];
@@ -125,6 +129,8 @@ function cleanMeta(kind, raw) {
     if ("where" in meta) meta.where = str(meta.where, 200);
     if ("url" in meta) meta.url = url(meta.url);
     if (meta.format != null && meta.format !== "") meta.format = enumOf(meta.format, EVENT_FORMATS, "meta.format");
+    // A meet-up at a conference names the conference's event post (conference.js).
+    if ("parent_event" in meta) meta.parent_event = str(meta.parent_event, 40) || undefined;
   }
   if (kind === "workflow" || kind === "dataset") {
     if ("repo" in meta) meta.repo = url(meta.repo);
@@ -309,7 +315,10 @@ async function postFields(env, user, body, base) {
     out.media_json = JSON.stringify(media);
   }
   if (!base || has("links")) out.links_json = JSON.stringify(await withCards(env, cleanLinks(body.links)));
-  if (!base || has("licence")) out.licence = str(body.licence, 60) || "CC-BY-4.0";
+  // A licence is optional: questions, jobs, events and documents need not offer
+  // reuse. Asked for nothing on a new post, research outputs default to CC BY.
+  if (has("licence")) out.licence = str(body.licence, 60);
+  else if (!base) out.licence = NO_LICENCE_KINDS.includes(kind) ? "" : "CC-BY-4.0";
   if (!base || has("provenance")) {
     out.provenance = body.provenance == null ? "observed" : enumOf(body.provenance, PROVENANCE, "provenance");
   }
@@ -339,6 +348,11 @@ async function postFields(env, user, body, base) {
     const c = body.community_id ? await findCommunity(env, body.community_id) : null;
     if (body.community_id && !c) fail(400, "No such community.");
     out.community_id = c ? c.id : null;
+  }
+  if (!base || has("room_id")) {
+    // An event room (rooms.js): the post joins that room's thread.
+    const room = body.room_id ? await roomForPost(env, body.room_id) : null;
+    out.room_id = room ? room.id : null;
   }
   if (!base || has("project_id")) {
     if (body.project_id) {
@@ -372,12 +386,12 @@ async function postFields(env, user, body, base) {
 const POST_COLUMNS = ["id", "author_id", "kind", "title", "body", "tags_json", "lat", "lon", "loc_precision",
   "place_name", "world", "scene_json", "media_json", "links_json", "licence", "provenance", "sources_json",
   "method_json", "limitations", "meta_json", "visibility", "team_id", "community_id", "project_id",
-  "allow_fork", "forked_from", "sponsored_by", "created_at", "updated_at"];
+  "allow_fork", "forked_from", "sponsored_by", "room_id", "held_at", "held_reasons", "created_at", "updated_at"];
 
 export function insertStatements(DB, row) {
   const out = [DB.prepare(
     `INSERT INTO posts (${POST_COLUMNS.join(", ")}) VALUES (${POST_COLUMNS.map(() => "?").join(", ")})`,
-  ).bind(...POST_COLUMNS.map((c) => row[c] ?? null))];
+  ).bind(...POST_COLUMNS.map((c) => row[c] ?? (c === "held_reasons" ? "" : null)))];
   for (const tag of parse(row.tags_json, [])) {
     out.push(DB.prepare("INSERT OR IGNORE INTO post_tags (post_id, tag) VALUES (?, ?)").bind(row.id, tag));
   }
@@ -445,6 +459,10 @@ export async function shapePosts(env, viewer, rows) {
       viewer.id, ...authorIds)).map((r) => r.target_id));
   }
   const reshared = await viewerReshared(env, viewer, ids);
+  // Posted as an organisation: is it a verified one? (a verified employer, on opportunities)
+  const orgIds = [...new Set(rows.map((r) => r.org_id).filter(Boolean))];
+  const verifiedOrgs = new Set(orgIds.length ? ((await env.DB.prepare(
+    `SELECT id FROM orgs WHERE verified = 1 AND removed_at IS NULL AND id IN (${inList(orgIds.length)})`).bind(...orgIds).all()).results || []).map((r) => r.id) : []);
   return rows.map((row) => {
     const extra = {};
     if (viewer) {
@@ -457,7 +475,9 @@ export async function shapePosts(env, viewer, rows) {
       };
     }
     if (row.kind === "observation") extra.verification = verification[row.id];
-    return publicPost(env, row, authors, extra);
+    const shaped = publicPost(env, row, authors, extra);
+    if (shaped.org) shaped.org.verified = verifiedOrgs.has(row.org_id);
+    return shaped;
   });
 }
 
@@ -498,8 +518,12 @@ async function createPost(ctx) {
   const body = await readJson(ctx.request);
   const fields = await postFields(env, user, body, null);
   const t = now();
-  const row = { ...fields, id: id("p"), author_id: user.id, forked_from: null, created_at: t, updated_at: t };
+  let row = { ...fields, id: id("p"), author_id: user.id, forked_from: null, created_at: t, updated_at: t };
+  // A likely recruitment scam waits for a moderator (trust.js).
+  const reasons = await holdReasons(env, user, row, { org: ctx._org || null, t });
+  if (reasons.length) row = hold(row, reasons, t);
   await env.DB.batch(insertStatements(env.DB, row));
+  if (row.room_id && row.visibility === "public") await tellRoomFollowers(env, user, row);
   const saved = await loadPost(env, row.id);
   await notifyMentions(env, user, saved, `${saved.title}\n${saved.body}`, "post", saved.id);
   return onePost(env, user, saved);
@@ -519,6 +543,13 @@ async function patchPost(ctx) {
   if (post.author_id !== user.id) fail(403, "Only the author can edit this post.");
   const body = await readJson(ctx.request);
   const fields = await postFields(env, user, body, post);
+  // A held post stays private until a moderator decides; what the author asks for is remembered.
+  if (post.held_at && fields.visibility !== undefined) {
+    const meta = parse(fields.meta_json ?? post.meta_json, {});
+    meta.held_visibility = fields.visibility;
+    fields.meta_json = JSON.stringify(meta);
+    fields.visibility = "private";
+  }
   fields.updated_at = now();
   const cols = Object.keys(fields);
   const statements = [env.DB.prepare(`UPDATE posts SET ${cols.map((c) => `${c} = ?`).join(", ")} WHERE id = ?`)
@@ -579,6 +610,7 @@ async function commonFilters(ctx, viewer, where, binds) {
     where.push("p.community_id = ?"); binds.push(c ? c.id : "");
   }
   if (q.get("project")) { where.push("p.project_id = ?"); binds.push(q.get("project")); }
+  if (q.get("room")) { where.push("p.room_id = ?"); binds.push(str(q.get("room"), 40)); }
   if (q.get("author")) {
     const a = await userByHandle(ctx.env, q.get("author"));
     where.push("p.author_id = ?"); binds.push(a ? a.id : "");
@@ -669,6 +701,7 @@ async function feed(ctx) {
     if (origin === "external") {
       const open = openListingSql(now());
       where.push("p.kind = 'opportunity'", open.sql); binds.push(...open.binds);
+      applyJobFilters(queryFromParams(q), where, binds);
       const source = q.get("source");
       if (source === "employers") {
         where.push("json_extract(p.meta_json, '$.source_id') IN (SELECT id FROM import_sources WHERE kind = 'jobs' AND grp != 'Job boards')");
@@ -685,6 +718,20 @@ async function feed(ctx) {
     if (skill) {
       where.push("EXISTS (SELECT 1 FROM json_each(p.meta_json, '$.skills') WHERE value = ?)"); binds.push(skill);
     }
+  }
+  // External adverts by closing date, soonest first (undated last): an OFFSET
+  // cursor in the same opaque format as discover's.
+  if (tab === "opportunities" && q.get("origin") === "external" && q.get("sort") === "closing") {
+    const c = decodeCursor(q.get("cursor"));
+    const offset = c && c.id === "closing" ? Math.max(0, c.at) : 0;
+    const rows = (await env.DB.prepare(
+      `SELECT p.* FROM posts p WHERE ${where.join(" AND ")}
+        ORDER BY COALESCE(json_extract(p.meta_json, '$.deadline'), 4102444800) ASC, p.created_at DESC, p.id DESC LIMIT ? OFFSET ?`,
+    ).bind(...binds, PAGE + 1, offset).all()).results;
+    return {
+      items: await shapePosts(env, viewer, rows.slice(0, PAGE)),
+      next: rows.length > PAGE ? encodeCursor({ created_at: offset + PAGE, id: "closing" }) : null,
+    };
   }
   const cursor = olderThan(q.get("cursor"));
   const rows = (await env.DB.prepare(
@@ -727,6 +774,16 @@ export function openListingSql(t) {
   };
 }
 
+
+/** Followers of an event room hear about a new public post in it (capped; the author excluded). */
+async function tellRoomFollowers(env, user, row) {
+  const rows = (await env.DB.prepare(
+    "SELECT follower_id FROM follows WHERE target_type = 'room' AND target_id = ? AND follower_id != ? LIMIT 300",
+  ).bind(row.room_id, user.id).all()).results || [];
+  for (const f of rows) {
+    await notify(env, f.follower_id, "room", user.id, "post", row.id, `${user.name || user.handle} posted in an event room: ${row.title || row.kind}`);
+  }
+}
 
 // ── Comments ───────────────────────────────────────────────────────────────
 

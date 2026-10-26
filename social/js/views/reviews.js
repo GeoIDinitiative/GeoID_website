@@ -23,20 +23,24 @@ export function renderList(root, { query }) {
   put(clear(root),
     h("div", { class: "s-title-row" }, h("h1", { class: "s-h1", text: "Peer review" }), h("a", { class: "btn-primary", href: "#/reviews/new" }, "Request a review")),
     h("p", { class: "s-muted", text: "Ask named reviewers, a team, a community or anyone to review a draft before you submit it. Comments are anchored to a place in the draft and graded by severity." }),
-    h("nav", { class: "s-tabs", "aria-label": "Reviews" }, tabLink("assigned", "Asked of me"), tabLink("mine", "My requests"), tabLink("open", "Open for volunteers")),
+    h("nav", { class: "s-tabs", "aria-label": "Reviews" }, tabLink("assigned", "Asked of me"), tabLink("mine", "My requests"), tabLink("open", "Open for volunteers"),
+      h("a", { href: "#/rounds" }, "Feedback rounds")),
     tab !== "open" && !store.me ? empty("Sign in to see your reviews.")
       : pagedList((cursor) => api.get("/v1/reviews", { role: tab, cursor }), card, {
         emptyTitle: tab === "assigned" ? "Nobody has asked you to review anything." : tab === "mine" ? "You have not requested a review." : "No open review requests right now.",
       }));
 }
 
-export function renderNew(root) {
+export async function renderNew(root, { query = {} } = {}) {
   if (!store.me) {
     put(clear(root), h("h1", { class: "s-h1", text: "Request a review" }), empty("Sign in to request a review."),
       h("button", { type: "button", class: "btn-primary", onClick: () => requireSignIn("request reviews") }, "Sign in"));
     return;
   }
   let docKey = "";
+  // Brought to a feedback round (rounds.js): named on the form and sent with it.
+  let round = null;
+  if (query.round) { try { round = (await api.get("/v1/rounds")).items.find((r) => r.id === query.round) || null; } catch (error) { round = null; } }
   const f = {
     title: input("title", { required: true, maxlength: 300 }),
     abstract: textarea("abstract", { rows: 6, maxlength: 6000 }),
@@ -69,7 +73,7 @@ export function renderNew(root) {
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
     if (!f.title.value.trim()) { status.textContent = "Give the draft a title."; return; }
-    if (!docKey && !f.url.value.trim()) { status.textContent = "Upload the PDF or give a link to it."; return; }
+    if (!docKey && !f.url.value.trim() && !(round && f.abstract.value.trim().length >= 10)) { status.textContent = round ? "Paste the text, upload the PDF or give a link to it." : "Upload the PDF or give a link to it."; return; }
     const done = busy(form);
     try {
       const r = await api.post("/v1/reviews", {
@@ -78,6 +82,7 @@ export function renderNew(root) {
         team_slug: f.visibility.value === "team" ? f.team.value : undefined,
         community_slug: f.visibility.value === "community" ? f.community.value : undefined,
         due_at: dateToEpoch(f.due.value, true),
+        ...(round ? { round_id: round.id } : {}),
       });
       const rid = r.id || r.review?.id;
       for (const handle of splitList(f.invite.value)) {
@@ -86,7 +91,9 @@ export function renderNew(root) {
       location.hash = `#/r/${encodeURIComponent(rid)}`;
     } catch (error) { done(); status.textContent = error.message; status.classList.add("is-error"); }
   });
-  put(clear(root), h("h1", { class: "s-h1", text: "Request a review" }), form);
+  put(clear(root), h("h1", { class: "s-h1", text: round ? `Bring a draft: ${round.title}` : "Request a review" }),
+    round ? h("p", { class: "s-banner", text: `${round.kind_label}. A volunteer is matched to your draft${round.closes_at ? `; bring it by ${dateText(round.closes_at)}` : ""}. Paste the text below, or upload or link the document. Only you and your reviewer see it.` }) : null,
+    form);
 }
 
 export async function renderOne(root, { params }) {

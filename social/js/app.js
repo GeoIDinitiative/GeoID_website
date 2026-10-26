@@ -5,31 +5,36 @@
  * (or resolve to) a cleanup function -- a poll to stop, a map to release --
  * which runs when the route changes.
  */
-import * as api from "./api.js?v=20261026-27b1bef";
-import { store, onMe, refreshMe, setUnread } from "./store.js?v=20261026-27b1bef";
-import { h, clear, errorBox, pollWhileVisible, put } from "./dom.js?v=20261026-27b1bef";
-import { avatar } from "./components.js?v=20261026-27b1bef";
-import { createBackdrop } from "./backdrop.js?v=20261026-27b1bef";
-import { registerAtlasHost } from "./atlas-host.js?v=20261026-27b1bef";
-import { liveSocket } from "./chat.js?v=20261026-27b1bef";
+import * as api from "./api.js?v=20261026-bb92425";
+import { store, onMe, refreshMe, setUnread } from "./store.js?v=20261026-bb92425";
+import { h, clear, errorBox, pollWhileVisible, put } from "./dom.js?v=20261026-bb92425";
+import { avatar } from "./components.js?v=20261026-bb92425";
+import { createBackdrop } from "./backdrop.js?v=20261026-bb92425";
+import { registerAtlasHost } from "./atlas-host.js?v=20261026-bb92425";
+import { liveSocket } from "./chat.js?v=20261026-bb92425";
 
-import * as feed from "./views/feed.js?v=20261026-27b1bef";
-import * as compose from "./views/compose.js?v=20261026-27b1bef";
-import * as post from "./views/post.js?v=20261026-27b1bef";
-import * as profile from "./views/profile.js?v=20261026-27b1bef";
-import * as people from "./views/people.js?v=20261026-27b1bef";
-import * as communities from "./views/communities.js?v=20261026-27b1bef";
-import * as teams from "./views/teams.js?v=20261026-27b1bef";
-import * as projects from "./views/projects.js?v=20261026-27b1bef";
-import * as reviews from "./views/reviews.js?v=20261026-27b1bef";
-import * as inbox from "./views/inbox.js?v=20261026-27b1bef";
-import * as map from "./views/map.js?v=20261026-27b1bef";
-import * as opps from "./views/opportunities.js?v=20261026-27b1bef";
-import * as mod from "./views/mod.js?v=20261026-27b1bef";
-import * as settings from "./views/settings.js?v=20261026-27b1bef";
-import * as orgs from "./views/orgs.js?v=20261026-27b1bef";
-import * as onboarding from "./views/onboarding.js?v=20261026-27b1bef";
-import * as requests from "./views/requests.js?v=20261026-27b1bef";
+import * as feed from "./views/feed.js?v=20261026-bb92425";
+import * as compose from "./views/compose.js?v=20261026-bb92425";
+import * as post from "./views/post.js?v=20261026-bb92425";
+import * as profile from "./views/profile.js?v=20261026-bb92425";
+import * as people from "./views/people.js?v=20261026-bb92425";
+import * as communities from "./views/communities.js?v=20261026-bb92425";
+import * as teams from "./views/teams.js?v=20261026-bb92425";
+import * as projects from "./views/projects.js?v=20261026-bb92425";
+import * as reviews from "./views/reviews.js?v=20261026-bb92425";
+import * as inbox from "./views/inbox.js?v=20261026-bb92425";
+import * as map from "./views/map.js?v=20261026-bb92425";
+import * as opps from "./views/opportunities.js?v=20261026-bb92425";
+import * as mod from "./views/mod.js?v=20261026-bb92425";
+import * as settings from "./views/settings.js?v=20261026-bb92425";
+import * as rooms from "./views/rooms.js?v=20261026-bb92425";
+import * as rounds from "./views/rounds.js?v=20261026-bb92425";
+import * as conduct from "./views/conduct.js?v=20261026-bb92425";
+import * as places from "./views/places.js?v=20261026-bb92425";
+import { isLite, registerWorker } from "./device.js?v=20261026-bb92425";
+import * as orgs from "./views/orgs.js?v=20261026-bb92425";
+import * as onboarding from "./views/onboarding.js?v=20261026-bb92425";
+import * as requests from "./views/requests.js?v=20261026-bb92425";
 
 const ROUTES = [
   ["/", feed.render, "Feed"],
@@ -51,12 +56,19 @@ const ROUTES = [
   ["/reviews", reviews.renderList, "Peer review"],
   ["/reviews/new", reviews.renderNew, "Request a review"],
   ["/r/:id", reviews.renderOne, "Review"],
+  ["/rounds", rounds.renderList, "Feedback rounds"],
+  ["/conduct", conduct.render, "Code of conduct"],
+  ["/places", places.renderList, "Places"],
+  ["/place/:slug", places.renderOne, "Place"],
+  ["/u/:handle/record", rounds.renderRecord, "Reviewer record"],
   ["/messages", inbox.renderMessages, "Messages"],
   ["/messages/:id", inbox.renderConversation, "Messages"],
   ["/notifications", inbox.renderNotifications, "Notifications"],
   ["/map", map.render, "Map"],
   ["/opportunities", opps.renderOpportunities, "Opportunities"],
   ["/events", opps.renderEvents, "Events"],
+  ["/rooms", rooms.renderList, "Event rooms"],
+  ["/room/:id", rooms.renderOne, "Event room"],
   ["/mod", mod.render, "Moderation"],
   ["/settings", settings.render, "Settings"],
   // Identity & institutions track: orgs.js (#/orgs, #/o/:slug) and onboarding.js (#/welcome).
@@ -82,7 +94,7 @@ function parseHash() {
 // ── Header ─────────────────────────────────────────────────────────────────
 
 const NAV = [
-  ["#/", "Feed", "/"], ["#/map", "Map", "/map"], ["#/people", "People", "/people"], ["#/orgs", "Organisations", "/orgs"],
+  ["#/", "Feed", "/"], ["#/rooms", "Now", "/rooms"], ["#/map", "Map", "/map"], ["#/places", "Places", "/places"], ["#/people", "People", "/people"], ["#/orgs", "Organisations", "/orgs"],
   ["#/communities", "Communities", "/communities"], ["#/teams", "Teams", "/teams"], ["#/projects", "Projects", "/projects"],
   ["#/reviews", "Reviews", "/reviews"], ["#/opportunities", "Opportunities", "/opportunities"], ["#/events", "Events", "/events"],
 ];
@@ -142,6 +154,9 @@ function markActive(path) {
   for (const a of header.links) {
     const base = a.dataset.base;
     const on = base === "/" ? path === "/" : path === base || path.startsWith(`${base}/`)
+      || (base === "/rooms" && path.startsWith("/room/"))
+      || (base === "/places" && path.startsWith("/place/"))
+      || (base === "/reviews" && (path === "/rounds" || path.startsWith("/r/")))
       || (base === "/communities" && path.startsWith("/c/")) || (base === "/teams" && path.startsWith("/t/"))
       || (base === "/orgs" && path.startsWith("/o/"))
       || (base === "/projects" && path.startsWith("/p/")) || (base === "/reviews" && path.startsWith("/r/"));
@@ -236,7 +251,10 @@ async function boot() {
   // The photograph behind each section is credited at the foot of the page,
   // out of the way of reading (its source and licence still have to be said).
   const credit = h("p", { class: "s-backdrop-credit" });
-  backdrop = createBackdrop({ onPlate: (frame) => {
+  // Lite mode: no photographs, previews or glow (device.js).
+  document.documentElement.classList.toggle("s-lite", isLite());
+  registerWorker();
+  backdrop = createBackdrop({ lite: isLite, onPlate: (frame) => {
     credit.textContent = frame ? `Background: ${[frame.place, frame.src].filter(Boolean).join(" · ")}` : "";
   } });
   document.body.prepend(backdrop.root);

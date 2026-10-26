@@ -6,11 +6,11 @@
  * sessions a gallery of posters. eventPanel() is the block the post page
  * draws under an event post.
  */
-import * as api from "../api.js?v=20261026-27b1bef";
-import { store } from "../store.js?v=20261026-27b1bef";
-import { h, clear, field, input, select, dateToEpoch, epochToDate, put, toast, loading, errorBox, textarea, busy, empty } from "../dom.js?v=20261026-27b1bef";
-import { OPP_TYPES, postCard, pagedList, act, userChip, requireSignIn } from "../components.js?v=20261026-27b1bef";
-import { topicOf } from "../topics.js?v=20261026-27b1bef";
+import * as api from "../api.js?v=20261026-bb92425";
+import { store } from "../store.js?v=20261026-bb92425";
+import { h, clear, field, input, select, dateToEpoch, epochToDate, put, toast, loading, errorBox, textarea, busy, empty, modal } from "../dom.js?v=20261026-bb92425";
+import { OPP_TYPES, postCard, pagedList, act, userChip, requireSignIn } from "../components.js?v=20261026-bb92425";
+import { topicOf } from "../topics.js?v=20261026-bb92425";
 
 export function renderOpportunities(root, { query }) {
   const external = query.tab === "external";
@@ -56,23 +56,107 @@ const shortDate = (s) => (s ? new Date(s * 1000).toLocaleDateString(undefined, {
 function externalBoard(query) {
   const source = query.source || "";
   const box = h("div", {}, loading());
-  api.get("/v1/imports/summary").then((sum) => {
-    let section = "";
-    const row = (p) => {
+  (async () => {
+    // A saved search opened from its alert: its filters become the page's.
+    let saved = null;
+    if (query.search && store.me) {
+      try { saved = (await api.get("/v1/me/searches")).items.find((x) => x.id === query.search) || null; } catch (error) { saved = null; }
+    }
+    const f = { ...(saved?.query || {}), ...Object.fromEntries(["q", "field", "stage", "region", "remote", "closing", "sort"].filter((k) => query[k]).map((k) => [k, query[k]])) };
+    let sum = { last_scan_at: 0 };
+    try { sum = await api.get("/v1/imports/summary"); } catch (error) {
+      if (error?.status === 404) { put(clear(box), empty("Nothing here yet.", "Check back soon.")); return; }
+      throw error;
+    }
+    put(clear(box), jobFilters(f, saved), listings(f, source, sum));
+  })().catch((error) => put(clear(box), errorBox(error)));
+  return box;
+}
+
+const FIELD_OPTIONS = [["", "Any field"], ["volcanology", "Volcanology"], ["seismology", "Seismology"], ["geophysics", "Geophysics & geodesy"],
+  ["geology", "Geology & geochemistry"], ["hydrology", "Hydrology & water"], ["cryosphere", "Glaciers & polar"], ["climate", "Climate & atmosphere"],
+  ["oceans", "Oceans & coasts"], ["remote-sensing", "Remote sensing & EO"], ["gis", "GIS & mapping"], ["hazards", "Hazards & risk"],
+  ["soils", "Soils"], ["geography", "Geography"]];
+const STAGE_OPTIONS = [["", "Any stage"], ["phd", "PhD / studentship"], ["postdoc", "Postdoc / research staff"], ["faculty", "Lecturer / faculty"],
+  ["internship", "Internship"], ["industry", "Industry / consultancy"]];
+
+/** The member's own filters; "Save this search" keeps them, with an alert. */
+function jobFilters(f, saved) {
+  const q = input("q", { type: "search", value: f.q || "", placeholder: "Title, employer or keyword" });
+  const fieldSel = select("field", FIELD_OPTIONS, f.field || "");
+  const stage = select("stage", STAGE_OPTIONS, f.stage || "");
+  const region = input("region", { value: f.region || "", placeholder: "e.g. UK, Norway, California" });
+  const closing = select("closing", [["", "Any deadline"], ["7", "Closing within a week"], ["14", "Within two weeks"], ["30", "Within a month"]], String(f.closing || ""));
+  const sort = select("sort", [["", "Newest first"], ["closing", "Closing soonest"]], f.sort || "");
+  const remote = h("label", { class: "s-check s-check-inline" }, h("input", { type: "checkbox", name: "remote", checked: !!f.remote }), h("span", {}, "Remote or hybrid"));
+  const values = () => ({ q: q.value.trim(), field: fieldSel.value, stage: stage.value, region: region.value.trim(),
+    remote: remote.querySelector("input").checked ? "1" : "", closing: closing.value, sort: sort.value });
+  const go = (extra = {}) => {
+    const v = { ...values(), ...extra };
+    const p = new URLSearchParams({ tab: "external" });
+    for (const [k, val] of Object.entries(v)) if (val) p.set(k, val);
+    location.hash = `#/opportunities?${p.toString()}`;
+  };
+  const form = h("form", { class: "s-filters s-job-filters", role: "search", "aria-label": "Filter external adverts" },
+    field("Search", q), field("Field", fieldSel), field("Stage", stage), field("Region", region), field("Deadline", closing), field("Order", sort),
+    remote,
+    h("div", { class: "s-job-filter-acts" },
+      h("button", { type: "submit", class: "btn-primary" }, "Show"),
+      h("button", { type: "button", class: "btn-ghost", onClick: () => saveSearchDialog(values()) }, "Save this search…")));
+  form.addEventListener("submit", (e) => { e.preventDefault(); go(); });
+  return h("div", {}, saved ? h("p", { class: "s-banner" }, "Your saved search ", h("strong", { text: saved.name }), ". ",
+    h("a", { href: "#/settings#searches" }, "Manage saved searches")) : null, form);
+}
+
+function saveSearchDialog(v) {
+  if (!requireSignIn("save searches")) return;
+  const { sort, ...query } = v;
+  modal("Save this search", (close) => {
+    const name = input("name", { maxlength: 80, placeholder: "e.g. Volcanology PhDs in the UK", required: true });
+    const alert = select("alert", [["daily", "Tell me every day there is something new"], ["weekly", "Once a week, on Mondays"], ["off", "No alerts, just keep it"]], "daily");
+    const form = h("form", { class: "s-form" }, field("Name", name), field("Alerts", alert, "Alerts arrive as notifications, and by email if you have chosen email."),
+      h("div", { class: "s-actions" }, h("button", { type: "submit", class: "btn-primary" }, "Save")));
+    form.addEventListener("submit", (e) => {
+      e.preventDefault();
+      act(async () => {
+        await api.post("/v1/me/searches", { name: name.value.trim(), query, alert: alert.value });
+        toast("Saved. New matches will reach you.");
+        close(true);
+      }, "save searches");
+    });
+    return form;
+  });
+}
+
+function listings(f, source, sum) {
+  let section = "";
+  const row = (p) => {
+    const out = [];
+    // Newest first: the latest batch under its own heading. By deadline, no groups.
+    if (!f.sort) {
       const fresh = sum.last_scan_at && p.created_at >= sum.last_scan_at;
       const want = fresh ? "new" : "open";
-      const out = [];
-      if (want !== section) {
-        section = want;
-        out.push(h("h2", { class: "s-h3 s-scan-group", text: fresh ? "New" : "Still open" }));
-      }
-      out.push(listingCard(p));
-      return out;
-    };
-    put(clear(box), pagedList((cursor) => api.get("/v1/feed", { tab: "opportunities", origin: "external", source, cursor }), row,
-      { emptyTitle: "Nothing here yet.", emptyDetail: "Check back soon.", listClass: "s-list s-listings" }));
-  }).catch((error) => put(clear(box), error?.status === 404 ? empty("Nothing here yet.", "Check back soon.") : errorBox(error)));
-  return box;
+      if (want !== section) { section = want; out.push(h("h2", { class: "s-h3 s-scan-group", text: fresh ? "New" : "Still open" })); }
+    }
+    out.push(listingCard(p));
+    return out;
+  };
+  return pagedList((cursor) => api.get("/v1/feed", { tab: "opportunities", origin: "external", source, ...f, cursor }), row,
+    { emptyTitle: "No adverts match.", emptyDetail: "Widen a filter, or save the search and hear when one arrives.", listClass: "s-list s-listings" });
+}
+
+/** Save an advert: it is kept under Saved, and a reminder comes before it closes. */
+function saveToggle(p) {
+  let on = !!p.viewer?.bookmarked;
+  const btn = h("button", { type: "button", class: "s-act", "aria-pressed": String(on), title: "Saved adverts get a reminder three days before they close" });
+  const draw = () => { btn.textContent = on ? "Saved" : "Save"; btn.setAttribute("aria-pressed", String(on)); };
+  draw();
+  btn.addEventListener("click", () => act(async () => {
+    if (on) await api.del(`/v1/posts/${encodeURIComponent(p.id)}/bookmark`, {}); else await api.post(`/v1/posts/${encodeURIComponent(p.id)}/bookmark`, { collection: "Jobs" });
+    on = !on; draw();
+    if (on && p.meta?.deadline) toast("Saved. You'll get a reminder before it closes.");
+  }, "save adverts"));
+  return btn;
 }
 
 /** One gathered advert: what, who, where, when it closes, where it came from, and the way to apply. */
@@ -96,6 +180,7 @@ function listingCard(p) {
     h("div", { class: "s-listing-side" },
       closes ? h("span", { class: "s-listing-closes", text: closes }) : h("span", { class: "s-muted", text: `Added ${shortDate(p.created_at)}` }),
       h("div", { class: "s-listing-acts" },
+        saveToggle(p),
         h("a", { class: "s-act", href: `#/post/${encodeURIComponent(p.id)}` }, "Details"),
         advert ? h("a", { class: "btn-primary s-btn-sm", href: advert, target: "_blank", rel: "noopener noreferrer" }, `Apply on ${via.replace(/ (Jobs|Career Center)$/, "")} ↗`) : null)));
 }
@@ -223,7 +308,8 @@ export function eventPanel(p) {
       h("div", { class: "s-actions" }, calendarButton(p, "btn-ghost s-btn-sm")),
       attendees(s),
       s.organiser ? capacityForm(p, s, draw) : null);
-    if (s.format === "poster-session") put(section, postersBlock(p, s));
+    if (s.format === "poster-session" || s.format === "conference") put(section, postersBlock(p, s));
+    if (s.format === "conference") put(section, conferenceBlock(p, s));
   };
   const load = async () => {
     put(clear(section), heading(), loading());
@@ -231,6 +317,66 @@ export function eventPanel(p) {
   };
   load();
   return section;
+}
+
+// ── Conferences: the programme members declare, and meet-ups ───────────────
+
+const ITEM_KINDS = [["talk", "Talk"], ["poster", "Poster"], ["pico", "PICO"], ["convening", "Convening a session"]];
+
+/** What members present, by session; meet-ups at the meeting (conference.js). */
+function conferenceBlock(p, s) {
+  const box = h("div", { class: "s-conference" });
+  const prog = h("div", {}, loading());
+  const meets = h("div", {}, loading());
+  const filter = input("session", { placeholder: "Session, e.g. GMPV9", "aria-label": "Filter by session" });
+  const loadProg = () => api.get(`/v1/events/${enc(p.id)}/programme`, { session: filter.value.trim() }).then((d) => {
+    const groups = new Map();
+    for (const it of d.items || []) {
+      const k = it.session || "No session given";
+      if (!groups.has(k)) groups.set(k, []);
+      groups.get(k).push(it);
+    }
+    put(clear(prog), groups.size ? [...groups].map(([session, items]) => h("div", { class: "s-session" },
+      h("h4", { class: "s-session-code", text: session }),
+      h("ul", { class: "s-rows" }, items.map((it) => h("li", { class: "s-row" },
+        h("span", { class: "s-kind", text: it.kind_label }),
+        it.post_id ? h("a", { href: `#/post/${enc(it.post_id)}` }, it.title) : h("span", { text: it.title }),
+        userChip(it.user, { sub: false }),
+        it.starts_at ? h("span", { class: "s-muted", text: new Date(it.starts_at * 1000).toLocaleString(undefined, { weekday: "short", hour: "2-digit", minute: "2-digit" }) }) : null,
+        it.mine ? h("button", { type: "button", class: "s-link-btn s-danger", onClick: () => act(async () => { await api.del(`/v1/events/${enc(p.id)}/programme/${enc(it.id)}`); loadProg(); }) }, "Remove") : null)))))
+      : h("p", { class: "s-muted", text: filter.value ? "Nobody in that session yet." : "Nobody has added a talk or poster yet." }));
+  }).catch((error) => put(clear(prog), errorBox(error)));
+  filter.addEventListener("input", () => { clearTimeout(filter._t); filter._t = setTimeout(loadProg, 300); });
+
+  const kind = select("kind", ITEM_KINDS, "talk");
+  const session = input("session-code", { maxlength: 40, placeholder: "GMPV9.2" });
+  const title = input("title", { maxlength: 300, placeholder: "Title of your talk or poster" });
+  const when = input("when", { type: "datetime-local" });
+  const addForm = h("form", { class: "s-form s-form-inline" }, field("What", kind), field("Session", session), field("When (optional)", when),
+    h("div", { class: "s-span-2" }, field("Title", title)), h("button", { type: "submit", class: "btn-primary s-btn-sm" }, "Add to the programme"));
+  addForm.addEventListener("submit", (e) => {
+    e.preventDefault();
+    act(async () => {
+      await api.post(`/v1/events/${enc(p.id)}/programme`, { kind: kind.value, session: session.value, title: title.value,
+        starts_at: when.value ? Math.floor(new Date(when.value).getTime() / 1000) : null });
+      title.value = ""; toast("Added."); loadProg();
+    }, "add to the programme");
+  });
+  api.get(`/v1/events/${enc(p.id)}/meetups`).then((d) => {
+    const items = d?.items || [];
+    put(clear(meets), items.length ? h("div", { class: "s-list" }, items.map(postCard)) : h("p", { class: "s-muted", text: "No meet-ups yet." }));
+  }).catch(() => clear(meets));
+  loadProg();
+  const canAdd = store.me && (s.mine?.status && s.mine.status !== "not_going" || s.over || s.organiser);
+  return put(box,
+    h("h3", { class: "s-h3", text: "Talks, posters and sessions" }),
+    h("p", { class: "s-hint", text: "What members are presenting or convening, so you can find each other by topic before you arrive." }),
+    filter, prog,
+    canAdd ? h("details", { class: "s-add" }, h("summary", {}, "Add what you're presenting"), addForm)
+      : h("p", { class: "s-hint", text: "Say you're going to add your talk or poster." }),
+    h("div", { class: "s-title-row" }, h("h3", { class: "s-h3", text: "Meet-ups" }),
+      store.me ? h("a", { class: "btn-ghost s-btn-sm", href: `#/compose?kind=event&parent=${enc(p.id)}` }, "Organise a meet-up") : null),
+    meets);
 }
 
 function attendees(s) {

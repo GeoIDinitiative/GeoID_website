@@ -1,11 +1,12 @@
 /** #/people — find people, and the collaboration matcher. */
-import * as api from "../api.js?v=20261026-27b1bef";
-import { store } from "../store.js?v=20261026-27b1bef";
-import { h, clear, field, input, checkbox, splitList, busy, errorBox, loading, empty, put } from "../dom.js?v=20261026-27b1bef";
-import { userChip, pagedList, requireSignIn, affiliationBadge, mentoringBadge } from "../components.js?v=20261026-27b1bef";
-import { mentoringRequestDialog } from "./settings.js?v=20261026-27b1bef";
+import * as api from "../api.js?v=20261026-bb92425";
+import { store } from "../store.js?v=20261026-bb92425";
+import { h, clear, field, input, checkbox, splitList, busy, errorBox, loading, empty, put } from "../dom.js?v=20261026-bb92425";
+import { userChip, userRow, pagedList, requireSignIn, affiliationBadge, mentoringBadge } from "../components.js?v=20261026-bb92425";
+import { mentoringRequestDialog } from "./settings.js?v=20261026-bb92425";
 
 export function render(root, { query }) {
+  if (query.directory !== undefined) return renderDirectory(root, query.directory);
   const f = {
     q: input("q", { type: "search", value: query.q || "", placeholder: "Name, handle or institution" }),
     skill: input("skill", { value: query.skill || "", placeholder: "e.g. insar" }),
@@ -74,3 +75,25 @@ function matcher() {
       : null);
   return box;
 }
+
+/**
+ * The public directory: members who chose a public profile, by field
+ * (visibility.js). Search engines read the same list at /s/people/<field>.
+ */
+function renderDirectory(root, field) {
+  const list = h("div", {}, loading());
+  put(clear(root),
+    h("h1", { class: "s-h1", text: field ? `People in ${field.replace(/-/g, " ")}` : "Public directory" }),
+    h("p", { class: "s-muted", text: "Members who chose a public profile, by the fields they list. Choose it in Settings to appear here." }),
+    h("p", {}, h("a", { href: "#/people" }, "← Search everyone"), field ? [" · ", h("a", { href: "#/people?directory=" }, "All fields")] : null),
+    list);
+  api.get("/v1/directory", field ? { field } : {}).then((d) => {
+    if (!field) {
+      put(clear(list), (d.fields || []).length ? h("div", { class: "s-trending-tags" }, d.fields.map((f) => h("a", { class: "s-tag-chip", href: `#/people?directory=${encodeURIComponent(f.tag)}` },
+        `#${f.tag}`, h("span", { class: "s-tag-count", text: String(f.n) })))) : empty("Nobody has chosen a public profile yet."));
+      return;
+    }
+    put(clear(list), (d.items || []).length ? h("ul", { class: "s-rows" }, d.items.map((u) => userRow(u))) : empty("Nobody listed in this field yet."));
+  }).catch((error) => put(clear(list), errorBox(error)));
+}
+

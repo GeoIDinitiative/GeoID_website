@@ -1,21 +1,22 @@
 /** #/post/:id — one post in full, its provenance, the interaction bar and the thread. */
-import { play } from "../sounds.js?v=20261026-27b1bef";
-import * as api from "../api.js?v=20261026-27b1bef";
-import { store, myHandle } from "../store.js?v=20261026-27b1bef";
+import { play } from "../sounds.js?v=20261026-bb92425";
+import * as api from "../api.js?v=20261026-bb92425";
+import { store, myHandle } from "../store.js?v=20261026-bb92425";
 import {
   h, clear, timeEl, toast, modal, field, select, textarea, busy, extLink, errorBox, loading,
   confirmDialog, empty, dateText, put,
-} from "../dom.js?v=20261026-27b1bef";
+} from "../dom.js?v=20261026-bb92425";
 import {
   userChip, kindBadge, provenanceBadge, hasProvenance, verificationBadge, geohubHref, tagList, REACTIONS, LICENCES, VISIBILITY,
   PROVENANCE, act, requireSignIn, followButton, reportDialog, share, postUrl, sharePageUrl, importedBadge, citeDialog, bookmarkDialog,
   reshareButton, quoteDialog, sendPostDialog,
   postCard, kindLabel,
-} from "../components.js?v=20261026-27b1bef";
-import { compareSlider, resolveImageRef, timeChart, measurementsBlock, gallery } from "../rich.js?v=20261026-27b1bef";
-import { parseVideoLink, videoEmbed } from "../embed.js?v=20261026-27b1bef";
-import { eventPanel } from "./opportunities.js?v=20261026-27b1bef";
-import { linkCard } from "../files.js?v=20261026-27b1bef";
+} from "../components.js?v=20261026-bb92425";
+import { compareSlider, resolveImageRef, timeChart, measurementsBlock, gallery } from "../rich.js?v=20261026-bb92425";
+import { parseVideoLink, videoEmbed } from "../embed.js?v=20261026-bb92425";
+import { eventPanel } from "./opportunities.js?v=20261026-bb92425";
+import { linkCard } from "../files.js?v=20261026-bb92425";
+import * as device from "../device.js?v=20261026-bb92425";
 
 export async function render(root, { params, query }) {
   const id = params.id;
@@ -35,6 +36,7 @@ export async function render(root, { params, query }) {
           p.kind === "observation" ? verificationBadge(p.verification) : null,
           p.visibility !== "public" ? h("span", { class: "s-vis", text: VISIBILITY[p.visibility] || p.visibility }) : null,
           p.sponsored_by ? h("span", { class: "s-sponsor", text: `Sponsored by ${p.sponsored_by}` }) : null,
+          p.kind === "opportunity" && p.org?.verified ? h("span", { class: "s-verified", title: "Posted by a verified organisation on GeoID Network", text: `Verified employer · ${p.org.name}` }) : null,
           importedBadge(p),
           p.forked_from ? h("a", { class: "s-vis", href: `#/post/${encodeURIComponent(p.forked_from)}` }, "Forked from another post") : null),
         h("h1", { class: "s-h1", text: p.title || kindLabel(p.kind) }),
@@ -42,6 +44,8 @@ export async function render(root, { params, query }) {
           h("span", { class: "s-muted" }, timeEl(p.created_at, true),
             p.updated_at && p.updated_at > p.created_at + 60 ? h("span", {}, " · edited ", timeEl(p.updated_at)) : null),
           store.me && !mine && p.author ? followButton("user", p.author.handle, p.viewer?.following_author, "author") : null)),
+      p.held && mine ? h("p", { class: "s-banner s-held" }, h("strong", { text: "Waiting for a moderator. " }),
+        `Only you can see this opportunity until it is checked (${p.held.reasons}). Most are checked within a day.`) : null,
       body(p),
       mediaBlock(p),
       kindBlock(p),
@@ -53,6 +57,13 @@ export async function render(root, { params, query }) {
       actionBar(p, mine, () => comments.querySelector("textarea")?.focus())),
     comments);
   loadComments(comments, p, mine);
+  // A view, once per post per tab session (the server counts each reader once a day, never the author).
+  try {
+    const k = `geoid:seen:${p.id}`;
+    if (store.me && !mine && !sessionStorage.getItem(k)) { sessionStorage.setItem(k, "1"); api.post(`/v1/posts/${encodeURIComponent(p.id)}/seen`, {}).catch(() => {}); }
+  } catch (error) { /* storage off: the count can miss a view */ }
+  // The author's reach sits inside the post, under its actions, where it lines up with the post itself.
+  if (mine) root.querySelector(".s-post-full")?.append(reachPanel(p));
   // A card's comment count links here with ?focus=comments: land on the thread
   // (after the router's own scroll to the top).
   if (query?.focus === "comments") setTimeout(() => comments.scrollIntoView({ block: "start" }), 0);
@@ -70,7 +81,49 @@ export async function render(root, { params, query }) {
 
 function body(p) {
   const paras = String(p.body || "").split(/\n{2,}/).filter((s) => s.trim());
-  return h("div", { class: "s-prose" }, paras.map((t) => h("p", {}, t)));
+  const prose = h("div", { class: "s-prose" }, paras.map((t) => h("p", {}, t)));
+  return h("div", {}, prose, translateBar(p, prose));
+}
+
+/**
+ * Translate a post written in another language: on the device where the
+ * browser can (nothing leaves it), else a link the reader may choose to
+ * follow (public posts only).
+ */
+function translateBar(p, prose) {
+  const text = [p.title, p.body].filter(Boolean).join("\n\n");
+  const bar = h("div", { class: "s-translate", hidden: true });
+  if (text.trim().length < 20) return bar;
+  const to = device.readerLanguage();
+  device.detectLanguage(text).then((from) => {
+    // Without an on-device detector, offer it only where the text is plainly not in the reader's script.
+    const foreign = from ? from !== to : (to === "en" && /[^\u0000-\u024f\s\d\p{P}]/u.test(text));
+    if (!foreign) return;
+    bar.hidden = false;
+    const btn = h("button", { type: "button", class: "s-link-btn" }, "Translate");
+    let shown = false;
+    let original = null;
+    btn.addEventListener("click", async () => {
+      if (shown) { prose.replaceWith(original); prose = original; shown = false; btn.textContent = "Translate"; return; }
+      btn.disabled = true; btn.textContent = "Translating…";
+      const out = await device.translate(p.body || "", from, to);
+      btn.disabled = false;
+      if (out == null) {
+        btn.textContent = "Translate";
+        if (p.visibility === "public") window.open(device.translateOutLink(p.body || "", to), "_blank", "noopener");
+        else toast("This browser can't translate on the device.", "error");
+        return;
+      }
+      original = prose;
+      const translated = h("div", { class: "s-prose s-translated" }, out.split(/\n{2,}/).filter((t) => t.trim()).map((t) => h("p", {}, t)),
+        h("p", { class: "s-hint", text: `Translated on this device from ${from}. Check anything that matters against the original.` }));
+      prose.replaceWith(translated);
+      prose = translated;
+      shown = true; btn.textContent = "Show the original";
+    });
+    put(bar, btn);
+  });
+  return bar;
 }
 
 /**
@@ -179,20 +232,26 @@ function repoBlock(p) {
 
 /** Always visible: where it came from, what it may be used for, how it was made and where it may be wrong. */
 function provenanceBlock(p) {
-  const lic = LICENCES.find(([v]) => v === p.licence);
+  const lic = LICENCES.find(([v]) => v && v === p.licence);
   const method = p.method || {};
+  const research = hasProvenance(p.kind);
   const notStated = () => h("span", { class: "s-muted", text: "Not stated" });
-  return h("section", { class: "s-provenance", "aria-label": "Provenance and reuse" },
-    h("h2", { class: "s-h3", text: "Provenance & reuse" }),
-    dl([
-      ...(hasProvenance(p.kind) ? [["Provenance", h("span", {}, provenanceBadge(p.provenance), " ", PROVENANCE[p.provenance]?.help || "")]] : []),
-      ["Licence", lic ? lic[1] : (p.licence || notStated())],
-      ["Sources", p.sources?.length ? h("ol", { class: "s-plain" }, p.sources.map((s) => h("li", {},
-        s.url ? extLink(s.url, s.label || s.url) : s.doi ? extLink(`https://doi.org/${s.doi}`, s.label || s.doi) : (s.label || "")))) : notStated()],
-      ["Method", method.summary || method.software ? h("div", {}, method.summary ? h("p", { text: method.summary }) : null,
-        method.software ? h("p", { class: "s-muted", text: `Software: ${method.software}` }) : null) : notStated()],
-      ["Limitations", p.limitations || notStated()],
-    ]));
+  // Research outputs list every row ("not stated" is worth knowing); a
+  // question, job, event or plain post shows only what was given, and no
+  // block at all when nothing was.
+  const rows = [
+    research ? ["Provenance", h("span", {}, provenanceBadge(p.provenance), " ", PROVENANCE[p.provenance]?.help || "")] : null,
+    p.licence ? ["Licence", lic ? lic[1] : p.licence] : null,
+    p.sources?.length ? ["Sources", h("ol", { class: "s-plain" }, p.sources.map((s) => h("li", {},
+      s.url ? extLink(s.url, s.label || s.url) : s.doi ? extLink(`https://doi.org/${s.doi}`, s.label || s.doi) : (s.label || ""))))] : research ? ["Sources", notStated()] : null,
+    method.summary || method.software ? ["Method", h("div", {}, method.summary ? h("p", { text: method.summary }) : null,
+      method.software ? h("p", { class: "s-muted", text: `Software: ${method.software}` }) : null)] : research ? ["Method", notStated()] : null,
+    p.limitations ? ["Limitations", p.limitations] : research ? ["Limitations", notStated()] : null,
+  ].filter(Boolean);
+  if (!rows.length) return null;
+  return h("section", { class: "s-provenance", "aria-label": research ? "Provenance and reuse" : "Sources" },
+    h("h2", { class: "s-h3", text: research ? "Provenance & reuse" : "Sources & reuse" }),
+    dl(rows));
 }
 
 function verifyBlock(p, mine) {
@@ -250,7 +309,10 @@ function actionBar(p, mine, focusComment) {
     p.visibility === "public" && store.me && !mine ? h("button", { type: "button", class: "s-act", onClick: () => quoteDialog(p) }, "Quote") : null,
     h("button", { type: "button", class: "s-act", onClick: () => (store.me ? sendPostDialog(p) : requireSignIn("send posts")) }, "Send to…"),
     // A public post shares its preview page (title, summary and card on any site); others the app link.
-    h("button", { type: "button", class: "s-act", onClick: () => share(p.visibility === "public" ? sharePageUrl("p", p.id) : postUrl(p.id), p.title || "GeoID Network") }, "Share link"),
+    h("button", { type: "button", class: "s-act", onClick: () => {
+      api.post(`/v1/posts/${encodeURIComponent(p.id)}/shared`, {}).catch(() => {});
+      share(p.visibility === "public" ? sharePageUrl("p", p.id) : postUrl(p.id), p.title || "GeoID Network");
+    } }, "Share link"),
     h("button", { type: "button", class: "s-act", onClick: () => citeDialog(p.id) }, "Cite"));
   // Collaboration track: ask specialists for help with (or about) this post.
   put(bar, h("a", { class: "s-act", href: `#/requests?new=1&post=${encodeURIComponent(p.id)}` }, "Ask for help…"));
@@ -451,3 +513,30 @@ async function zenodoDialog(p) {
         h("button", { type: "button", class: "btn-ghost", onClick: () => go(true) }, "Publish with a DOI")));
   });
 }
+
+/** The author's own view of a post's reach: counts only, never who. */
+function reachPanel(p) {
+  const box = h("section", { class: "s-section s-reach", "aria-labelledby": "reach-h" }, h("h2", { class: "s-h3", id: "reach-h", text: "Reach (only you see this)" }));
+  api.get(`/v1/posts/${encodeURIComponent(p.id)}/reach`).then((r) => {
+    const t = r.total || {};
+    const max = Math.max(1, ...r.last_30_days.map((d) => d.views + d.link_visits));
+    const W = 300, H = 40;
+    const pts = r.last_30_days.map((d, i) => `${(i / 29) * W},${H - ((d.views + d.link_visits) / max) * (H - 4) - 2}`).join(" ");
+    put(box,
+      h("dl", { class: "s-reach-stats" }, [["Views", t.views], ["Link visits", t.link_visits], ["Shares", t.shares], ["Saves", t.saves],
+        ["Reshares", t.reshares], ["Reactions", t.reactions], ["Comments", t.comments]].map(([k, v]) => h("div", {}, h("dt", { text: k }), h("dd", { text: String(v || 0) })))),
+      (() => {
+        const ns = "http://www.w3.org/2000/svg";
+        const svg = document.createElementNS(ns, "svg");
+        svg.setAttribute("viewBox", `0 0 ${W} ${H}`); svg.setAttribute("class", "s-spark"); svg.setAttribute("role", "img");
+        svg.setAttribute("aria-label", "Views and link visits over the last 30 days");
+        const line = document.createElementNS(ns, "polyline");
+        line.setAttribute("points", pts); line.setAttribute("fill", "none"); line.setAttribute("stroke", "currentColor"); line.setAttribute("stroke-width", "2");
+        svg.append(line);
+        return svg;
+      })(),
+      h("p", { class: "s-hint", text: "Views count signed-in readers once a day; link visits are people opening its share link elsewhere (link previews aren't counted)." }));
+  }).catch(() => box.remove());
+  return box;
+}
+

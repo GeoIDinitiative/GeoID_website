@@ -15,6 +15,7 @@
  * their study areas. Mondays from DIGEST_HOUR_UTC; on by default, off in
  * Settings or with the one-click unsubscribe every email carries.
  */
+import { countLinkVisit } from "./visibility.js";
 import { now, str, parse, id, canSeePost } from "./lib.js";
 import { all, one, run } from "./collab.js";
 import { mailConfigured, envelope, sendEmail, siteLink } from "./mail.js";
@@ -67,6 +68,7 @@ async function sharePost(ctx) {
   const env = ctx.env;
   const post = await one(env, "SELECT * FROM posts WHERE id = ?", ctx.params.id);
   if (!post || !(await canSeePost(env, null, post))) return gone(env);
+  await countLinkVisit(env, ctx.request, post.id);
   const author = await one(env, "SELECT name, handle FROM users WHERE id = ?", post.author_id);
   const by = author ? ` — ${author.name || `@${author.handle}`}` : "";
   return html(sharePage(env, {

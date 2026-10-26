@@ -1,11 +1,12 @@
 /** #/settings — privacy, contact, matcher, notifications, follows, blocks, and your data. */
-import * as api from "../api.js?v=20261026-27b1bef";
-import { store, refreshMe, myHandle } from "../store.js?v=20261026-27b1bef";
-import { h, clear, field, input, select, checkbox, toast, busy, errorBox, loading, empty, modal, put, confirmDialog } from "../dom.js?v=20261026-27b1bef";
-import { act, userChip, requireSignIn, sharePageUrl } from "../components.js?v=20261026-27b1bef";
-import { sizeText } from "../files.js?v=20261026-27b1bef";
-import { myAffiliations } from "./orgs.js?v=20261026-27b1bef";
-import { myOfficeHours } from "./officehours.js?v=20261026-27b1bef";
+import * as api from "../api.js?v=20261026-bb92425";
+import { store, refreshMe, myHandle } from "../store.js?v=20261026-bb92425";
+import { h, clear, field, input, select, checkbox, toast, busy, errorBox, loading, empty, modal, put, confirmDialog, copyText } from "../dom.js?v=20261026-bb92425";
+import { act, userChip, requireSignIn, sharePageUrl } from "../components.js?v=20261026-bb92425";
+import { sizeText } from "../files.js?v=20261026-bb92425";
+import { myAffiliations } from "./orgs.js?v=20261026-bb92425";
+import { myOfficeHours } from "./officehours.js?v=20261026-bb92425";
+import * as device from "../device.js?v=20261026-bb92425";
 
 // The kinds the API knows (NOTIFY_KINDS in social-worker/profiles.js); a
 // toggle for any other name would be silently ignored by the server.
@@ -16,6 +17,9 @@ const NOTIFY = [
   ["project_update", "Updates to projects and monitors you follow"], ["grant", "A project is shared with you"],
   ["invite", "Team and community invitations"], ["review", "Peer review requests and replies"],
   ["message", "New messages"], ["badge", "Badges you earn"], ["mentoring", "Mentoring requests and replies"],
+  ["room", "An event room opens near your study areas or in your field, and new posts in rooms you follow"],
+  ["place", "A place page opens where you study, and new entries on places you follow"],
+  ["job_alert", "New adverts for your saved job searches"], ["deadline", "A saved advert is about to close"],
 ];
 
 export function render(root, { query = {} } = {}) {
@@ -87,7 +91,7 @@ export function render(root, { query = {} } = {}) {
 
   put(clear(root), h("h1", { class: "s-h1", text: "Settings" }),
     h("p", { class: "s-muted" }, "Your public profile is edited on ", h("a", { href: `#/u/${encodeURIComponent(u.handle)}?edit=1` }, "your profile page"), "."),
-    form, identitySection(query), storageSection(), zenodoSection(query), following, blocked, yourData());
+    form, publicSection(u), deviceSection(), identitySection(query), searchesSection(), storageSection(), zenodoSection(query), following, blocked, yourData());
 }
 
 // ── Identity & institutions track ──────────────────────────────────────────
@@ -277,6 +281,105 @@ function emailFieldset() {
       state = await api.patch("/v1/me/mail", { digest: mode !== "off", immediate, weekly: !!weekly?.querySelector("input").checked });
     },
   };
+}
+
+// ── Your public profile, carried elsewhere ────────────────────────────────
+
+/** For members with a public profile: the badge for a CV or lab page, and where they're listed. */
+function publicSection(u) {
+  const sec = h("section", { class: "s-section", id: "public", "aria-labelledby": "pub-h" }, h("h2", { class: "s-h2", id: "pub-h", text: "Your public profile" }));
+  if (!u.public_profile) {
+    return put(sec, h("p", { class: "s-muted", text: "Tick “Let search engines and link previews show my profile” above and save, and you get a public page, an embeddable badge, and a place in the public directory for your fields." }));
+  }
+  const base = api.base();
+  const page = `${base}/s/u/${encodeURIComponent(u.handle)}`;
+  const img = `${base}/s/badge/${encodeURIComponent(u.handle)}.svg`;
+  const htmlSnip = `<a href="${page}"><img src="${img}" alt="${(u.name || u.handle).replace(/"/g, "")} on GeoID Network" width="420" height="96"></a>`;
+  const mdSnip = `[![${u.name || u.handle} on GeoID Network](${img})](${page})`;
+  const snippet = (label, text) => h("div", { class: "s-snippet" }, h("span", { class: "s-label", text: label }),
+    h("code", { text, tabindex: "0", "aria-label": `${label}: code to paste` }), h("button", { type: "button", class: "btn-ghost s-btn-sm", onClick: () => copyText(text, "Copied") }, "Copy"));
+  const badge = h("img", { src: img, alt: `${u.name || u.handle} on GeoID Network`, width: "420", height: "96", class: "s-badge-preview" });
+  return put(sec,
+    h("p", { class: "s-muted" }, "Your public page: ", h("a", { href: page, target: "_blank", rel: "noopener noreferrer" }, page.replace(/^https?:\/\//, ""))),
+    badge,
+    snippet("For a web page", htmlSnip), snippet("For a README or Markdown CV", mdSnip),
+    (u.interests || []).length ? h("p", { class: "s-hint" }, "You're listed in the public directory under ",
+      (u.interests || []).slice(0, 6).map((t, i) => [i ? ", " : "", h("a", { href: `#/people?directory=${encodeURIComponent(t)}` }, t)]), ".") : null);
+}
+
+// ── This device ────────────────────────────────────────────────────────────
+
+const LANGS = [["", "My browser's language"], ["en", "English"], ["es", "Español"], ["fr", "Français"], ["de", "Deutsch"], ["it", "Italiano"],
+  ["pt", "Português"], ["zh", "中文"], ["ja", "日本語"], ["ko", "한국어"], ["ar", "العربية"], ["hi", "हिन्दी"], ["id", "Bahasa Indonesia"],
+  ["tr", "Türkçe"], ["ru", "Русский"], ["uk", "Українська"], ["pl", "Polski"], ["nl", "Nederlands"], ["is", "Íslenska"]];
+
+/** Settings that belong to this browser, not the account: lite mode, the app, notifications, translation. */
+function deviceSection() {
+  const sec = h("section", { class: "s-section", id: "device", "aria-labelledby": "dev-h" },
+    h("h2", { class: "s-h2", id: "dev-h", text: "On this device" }));
+  // Lite mode
+  const lite = select("lite", [["", device.saveDataOn() ? "Automatic (your browser asks to save data: on)" : "Automatic (on when your browser asks to save data)"],
+    ["on", "On: no photographs, previews or animation"], ["off", "Off"]], device.litePreference());
+  lite.addEventListener("change", () => { device.setLite(lite.value); toast(device.isLite() ? "Lite mode on." : "Lite mode off."); });
+  // Translation
+  const lang = select("lang", LANGS, (() => { try { return localStorage.getItem("geoid:social-lang") || ""; } catch (e) { return ""; } })());
+  lang.addEventListener("change", () => { device.setReaderLanguage(lang.value); toast("Saved."); });
+  // The app
+  const installBox = h("div", {});
+  const drawInstall = () => {
+    clear(installBox);
+    if (device.isInstalled()) put(installBox, h("p", { class: "s-muted", text: "You're using the installed app." }));
+    else if (device.canInstall()) put(installBox, h("button", { type: "button", class: "btn-ghost s-btn-sm", onClick: async () => { await device.install(); drawInstall(); } }, "Install GeoID Network as an app"));
+    else put(installBox, h("p", { class: "s-hint", text: "To install it as an app: in Chrome or Edge, the install icon in the address bar; on an iPhone, Share → Add to Home Screen." }));
+  };
+  device.onInstallable(drawInstall);
+  drawInstall();
+  // Notifications
+  const pushBox = h("div", {}, loading("Checking notifications…"));
+  const drawPush = async () => {
+    const st = await device.pushState();
+    clear(pushBox);
+    if (!st.supported) { put(pushBox, h("p", { class: "s-hint", text: "This browser can't show notifications from websites." })); return; }
+    if (!st.configured) { put(pushBox, h("p", { class: "s-hint", text: "Notifications on your devices aren't switched on for GeoID Network yet." })); return; }
+    const btn = h("button", { type: "button", class: st.on ? "btn-ghost s-btn-sm" : "btn-primary s-btn-sm" }, st.on ? "Turn off notifications here" : "Turn on notifications here");
+    btn.addEventListener("click", () => act(async () => {
+      btn.disabled = true;
+      try { if (st.on) await device.disablePush(); else await device.enablePush(); toast(st.on ? "Notifications off on this device." : "Notifications on. You'll hear about messages, rooms near your study areas and everything you've chosen below."); }
+      finally { drawPush(); }
+    }, "turn on notifications"));
+    put(pushBox, btn, st.permission === "denied" ? h("p", { class: "s-hint", text: "Your browser is blocking notifications from this site; allow them in its site settings first." }) : null,
+      h("p", { class: "s-hint", text: "The notification itself is fetched by this browser from GeoID Network; nothing about you passes through the browser maker's push service." }));
+  };
+  drawPush().catch(() => clear(pushBox));
+  return put(sec,
+    field("Lite mode", lite, "For slow or metered connections. Pages stay the same; the heavy parts are left out."),
+    field("Translate posts into", lang, "Posts in another language get a Translate button. Where your browser can translate on the device (recent Chrome and Edge), nothing leaves it."),
+    h("div", { class: "s-field" }, h("span", { class: "s-label", text: "Notifications" }), pushBox),
+    h("div", { class: "s-field" }, h("span", { class: "s-label", text: "The app" }), installBox));
+}
+
+// ── Saved job searches ─────────────────────────────────────────────────────
+
+function searchesSection() {
+  const sec = h("section", { class: "s-section", id: "searches", "aria-labelledby": "ss-h" },
+    h("h2", { class: "s-h2", id: "ss-h", text: "Saved job searches" }), loading());
+  const draw = (items) => {
+    clear(sec);
+    put(sec, h("h2", { class: "s-h2", id: "ss-h", text: "Saved job searches" }),
+      items.length ? h("ul", { class: "s-rows" }, items.map((s) => {
+        const alert = select(`alert-${s.id}`, [["daily", "Daily alert"], ["weekly", "Weekly (Mondays)"], ["off", "No alert"]], s.alert);
+        alert.addEventListener("change", () => act(async () => { await api.patch(`/v1/me/searches/${encodeURIComponent(s.id)}`, { alert: alert.value }); toast("Saved."); }));
+        return h("li", { class: "s-row" },
+          h("a", { href: `#/opportunities?tab=external&search=${encodeURIComponent(s.id)}` }, h("strong", { text: s.name })),
+          h("span", { class: "s-muted", text: s.describe }), alert,
+          h("button", { type: "button", class: "s-link-btn s-danger", onClick: () => act(async () => {
+            await api.del(`/v1/me/searches/${encodeURIComponent(s.id)}`); load();
+          }) }, "Delete"));
+      })) : h("p", { class: "s-muted" }, "None yet. Filter the ", h("a", { href: "#/opportunities?tab=external" }, "external adverts"), " and press “Save this search…”."));
+  };
+  const load = () => api.get("/v1/me/searches").then((d) => draw(d.items || [])).catch((error) => put(clear(sec), errorBox(error)));
+  load();
+  return sec;
 }
 
 // ── Files and Zenodo ───────────────────────────────────────────────────────

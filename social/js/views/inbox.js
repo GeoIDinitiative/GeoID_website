@@ -89,6 +89,9 @@ const REF_ROUTES = {
   report: () => "#/mod", badge: () => `#/u/${encodeURIComponent(myHandle())}`,
   event: () => "#/events", request: (id) => `#/requests/${encodeURIComponent(id)}`,
   org: (slug) => `#/o/${encodeURIComponent(slug)}`, account: () => "#/settings",
+  room: (id) => `#/room/${encodeURIComponent(id)}`,
+  place: (slug) => `#/place/${encodeURIComponent(slug)}`,
+  search: (id) => `#/opportunities?tab=external&search=${encodeURIComponent(id)}`,
 };
 const KIND_TEXT = {
   follow: "followed you", comment: "commented", reply: "replied", reaction: "reacted to your post", mention: "mentioned you",

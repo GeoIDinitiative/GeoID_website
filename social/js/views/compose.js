@@ -14,7 +14,7 @@ import {
   dateToEpoch, epochToDate, errorBox, loading, put,
 } from "../dom.js?v=20261026-27b1bef";
 import {
-  KINDS, PROVENANCE, LICENCES, VISIBILITY, OPP_TYPES, EVENT_FORMATS, WORLDS, requireSignIn, kindLabel,
+  KINDS, PROVENANCE, LICENCES, defaultLicence, VISIBILITY, OPP_TYPES, EVENT_FORMATS, WORLDS, requireSignIn, kindLabel,
   hasProvenance,
 } from "../components.js?v=20261026-27b1bef";
 import { parseVideoLink } from "../embed.js?v=20261026-27b1bef";
@@ -73,11 +73,18 @@ export async function render(root, { query }) {
   // A GeoHUB handoff names its kind (scene, model or repo -- CONTRACT v1.1);
   // an older one without a kind is a globe view.
   const handedKind = handed && KINDS[handed.kind] ? handed.kind : "scene";
+  // Posting into an event room (rooms.js): the room is named, and its place fills the location.
+  const roomId = String(query.room || existing?.room_id || "");
+  // Posting about a place page (places.js): tagged with its slug, located at its centre.
+  let place = null;
+  if (query.place && !existing) { try { place = await api.get(`/v1/places/pages/${encodeURIComponent(query.place)}`); } catch (error) { place = null; } }
+  let room = null;
+  if (roomId) { try { room = await api.get(`/v1/rooms/${encodeURIComponent(roomId)}`); } catch (error) { room = null; } }
   const initialKind = existing?.kind || (handed ? handedKind : (KINDS[query.kind] ? query.kind : "text"));
-  return buildForm(root, { existing, handed, initialKind, query });
+  return buildForm(root, { existing, handed, initialKind, query, room, placePage: place });
 }
 
-function buildForm(root, { existing, handed, initialKind, query }) {
+function buildForm(root, { existing, handed, initialKind, query, room, placePage }) {
   const p = existing || {};
   const m = p.meta || (handed && handed.meta && typeof handed.meta === "object" ? handed.meta : {});
   let kind = initialKind;
@@ -107,7 +114,7 @@ function buildForm(root, { existing, handed, initialKind, query }) {
   const counter = h("span", { class: "s-hint", "aria-live": "polite" });
   const count = () => { counter.textContent = `${body.value.length} / 20000`; };
   body.addEventListener("input", count); count();
-  const tags = input("tags", { value: (p.tags || []).join(", "), placeholder: "volcanology, insar, etna" });
+  const tags = input("tags", { value: (p.tags?.length ? p.tags : placePage ? [placePage.slug] : []).join(", "), placeholder: "volcanology, insar, etna" });
 
   // ── Kind-specific fields ──
   const kf = {};
@@ -200,7 +207,10 @@ function buildForm(root, { existing, handed, initialKind, query }) {
     }
   };
   kindGroup.addEventListener("change", (e) => {
-    if (e.target.name === "kind") { kind = e.target.value; drawKindFields(); provHint(); }
+    if (e.target.name === "kind") {
+      kind = e.target.value; drawKindFields(); provHint();
+      if (typeof licence !== "undefined" && !licenceTouched) licence.value = defaultLicence(kind);
+    }
   });
   drawKindFields();
 
@@ -251,7 +261,11 @@ function buildForm(root, { existing, handed, initialKind, query }) {
     provNote.textContent = !asks ? "" : kind === "observation" ? "Field observations are usually “Observed”." : kind === "scene" || kind === "analysis" ? "Model output is “Modelled”; a calculation from data is “Derived”." : "";
   };
   provHint();
-  const licence = select("licence", LICENCES, p.licence || "CC-BY-4.0");
+  // Optional: a question, a job or an event is not offered for reuse. The
+  // default follows the kind until the author picks one themselves.
+  const licence = select("licence", LICENCES, existing ? (p.licence || "") : defaultLicence(kind));
+  let licenceTouched = !!existing;
+  licence.addEventListener("change", () => { licenceTouched = true; });
 
   const sourcesList = h("ol", { class: "s-sources-edit" });
   const addSource = (s = {}) => {
@@ -370,7 +384,7 @@ function buildForm(root, { existing, handed, initialKind, query }) {
     locBox,
     h("fieldset", {}, h("legend", {}, "Provenance & reuse"),
       provGroup, provNote,
-      field("Licence", licence, "What others may do with this."),
+      field("Licence (optional)", licence, "What others may do with this. Leave it unset for questions, events, jobs and documents you're not offering for reuse."),
       h("div", { class: "s-field" }, h("span", { class: "s-label", text: "Sources" }), sourcesList,
         h("button", { type: "button", class: "btn-ghost s-btn-sm", onClick: () => addSource() }, "Add a source")),
       field("Method", methodSummary, "How it was made — enough for someone else to repeat it."),
@@ -434,6 +448,7 @@ function buildForm(root, { existing, handed, initialKind, query }) {
       Object.assign(meta, { url: kf.rurl.value.trim(), language: kf.language.value, licence: kf.rlicence.value, default_branch: kf.branch.value });
     }
     if (kind === "paper") Object.assign(meta, { doi: kf.doi.value, journal: kf.journal.value, year: Number(kf.year.value) || null, authors: splitList(kf.authors.value) });
+    if (kind === "event" && (query.parent || m.parent_event)) meta.parent_event = query.parent || m.parent_event;
     if (kind === "event") Object.assign(meta, { format: kf.format.value, starts_at: Math.floor(new Date(kf.starts.value).getTime() / 1000), ends_at: kf.ends.value ? Math.floor(new Date(kf.ends.value).getTime() / 1000) : null, where: kf.where.value, url: kf.url.value, capacity: Number(kf.capacity.value) > 0 ? Math.floor(Number(kf.capacity.value)) : null });
     if (kind === "opportunity") Object.assign(meta, { type: kf.type.value, org: kf.org.value, deadline: dateToEpoch(kf.deadline.value, true), skills: splitList(kf.skills.value), paid: kf.paid.value === "" ? null : kf.paid.value === "1", apply_url: kf.apply.value });
 
@@ -460,6 +475,7 @@ function buildForm(root, { existing, handed, initialKind, query }) {
       community_id: commSel.value ? (comms.find((c) => c.slug === commSel.value)?.id || commSel.value) : null,
       project_id: projSel.value || null,
       allow_fork: allowFork.querySelector("input").checked,
+      ...(room ? { room_id: room.id } : {}),
       sponsored_by: kind === "challenge" ? kf.sponsor.value.trim() : "",
     };
     const done = busy(form);
@@ -479,6 +495,9 @@ function buildForm(root, { existing, handed, initialKind, query }) {
   });
 
   put(clear(root), h("h1", { class: "s-h1", text: existing ? "Edit post" : "New post" }),
+    placePage ? h("p", { class: "s-banner" }, "Posting about ", h("a", { href: `#/place/${encodeURIComponent(placePage.slug)}` }, placePage.name),
+      `: tagged #${placePage.slug}, so it appears on the place page.`) : null,
+    room ? h("p", { class: "s-banner" }, "Posting into the event room ", h("a", { href: `#/room/${encodeURIComponent(room.id)}` }, room.title), ".") : null,
     handed ? h("p", { class: "s-banner", text: handed.kind === "model"
       ? "A model setup from GeoHUB is attached. Readers can open it on the same model page."
       : handed.kind === "repo" ? "A repository from GeoHUB is attached."
@@ -498,6 +517,8 @@ function buildForm(root, { existing, handed, initialKind, query }) {
   });
   [lat, lon].forEach((el) => el.addEventListener("input", () => picker.draw()));
   if (loc && Number.isFinite(Number(loc.lat))) picker.setView(Number(loc.lon), Number(loc.lat), 4);
+  else if (room?.lat != null) picker.setView(room.lon, room.lat, 5);
+  else if (placePage) picker.setView(placePage.lon, placePage.lat, 6);
   return () => picker?.destroy();
 }
 

@@ -33,6 +33,15 @@ import { routes as reach } from "./reach.js";
 import { routes as zenodo } from "./zenodo.js";
 import { routes as officehours } from "./officehours.js";
 import { routes as importer } from "./importer.js";
+import { routes as rooms } from "./rooms.js";
+import { routes as scholar } from "./scholar.js";
+import { routes as jobs } from "./jobs.js";
+import { routes as rounds } from "./rounds.js";
+import { routes as conference } from "./conference.js";
+import { routes as push } from "./push.js";
+import { routes as visibility } from "./visibility.js";
+import { routes as trust } from "./trust.js";
+import { routes as places } from "./places.js";
 import { scheduled } from "./cron.js";
 
 // The Durable Object class behind live messages; wrangler.toml binds it as CHAT.
@@ -51,7 +60,7 @@ export const ROUTES = compile([
   ...communities, ...teams, ...projects, ...reviews, ...messages,
   ...moderation, ...reputation, ...interest,
   ...orgs, ...verify, ...requests, ...events, ...mail, ...realtime, ...reposts,
-  ...unfurl, ...reach, ...zenodo, ...officehours, ...importer,
+  ...unfurl, ...reach, ...zenodo, ...officehours, ...importer, ...rooms, ...scholar, ...jobs, ...rounds, ...conference, ...push, ...visibility, ...trust, ...places,
 ]);
 
 export function match(method, path) {

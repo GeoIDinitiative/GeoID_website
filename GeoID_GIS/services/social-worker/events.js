@@ -376,7 +376,10 @@ export async function sendReminders(env, at = now()) {
 
 // ── Virtual poster sessions ────────────────────────────────────────────────
 
-const isPosterSession = (meta) => meta.format === "poster-session";
+// Conferences take posters too, and keep taking them for a month after they
+// end: the gallery is how a meeting's posters outlast the meeting.
+const isPosterSession = (meta) => meta.format === "poster-session" || meta.format === "conference";
+const POSTER_GRACE = (meta) => (meta.format === "conference" ? 30 * 86400 : 0);
 
 /**
  * A poster must be readable by everybody who can see the session: public,
@@ -422,10 +425,10 @@ async function submitPoster(ctx) {
   const { env } = ctx;
   const user = await requireUser(ctx);
   const { post, meta } = await loadEvent(ctx, user);
-  if (!isPosterSession(meta)) fail(400, "Only poster sessions take posters.");
+  if (!isPosterSession(meta)) fail(400, "Only poster sessions and conferences take posters.");
   await rateLimit(ctx, user);
   const end = endsOf(meta);
-  if (end != null && end < now()) fail(409, "This session is over.");
+  if (end != null && end + POSTER_GRACE(meta) < now()) fail(409, "This session is over.");
   const organiser = user.id === post.author_id;
   if (!organiser) {
     const mine = await one(env, "SELECT status FROM event_rsvps WHERE post_id = ? AND user_id = ?", post.id, user.id);

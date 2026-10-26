@@ -11,6 +11,7 @@
  * and to everybody else only once the review is closed, so one reviewer's
  * verdict cannot anchor another's.
  */
+import { openRound, joinRound } from "./rounds.js";
 import {
   fail, now, id, str, oneOf, int, tags, url, parse, requireUser, currentUser, rateLimit, notify,
   usersById, userByHandle, blockedBetween, avatarUrl, teamRole, communityRole,
@@ -158,6 +159,7 @@ async function create(ctx) {
   }
   const docUrl = url(b.doc_url);
   if (!docKey && !docUrl && !str(b.abstract, 10)) fail(400, "Attach the draft (doc_key or doc_url) or write an abstract.");
+  const round = b.round_id ? await openRound(env, b.round_id) : null;
   const t = now();
   const reviewId = id("rv");
   const statements = [env.DB.prepare(
@@ -169,6 +171,8 @@ async function create(ctx) {
     statements.push(env.DB.prepare("UPDATE media SET scope = ? WHERE key = ? AND owner_id = ?").bind(`review:${reviewId}`, docKey, user.id));
   }
   await env.DB.batch(statements);
+  // A draft brought to a feedback round (rounds.js) is matched to a volunteer.
+  if (round) await joinRound(env, round, { id: reviewId, requester_id: user.id, expertise_json: JSON.stringify(tags(b.expertise)) });
   ctx.params.id = reviewId;
   return get(ctx);
 }

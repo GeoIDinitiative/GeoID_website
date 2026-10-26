@@ -171,7 +171,7 @@ test("follow an org; its admins post opportunities as it; followers hear", async
   assert.equal(job.body.kind, "opportunity");
   assert.equal(job.body.meta.org, "University of Leeds");
   const read = await api(env, "GET", `/v1/posts/${job.body.id}`);
-  assert.deepEqual(read.body.org, { slug: "university-of-leeds", name: "University of Leeds" });
+  assert.deepEqual(read.body.org, { slug: "university-of-leeds", name: "University of Leeds", verified: false });
   // The author cannot detach or re-point the org by editing.
   await api(env, "PATCH", `/v1/posts/${job.body.id}`, { as: BEN, body: { title: "Edited", org: { slug: "x" }, org_id: "o_x" } });
   assert.equal((await api(env, "GET", `/v1/posts/${job.body.id}`)).body.org.slug, "university-of-leeds");

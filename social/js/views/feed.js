@@ -1,8 +1,9 @@
 /** #/ — the feed, with tabs and filter chips; #/search — search results. */
-import * as api from "../api.js?v=20261026-27b1bef";
-import { store } from "../store.js?v=20261026-27b1bef";
-import { h, clear, field, input, select, put } from "../dom.js?v=20261026-27b1bef";
-import { KINDS, postCard, pagedList, userRow, kindLabel, followButton } from "../components.js?v=20261026-27b1bef";
+import * as api from "../api.js?v=20261026-bb92425";
+import { store } from "../store.js?v=20261026-bb92425";
+import { h, clear, field, input, select, put } from "../dom.js?v=20261026-bb92425";
+import { KINDS, postCard, pagedList, userRow, kindLabel, followButton } from "../components.js?v=20261026-bb92425";
+import { happeningNow } from "./rooms.js?v=20261026-bb92425";
 
 const TABS = [
   ["following", "Following", "Posts from people, projects, tags, places and communities you follow."],
@@ -78,7 +79,7 @@ export function render(root, { query }) {
   put(clear(root),
     h("div", { class: "s-feed-layout" },
       h("section", { class: "s-feed-col", "aria-label": "Feed" },
-        h("h1", { class: "s-h1", text: "Feed" }), tabs, blurb,
+        h("h1", { class: "s-h1", text: "Feed" }), happeningNow(), tabs, blurb,
         h("div", { class: "s-feed-stream" }, tagBar, body)),
       rail));
 }

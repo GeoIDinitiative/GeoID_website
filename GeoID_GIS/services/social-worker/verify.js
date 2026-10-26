@@ -104,7 +104,7 @@ export async function verificationsForItems(env, ids) {
 }
 
 /** Ask Crossref. { status: "ok", work } | { status: "not-found" } | { status: "error" }. */
-async function crossref(env, doi) {
+export async function crossref(env, doi) {
   const contact = str(env.CROSSREF_MAILTO, 200);
   const headers = {
     Accept: "application/json",
@@ -114,7 +114,7 @@ async function crossref(env, doi) {
   let res;
   try {
     const signal = typeof AbortSignal !== "undefined" && AbortSignal.timeout ? AbortSignal.timeout(8000) : undefined;
-    res = await fetch(`${CROSSREF}${doi.split("/").map(encodeURIComponent).join("/")}`, { headers, signal });
+    res = await (env.fetchImpl || fetch)(`${CROSSREF}${doi.split("/").map(encodeURIComponent).join("/")}`, { headers, signal });
   } catch (error) {
     return { status: "error" };
   }

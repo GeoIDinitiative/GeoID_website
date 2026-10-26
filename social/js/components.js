@@ -43,6 +43,7 @@ export const PROVENANCE = {
 };
 
 export const LICENCES = [
+  ["", "No licence — not offered for reuse"],
   ["CC-BY-4.0", "CC BY 4.0 — reuse with credit"],
   ["CC-BY-SA-4.0", "CC BY-SA 4.0 — reuse with credit, share alike"],
   ["CC0-1.0", "CC0 1.0 — public domain"],
@@ -166,6 +167,8 @@ export const plural = (n, word) => `${n} ${word}${n === 1 ? "" : "s"}`;
 
 export const NO_PROVENANCE_KINDS = ["text", "opportunity", "event", "question", "discussion", "challenge", "repo"];
 export const hasProvenance = (kind) => !NO_PROVENANCE_KINDS.includes(kind);
+/** A licence is offered by default only for work others may reuse: data, analyses, scenes, models, papers. */
+export const defaultLicence = (kind) => (hasProvenance(kind) ? "CC-BY-4.0" : "");
 
 export function provenanceBadge(p) {
   const info = PROVENANCE[p];
@@ -221,6 +224,7 @@ export function postCard(p) {
       p.kind === "observation" ? verificationBadge(p.verification) : null,
       p.visibility && p.visibility !== "public" ? h("span", { class: "s-vis", text: VISIBILITY[p.visibility]?.split(" —")[0] || p.visibility }) : null,
       p.sponsored_by ? h("span", { class: "s-sponsor", text: `Sponsored by ${p.sponsored_by}` }) : null,
+          p.kind === "opportunity" && p.org?.verified ? h("span", { class: "s-verified", title: "Posted by a verified organisation on GeoID Network", text: `Verified employer · ${p.org.name}` }) : null,
       importedBadge(p),
       p.org ? h("a", { class: "s-org-label", href: `#/o/${encodeURIComponent(p.org.slug)}`, title: "Posted by an admin of this organisation" }, `Posted as ${p.org.name}`) : null,
       p.pinned ? h("span", { class: "s-vis", text: "Pinned" }) : null,
@@ -461,6 +465,7 @@ export function reportDialog(targetType, targetId, kind = "report") {
     const form = h("form", {},
       field("Reason", reason),
       field("What should moderators know?", note, "Optional. Moderators see the content and this note; the author is not told who reported."),
+      h("p", { class: "s-hint" }, "Moderators answer within 24 to 72 hours depending on the reason. ", h("a", { href: "#/conduct" }, "Code of conduct"), "."),
       h("div", { class: "s-actions" },
         h("button", { type: "submit", class: "btn-primary" }, "Send report"),
         h("button", { type: "button", class: "btn-ghost", onClick: () => close() }, "Cancel")));

@@ -465,6 +465,9 @@ export function publicPost(env, row, authors = {}, extra = {}) {
     team_id: row.team_id,
     community_id: row.community_id,
     project_id: row.project_id,
+    room_id: row.room_id || null,
+    // Waiting for a moderator (trust.js); only its author can see it then.
+    held: row.held_at ? { since: row.held_at, reasons: row.held_reasons } : null,
     allow_fork: !!row.allow_fork,
     forked_from: row.forked_from,
     sponsored_by: row.sponsored_by,
@@ -508,6 +511,11 @@ export async function notify(env, userId, kind, actorId, refType, refId, text = 
   if (MAIL_NOW_KINDS.includes(kind)) {
     await env.DB.prepare("INSERT INTO mail_queue (id, user_id, kind, notification_id, created_at) VALUES (?, ?, ?, ?, ?)")
       .bind(id("mq"), userId, kind, notificationId, t).run().catch(() => {});
+  }
+  // A push to the member's browsers, when push is set up (push.js). Imported
+  // on demand so lib.js still imports nothing back at load time.
+  if (env.VAPID_PRIVATE_JWK && kind !== "reaction") {
+    try { const { pushTo } = await import("./push.js"); await pushTo(env, userId); } catch (error) { /* a push is a courtesy */ }
   }
 }
 
