@@ -26,8 +26,8 @@
 const search = new URL(import.meta.url).search;
 
 import { startPlayer, stopPlayer, datasetForYear, seasonFor, IMAGERY_SOURCES }
-  from "./timelapse-player.js?v=20261026-5d95cac";
-import { createLedger, latestGlaciers, pieceAreaKm2 } from "./glacier-outlines.js?v=20261026-5d95cac";
+  from "./timelapse-player.js?v=20261026-4a041f9";
+import { createLedger, latestGlaciers, pieceAreaKm2 } from "./glacier-outlines.js?v=20261026-4a041f9";
 
 // Re-exported rather than re-implemented: the panel, the tests and this file
 // must be talking about the SAME rule for which satellite covers which year.

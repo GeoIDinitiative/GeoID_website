@@ -15,7 +15,7 @@
  * parses to a tool in this list with arguments that pass its own checks.
  */
 
-import { readMeshRequest, readMesher } from "./atlas-mesh-spec.js?v=20261026-5d95cac";
+import { readMeshRequest, readMesher } from "./atlas-mesh-spec.js?v=20261026-4a041f9";
 
 export const TOOLS = [
   {
