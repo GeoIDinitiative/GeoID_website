@@ -94,7 +94,7 @@ export async function buildCity(city, { ortho, skip = () => false, skipAny = nul
       const r = rings(f.geometry)[0]; if (!r || r.length < 3) continue;
       let cu = 0, cv = 0; for (const [u, v] of r) { cu += u; cv += v; } const c = toL(cu / r.length, cv / r.length);
       if (skip(c) || (skipAny && r.some(([u, v]) => skipAny(toL(u, v))))) continue;   // any corner inside: a stand whose centre is just outside
-      (dev(c) ? devF : keepF).push(f);
+      (dev(c) || r.some(([u, v]) => dev(toL(u, v))) ? devF : keepF).push(f);   // any corner on the redeveloped land: it goes
     }
     const extra = { transport: decodeLayer(t.buf, 'transportation'), water: decodeLayer(t.buf, 'water'), landcover: decodeLayer(t.buf, 'landcover'),
       landuse: decodeLayer(t.buf, 'landuse'), poi: decodeLayer(t.buf, 'poi'), origin: [t.x, t.y] };
@@ -102,7 +102,7 @@ export async function buildCity(city, { ortho, skip = () => false, skipAny = nul
       if (!feats.length && parent === devG) continue;
       const m = extrudeTile({ ...layer, features: feats }, null, 0, sizeM, triangulate, ex);
       if (!m.index.length) continue;
-      parent.add(tileMesh(m, { X0, Z0, kx, kz, ortho, order, inB, roofMats, wallMat, cut: skipAny }));
+      parent.add(tileMesh(m, { X0, Z0, kx, kz, ortho, order, inB, roofMats, wallMat, cut: parent === keepG ? (p) => skipAny?.(p) || dev(p) : skipAny }));
     }
     // street lamps along the tile's roads (lights-worker.js decode + stand)
     if (extra.transport) {
