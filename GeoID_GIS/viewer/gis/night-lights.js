@@ -42,8 +42,9 @@ const INFO = {
 let THREE = null;
 let shell = null, patch = null, keyLight = null;
 const uniforms = {
-  uSun: { value: null }, uLights: { value: null }, uPatch: { value: null },
-  uPatchBox: { value: null }, uPatchOn: { value: 0 },
+  // never a null vec3/vec4: a null one throws in three's upload, in the render loop
+  uSun: { value: { x: 1, y: 0, z: 0 } }, uLights: { value: null }, uPatch: { value: null },
+  uPatchBox: { value: { x: 0, y: 1, z: 1, w: 0 } }, uPatchOn: { value: 0 },
 };
 /** How dark it is where the camera is, 0 day .. 1 night -- read by osm-buildings.js. */
 export const NIGHT = { value: 0 };

@@ -1401,6 +1401,7 @@ function fmtProp(value) {
     let activeGeoPopupLatLon = null;
     let selectedGeologyBoundaryGroup = null;
     let lastTimestamp = 0;
+    let lastRenderError = "";   // the last kind of frame failure reported (render loop)
     let activeSearchResults = [];
     let activeSearchIndex = -1;
     let viewerCamera = null;
@@ -25054,7 +25055,17 @@ ${error && error.message ? error.message : error}`;
         }
         updateMeasureVisualScale();
         refreshMeasureForViewDistance();
-        renderer.render(scene, camera);
+        // ONE BAD FRAME MUST NOT END THE LOOP. The next frame is scheduled
+        // after this draw, so a throw inside three's render (a null uniform,
+        // reported from Earth Flight as a frozen frame of flat ground with no
+        // aircraft) stopped the viewer for good. Drawn in a try: the error is
+        // reported once per kind and the loop carries on.
+        try {
+          renderer.render(scene, camera);
+        } catch (error) {
+          const kind = String(error?.message || error);
+          if (kind !== lastRenderError) { lastRenderError = kind; console.error("[earth-viewer] a frame failed to draw; carrying on:", error); }
+        }
         requestAnimationFrame((timestamp) => {
           lastTimestamp = Math.max(16, timestamp - (lastTimestamp || timestamp));
           render();

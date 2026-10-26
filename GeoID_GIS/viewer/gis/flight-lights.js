@@ -105,7 +105,7 @@ let prevShip = null, lastDir = null;
 const jobs = new Map();
 const bm = new Map();             // "x/y" (z8) -> Uint8ClampedArray | "loading" | "missing"
 const shared = {
-  uNight: { value: 0 }, uPxScale: { value: 800 }, uShipW: { value: null }, uAheadW: { value: null }, uDiffuse: { value: 0 },
+  uNight: { value: 0 }, uPxScale: { value: 800 }, uShipW: { value: { x: 0, y: 0, z: 0 } }, uAheadW: { value: { x: 0, y: 0, z: 0 } },   // never a null vec3 uDiffuse: { value: 0 },
 };
 export const stats = { tiles: 0, lamps: 0, lit: 0 };
 
