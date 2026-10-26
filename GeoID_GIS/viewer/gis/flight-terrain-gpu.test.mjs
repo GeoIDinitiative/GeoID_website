@@ -47,5 +47,26 @@ for (const D of G.DRAPES) {
     (b2.lat0 + b2.dLat) - (39.6 + D.halfKm / 111.32 * 0.24) >= 0.75 * D.halfKm / 111.32 - 1e-9);
 }
 
+/* ── Hazard maps on the flight ground, and played in time ───────────────── */
+{
+  const { readFileSync } = await import("node:fs");
+  const gpu = readFileSync(new URL("./flight-terrain-gpu.js", import.meta.url), "utf8");
+  check("a changed layer redraws the drapes next, not on their timers (moved > dirty > stale)",
+    typeof G.markDrapesDirty === "function"
+      && /const pick = moved >= 0 \? moved : dirty >= 0 \? dirty : stale;/.test(gpu));
+  const vr = readFileSync(new URL("./vector-render.js", import.meta.url), "utf8");
+  check("raster hazard maps drape in their own colour (a lit material is black with no lights)",
+    /if \(uFlightDrapePass > 0\.5\) gl_FragColor = vec4\(diffuseColor\.rgb, diffuseColor\.a\);/.test(vr));
+  check("globe-frame drapes are turned back to the import frame",
+    /flightGlobeFrame = Boolean\(globeFrame\)/.test(vr) && /normalize\(aDir \* uFlightFrame\)/.test(vr)
+      && /geoidFlightHeight\(aDir \* uFlightFrame\)/.test(vr));
+  const tl = readFileSync(new URL("./timelapse-player.js", import.meta.url), "utf8");
+  check("the time bar refreshes the flight drapes on every frame it shows",
+    (tl.match(/GeoIDFlightTerrainGpu\?\.markDrapesDirty\?\.\(\)/g) || []).length >= 2);
+  check("in flight the time bar keeps the clock (the daytime switch) and sits in view",
+    /if \(id === "time-scrub-toggle" && window\.__flightSim\?\.active\) continue;/.test(tl)
+      && /body\.fs-flying \.geoid-timelapse \{/.test(tl));
+}
+
 console.log(`\n${passed} passed, ${failed} failed`);
 process.exit(failed ? 1 : 0);

@@ -215,7 +215,20 @@ function wire() {
     daytime = !daytime;
     setDaytime(daytime);
   }, true);
-  window.addEventListener("flightsim:engaged", () => setDaytime(daytime));
+  window.addEventListener("flightsim:engaged", () => {
+    setDaytime(daytime);
+    // A time bar opened before take-off hid the clock; flight keeps it.
+    const c = document.getElementById("time-scrub-toggle");
+    if (c && c.style.display === "none") c.style.display = "";
+  });
+  // A layer switched on or off in flight reaches the ground at once, not on
+  // the drapes' timers (gis/flight-terrain-gpu.js markDrapesDirty).
+  const hookDrapes = (n = 0) => {
+    const m = window.GeoIDImportManager;
+    if (m?.onChange) m.onChange(() => { if (window.__flightSim?.active) window.GeoIDFlightTerrainGpu?.markDrapesDirty?.(); });
+    else if (n < 80) setTimeout(() => hookDrapes(n + 1), 250);
+  };
+  hookDrapes();
   window.addEventListener("flightsim:disengaged", () => {
     window.__fsDaytime = false;
     document.body.classList.remove("fs-daytime");

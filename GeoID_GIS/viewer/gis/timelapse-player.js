@@ -33,6 +33,13 @@ const STYLE = `
    pages show no globe. Hidden rather than closed -- the layer is still loaded,
    so coming back to GIS finds the bar where it was. */
 body.studio-open .geoid-timelapse, body.research-open .geoid-timelapse { display: none !important; }
+/* EARTH FLIGHT: in the field of view, above the instrument readout and over
+   the flight HUD, at a width that does not assume the sidebar (the flight is
+   a close look at the same maps, played the same way). */
+body.fs-flying .geoid-timelapse {
+  bottom: 9.4rem; z-index: 31;
+  width: min(44rem, 72vw); max-width: 72vw;
+}
 /* Hidden from Workspace: the bar stays (the layer is still loaded) and says so
    by stepping back, so a reader can see why the globe is not animating. */
 .geoid-timelapse.is-hidden-layer { opacity: 0.55; filter: grayscale(0.7); }
@@ -256,6 +263,9 @@ function holdWorldClock() {
   for (const id of WORLD_CLOCK) {
     const el = document.getElementById(id);
     if (!el) continue;
+    // In Earth Flight the clock is the daytime-only switch, and Help and
+    // Controls are pinned under it: it stays (gis/earth-flight-entry.js).
+    if (id === "time-scrub-toggle" && window.__flightSim?.active) continue;
     held.push([el, el.style.display]);
     el.style.display = "none";
   }
@@ -384,6 +394,9 @@ async function show(index) {
    * the array, which may be an 1850 one under a 2016 frame.
    */
   state.onShow?.(index, epoch);
+  // Earth Flight's ground carries the layer in its drapes: redraw them now,
+  // not on their timers (gis/flight-terrain-gpu.js markDrapesDirty).
+  window.GeoIDFlightTerrainGpu?.markDrapesDirty?.();
   state.bar.date.textContent = epoch.label || epoch.date;
   state.bar.slider.value = String(index);
   state.bar.note.textContent = state.noteFor(epoch, epoch.note || "reading imagery…");
@@ -427,6 +440,7 @@ async function show(index) {
     const held = await pending;
     if (held.object3D) held.object3D.visible = false;
   }
+  window.GeoIDFlightTerrainGpu?.markDrapesDirty?.();
 
   // The next frame, fetched while this one is being looked at.
   const next = state.epochs[(index + 1) % state.epochs.length];
