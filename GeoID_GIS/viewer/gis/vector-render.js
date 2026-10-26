@@ -515,9 +515,9 @@ uniform vec4 uFlightDrapeBox;
 varying vec3 vFlightDir;
 `;
 const FLIGHT_FILL_VERTEX = `
-  vFlightDir = normalize(aDir);
+  vFlightDir = normalize(aDir * uFlightFrame);
   if (uFlightDrapePass > 0.5) {
-    vec3 gn = normalize(aDir);
+    vec3 gn = normalize(aDir * uFlightFrame);
     float gc = uFlightDrapeBox.x + 0.5 * uFlightDrapeBox.z;
     float glon = degrees(atan(gn.z, -gn.x));
     glon = gc + mod(glon - gc + 180.0, 360.0) - 180.0;
@@ -664,6 +664,8 @@ export function attachExactReliefAttributes(geometry, lats, lons, { globeFrame =
   const dir = new Float32Array(n * 3);
   const disp = new Float32Array(n);
   const flip = globeFrame ? -1 : 1;
+  // Earth Flight reads `aDir` in the import group's frame; say which this is.
+  (geometry.userData ??= {}).flightGlobeFrame = Boolean(globeFrame);
   for (let i = 0; i < n; i += 1) {
     const d = toDir(lats[i], lons[i], 1);
     const len = Math.hypot(d.x, d.y, d.z) || 1;
@@ -790,6 +792,26 @@ export function followRelief(material, drape, {
   // In flight: a fill is draped, a line hides itself behind the ground.
   const flightKind = !flightTerrain ? null
     : (ribbon || lifted === "marker" || /Line|Points/.test(material.type)) ? "line" : "fill";
+  /*
+   * THE FRAME THE DIRECTIONS ARE IN. Most layers sit in the import group's
+   * frame, where `aDir` reads lon = atan(z, -x) as the flight shaders do; an
+   * Earth-Engine-style drape (gee.js drape(), the cyclone-risk estimate,
+   * imagery and glacier frames, weather maps) is parented to the globe and
+   * carries its directions half-turned (attachExactReliefAttributes
+   * globeFrame: x and z negated). Read as they were, those layers draped at
+   * lon + 180 -- outside every drape box -- and missed their ground height
+   * and the cover round the aircraft. The geometry says which it is
+   * (userData.flightGlobeFrame); the flight chunks multiply `aDir` back.
+   */
+  const frame = { value: { x: 1, y: 1, z: 1 } };
+  if (flightTerrain) {
+    const before = material.onBeforeRender;
+    material.onBeforeRender = function (renderer, scene, camera, geometry, object, group) {
+      const flip = geometry?.userData?.flightGlobeFrame ? -1 : 1;
+      if (frame.value.x !== flip) { frame.value = { x: flip, y: 1, z: flip }; }
+      if (before && before !== THREE.Material.prototype.onBeforeRender) before.call(this, renderer, scene, camera, geometry, object, group);
+    };
+  }
   if (flightTerrain) {
     (material.userData ??= {}).geoidFlightKind = flightKind;
     FLIGHT_FOLLOWERS.add(new WeakRef(material));
@@ -800,7 +822,10 @@ export function followRelief(material, drape, {
   material.onBeforeCompile = (shader) => {
     shader.uniforms.uRelief = RELIEF_UNIFORM;
     shader.uniforms.uDrape = drapeUniform;
-    if (flightTerrain) Object.assign(shader.uniforms, FLIGHT);
+    if (flightTerrain) {
+      Object.assign(shader.uniforms, FLIGHT);
+      shader.uniforms.uFlightFrame = frame;
+    }
     if (ribbon) {
       shader.uniforms.uRibbon = SEAL_RIBBON_UNIFORM;
       shader.uniforms.uRibbonScale = { value: Number(ribbonScale) > 0 ? Number(ribbonScale) : 1 };
@@ -818,12 +843,12 @@ uniform float uDrape;
 ${ribbon ? "attribute vec3 aPerp;\nattribute float aSide;\nuniform float uRibbon;\nuniform float uRibbonScale;" : ""}
 ${cullFarSide ? "varying float vFacing;" : ""}
 ${hole ? "varying vec3 vDir;" : ""}
-${flightTerrain ? FLIGHT_VERTEX_PARS : ""}
+${flightTerrain ? FLIGHT_VERTEX_PARS + "\nuniform vec3 uFlightFrame;" : ""}
 ${flightKind === "line" ? FLIGHT_SEEN_VERTEX_PARS : ""}
 ${flightKind === "fill" ? FLIGHT_FILL_VERTEX_PARS : ""}
 ${shader.vertexShader}`.replace(
       "#include <begin_vertex>",
-      `vec3 transformed = aDir * (${base.toFixed(4)} + aDisp * uRelief + uDrape${flightTerrain ? " + geoidFlightHeight(aDir)" : ""});`
+      `vec3 transformed = aDir * (${base.toFixed(4)} + aDisp * uRelief + uDrape${flightTerrain ? " + geoidFlightHeight(aDir * uFlightFrame)" : ""});`
       // The ribbon is laid in the TANGENT plane, so widening it never lifts a
       // vertex off the surface however wide the view makes it.
       + (ribbon ? "\n  transformed += aPerp * (aSide * uRibbon * uRibbonScale);" : "")
@@ -844,7 +869,17 @@ ${shader.vertexShader}`.replace(
         + (cullFarSide ? "\n  if (uFlightDrapePass > 0.5) vFacing = 1.0;" : ""));
       shader.fragmentShader = `${FLIGHT_FILL_FRAGMENT_PARS}
 ${shader.fragmentShader}`.replace(
-        "#include <clipping_planes_fragment>", `${FLIGHT_FILL_FRAGMENT}  #include <clipping_planes_fragment>`);
+        "#include <clipping_planes_fragment>", `${FLIGHT_FILL_FRAGMENT}  #include <clipping_planes_fragment>`)
+        /*
+         * UNLIT IN THE DRAPE. The drape renders each layer on its own, with no
+         * lights in the scene, so a LIT material (every GeoTIFF hazard map:
+         * flood and landslide susceptibility, sea level, inundation, forecast
+         * landslide... geotiff-adapter.js, MeshStandardMaterial) came out
+         * black on the flight terrain. In the drape pass a fill writes its
+         * own colour; the terrain lights it, as it lights the photo under it.
+         */
+        .replace("#include <opaque_fragment>",
+          "#include <opaque_fragment>\n  if (uFlightDrapePass > 0.5) gl_FragColor = vec4(diffuseColor.rgb, diffuseColor.a);");
     } else if (flightKind === "line") {
       shader.vertexShader = shader.vertexShader.replace(
         "#include <project_vertex>", `#include <project_vertex>${FLIGHT_SEEN_VERTEX}`);
