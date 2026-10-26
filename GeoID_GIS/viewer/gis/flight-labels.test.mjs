@@ -118,5 +118,9 @@ check("skyline names and ranges have their own text, drawn at the size shown, no
 check("...one canvas pixel per screen pixel (x devicePixelRatio)",
   /Math\.round\(px \* dpr\)/.test(src) && /w: cv\.width \/ dpr, h: cv\.height \/ dpr/.test(src), true);
 
+check("skyline names are the place's own pill, drawn crisp at the size shown",
+  /const ct = crispPill\(entry, /.test(src) && /makeLabelTexture\(item, \{[\s\S]{0,160}backingScale: dpr \* px \/ 34/.test(src)
+    && /t\.texture\.generateMipmaps = false;/.test(src), true);
+
 console.log(`\n${failures ? `${failures} failed` : "all passed"}`);
 process.on("exit", () => { process.exitCode = failures ? 1 : 0; });
