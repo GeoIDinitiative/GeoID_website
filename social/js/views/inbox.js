@@ -90,6 +90,7 @@ const REF_ROUTES = {
   event: () => "#/events", request: (id) => `#/requests/${encodeURIComponent(id)}`,
   org: (slug) => `#/o/${encodeURIComponent(slug)}`, account: () => "#/settings",
   room: (id) => `#/room/${encodeURIComponent(id)}`,
+  place: (slug) => `#/place/${encodeURIComponent(slug)}`,
   search: (id) => `#/opportunities?tab=external&search=${encodeURIComponent(id)}`,
 };
 const KIND_TEXT = {

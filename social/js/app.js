@@ -30,6 +30,7 @@ import * as settings from "./views/settings.js?v=20261025-794b342";
 import * as rooms from "./views/rooms.js?v=20261025-794b342";
 import * as rounds from "./views/rounds.js?v=20261025-794b342";
 import * as conduct from "./views/conduct.js?v=20261025-794b342";
+import * as places from "./views/places.js?v=20261025-794b342";
 import { isLite, registerWorker } from "./device.js?v=20261025-794b342";
 import * as orgs from "./views/orgs.js?v=20261025-794b342";
 import * as onboarding from "./views/onboarding.js?v=20261025-794b342";
@@ -57,6 +58,8 @@ const ROUTES = [
   ["/r/:id", reviews.renderOne, "Review"],
   ["/rounds", rounds.renderList, "Feedback rounds"],
   ["/conduct", conduct.render, "Code of conduct"],
+  ["/places", places.renderList, "Places"],
+  ["/place/:slug", places.renderOne, "Place"],
   ["/u/:handle/record", rounds.renderRecord, "Reviewer record"],
   ["/messages", inbox.renderMessages, "Messages"],
   ["/messages/:id", inbox.renderConversation, "Messages"],
@@ -91,7 +94,7 @@ function parseHash() {
 // ── Header ─────────────────────────────────────────────────────────────────
 
 const NAV = [
-  ["#/", "Feed", "/"], ["#/rooms", "Now", "/rooms"], ["#/map", "Map", "/map"], ["#/people", "People", "/people"], ["#/orgs", "Organisations", "/orgs"],
+  ["#/", "Feed", "/"], ["#/rooms", "Now", "/rooms"], ["#/map", "Map", "/map"], ["#/places", "Places", "/places"], ["#/people", "People", "/people"], ["#/orgs", "Organisations", "/orgs"],
   ["#/communities", "Communities", "/communities"], ["#/teams", "Teams", "/teams"], ["#/projects", "Projects", "/projects"],
   ["#/reviews", "Reviews", "/reviews"], ["#/opportunities", "Opportunities", "/opportunities"], ["#/events", "Events", "/events"],
 ];
@@ -152,6 +155,7 @@ function markActive(path) {
     const base = a.dataset.base;
     const on = base === "/" ? path === "/" : path === base || path.startsWith(`${base}/`)
       || (base === "/rooms" && path.startsWith("/room/"))
+      || (base === "/places" && path.startsWith("/place/"))
       || (base === "/reviews" && (path === "/rounds" || path.startsWith("/r/")))
       || (base === "/communities" && path.startsWith("/c/")) || (base === "/teams" && path.startsWith("/t/"))
       || (base === "/orgs" && path.startsWith("/o/"))

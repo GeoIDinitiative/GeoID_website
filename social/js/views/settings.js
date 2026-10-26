@@ -18,6 +18,7 @@ const NOTIFY = [
   ["invite", "Team and community invitations"], ["review", "Peer review requests and replies"],
   ["message", "New messages"], ["badge", "Badges you earn"], ["mentoring", "Mentoring requests and replies"],
   ["room", "An event room opens near your study areas or in your field, and new posts in rooms you follow"],
+  ["place", "A place page opens where you study, and new entries on places you follow"],
   ["job_alert", "New adverts for your saved job searches"], ["deadline", "A saved advert is about to close"],
 ];
 

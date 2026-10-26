@@ -483,16 +483,29 @@ function studyAreasEditor() {
   };
 }
 
-/** The study areas on a profile page, if any. */
+/** The study areas on a profile page, if any -- each with its place page, or (on your own) a way to open one. */
 function studyAreasView(handle) {
   const box = h("div", {});
-  api.get(`/v1/users/${encodeURIComponent(handle)}/study-areas`).then((d) => {
+  Promise.all([api.get(`/v1/users/${encodeURIComponent(handle)}/study-areas`), api.get("/v1/places/pages").catch(() => ({ items: [] }))]).then(([d, pl]) => {
     const items = d?.items || [];
     if (!items.length) return;
+    const self = store.me?.user?.handle === handle;
+    const rad = Math.PI / 180;
+    const dist = (a, b) => 6371 * Math.acos(Math.min(1, Math.sin(a.lat * rad) * Math.sin(b.lat * rad) + Math.cos(a.lat * rad) * Math.cos(b.lat * rad) * Math.cos((a.lon - b.lon) * rad)));
+    const pageFor = (a) => (pl.items || []).map((p) => ({ p, km: dist(a.location, p) })).filter((x) => x.km <= Math.max(x.p.radius_km, a.radius_km)).sort((x, y) => x.km - y.km)[0]?.p;
+    const open = (a) => act(async () => {
+      const out = await api.post("/v1/places/pages", { name: a.name, lat: a.location.lat, lon: a.location.lon, radius_km: Math.max(10, a.radius_km) });
+      location.hash = `#/place/${encodeURIComponent(out.place.slug)}`;
+    }, "open a place page");
     put(box, h("h2", { class: "s-side-title", text: "Study areas" }),
-      h("ul", { class: "s-plain" }, items.map((a) => h("li", {}, a.name,
-        h("span", { class: "s-muted", text: ` · ${a.radius_km} km${a.tags.length ? ` · ${a.tags.map((t) => `#${t}`).join(" ")}` : ""}` })))),
-      h("p", {}, h("a", { href: "#/map" }, "See who else works there")));
+      h("ul", { class: "s-plain s-area-list" }, items.map((a) => {
+        const page = pageFor(a);
+        return h("li", {}, a.name,
+          h("span", { class: "s-muted", text: ` · ${a.radius_km} km${a.tags.length ? ` · ${a.tags.map((t) => `#${t}`).join(" ")}` : ""}` }),
+          page ? [" · ", h("a", { href: `#/place/${encodeURIComponent(page.slug)}` }, `${page.name} place page`)]
+            : self ? [" · ", h("button", { type: "button", class: "s-link-btn", onClick: () => open(a) }, "Open a place page")] : null);
+      })),
+      h("p", {}, h("a", { href: "#/map" }, "See who else works there"), " · ", h("a", { href: "#/places" }, "All places")));
   }).catch(() => {});
   return box;
 }

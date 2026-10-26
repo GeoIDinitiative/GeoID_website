@@ -75,13 +75,16 @@ export async function render(root, { query }) {
   const handedKind = handed && KINDS[handed.kind] ? handed.kind : "scene";
   // Posting into an event room (rooms.js): the room is named, and its place fills the location.
   const roomId = String(query.room || existing?.room_id || "");
+  // Posting about a place page (places.js): tagged with its slug, located at its centre.
+  let place = null;
+  if (query.place && !existing) { try { place = await api.get(`/v1/places/pages/${encodeURIComponent(query.place)}`); } catch (error) { place = null; } }
   let room = null;
   if (roomId) { try { room = await api.get(`/v1/rooms/${encodeURIComponent(roomId)}`); } catch (error) { room = null; } }
   const initialKind = existing?.kind || (handed ? handedKind : (KINDS[query.kind] ? query.kind : "text"));
-  return buildForm(root, { existing, handed, initialKind, query, room });
+  return buildForm(root, { existing, handed, initialKind, query, room, placePage: place });
 }
 
-function buildForm(root, { existing, handed, initialKind, query, room }) {
+function buildForm(root, { existing, handed, initialKind, query, room, placePage }) {
   const p = existing || {};
   const m = p.meta || (handed && handed.meta && typeof handed.meta === "object" ? handed.meta : {});
   let kind = initialKind;
@@ -111,7 +114,7 @@ function buildForm(root, { existing, handed, initialKind, query, room }) {
   const counter = h("span", { class: "s-hint", "aria-live": "polite" });
   const count = () => { counter.textContent = `${body.value.length} / 20000`; };
   body.addEventListener("input", count); count();
-  const tags = input("tags", { value: (p.tags || []).join(", "), placeholder: "volcanology, insar, etna" });
+  const tags = input("tags", { value: (p.tags?.length ? p.tags : placePage ? [placePage.slug] : []).join(", "), placeholder: "volcanology, insar, etna" });
 
   // ── Kind-specific fields ──
   const kf = {};
@@ -492,6 +495,8 @@ function buildForm(root, { existing, handed, initialKind, query, room }) {
   });
 
   put(clear(root), h("h1", { class: "s-h1", text: existing ? "Edit post" : "New post" }),
+    placePage ? h("p", { class: "s-banner" }, "Posting about ", h("a", { href: `#/place/${encodeURIComponent(placePage.slug)}` }, placePage.name),
+      `: tagged #${placePage.slug}, so it appears on the place page.`) : null,
     room ? h("p", { class: "s-banner" }, "Posting into the event room ", h("a", { href: `#/room/${encodeURIComponent(room.id)}` }, room.title), ".") : null,
     handed ? h("p", { class: "s-banner", text: handed.kind === "model"
       ? "A model setup from GeoHUB is attached. Readers can open it on the same model page."
@@ -513,6 +518,7 @@ function buildForm(root, { existing, handed, initialKind, query, room }) {
   [lat, lon].forEach((el) => el.addEventListener("input", () => picker.draw()));
   if (loc && Number.isFinite(Number(loc.lat))) picker.setView(Number(loc.lon), Number(loc.lat), 4);
   else if (room?.lat != null) picker.setView(room.lon, room.lat, 5);
+  else if (placePage) picker.setView(placePage.lon, placePage.lat, 6);
   return () => picker?.destroy();
 }
 
