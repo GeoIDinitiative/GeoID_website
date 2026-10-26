@@ -276,7 +276,9 @@
     }
   }
 
-  window.addEventListener("flightsim:engaged", start);
+  // The event fires before `active` is set; a tick later is still inside the
+  // engaging click's user activation, which is what lets audio start.
+  window.addEventListener("flightsim:engaged", () => setTimeout(start, 0));
   window.addEventListener("flightsim:disengaged", stop);
   // A suspended context resumes only inside a gesture.
   const nudge = () => { if (on && fs()?.active) start(); };
