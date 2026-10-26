@@ -663,7 +663,7 @@ body.fs-open-chrome.fs-flying #cursor-readout { display: none !important; }
   .fs-dpad { grid-template-columns: repeat(3, 3.1rem); grid-template-rows: repeat(3, 3.1rem); }
   .fs-tbtn.fs-t-wide { width: 4.7rem; height: 2.4rem; }
 }
-#fs-touch-toggle {
+#fs-touch-toggle, #fs-sound-toggle {
   pointer-events: auto;
   display: inline-flex; align-items: center; gap: 0.32rem;
   padding: 0.22rem 0.5rem;
@@ -677,12 +677,17 @@ body.fs-open-chrome.fs-flying #cursor-readout { display: none !important; }
   cursor: pointer;
   backdrop-filter: blur(3px);
 }
-#fs-touch-toggle:hover { background: rgba(var(--nav-accent-rgb), 0.24); }
-#fs-touch-toggle[aria-pressed="true"] {
+#fs-touch-toggle:hover, #fs-sound-toggle:hover { background: rgba(var(--nav-accent-rgb), 0.24); }
+#fs-touch-toggle[aria-pressed="true"], #fs-sound-toggle[aria-pressed="true"] {
   background: rgba(var(--nav-accent-rgb), 0.34);
   border-color: var(--nav-accent);
 }
-#fs-touch-toggle svg { width: 12px; height: 12px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; }
+#fs-touch-toggle svg, #fs-sound-toggle svg { width: 12px; height: 12px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; }
+/* Sound: waves while on, a cross while muted (scripts/flight-sound.js). */
+#fs-sound-toggle .fs-snd-off { display: none; }
+#fs-sound-toggle.is-muted .fs-snd-on { display: none; }
+#fs-sound-toggle.is-muted .fs-snd-off { display: inline; }
+#fs-sound-toggle[hidden] { display: none; }
 
 #fs-controls-panel {
   pointer-events: auto;

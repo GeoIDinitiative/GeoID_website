@@ -202,6 +202,13 @@
         </svg>
         <span>Controls</span>
       </button>
+      <!-- Sound on/off (scripts/flight-sound.js drives it; M as well). -->
+      <button type="button" id="fs-sound-toggle" aria-pressed="true" title="Sound on/off (M)" hidden>
+        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <path d="M4 9.5h3.6L12 5.5v13l-4.4-4H4z"/><path class="fs-snd-on" d="M15.2 9a4.2 4.2 0 0 1 0 6M17.8 6.6a7.6 7.6 0 0 1 0 10.8"/><path class="fs-snd-off" d="M15.5 9.5l5 5M20.5 9.5l-5 5"/>
+        </svg>
+        <span>Sound</span>
+      </button>
     </div>
     <div id="fs-touch" hidden>
       <div class="fs-dpad">
@@ -341,6 +348,11 @@
     update: () => {},
     engage: () => {},
     disengage: () => {},
+    // Read-only, refreshed every flying frame, for listeners such as the
+    // flight sound (scripts/flight-sound.js). Nothing here is read back.
+    telemetry: { speedMs: 0, altM: 0, vsMs: 0, throttle: 0, boosting: false, crashed: false,
+      craft: "aircraft", cam: "chase", pressurePa: 101325, t: 0 },
+    flash: () => {},
   };
   window.__flightSim = fs;
 
@@ -812,6 +824,7 @@
     hudMsg.style.opacity = "1";
     msgTimer = 1.6;
   }
+  fs.flash = flash;
 
   // ---- geometry helpers ----
   // The globe mesh is rotated by (π + spinDelta); label/tile groups counter-rotate
@@ -3663,6 +3676,7 @@
   function updateFlightAtmosphere(altAboveDatumM) {
     if (!hudTemp || !hudPress) return;
     const { tempC, pressurePa } = bodyProfile().atmosphere(altAboveDatumM);
+    fs.telemetry.pressurePa = pressurePa;
     const ramps = rampsForBody();
     hudTemp.textContent = `${tempC > 0 ? "+" : ""}${Math.round(tempC)} °C`;
     hudTemp.style.color = earthColours() ? scale(tempC, EARTH_COLOURS.temp) : rampFor(tempC, ramps.temp);
@@ -4294,6 +4308,11 @@
     }
     if (hudAlt) hudAlt.textContent = altM >= 10000 ? (altM / 1000).toFixed(1) + " km" : Math.round(altM) + " m";
     if (hudSpd) hudSpd.textContent = spdMs >= 1000 ? (spdMs / 1000).toFixed(2) + " km/s" : Math.round(spdMs) + " m/s";
+    const tele = fs.telemetry;
+    tele.speedMs = spdMs; tele.altM = altM; tele.throttle = s.throttle;
+    tele.vsMs = s.vel ? s.vel.dot(up) * METERS_PER_UNIT : 0;
+    tele.boosting = Boolean(s.boosting); tele.crashed = Boolean(s.crashed);
+    tele.craft = shipModelSelect?.value || "aircraft"; tele.cam = s.cam; tele.t = performance.now();
     if (earthColours()) {
       if (hudAlt) hudAlt.style.color = scale(altM, EARTH_COLOURS.alt);
       if (hudSpd) hudSpd.style.color = scale(spdMs, EARTH_COLOURS.spd);
