@@ -326,6 +326,7 @@ varying float vSlope;
 ${EDGE_PARS}
 ${veg ? "varying float vVegShade;" : ""}
 ${bump ? ROCK_FN + BUMP_PARS : ""}
+${bump ? "" : "uniform float uOwn;   // the joins' mip ramp reads it; BUMP_PARS declares it otherwise"}
 ${NIGHT_PARS}
 ${DRAPE_PARS}`)
       .replace("#include <map_fragment>", `${EDGE_MAP_FRAGMENT}
