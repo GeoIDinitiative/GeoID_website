@@ -1111,3 +1111,26 @@ Measured on the headless software renderer, warm: at hand-over the mosaic,
 plates, borders, rivers, all 2,903 place names and the live events are already
 on the globe; the holds settle at ~7 s (viewer boot is ~4.6 s of it there),
 where before the names alone landed at 10.6 s AFTER the screen had gone.
+
+## One GUI on macOS, Linux and Windows
+
+There is no size conversion to remove: the GUI is already in fixed pixels (panel
+384 px, root 16 px) and measures the same at 1440 and 1920. What differed:
+
+- **A width, not an OS.** The mode bar left the header below 1600, so every
+  MacBook (1440-1512 wide) and a 1920 laptop at 125% got another layout. Between
+  1360 and 1599 the links now give up the centre and follow the bar
+  (`site-nav.css`); only below 1360 does the bar go back to the panel. The width
+  lives in `site-nav.css` and in `index.html`'s `claimModeBar`: change both.
+- **Type.** `-webkit-font-smoothing`, `font-synthesis: none` and text-size-adjust
+  in `shared.css` and `viewer-skin.css`, because macOS thickens text by default.
+- **Scrollbars.** Overlay on macOS, so panels were 8-10 px wider there and text
+  wrapped differently. A drawn 10 px bar everywhere; Chrome ignores
+  `::-webkit-scrollbar` while `scrollbar-width` is set, hence the reset.
+- **Controls.** Checkboxes, sliders and dropdowns are drawn (`viewer-skin.css`).
+  A checkbox clips its overflow: toggles that hide the box by size would
+  otherwise leave the tick floating.
+
+Monospace readouts still use each OS's own face, and a screen's physical size
+still changes how much of the 384 px panel fits above the fold.
+
