@@ -2,7 +2,7 @@
  * #/conduct -- the code of conduct, with the response times moderators work
  * to (the same numbers as social-worker/trust.js RESPONSE_HOURS).
  */
-import { h, put, clear } from "../dom.js?v=20261031-747e383";
+import { h, put, clear } from "../dom.js?v=20261031-26e8b34";
 
 const TIMES = [["Harassment, threats, someone's private information, a sensitive location", "24 hours"],
   ["Spam, scams, fake job adverts", "48 hours"], ["Misleading claims, copyright, anything else", "72 hours"]];
