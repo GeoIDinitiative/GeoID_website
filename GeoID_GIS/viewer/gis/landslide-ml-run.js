@@ -12,12 +12,12 @@
  */
 
 import { TIERS, makeGrid, demOnGrid, latticeOnGrid, decodeForest, predictForest }
-  from "./flood-ml.js?v=20261031-8c5f8b2";
-import { buildLandslideStack, landslideRows, LS_FEATURES } from "./landslide-ml.js?v=20261031-8c5f8b2";
+  from "./flood-ml.js?v=20261031-207f55f";
+import { buildLandslideStack, landslideRows, LS_FEATURES } from "./landslide-ml.js?v=20261031-207f55f";
 import { json, loadNormal, demMosaic, landCoverClasses, soil, chooseBox, checkBox, layerNamed, replace, manager,
-  MAX_SPAN_DEG } from "./flood-ml-run.js?v=20261031-8c5f8b2";
-import { dataUrl } from "./data-base.js?v=20261031-8c5f8b2";
-import { may, refusal } from "./membership.js?v=20261031-8c5f8b2";
+  MAX_SPAN_DEG } from "./flood-ml-run.js?v=20261031-207f55f";
+import { dataUrl } from "./data-base.js?v=20261031-207f55f";
+import { may, refusal } from "./membership.js?v=20261031-207f55f";
 
 export const GLOBAL_NAME = "Landslide susceptibility — global (random forest).tif";
 export const AREA_NAME = "Landslide susceptibility — here (random forest, 250 m).tif";
@@ -60,7 +60,7 @@ export async function runArea(box, { onProgress = () => {} } = {}) {
   const p = predictForest(forest, rows, LS_FEATURES.length);
   const band = new Float32Array(grid.width * grid.height).fill(NaN);
   kept.forEach((i, k) => { band[i] = p[k]; });
-  const { writeGeoTiff } = await import("./geotiff-writer.js?v=20261031-8c5f8b2");
+  const { writeGeoTiff } = await import("./geotiff-writer.js?v=20261031-207f55f");
   const bytes = writeGeoTiff({ band, width: grid.width, height: grid.height, noData: NaN,
     bounds: { minX: grid.west, maxX: grid.east, minY: grid.south, maxY: grid.north } });
   let over = 0;
@@ -89,13 +89,13 @@ export async function showGlobal({ onProgress = () => {} } = {}) {
   onProgress("Fetching the global landslide susceptibility map…");
   const response = await fetch(await dataUrl(`${ASSETS}landslide-susceptibility-0p1.hotlink-ok.tif`));
   if (!response.ok) throw new Error(`global map: HTTP ${response.status}`);
-  const { loadGeoTiffLibrary } = await import("./geotiff-adapter.js?v=20261031-8c5f8b2");
+  const { loadGeoTiffLibrary } = await import("./geotiff-adapter.js?v=20261031-207f55f");
   const GeoTIFF = await loadGeoTiffLibrary();
   const image = await (await GeoTIFF.fromArrayBuffer(await response.arrayBuffer())).getImage();
   const [raw] = await image.readRasters();
   const [west, south, east, north] = image.getBoundingBox();
   const band = Float32Array.from(raw, (v) => (v === 255 ? NaN : v / 250));
-  const { writeGeoTiff } = await import("./geotiff-writer.js?v=20261031-8c5f8b2");
+  const { writeGeoTiff } = await import("./geotiff-writer.js?v=20261031-207f55f");
   const bytes = writeGeoTiff({ band, width: image.getWidth(), height: image.getHeight(), noData: NaN,
     bounds: { minX: west, maxX: east, minY: south, maxY: north } });
   replace(GLOBAL_NAME);

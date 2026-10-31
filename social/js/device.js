@@ -11,7 +11,7 @@
  *   translate     a post into the reader's language ON THE DEVICE, with the
  *                 browser's built-in translator where there is one
  */
-import * as api from "./api.js?v=20261031-8c5f8b2";
+import * as api from "./api.js?v=20261031-207f55f";
 
 const LITE_KEY = "geoid:social-lite";
 const ls = (k) => { try { return localStorage.getItem(k); } catch (error) { return null; } };
