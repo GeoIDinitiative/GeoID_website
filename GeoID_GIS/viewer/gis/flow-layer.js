@@ -19,8 +19,9 @@
  * on this globe does (`followRelief`), sit a constant 30 m clear of the ground
  * the way the event markers do, and cull the far hemisphere by facing.
  *
- * THE FIELD is fetched twice: a coarse lattice over the whole world when the
- * layer is ticked, and a finer one over the view whenever it settles on less
+ * THE FIELD is fetched twice: the whole world when the layer is ticked (the
+ * wind from NOAA's own 1° GFS grid, gfs-grid.js; the currents as a coarse
+ * lattice), and a finer one over the view whenever it settles on less
  * than about a hemisphere. Inside the view's box the fine field answers —
  * including where it says "coast", so a particle cannot be blended onto land
  * by the coarse field behind it. Both are cached for the hour, so panning back
@@ -40,6 +41,7 @@ import {
   rampAt, rampPalette, headingOf, compassPoint, beaufort, wrapLon, RAD,
   aggregateHourly, countFinite, createCallBudget,
 } from "./flow-field.js?v=20261031-1e4de64";
+import { runsFor, idxRange, decodeGrib2, windField, GFS_LEVELS, GFS_CREDIT } from "./gfs-grid.js?v=20261031-1e4de64";
 
 /* ── the two sources ───────────────────────────────────────────────────── */
 
@@ -68,7 +70,7 @@ const SOURCES = {
     worldBudget: 450,
     viewBudget: 400,
     unit: "m/s",
-    credit: "NOAA GFS via Open-Meteo (open-meteo.com), CC BY 4.0",
+    credit: `${GFS_CREDIT}; finer views via Open-Meteo (open-meteo.com), CC BY 4.0`,
     statusId: "wind-flow-status",
   },
   hazards: {
@@ -169,11 +171,11 @@ export const HAZARD_VARS = {
 /** What each layer is set to; changed from the drawer under its row. */
 const settings = {
   hazards: { variable: "precip", windowHours: 24, shading: "value" },
-  wind: { level: "10m", hoursAhead: 0, shading: true, particles: 4000, speed: 1 },
+  wind: { level: "10m", hoursAhead: 0, shading: true, particles: 5000, speed: 1 },
   currents: { level: "surface", hoursAhead: 0, shading: "speed", colourBy: "speed", particles: 4500, speed: 1 },
 };
 
-const TRAIL = 10;
+const TRAIL = 16;
 const WHITE = [1, 1, 1];          // history points a particle draws
 const VIEW_REFINE_MAX = 110; // a view wider than this (degrees of latitude) is the world
 const CONCURRENCY = 4;
@@ -303,7 +305,44 @@ function storePut(key, { speed, dir, scalars, time }) {
  * The field over a box, fetched point lattice by point lattice and cached for
  * the hour. Answers a field, or throws with the service's own reason.
  */
+/**
+ * The wind over the world from NOAA's own files: the newest run that has
+ * reached the bucket, two range reads, about 160 KB. Null if none answers, and
+ * Open-Meteo's lattice stands in.
+ */
+async function fetchGfsWorld(signal) {
+  const s = settings.wind;
+  const key = `gfs|${s.level}|${s.hoursAhead}|${hourKey()}`;
+  if (cache.has(key)) return cache.get(key);
+  const level = GFS_LEVELS[s.level];
+  for (const run of runsFor(Date.now(), s.hoursAhead)) {
+    const idx = await fetch(`${run.url}.idx`, { signal });
+    if (!idx.ok) continue;
+    const text = await idx.text();
+    const read = async (variable) => {
+      const r = idxRange(text, variable, level);
+      if (!r) throw new Error(`no ${variable} at ${level}`);
+      const res = await fetch(run.url, { signal, headers: { Range: `bytes=${r.start}-${r.end - 1}` } });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return decodeGrib2(await res.arrayBuffer());
+    };
+    const [u, v] = await Promise.all([read("UGRD"), read("VGRD")]);
+    const field = windField(u, v, run.time);
+    cache.set(key, field);
+    return field;
+  }
+  return null;
+}
+
 async function fetchField(source, box, budget, signal) {
+  if (source === "wind" && box === WORLD) {
+    try {
+      const field = await fetchGfsWorld(signal);
+      if (field) return field;
+    } catch (error) {
+      if (error?.name === "AbortError") throw error;
+    }
+  }
   const def = SOURCES[source];
   const s = settings[source];
   const level = def.levels[s.level] || Object.values(def.levels)[0];
@@ -543,7 +582,7 @@ class Particles {
    * one thing nobody can see (measured: the first cut read as a faint hatch).
    * With the shading off they carry the ramp themselves.
    */
-  write(ramp, { white = false } = {}) {
+  write(ramp, { white = false, fullAt = 0 } = {}) {
     const dir = this.geometry.attributes.aDir.array;
     const disp = this.geometry.attributes.aDisp.array;
     const col = this.geometry.attributes.color.array;
@@ -568,8 +607,11 @@ class Particles {
           disp[vtx] = this.hDisp[src];
           const [r, g, b] = white ? WHITE : rampAt(ramp, this.hVal[src]);
           const along = (s + e) / (TRAIL - 1);
+          // Calm air fades back and a jet stands out: `fullAt` is the value at
+          // full strength, 0 for a line whose value is not a speed.
+          const strength = fullAt ? 0.28 + 0.72 * Math.min(1, Math.max(0, this.hVal[src]) / fullAt) : 1;
           col[vtx * 4] = r; col[vtx * 4 + 1] = g; col[vtx * 4 + 2] = b;
-          col[vtx * 4 + 3] = visible ? Math.pow(along, 1.3) * life * 0.95 : 0;
+          col[vtx * 4 + 3] = visible ? Math.pow(along, 1.3) * life * 0.95 * strength : 0;
           vtx += 1;
         }
       }
@@ -783,7 +825,10 @@ function startLoop(source) {
     // coloured by something the sheet is not showing keep their colour.
     const sheet = shadingChoice(source);
     const lineQuantity = source === "currents" ? settings.currents.colourBy : "speed";
-    state.particles.write(c.ramp, { white: sheet !== "off" && sheet === lineQuantity });
+    state.particles.write(c.ramp, {
+      white: sheet !== "off" && sheet === lineQuantity,
+      fullAt: source === "wind" ? 18 : 0,
+    });
   };
   state.raf = requestAnimationFrame(frame);
 }
@@ -865,6 +910,12 @@ function boxesClose(a, b) {
 async function refineView(source, box = currentViewBox()) {
   const state = live[source];
   if (!state) return;
+  // A view lattice no finer than the world's own grid is the same picture at a
+  // cost: over a continent 400 points is about 2°, against GFS's 1°.
+  if (box && state.world?.gridDeg) {
+    const area = (box.east - box.west) * (box.north - box.south);
+    if (Math.sqrt(area / SOURCES[source].viewBudget) >= state.world.gridDeg) box = null;
+  }
   if (!box) {
     if (state.view) {
       state.view = null;
@@ -967,8 +1018,8 @@ export async function addSource(source) {
           + "the rain total, the strongest gust, the peak instability, the hottest and coldest it "
           + "will feel, the snow. A model's forecast on its own grid, read through Open-Meteo."
         : source === "wind"
-        ? "Wind from NOAA's GFS model, read through Open-Meteo on a lattice over the world and "
-          + "refined over the view. The moving lines are particles carried by the wind; the "
+        ? "Wind from NOAA's GFS model: its own 1° grid over the world, refined over the view "
+          + "through Open-Meteo. The moving lines are particles carried by the wind; the "
           + "shading is the speed. A model's forecast, not an observation."
         : "Surface currents from Météo-France's SMOC ocean model, read through Open-Meteo. The "
           + "moving lines are particles carried by the current; the shading is the speed or the "
