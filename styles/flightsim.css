@@ -690,7 +690,7 @@ body.fs-open-chrome.fs-flying #cursor-readout { display: none !important; }
 #fs-sound-toggle.is-muted .fs-snd-off { display: inline; }
 #fs-sound-toggle[hidden], #fs-walk-toggle[hidden] { display: none; }
 /* On foot (gis/flight-walk.js): the field readout replaces the throttle. */
-body.fs-walking #fs-meters, body.fs-walking #fs-domain { display: none !important; }
+body.fs-walking #fs-meters, body.fs-walking #fs-domain, body.fs-walking #fs-hud-bar { display: none !important; }
 #fs-walk-panel {
   position: absolute; left: 1.1rem; bottom: 7rem; z-index: 3;
   min-width: 15rem; padding: 0.7rem 0.85rem;
