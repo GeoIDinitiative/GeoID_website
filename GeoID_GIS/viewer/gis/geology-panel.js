@@ -668,6 +668,10 @@ async function loadTiled(entry, { toView = false, quiet = false } = {}) {
     // Never coarser than the backdrop: below it there is nothing to gain, and
     // the world underneath is already at that level.
     minZoom: macro.WORLD_ZOOM,
+    // In flight the box is small and the tile cap bounds the work; the
+    // estimate, ruled for wide views, held it at zoom 8 where the contacts
+    // open (a zoom 10 tile here is ~25 features, a zoom 8 one ~400).
+    ...(toView && window.__flightSim?.active ? { featureBudget: Infinity } : {}),
     onProgress: (done, total) => {
       if (!quiet && done < total) say(`${entry.label}: tile ${done} of ${total}…`);
     },

@@ -87,12 +87,15 @@ export function zoomForBounds(bounds, {
  * The camera's extent is the wrong question in flight: the view runs to the
  * horizon, so sixteen tiles buy zoom 7 at best, polygons of kilometre-long
  * straight edges laid over hills ("geology mapping in the flight sim is a
- * mess"). This box follows the aircraft instead: 30 km each way low down,
- * which the budget covers at zoom 10, widening with height to 250 km.
+ * mess"). This box follows the aircraft instead: 24 km each way low down,
+ * small enough for zoom 10 within the tile cap as far north as Iceland,
+ * widening with height to 250 km. Zoom 10 is what cleans the contacts:
+ * measured over the Cairngorms, overlaps and sliver gaps are 0.2 % each at
+ * zoom 8, where each unit is simplified on its own, and 0.01 % at zoom 10.
  * Clamped, not wrapped, at the antimeridian.
  */
 export function flightBounds(ship, altM = 0) {
-  const halfKm = Math.max(30, Math.min(250, (Math.max(0, altM) / 1000) * 12));
+  const halfKm = Math.max(24, Math.min(250, (Math.max(0, altM) / 1000) * 12));
   const dLat = halfKm / 111.32;
   const dLon = halfKm / (111.32 * Math.max(0.05, Math.cos((ship.lat * Math.PI) / 180)));
   return {

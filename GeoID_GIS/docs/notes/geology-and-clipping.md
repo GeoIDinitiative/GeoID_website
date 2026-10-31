@@ -2407,3 +2407,18 @@ Verified after, with the pyramid still absent: tick returns to off, the message
 lands beside the row, nothing registers. **`layerOf()` is the truth about
 whether anything reached the globe — a control's state has to be read back from
 it, never from the press that was made.**
+
+## In Earth Flight, tiled layers follow the aircraft at zoom 10
+
+Tiled layers refine "on rest", and a flying camera never rests; and the view's
+extent runs to the horizon, so the tile budget bought zoom 7 at best. Both are
+answered in `macrostrat.viewBounds()` (`flightBounds`: 24 km each way, widening
+with height) and a 2 s check in `geology-panel.js` `watchView`.
+
+**Zoom is what closes the contacts**, not drawing. Rasterising every polygon of
+the live tiles over the Cairngorms: at zoom 8 overlaps and sliver gaps are about
+0.2 % of the ground each (bright bands and bare strips at flight scale); at zoom
+10 about 0.01 %, because at native scale the units share their boundaries. The
+feature estimate refused zoom 10 (its growth is ruled from world totals), so
+flight passes `featureBudget: Infinity` and relies on the 16-tile cap.
+
