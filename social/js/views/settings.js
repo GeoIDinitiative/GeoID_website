@@ -1,12 +1,12 @@
 /** #/settings — privacy, contact, matcher, notifications, follows, blocks, and your data. */
-import * as api from "../api.js?v=20261031-207f55f";
-import { store, refreshMe, myHandle } from "../store.js?v=20261031-207f55f";
-import { h, clear, field, input, select, checkbox, toast, busy, errorBox, loading, empty, modal, put, confirmDialog, copyText } from "../dom.js?v=20261031-207f55f";
-import { act, userChip, requireSignIn, sharePageUrl } from "../components.js?v=20261031-207f55f";
-import { sizeText } from "../files.js?v=20261031-207f55f";
-import { myAffiliations } from "./orgs.js?v=20261031-207f55f";
-import { myOfficeHours } from "./officehours.js?v=20261031-207f55f";
-import * as device from "../device.js?v=20261031-207f55f";
+import * as api from "../api.js?v=20261031-5c9d7e7";
+import { store, refreshMe, myHandle } from "../store.js?v=20261031-5c9d7e7";
+import { h, clear, field, input, select, checkbox, toast, busy, errorBox, loading, empty, modal, put, confirmDialog, copyText } from "../dom.js?v=20261031-5c9d7e7";
+import { act, userChip, requireSignIn, sharePageUrl } from "../components.js?v=20261031-5c9d7e7";
+import { sizeText } from "../files.js?v=20261031-5c9d7e7";
+import { myAffiliations } from "./orgs.js?v=20261031-5c9d7e7";
+import { myOfficeHours } from "./officehours.js?v=20261031-5c9d7e7";
+import * as device from "../device.js?v=20261031-5c9d7e7";
 
 // The kinds the API knows (NOTIFY_KINDS in social-worker/profiles.js); a
 // toggle for any other name would be silently ignored by the server.
