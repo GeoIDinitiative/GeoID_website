@@ -8,7 +8,7 @@
  * Row: [IATA, ICAO, name, city, country, lat, lon]
  */
 
-import { editDistance } from "./atlas-intent.js?v=20261031-ae330eb";
+import { editDistance } from "./atlas-intent.js?v=20261031-747e383";
 
 const ROWS = [
   // Europe

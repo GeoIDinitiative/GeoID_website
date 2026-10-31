@@ -1,9 +1,9 @@
 /** #/people — find people, and the collaboration matcher. */
-import * as api from "../api.js?v=20261031-ae330eb";
-import { store } from "../store.js?v=20261031-ae330eb";
-import { h, clear, field, input, checkbox, splitList, busy, errorBox, loading, empty, put } from "../dom.js?v=20261031-ae330eb";
-import { userChip, userRow, pagedList, requireSignIn, affiliationBadge, mentoringBadge } from "../components.js?v=20261031-ae330eb";
-import { mentoringRequestDialog } from "./settings.js?v=20261031-ae330eb";
+import * as api from "../api.js?v=20261031-747e383";
+import { store } from "../store.js?v=20261031-747e383";
+import { h, clear, field, input, checkbox, splitList, busy, errorBox, loading, empty, put } from "../dom.js?v=20261031-747e383";
+import { userChip, userRow, pagedList, requireSignIn, affiliationBadge, mentoringBadge } from "../components.js?v=20261031-747e383";
+import { mentoringRequestDialog } from "./settings.js?v=20261031-747e383";
 
 export function render(root, { query }) {
   if (query.directory !== undefined) return renderDirectory(root, query.directory);

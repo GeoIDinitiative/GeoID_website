@@ -1,9 +1,9 @@
 /** #/ — the feed, with tabs and filter chips; #/search — search results. */
-import * as api from "../api.js?v=20261031-ae330eb";
-import { store } from "../store.js?v=20261031-ae330eb";
-import { h, clear, field, input, select, put } from "../dom.js?v=20261031-ae330eb";
-import { KINDS, postCard, pagedList, userRow, kindLabel, followButton } from "../components.js?v=20261031-ae330eb";
-import { happeningNow } from "./rooms.js?v=20261031-ae330eb";
+import * as api from "../api.js?v=20261031-747e383";
+import { store } from "../store.js?v=20261031-747e383";
+import { h, clear, field, input, select, put } from "../dom.js?v=20261031-747e383";
+import { KINDS, postCard, pagedList, userRow, kindLabel, followButton } from "../components.js?v=20261031-747e383";
+import { happeningNow } from "./rooms.js?v=20261031-747e383";
 
 const TABS = [
   ["following", "Following", "Posts from people, projects, tags, places and communities you follow."],
