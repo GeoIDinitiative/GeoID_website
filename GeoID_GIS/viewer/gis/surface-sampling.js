@@ -17,8 +17,8 @@
  * checked in Node against a plane (which a TIN must reproduce exactly) and
  * against the closed-surface invariant (no open edges).
  */
-import { delaunay } from "./interpolation.js?v=20261026-ef953d6";
-import { makeLocalFrame, triangleWriter, sizeField } from "./model-build.js?v=20261026-ef953d6";
+import { delaunay } from "./interpolation.js?v=20261031-ae330eb";
+import { makeLocalFrame, triangleWriter, sizeField } from "./model-build.js?v=20261031-ae330eb";
 
 /* ── The spacing function ────────────────────────────────────────────────── */
 
