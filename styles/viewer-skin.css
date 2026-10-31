@@ -336,6 +336,7 @@ input[type="checkbox"], input[type="radio"] {
   box-sizing: border-box;
   flex: 0 0 auto;
   width: 14px; height: 14px; margin: 0;
+  overflow: hidden;   /* a toggle that hides its box by size hides the tick too */
   display: inline-grid; place-content: center;
   vertical-align: middle;
   border: 1px solid rgba(255, 255, 255, 0.55);
