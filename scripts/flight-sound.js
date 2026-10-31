@@ -162,14 +162,16 @@
     const crashed = Boolean(t.crashed);
     if (crashed && !lastCrashed) thump();
     lastCrashed = crashed;
-    const craft = crashed ? "none" : t.craft === "helicopter" ? "heli" : t.craft === "aircraft" ? "prop" : "thrust";
+    // On foot (gis/flight-walk.js) the engine is off and the air is a breeze.
+    const onFoot = Boolean(fs().walkCamera);
+    const craft = crashed || onFoot ? "none" : t.craft === "helicopter" ? "heli" : t.craft === "aircraft" ? "prop" : "thrust";
     const inside = t.cam === "cockpit" ? 0.55 : 1;
 
     // Wind and its gusts.
     const now = ctx.currentTime;
     if (now > gustAt) gustAt = now + 1.5 + Math.random() * 3;
     const gust = 0.8 + 0.4 * Math.random();
-    const v = Math.min(1, spd / 90);
+    const v = onFoot ? 0.16 : Math.min(1, spd / 90);
     set(g.wind.gain, density * inside * 0.32 * Math.pow(v, 1.4) * gust, 0.6);
     set(g.windRumble.gain, density * inside * 0.5 * Math.pow(v, 1.2), 0.5);
     set(g.windBand.frequency, 350 + 1300 * v);

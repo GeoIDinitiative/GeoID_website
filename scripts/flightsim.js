@@ -202,6 +202,13 @@
         </svg>
         <span>Controls</span>
       </button>
+      <!-- Step out and walk, Earth only (gis/flight-walk.js drives it; G as well). -->
+      <button type="button" id="fs-walk-toggle" aria-pressed="false" title="Walk the ground (G)" hidden>
+        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <circle cx="13" cy="4.6" r="2"/><path d="M13 7.5l-1 6 3.5 3 1.2 5M11.5 10L8 12.5v3.5M12 14l-2.2 3.2L7 21.5M13 9l3 2.4 3 .6"/>
+        </svg>
+        <span>Walk</span>
+      </button>
       <!-- Sound on/off (scripts/flight-sound.js drives it; M as well). -->
       <button type="button" id="fs-sound-toggle" aria-pressed="true" title="Sound on/off (M)" hidden>
         <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
@@ -264,6 +271,8 @@
       <dt class="fs-pad-row"><kbd>&#9651;</kbd></dt><dd class="fs-pad-row">Controller map</dd>
     </dl>
   </div>
+  <!-- Field readout on foot (gis/flight-walk.js). -->
+  <div id="fs-walk-panel" hidden></div>
   <div id="fs-hud-dock">
     <div id="fs-domain">Mars atmosphere</div>
     <div id="fs-hud-bar">
@@ -830,6 +839,7 @@
     msgTimer = 1.6;
   }
   fs.flash = flash;
+  fs.setShipVisible = (on) => { if (ship) ship.visible = Boolean(on); };
 
   // ---- geometry helpers ----
   // The globe mesh is rotated by (π + spinDelta); label/tile groups counter-rotate
@@ -3777,6 +3787,9 @@
       }
       state.spinRef = spinNow;
     }
+    // ON FOOT (gis/flight-walk.js): the walker drives the camera and the craft
+    // waits where it is, carried round with the planet above.
+    if (fs.walkCamera) { state.lastT = 0; fs.walkCamera(camera); return; }
     // PAUSED: hold everything where it is. Zeroing lastT makes the first frame
     // after resuming a zero-length step instead of one long catch-up.
     // The CAMERA is held too, in the ship's own frame (which the co-rotation

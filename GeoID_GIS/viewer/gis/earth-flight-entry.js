@@ -31,6 +31,7 @@ import { startFlightTiles, stopFlightTiles } from "./flight-tiles.js?v=20261031-
 import { startFlightClouds, stopFlightClouds } from "./flight-clouds.js?v=20261031-98fbe80";
 import { startFlightLights, stopFlightLights } from "./flight-lights.js?v=20261031-98fbe80";
 import "./flight-place.js?v=20261031-98fbe80";
+import "./flight-walk.js?v=20261031-98fbe80";
 import { isEarth } from "./bodies.js?v=20261031-98fbe80";
 
 /** `?flight=earth&lat=..&lon=..` -> { lat, lon } or { lat: null } or null. */

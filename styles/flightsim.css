@@ -664,7 +664,7 @@ body.fs-open-chrome.fs-flying #cursor-readout { display: none !important; }
   .fs-dpad { grid-template-columns: repeat(3, 3.1rem); grid-template-rows: repeat(3, 3.1rem); }
   .fs-tbtn.fs-t-wide { width: 4.7rem; height: 2.4rem; }
 }
-#fs-touch-toggle, #fs-sound-toggle {
+#fs-touch-toggle, #fs-sound-toggle, #fs-walk-toggle {
   pointer-events: auto;
   display: inline-flex; align-items: center; gap: 0.32rem;
   padding: 0.22rem 0.5rem;
@@ -678,17 +678,38 @@ body.fs-open-chrome.fs-flying #cursor-readout { display: none !important; }
   cursor: pointer;
   backdrop-filter: blur(3px);
 }
-#fs-touch-toggle:hover, #fs-sound-toggle:hover { background: rgba(var(--nav-accent-rgb), 0.24); }
-#fs-touch-toggle[aria-pressed="true"], #fs-sound-toggle[aria-pressed="true"] {
+#fs-touch-toggle:hover, #fs-sound-toggle:hover, #fs-walk-toggle:hover { background: rgba(var(--nav-accent-rgb), 0.24); }
+#fs-touch-toggle[aria-pressed="true"], #fs-sound-toggle[aria-pressed="true"], #fs-walk-toggle[aria-pressed="true"] {
   background: rgba(var(--nav-accent-rgb), 0.34);
   border-color: var(--nav-accent);
 }
-#fs-touch-toggle svg, #fs-sound-toggle svg { width: 12px; height: 12px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; }
+#fs-touch-toggle svg, #fs-sound-toggle svg, #fs-walk-toggle svg { width: 12px; height: 12px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; }
 /* Sound: waves while on, a cross while muted (scripts/flight-sound.js). */
 #fs-sound-toggle .fs-snd-off { display: none; }
 #fs-sound-toggle.is-muted .fs-snd-on { display: none; }
 #fs-sound-toggle.is-muted .fs-snd-off { display: inline; }
-#fs-sound-toggle[hidden] { display: none; }
+#fs-sound-toggle[hidden], #fs-walk-toggle[hidden] { display: none; }
+/* On foot (gis/flight-walk.js): the field readout replaces the throttle. */
+body.fs-walking #fs-meters, body.fs-walking #fs-domain { display: none !important; }
+#fs-walk-panel {
+  position: absolute; left: 1.1rem; bottom: 7rem; z-index: 3;
+  min-width: 15rem; padding: 0.7rem 0.85rem;
+  font-family: "Exo 2", "Segoe UI", sans-serif; font-size: 0.72rem; line-height: 1.5;
+  color: #e9e6f2;
+  background: rgba(10, 14, 22, 0.72);
+  border: 1px solid rgba(var(--nav-accent-rgb), 0.45);
+  border-radius: 0.4rem;
+  backdrop-filter: blur(3px);
+}
+#fs-walk-panel[hidden] { display: none; }
+#fs-walk-panel h4 {
+  margin: 0 0 0.35rem; font-size: 0.56rem; font-weight: 600;
+  letter-spacing: 0.16em; text-transform: uppercase; color: var(--nav-accent);
+}
+#fs-walk-panel dl { display: grid; grid-template-columns: auto 1fr; gap: 0.1rem 0.8rem; margin: 0; }
+#fs-walk-panel dt { opacity: 0.68; }
+#fs-walk-panel dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; }
+#fs-walk-panel p { margin: 0.4rem 0 0; font-size: 0.6rem; opacity: 0.62; }
 
 #fs-controls-panel {
   pointer-events: auto;
