@@ -81,8 +81,30 @@ export function zoomForBounds(bounds, {
   return best;
 }
 
-/** The current camera's extent, in the box shape this module speaks. */
+/**
+ * The ground round the aircraft, in the same box shape (Earth Flight).
+ *
+ * The camera's extent is the wrong question in flight: the view runs to the
+ * horizon, so sixteen tiles buy zoom 7 at best, polygons of kilometre-long
+ * straight edges laid over hills ("geology mapping in the flight sim is a
+ * mess"). This box follows the aircraft instead: 30 km each way low down,
+ * which the budget covers at zoom 10, widening with height to 250 km.
+ * Clamped, not wrapped, at the antimeridian.
+ */
+export function flightBounds(ship, altM = 0) {
+  const halfKm = Math.max(30, Math.min(250, (Math.max(0, altM) / 1000) * 12));
+  const dLat = halfKm / 111.32;
+  const dLon = halfKm / (111.32 * Math.max(0.05, Math.cos((ship.lat * Math.PI) / 180)));
+  return {
+    west: Math.max(-180, ship.lon - dLon), east: Math.min(180, ship.lon + dLon),
+    south: Math.max(-85, ship.lat - dLat), north: Math.min(85, ship.lat + dLat),
+  };
+}
+
+/** The ground a tiled layer should hold now: the camera's extent, or the aircraft's. */
 export function viewBounds() {
+  const flight = window.__flightSim;
+  if (flight?.active && flight.shipLatLon) return flightBounds(flight.shipLatLon, flight.telemetry?.altM);
   const b = visibleBounds(window.GeoIDViewer, THREE);
   if (!b) return null;
   return { west: b.minLon, east: b.maxLon, south: b.minLat, north: b.maxLat };

@@ -1061,6 +1061,7 @@ async function refreshDynamic({ quiet = false } = {}) {
       // in the scene. Only the tiles in view change.
       if (entry) await loadTiled(entry, { toView: true, quiet });
     }
+    window.GeoIDFlightTerrainGpu?.markDrapesDirty?.();
   } finally {
     refreshing = false;
   }
@@ -1092,7 +1093,7 @@ function watchView() {
     import(`./view-extent.js${new URL(import.meta.url).search}`),
     import(`./macrostrat.js${new URL(import.meta.url).search}`),
   ]).then(([view, macro]) => {
-    watchStop = view.onViewSettled(window.GeoIDViewer, () => {
+    const stopSettled = view.onViewSettled(window.GeoIDViewer, () => {
       const live = loadedLayers().filter((l) => l.dynamicGeology);
       if (!live.length) {
         stopWatchingView();
@@ -1116,6 +1117,31 @@ function watchView() {
       // rather than thousands on the way, short enough that letting go and
       // looking does not feel like waiting for permission.
     }, { settleMs: 400 });
+    /**
+     * IN FLIGHT THE VIEW NEVER RESTS, so nothing above ever fired and the
+     * aircraft flew off its detail onto the world tiles. A slow check instead:
+     * the aircraft has gone a quarter of the box (macrostrat.flightBounds), or
+     * its height asks for another zoom. Against the zoom last ASKED for, not
+     * `dynamicZoom`: a layer whose own pyramid stops short never reaches what
+     * was asked, and would rebuild on every tick.
+     */
+    let flightBox = null;
+    let flightZoom = null;
+    const flying = setInterval(() => {
+      const flight = window.__flightSim;
+      if (!flight?.active || flight.paused || refreshing) return;
+      const box = macro.viewBounds();
+      if (!box) return;
+      const asBounds = {
+        minLon: box.west, maxLon: box.east, minLat: box.south, maxLat: box.north,
+      };
+      const wanted = macro.zoomForBounds(box);
+      if (wanted === flightZoom && !view.viewChangedEnough(flightBox, asBounds, { moveFraction: 0.25 })) return;
+      flightBox = asBounds;
+      flightZoom = wanted;
+      void refreshDynamic({ quiet: true });
+    }, 2000);
+    watchStop = () => { stopSettled(); clearInterval(flying); };
   });
 }
 
