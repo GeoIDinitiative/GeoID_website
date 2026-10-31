@@ -6,10 +6,10 @@
  * #/u/:handle/record -- a member's reviewer record, printable, so reviewing
  * is something they can show.
  */
-import * as api from "../api.js?v=20261031-5c9d7e7";
-import { store } from "../store.js?v=20261031-5c9d7e7";
-import { h, put, clear, loading, errorBox, empty, field, input, select, textarea, toast, modal, dateText, dateToEpoch, extLink } from "../dom.js?v=20261031-5c9d7e7";
-import { act, userChip, requireSignIn } from "../components.js?v=20261031-5c9d7e7";
+import * as api from "../api.js?v=20261031-e3cf14f";
+import { store } from "../store.js?v=20261031-e3cf14f";
+import { h, put, clear, loading, errorBox, empty, field, input, select, textarea, toast, modal, dateText, dateToEpoch, extLink } from "../dom.js?v=20261031-e3cf14f";
+import { act, userChip, requireSignIn } from "../components.js?v=20261031-e3cf14f";
 
 const KINDS = [["abstract", "Abstract review"], ["cv", "CV review"], ["cover_letter", "Cover-letter review"], ["mock_interview", "Mock interviews"]];
 
