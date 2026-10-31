@@ -297,3 +297,97 @@ body::after {
     linear-gradient(180deg, rgba(0,0,0,0.13) 0 33.34%, transparent 33.34%) 0 0 / 100% var(--crt-scan, 3px),
     radial-gradient(125% 125% at 50% 50%, transparent 55%, rgba(var(--skin-vignette), 0.48) 100%);
 }
+
+/* THE SAME TYPE ON EVERY OS (asked for 2026-10-31). macOS thickens text unless
+   told not to, a browser may scale it on its own and fake a bold a font lacks,
+   and form controls take the system's typeface, not the page's. Shared by the
+   site (shared.css) and the viewers (viewer-skin.css). */
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-synthesis: none;
+}
+button, input, select, textarea, optgroup { font-family: inherit; }
+
+/* ONE SCROLLBAR. macOS floats its scrollbars over the content and the others
+   give them width, so a panel was wider on a Mac and its text wrapped
+   differently. A drawn bar takes the same 10 px everywhere. Chrome ignores
+   ::-webkit-scrollbar while scrollbar-width is set, hence the reset; Firefox
+   has no such selector and keeps the thin bars styles.css gives it. */
+@supports selector(::-webkit-scrollbar) {
+  * { scrollbar-width: auto !important; scrollbar-color: auto !important; }
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-track, ::-webkit-scrollbar-corner { background: transparent; }
+  ::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.22);
+    background-clip: padding-box;
+    border: 2px solid transparent;
+    border-radius: 5px;
+  }
+  ::-webkit-scrollbar-thumb:hover { background-color: rgba(255, 255, 255, 0.36); }
+}
+
+/* ONE SET OF CONTROLS. Checkboxes, sliders and dropdowns were each OS's own:
+   only their tint was set, so shape and size came from the system. */
+input[type="checkbox"], input[type="radio"] {
+  -webkit-appearance: none; appearance: none;
+  box-sizing: border-box;
+  flex: 0 0 auto;
+  width: 14px; height: 14px; margin: 0;
+  display: inline-grid; place-content: center;
+  vertical-align: middle;
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.9);
+  cursor: pointer;
+}
+input[type="radio"] { border-radius: 50%; }
+input[type="checkbox"]:checked, input[type="radio"]:checked {
+  background: var(--skin-chrome, var(--nav-accent));
+  border-color: var(--skin-chrome, var(--nav-accent));
+}
+input[type="checkbox"]:checked::before {
+  content: ""; width: 8px; height: 4px; margin-top: -2px;
+  border: solid #fff; border-width: 0 0 2px 2px;
+  transform: rotate(-45deg);
+}
+input[type="radio"]:checked::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: #fff; }
+input[type="checkbox"]:disabled, input[type="radio"]:disabled { opacity: 0.45; cursor: default; }
+
+input[type="range"] {
+  -webkit-appearance: none; appearance: none;
+  height: 14px; margin: 0;
+  background: transparent;
+  cursor: pointer;
+}
+input[type="range"]::-webkit-slider-runnable-track {
+  height: 4px; border-radius: 2px;
+  background: rgba(var(--skin-chrome-rgb, 255, 43, 214), 0.45);
+}
+input[type="range"]::-moz-range-track {
+  height: 4px; border-radius: 2px;
+  background: rgba(var(--skin-chrome-rgb, 255, 43, 214), 0.45);
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none;
+  width: 12px; height: 12px; margin-top: -4px;
+  border: 0; border-radius: 50%;
+  background: var(--skin-chrome, var(--nav-accent));
+}
+input[type="range"]::-moz-range-thumb {
+  width: 12px; height: 12px;
+  border: 0; border-radius: 50%;
+  background: var(--skin-chrome, var(--nav-accent));
+}
+
+select {
+  -webkit-appearance: none; appearance: none;
+  padding-right: 1.5rem !important;
+  background-image: linear-gradient(45deg, transparent 50%, currentColor 50%),
+    linear-gradient(135deg, currentColor 50%, transparent 50%) !important;
+  background-position: right 0.75rem center, right 0.5rem center !important;
+  background-size: 0.25rem 0.25rem !important;
+  background-repeat: no-repeat !important;
+}

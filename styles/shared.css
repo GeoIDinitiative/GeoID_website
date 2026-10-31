@@ -1586,3 +1586,16 @@ img { max-width: 100%; height: auto; }
   padding-left: 1rem;
   margin: 0.9rem 0 1.2rem;
 }
+
+/* THE SAME TYPE ON EVERY OS (asked for 2026-10-31). macOS thickens text unless
+   told not to, a browser may scale it on its own and fake a bold a font lacks,
+   and form controls take the system's typeface, not the page's. Shared by the
+   site (shared.css) and the viewers (viewer-skin.css). */
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-synthesis: none;
+}
+button, input, select, textarea, optgroup { font-family: inherit; }

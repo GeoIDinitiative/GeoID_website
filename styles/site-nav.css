@@ -383,17 +383,25 @@
   }
 }
 
-/* BELOW 1600px THE TWO CANNOT BOTH BE HAD, and that is arithmetic rather than
- * taste: the logo and the bar together reach 484px, and a centred 574px link
- * block starts at half the width less 287 -- so with a 16px gap they meet at
- * about 1574. A 1920 laptop at Windows' default 125% scaling is 1536 wide,
- * which is where they were drawn through each other while 1920 at 100% was
- * fine. Under
- * it the header hands the bar back to the page, which is where it lived
- * before and is a perfectly good place for it. The shell watches this same
- * width, or a screen would have no mode switch anywhere at all.
+/* BELOW 1600px THE LINKS CANNOT STAY CENTRED: the logo and the bar together
+ * reach 484px, and a centred 574px link block starts at half the width less
+ * 287, so with a 16px gap they meet at about 1574. The bar used to leave the
+ * header there, which gave every MacBook (1440 to 1512 wide) and a 1920 laptop
+ * at 125% a different layout from a desktop, with the mode switch down in the
+ * panel. So the links give up the centre instead and follow the bar: the row
+ * then needs about 1,350px, and the bar stays put down to 1360.
  */
-@media (max-width: 1599px) {
+@media (min-width: 1360px) and (max-width: 1599px) {
+  .site-nav:has(.nav-modebar:not([hidden])) .nav-wordmark { flex: 0 0 auto; }
+  .site-nav:has(.nav-modebar:not([hidden])) .nav-links { flex: 0 0 auto; margin-left: 1.25rem; }
+  .site-nav:has(.nav-modebar:not([hidden])) .nav-right-logo { flex: 0 1 auto; margin-left: auto; min-width: 0; }
+}
+
+/* Below that the header hands the bar back to the page, which is where it
+ * lived before and is a perfectly good place for it. The shell watches this
+ * same width, or a screen would have no mode switch anywhere at all.
+ */
+@media (max-width: 1359px) {
   .site-nav .nav-modebar { display: none; }
 }
 
