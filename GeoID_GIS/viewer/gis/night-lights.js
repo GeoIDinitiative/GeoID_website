@@ -24,7 +24,7 @@
 // GoogleMapsCompatible_Level8, keyless, `Access-Control-Allow-Origin: *`
 // (checked). Credited as a Workspace layer, like everything else on screen.
 
-import { isEarth } from "./bodies.js?v=20261031-1e4de64";
+import { isEarth } from "./bodies.js?v=20261031-98fbe80";
 
 const GIBS = "https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/VIIRS_Black_Marble/default/2016-01-01/GoogleMapsCompatible_Level8/{z}/{y}/{x}.png";
 const GLOBAL_Z = 4;            // 16 x 16 tiles -> a 4096-px world, ~2.4 km/px at the equator
