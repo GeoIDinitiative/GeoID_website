@@ -20472,7 +20472,11 @@ uniform float uViewportWidth;`,
          */
         const relief = elevationMap ? getEffectiveTerrainRelief() : 0;
         const displacement = elevationMap ? sampleElevationNormalized(elevationSampler, latDegrees, lonDegrees) * relief : 0;
-        return 3.2 + displacement + lift;
+        // Earth Flight's ground, as the pins stand on (getGroundPoint); nothing
+        // outside flight. These lines skip the depth test, so at the globe's
+        // height they slid against the flight hills as the aircraft moved.
+        const flight = window.GeoIDFlightTerrain?.heightUnits?.(latDegrees, lonDegrees) || 0;
+        return 3.2 + displacement + flight + lift;
       }
 
       function sampleMeasureSurfacePoint(latDegrees, lonDegrees, lift = getMeasureDisplayLift(), context = getActiveMeasureContext()) {

@@ -16,12 +16,13 @@
   transition: opacity 0.42s ease;
 }
 #fs-fade.show { opacity: 1; }
-/* OPEN CHROME (Earth). On Earth, flight is one more way of exploring the
-   GeoHUB globe and its data, not a separate mode: the nav, the Workspace, the
-   tool rail and every GIS tool stay available in the air (asked for,
-   2026-10-24). The viewer marks that with `body.fs-open-chrome`, and every
-   "flight hides this" rule below is scoped to bodies WITHOUT it, so the other
-   worlds keep their cockpit-only takeover unchanged. */
+/* OPEN CHROME. Flight is one more way of exploring a globe and its data, not
+   a separate mode: the nav, the Workspace, the tool rail and every GIS tool
+   stay available in the air (asked for, 2026-10-24, Earth; every world,
+   2026-10-31). scripts/flightsim.js marks that with `body.fs-open-chrome`, and
+   every "flight hides this" rule below is scoped to bodies WITHOUT it. A moon
+   flight drops the class: it flies in a scaled frame, and the planet's tools
+   measure in planet units. */
 /* Flight-only UI: hide orbit-mode chrome for an uncluttered cockpit view —
    brand wordmark, GIS measure toolbar (Distance/Area/Profile + its TOOLS tab),
    and the spin/freeze view controls (meaningless while piloting). */

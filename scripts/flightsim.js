@@ -304,6 +304,8 @@
   }
 
   ready(function () {
+    // Every world's flight keeps its GeoHUB around it (styles/flightsim.css).
+    document.body.classList.add("fs-open-chrome");
     if (!document.getElementById("flightsim-section")) {
       /* Sit above the first existing control section, matching Mars. */
       var firstSection = document.querySelector(".control-section");
@@ -553,6 +555,8 @@
     // The viewer's own scale bar measures in the PLANET's units and knows
     // nothing of this frame (it read "500 km" over Phobos); it stands down.
     document.body.classList.add("fs-moon-flight");
+    // A moon flies in a scaled frame and the planet's tools measure in planet units.
+    document.body.classList.remove("fs-open-chrome");
     moonFrame.far = cam.far;
     cam.far = cam.far * moonFrame.k;
     cam.updateProjectionMatrix();
@@ -583,6 +587,7 @@
     scene.remove(f.root);
     f.root = null;
     document.body.classList.remove("fs-moon-flight");
+    document.body.classList.add("fs-open-chrome");
     cam.far = f.far ?? cam.far;
     cam.updateProjectionMatrix();
     // Back in the moon viewer, looking at the moon where it now is.
