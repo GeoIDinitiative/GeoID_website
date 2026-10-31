@@ -2,7 +2,7 @@
  * On foot in Earth Flight: moving over the ground, and the field readout.
  * Run: node GeoID_GIS/viewer/gis/flight-walk.test.mjs
  */
-import { moved, slopeAt, compassPoint } from "./flight-walk.js";
+import { moved, slopeAt, compassPoint, reliefFromDepth } from "./flight-walk.js";
 
 let failed = 0;
 const check = (name, ok, detail = "") => {
@@ -31,5 +31,11 @@ const flat = slopeAt(() => 100, 10, 20);
 check("level ground has no dip direction", flat.slopeDeg === 0 && flat.dipDir === null);
 check("unread ground says so", slopeAt(() => NaN, 10, 20).slopeDeg === null);
 check("compass points", compassPoint(0) === "N" && compassPoint(135) === "SE" && compassPoint(355) === "N" && compassPoint(290) === "W");
+
+// The probe sits 400 m over the elevation model and looks 1-800 m down.
+check("depth at the model's own height is no relief", near(reliefFromDepth(399 / 799, 1, 800), 0, 1e-9));
+check("a surface nearer the probe stands above the model", near(reliefFromDepth(392 / 799, 1, 800), 7, 1e-9));
+check("and one further below it", near(reliefFromDepth(402 / 799, 1, 800), -3, 1e-9));
+check("nothing under the probe is no answer", reliefFromDepth(1, 1, 800) === null);
 
 process.exit(failed ? 1 : 0);

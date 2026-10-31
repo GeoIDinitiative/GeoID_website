@@ -16,7 +16,17 @@
  * W A S D walk, Shift runs, drag looks, the arrow keys turn and look. The
  * panel reads what a compass-clinometer would: elevation, slope and the
  * direction of steepest descent, measured off the terrain over 30 m.
+ *
+ * THE GROUND IS THE ONE THAT IS DRAWN. Vegetation and rock rise out of the
+ * photograph in the tiles' vertex shader (flight-tiles.js, up to 7-8 m), which
+ * no height sampler knows about, so a walker on the elevation model waded
+ * through them (owner: "walk function doesnt account for the uv mapped terrian
+ * surface"). Rather than a second copy of that shader on the CPU, which would
+ * drift from it, the tiles are drawn straight down into a tiny depth target
+ * and the depth read back: the surface as drawn, whatever the shader does.
  */
+
+import * as THREE from "../vendor/three.module.js";
 
 const UNITS_PER_M = 3.2 / 6371000;
 const EYE_M = 1.8;
@@ -25,6 +35,9 @@ const RUN_MS = 8;
 const NEAR_M = 0.3;
 const BASELINE_M = 30;
 const M_PER_DEG = 111320;
+const PROBE_UP_M = 400;       // the probe's height over the elevation model
+const PROBE_HALF_M = 1.5;     // the patch of ground it averages over
+const PROBE_MS = 66;
 const RAD = Math.PI / 180;
 
 /** Move a point on the ground: heading in degrees from north, metres ahead and to the right. */
@@ -65,7 +78,13 @@ export function compassPoint(deg) {
   return ["N", "NE", "E", "SE", "S", "SW", "W", "NW"][Math.round(deg / 45) % 8];
 }
 
-let walker = null;      // { lat, lon, heading, pitch, prevNear, prevFar, panelAt, three }
+/** Depth back to metres over the elevation model: `depth` 0-1, linear (orthographic). */
+export function reliefFromDepth(depth, nearM, farM, upM = PROBE_UP_M) {
+  if (!(depth < 0.9999)) return null;           // nothing under the probe
+  return upM - (nearM + depth * (farM - nearM));
+}
+
+let walker = null;      // { lat, lon, heading, pitch, relief, prevNear, prevFar, panelAt }
 const keys = new Set();
 const fs = () => window.__flightSim;
 const terrain = () => window.GeoIDFlightTerrain;
@@ -103,6 +122,68 @@ function worldAt(V, lat, lon, lift, out) {
   return V.globe.localToWorld(out);
 }
 
+let probe = null;
+function makeProbe() {
+  const depthTexture = new THREE.DepthTexture(4, 4);
+  depthTexture.type = THREE.UnsignedIntType;
+  const target = new THREE.WebGLRenderTarget(4, 4, { depthTexture, depthBuffer: true });
+  const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 1);
+  const out = new THREE.WebGLRenderTarget(1, 1, { depthBuffer: false });
+  const scene = new THREE.Scene();
+  const material = new THREE.ShaderMaterial({
+    uniforms: { t: { value: depthTexture } },
+    depthTest: false, depthWrite: false,
+    vertexShader: "void main() { gl_Position = vec4(position.xy, 0.0, 1.0); }",
+    // 24 bits of depth across three 8-bit channels: a fifth of a millimetre here.
+    fragmentShader: `uniform sampler2D t;
+void main() {
+  float d = texture2D(t, vec2(0.5)).r;
+  vec3 e = fract(d * vec3(1.0, 255.0, 65025.0));
+  e.xy -= e.yz / 255.0;
+  gl_FragColor = vec4(e, 1.0);
+}`,
+  });
+  const quad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), material);
+  quad.frustumCulled = false;
+  scene.add(quad);
+  return { target, camera, out, scene, quad, px: new Uint8Array(4) };
+}
+
+/** Metres the drawn surface stands over the elevation model at `base`, or null. */
+function drawnRelief(V, base, up, north) {
+  const tiles = (walkerTiles ??= V.scene.getObjectByName("GeoID-FlightTiles"));
+  const r = V.renderer;
+  if (!tiles || !r) return null;
+  probe ??= makeProbe();
+  const { target, camera, out, scene, px } = probe;
+  const half = PROBE_HALF_M * UNITS_PER_M;
+  const nearM = 1;
+  const farM = PROBE_UP_M * 2;
+  camera.left = -half; camera.right = half; camera.top = half; camera.bottom = -half;
+  camera.near = nearM * UNITS_PER_M; camera.far = farM * UNITS_PER_M;
+  camera.updateProjectionMatrix();
+  camera.position.copy(base).addScaledVector(up, PROBE_UP_M * UNITS_PER_M);
+  camera.up.copy(north);
+  camera.lookAt(base);
+  camera.updateMatrixWorld();
+  const prev = r.getRenderTarget();
+  const prevAuto = r.autoClear;
+  try {
+    r.autoClear = true;
+    r.setRenderTarget(target);
+    r.render(tiles, camera);
+    r.setRenderTarget(out);
+    r.render(scene, camera);
+    r.readRenderTargetPixels(out, 0, 0, 1, 1, px);
+  } finally {
+    r.setRenderTarget(prev);
+    r.autoClear = prevAuto;
+  }
+  const depth = px[0] / 255 + px[1] / (255 * 255) + px[2] / (255 * 65025);
+  return reliefFromDepth(depth, nearM, farM);
+}
+let walkerTiles = null;
+
 function panel(w) {
   const T = terrain();
   const heightAt = (a, b) => T?.groundMetres?.(a, b) ?? NaN;
@@ -114,6 +195,7 @@ function panel(w) {
   node.innerHTML = `<h4>On foot</h4><dl>${
     row("Position", `${Math.abs(w.lat).toFixed(5)}°${w.lat >= 0 ? "N" : "S"} ${Math.abs(w.lon).toFixed(5)}°${w.lon >= 0 ? "E" : "W"}`)
   }${row("Elevation", Number.isFinite(here) ? `${Math.round(here)} m` : "—")
+  }${row("Surface", `${w.relief >= 0 ? "+" : ""}${w.relief.toFixed(1)} m on the terrain`)
   }${row("Slope", slopeDeg == null ? "—" : `${slopeDeg.toFixed(1)}°`)
   }${row("Dip direction", dipDir == null ? "level" : `${String(Math.round(dipDir)).padStart(3, "0")}° ${compassPoint(dipDir)}`)
   }${row("Facing", `${String(Math.round(w.heading)).padStart(3, "0")}° ${compassPoint(w.heading)}`)
@@ -147,16 +229,24 @@ function tick(camera) {
   f.shipSpeedDegPerSec = 0;
   f.headingDeg = w.heading;
 
-  const THREE = camera.position.constructor;
-  const lift = groundUnits(w.lat, w.lon) + EYE_M * UNITS_PER_M;
-  const pos = worldAt(V, w.lat, w.lon, lift, w.a ??= new THREE());
-  const up = (w.up ??= new THREE()).copy(pos).normalize();
-  const north = worldAt(V, w.lat + 0.001, w.lon, lift, w.b ??= new THREE()).sub(pos);
+  const Vec = THREE.Vector3;
+  const ground = groundUnits(w.lat, w.lon);
+  const base = worldAt(V, w.lat, w.lon, ground, w.base ??= new Vec());
+  const up = (w.up ??= new Vec()).copy(base).normalize();
+  const north = worldAt(V, w.lat + 0.001, w.lon, ground, w.b ??= new Vec()).sub(base);
   north.addScaledVector(up, -north.dot(up)).normalize();
-  const east = (w.e ??= new THREE()).crossVectors(north, up).normalize();
+  const east = (w.e ??= new Vec()).crossVectors(north, up).normalize();
+  if (now - (w.probeAt || 0) >= PROBE_MS) {
+    w.probeAt = now;
+    const relief = drawnRelief(V, base, up, north);
+    if (relief !== null) w.reliefGoal = relief;
+  }
+  // Eased, so a step onto a hummock is a step and not a jolt.
+  w.relief += (w.reliefGoal - w.relief) * Math.min(1, dt * 9);
+  const pos = (w.a ??= new Vec()).copy(base).addScaledVector(up, (w.relief + EYE_M) * UNITS_PER_M);
   const h = w.heading * RAD;
   const p = w.pitch * RAD;
-  const look = (w.f ??= new THREE()).copy(north).multiplyScalar(Math.cos(h) * Math.cos(p))
+  const look = (w.f ??= new Vec()).copy(north).multiplyScalar(Math.cos(h) * Math.cos(p))
     .addScaledVector(east, Math.sin(h) * Math.cos(p)).addScaledVector(up, Math.sin(p));
   camera.position.copy(pos);
   camera.up.copy(up);
@@ -175,7 +265,7 @@ function start() {
   const here = T.groundMetres?.(at.lat, at.lon);
   if (here == null || here <= 0.5) { f.flash?.("OPEN WATER BELOW · NOWHERE TO STAND"); return; }
   const V = window.GeoIDViewer;
-  walker = { lat: at.lat, lon: at.lon, heading: f.headingDeg || 0, pitch: -6,
+  walker = { lat: at.lat, lon: at.lon, heading: f.headingDeg || 0, pitch: -6, relief: 0, reliefGoal: 0,
     prevNear: V?.camera?.near, prevFar: V?.camera?.far };
   f.walkCamera = tick;
   f.setShipVisible?.(false);
@@ -196,6 +286,7 @@ function stop() {
     V.camera.updateProjectionMatrix();
   }
   walker = null;
+  walkerTiles = null;
   keys.clear();
   dragging = null;
   if (f) { f.walkCamera = null; f.setShipVisible?.(true); }
