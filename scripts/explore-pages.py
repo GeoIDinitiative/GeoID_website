@@ -91,6 +91,8 @@ STYLE = """
     .x-card p { color: var(--muted); line-height: 1.6; font-size: 0.9rem; margin: 0; }
     a.x-card { color: inherit; text-decoration: none; display: block; }
     a.x-card:hover { border-color: var(--accent); }
+    .fx > .x-grid { position: relative; z-index: 1; }
+    .fx .x-card p { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; }
     .x-card img { display: block; width: 100%; aspect-ratio: 16 / 9; object-fit: cover; border-radius: 0.55rem; margin-bottom: 0.7rem; }
     .x-faq details { border-top: 1px solid var(--line); padding: 0.75rem 0; }
     .x-faq summary { cursor: pointer; font-weight: 600; }
@@ -329,53 +331,62 @@ def hub_page():
              "itemListElement": [{"@type": "ListItem", "position": i + 1, "url": f"{SITE}/explore/{f['slug']}/", "name": f["name"]}
                                  for i, f in enumerate(DATA["features"])]}
     out = [head(h["title"], h["description"], path, [("Explore", path)], "explore", h["image"]["alt"], ld_block(items))]
+    # The About pages' own components (hero-tile, page-utility, band-tile:
+    # styles/bands.css), so the hub reads as one more page of the site.
+    links = (("/about/", "Overview"), ("/about_geohub/", "GeoHUB"), (path, "Explore"),
+             ("/team/", "Our Team"), ("/get-involved/", "Get Involved"), ("/updates/", "Journal"))
+    here = ' class="active" aria-current="page"'
+    jump = "".join(f'        <a href="{href}"{here if href == path else ""}>{label}</a>\n' for href, label in links)
     out.append(f"""
   <div class="page-wrap">
+    <section class="page-utility" aria-label="About page links">
+      <div class="page-jump">
+{jump}      </div>
+    </section>
     <div class="page-inner">
-      <section class="page-utility" aria-label="Page links">
-        <div class="page-crumb">
-          <span>GeoID</span>
-          <span class="page-crumb-sep">/</span>
-          <strong>Explore</strong>
-        </div>
-        <div class="page-jump">
-""")
-    for g in DATA["groups"]:
-        out.append(f'          <a href="#{g["id"]}">{esc(g["title"])}</a>\n')
-    out.append(f"""        </div>
-      </section>
 
-      <section class="x-hero">
-        <article class="x-panel">
-          <span class="section-label">Free 3D tools in your browser</span>
-          <h1>{h["h1"]}</h1>
-          <p>{esc(h["lead"])}</p>
-          <div class="x-actions">
-            <a class="btn-primary" href="/">Open GeoHUB →</a>
+      <div class="hero-tile" id="hero">
+        <div class="hero-slides" id="heroSlides">
+          <div class="hero-slide active" style="background-image: url('/assets/photos/orbital-sunrise.webp');"></div>
+        </div>
+        <div class="hero-overlay"></div>
+        <div class="hero-content">
+          <img class="hero-logo-img" src="/assets/GeoID_logo_icon.png" alt="" loading="lazy" decoding="async">
+          <h1><span class="hero-mark">Explore GeoHUB</span>
+            <span class="hero-sub">Every tool on one page. Free in your browser, nothing to install.</span></h1>
+          <p class="hero-desc">{esc(h["lead"])}</p>
+          <div class="hero-actions">
+            <a class="btn-primary" href="/">Open GeoHUB</a>
             <a class="btn-ghost" href="/explore/earth-flight-simulator/">Fly the Earth</a>
-            <a class="btn-ghost" href="/about_geohub/">What's inside</a>
           </div>
-        </article>
-        <figure class="x-shot">
-          <img src="/assets/explore/{h["image"]["file"]}" alt="{esc(h["image"]["alt"])}" width="800" height="450" fetchpriority="high" decoding="async">
-          <figcaption>{esc(h["image"]["alt"])}.</figcaption>
-        </figure>
-      </section>
+        </div>
+      </div>
 """)
-    for g in DATA["groups"]:
+    for n, g in enumerate(DATA["groups"], 1):
         cards = "".join(card_html(f) for f in DATA["features"] if f["group"] == g["id"])
         out.append(f"""
-      <section class="section-panel" id="{g["id"]}">
-        <span class="section-label">{esc(g["label"])}</span>
-        <h2 class="section-title">{esc(g["title"])}</h2>
+      <section class="band-tile fx{" fx-flip" if n % 2 == 0 else ""}" id="{g["id"]}">
+        <img class="cx-bg fx-wash" src="/assets/explore/{g["wash"]}" alt="" loading="lazy" decoding="async">
+        <div class="cx-shade fx-shade"></div>
+        <header class="fx-head">
+          <span class="cx-kicker">{n:02d} &middot; {esc(g["label"])}</span>
+          <h2 class="tile-title">{esc(g["title"])}</h2>
+          <p class="tile-desc">{esc(g["desc"])}</p>
+        </header>
         <div class="x-grid x-three band-grid">
 {cards}        </div>
       </section>
 """)
-    out.append("""
-      <section class="section-panel">
-        <span class="section-label">Close-ups</span>
-        <h2 class="section-title">Two Places in Depth</h2>
+    n = len(DATA["groups"]) + 1
+    out.append(f"""
+      <section class="band-tile fx" id="close-ups">
+        <img class="cx-bg fx-wash" src="/assets/photos/etna-fountain.webp" alt="" loading="lazy" decoding="async">
+        <div class="cx-shade fx-shade"></div>
+        <header class="fx-head">
+          <span class="cx-kicker">{n:02d} &middot; Close-ups</span>
+          <h2 class="tile-title">Two Places in Depth</h2>
+          <p class="tile-desc">Purpose-built explorers for two of the most studied mountains on Earth.</p>
+        </header>
         <div class="x-grid x-three band-grid">
           <a class="x-card band-card" href="/earth_explorer/etna/"><h3>Mount Etna</h3><p>A 3D geological model of Europe's most active volcano: its structure, eruptive record and deformation, on real terrain.</p></a>
           <a class="x-card band-card" href="/everest/"><h3>Mount Everest — ASCENT</h3><p>Climb the real Mount Everest in 3D, on high-resolution imagery and elevation.</p></a>

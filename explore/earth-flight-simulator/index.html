@@ -108,6 +108,8 @@
     .x-card p { color: var(--muted); line-height: 1.6; font-size: 0.9rem; margin: 0; }
     a.x-card { color: inherit; text-decoration: none; display: block; }
     a.x-card:hover { border-color: var(--accent); }
+    .fx > .x-grid { position: relative; z-index: 1; }
+    .fx .x-card p { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; }
     .x-card img { display: block; width: 100%; aspect-ratio: 16 / 9; object-fit: cover; border-radius: 0.55rem; margin-bottom: 0.7rem; }
     .x-faq details { border-top: 1px solid var(--line); padding: 0.75rem 0; }
     .x-faq summary { cursor: pointer; font-weight: 600; }
@@ -118,7 +120,7 @@
   </style>
   <link rel="stylesheet" href="/styles/v2-site.css?v=20261031-26e8b34">
   <script src="/scripts/v2-site.js?v=20261031-26e8b34" defer></script>
-  <link rel="stylesheet" href="/styles/skins/synthwave.css?v=20261031-26e8b34">
+  <link rel="stylesheet" href="/styles/skins/synthwave.css">
   <link rel="stylesheet" href="/styles/site-nav.css?v=20261031-26e8b34">
   <link rel="stylesheet" href="/styles/site-unify.css?v=20261031-26e8b34">
   <link rel="stylesheet" href="/styles/bands.css?v=20261031-26e8b34">
@@ -200,7 +202,7 @@
       <section class="section-panel">
         <h2 class="section-title">What you can fly</h2>
         <p>Choose a light aircraft or a helicopter, pick a launch height from 300 metres to orbit, and take off from wherever you are looking — or open one of the launch points below. The aircraft flies with the planet turning under it, the HUD reads altitude, speed, heading, temperature and pressure for where you are, and names the country and nearest town.</p>
-        <p>Fly with the keyboard or a game controller, and drag the view to swing the camera all the way round the aircraft &mdash; scroll to bring it closer or further, double-click to put it back behind. The helicopter is held to its real service ceiling; the aircraft can climb as far as you like.</p>
+        <p>Fly with the keyboard or a game controller. The helicopter is held to its real service ceiling; the aircraft can climb as far as you like.</p>
       </section>
 
       <section class="section-panel">

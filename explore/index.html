@@ -195,6 +195,8 @@
     .x-card p { color: var(--muted); line-height: 1.6; font-size: 0.9rem; margin: 0; }
     a.x-card { color: inherit; text-decoration: none; display: block; }
     a.x-card:hover { border-color: var(--accent); }
+    .fx > .x-grid { position: relative; z-index: 1; }
+    .fx .x-card p { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; }
     .x-card img { display: block; width: 100%; aspect-ratio: 16 / 9; object-fit: cover; border-radius: 0.55rem; margin-bottom: 0.7rem; }
     .x-faq details { border-top: 1px solid var(--line); padding: 0.75rem 0; }
     .x-faq summary { cursor: pointer; font-weight: 600; }
@@ -205,7 +207,7 @@
   </style>
   <link rel="stylesheet" href="/styles/v2-site.css?v=20261031-26e8b34">
   <script src="/scripts/v2-site.js?v=20261031-26e8b34" defer></script>
-  <link rel="stylesheet" href="/styles/skins/synthwave.css?v=20261031-26e8b34">
+  <link rel="stylesheet" href="/styles/skins/synthwave.css">
   <link rel="stylesheet" href="/styles/site-nav.css?v=20261031-26e8b34">
   <link rel="stylesheet" href="/styles/site-unify.css?v=20261031-26e8b34">
   <link rel="stylesheet" href="/styles/bands.css?v=20261031-26e8b34">
@@ -242,49 +244,57 @@
   </nav>
 
   <div class="page-wrap">
+    <section class="page-utility" aria-label="About page links">
+      <div class="page-jump">
+        <a href="/about/">Overview</a>
+        <a href="/about_geohub/">GeoHUB</a>
+        <a href="/explore/" class="active" aria-current="page">Explore</a>
+        <a href="/team/">Our Team</a>
+        <a href="/get-involved/">Get Involved</a>
+        <a href="/updates/">Journal</a>
+      </div>
+    </section>
     <div class="page-inner">
-      <section class="page-utility" aria-label="Page links">
-        <div class="page-crumb">
-          <span>GeoID</span>
-          <span class="page-crumb-sep">/</span>
-          <strong>Explore</strong>
-        </div>
-        <div class="page-jump">
-          <a href="#flight">Fly</a>
-          <a href="#worlds">Ten worlds in 3D</a>
-          <a href="#earth">Earth, live and on the record</a>
-        </div>
-      </section>
 
-      <section class="x-hero">
-        <article class="x-panel">
-          <span class="section-label">Free 3D tools in your browser</span>
-          <h1>Explore <span>GeoHUB</span></h1>
-          <p>Every tool on one page. They all run in a web browser, with nothing to install and no account: two flight simulators, nine planet and moon viewers built on mission data, and the live maps and records that make up the GeoHUB globe.</p>
-          <div class="x-actions">
-            <a class="btn-primary" href="/">Open GeoHUB →</a>
+      <div class="hero-tile" id="hero">
+        <div class="hero-slides" id="heroSlides">
+          <div class="hero-slide active" style="background-image: url('/assets/photos/orbital-sunrise.webp');"></div>
+        </div>
+        <div class="hero-overlay"></div>
+        <div class="hero-content">
+          <img class="hero-logo-img" src="/assets/GeoID_logo_icon.png" alt="" loading="lazy" decoding="async">
+          <h1><span class="hero-mark">Explore GeoHUB</span>
+            <span class="hero-sub">Every tool on one page. Free in your browser, nothing to install.</span></h1>
+          <p class="hero-desc">Every tool on one page. They all run in a web browser, with nothing to install and no account: two flight simulators, nine planet and moon viewers built on mission data, and the live maps and records that make up the GeoHUB globe.</p>
+          <div class="hero-actions">
+            <a class="btn-primary" href="/">Open GeoHUB</a>
             <a class="btn-ghost" href="/explore/earth-flight-simulator/">Fly the Earth</a>
-            <a class="btn-ghost" href="/about_geohub/">What's inside</a>
           </div>
-        </article>
-        <figure class="x-shot">
-          <img src="/assets/explore/hub.jpg" alt="The GeoHUB globe with world geology and live events over 3D terrain" width="800" height="450" fetchpriority="high" decoding="async">
-          <figcaption>The GeoHUB globe with world geology and live events over 3D terrain.</figcaption>
-        </figure>
-      </section>
+        </div>
+      </div>
 
-      <section class="section-panel" id="flight">
-        <span class="section-label">Flight simulators</span>
-        <h2 class="section-title">Fly</h2>
+      <section class="band-tile fx" id="flight">
+        <img class="cx-bg fx-wash" src="/assets/explore/earth-flight-simulator.jpg" alt="" loading="lazy" decoding="async">
+        <div class="cx-shade fx-shade"></div>
+        <header class="fx-head">
+          <span class="cx-kicker">01 &middot; Flight simulators</span>
+          <h2 class="tile-title">Fly the Real Ground</h2>
+          <p class="tile-desc">Real terrain, real imagery and real scale, in the browser. Every layer you can open on the globe comes with you into the air.</p>
+        </header>
         <div class="x-grid x-three band-grid">
           <a class="x-card band-card" href="/explore/earth-flight-simulator/"><img src="/assets/explore/earth-flight-simulator.jpg" alt="A light aircraft flying over forested foothills and valleys in Earth Flight" loading="lazy" decoding="async" width="800" height="450"><h3>Earth Flight</h3><p>Fly anywhere on Earth over real satellite imagery and real terrain, free in your browser — 3D buildings, real street lights at night, weather clouds and landmarks labelled as you fly.</p></a>
           <a class="x-card band-card" href="/explore/mars-flight-simulator/"><img src="/assets/explore/mars-flight-simulator.jpg" alt="A spaceplane flying over the northern lowlands of Mars in the Mars flight simulator" loading="lazy" decoding="async" width="800" height="450"><h3>Mars flight simulator</h3><p>Fly over the real surface of Mars: NASA MOLA relief with the CTX image mosaic streamed beneath you, from an 8 km low pass to 300 km orbit, free in your browser.</p></a>
         </div>
       </section>
 
-      <section class="section-panel" id="worlds">
-        <span class="section-label">Planet and moon viewers</span>
-        <h2 class="section-title">Ten worlds in 3D</h2>
+      <section class="band-tile fx fx-flip" id="worlds">
+        <img class="cx-bg fx-wash" src="/assets/explore/saturn.jpg" alt="" loading="lazy" decoding="async">
+        <div class="cx-shade fx-shade"></div>
+        <header class="fx-head">
+          <span class="cx-kicker">02 &middot; Planet and moon viewers</span>
+          <h2 class="tile-title">Ten Worlds in 3D</h2>
+          <p class="tile-desc">Each viewer is built from the datasets its missions returned, with elevation profiles, named-feature search and the same GIS tools as Earth.</p>
+        </header>
         <div class="x-grid x-three band-grid">
           <a class="x-card band-card" href="/explore/mercury/"><img src="/assets/explore/mercury.jpg" alt="Mercury's cratered surface in the GeoHUB 3D viewer" loading="lazy" decoding="async" width="800" height="450"><h3>Mercury</h3><p>Explore Mercury in 3D on NASA MESSENGER's global mosaic: named craters, basins and lobate scarps, elevation profiles, geology and a core cutaway — free in your browser.</p></a>
           <a class="x-card band-card" href="/explore/venus/"><img src="/assets/explore/venus.jpg" alt="The radar-mapped surface of Venus in the GeoHUB 3D viewer" loading="lazy" decoding="async" width="800" height="450"><h3>Venus</h3><p>Explore the surface of Venus in 3D from NASA Magellan radar: volcanic plains, coronae and the deformed highlands under the cloud deck — free in your browser.</p></a>
@@ -298,9 +308,14 @@
         </div>
       </section>
 
-      <section class="section-panel" id="earth">
-        <span class="section-label">Maps and tools on the GeoHUB globe</span>
-        <h2 class="section-title">Earth, live and on the record</h2>
+      <section class="band-tile fx" id="earth">
+        <img class="cx-bg fx-wash" src="/assets/explore/earthquake-map.jpg" alt="" loading="lazy" decoding="async">
+        <div class="cx-shade fx-shade"></div>
+        <header class="fx-head">
+          <span class="cx-kicker">03 &middot; Maps and tools on the GeoHUB globe</span>
+          <h2 class="tile-title">Earth, Live and on the Record</h2>
+          <p class="tile-desc">Live feeds, the historical record and the hazard models, on one globe and ready to clip to any study area.</p>
+        </header>
         <div class="x-grid x-three band-grid">
           <a class="x-card band-card" href="/explore/earthquake-map/"><img src="/assets/explore/earthquake-map.jpg" alt="Earthquakes plotted on the GeoHUB 3D globe" loading="lazy" decoding="async" width="800" height="450"><h3>Earthquake map</h3><p>A 3D earthquake map: 312,500 earthquakes of magnitude 4.5 and above back to the year 1008, live quakes as they are reported, and the seismogram of any quake you click.</p></a>
           <a class="x-card band-card" href="/explore/natural-events-map/"><img src="/assets/explore/natural-events-map.jpg" alt="Live wildfires, storms and earthquakes on the GeoHUB 3D globe" loading="lazy" decoding="async" width="800" height="450"><h3>Live natural events</h3><p>Wildfires, storms, floods, volcanic eruptions and earthquakes as they are reported, from NASA EONET and USGS, on a 3D globe — each linked to its source record.</p></a>
@@ -312,9 +327,14 @@
         </div>
       </section>
 
-      <section class="section-panel">
-        <span class="section-label">Close-ups</span>
-        <h2 class="section-title">Two Places in Depth</h2>
+      <section class="band-tile fx" id="close-ups">
+        <img class="cx-bg fx-wash" src="/assets/photos/etna-fountain.webp" alt="" loading="lazy" decoding="async">
+        <div class="cx-shade fx-shade"></div>
+        <header class="fx-head">
+          <span class="cx-kicker">04 &middot; Close-ups</span>
+          <h2 class="tile-title">Two Places in Depth</h2>
+          <p class="tile-desc">Purpose-built explorers for two of the most studied mountains on Earth.</p>
+        </header>
         <div class="x-grid x-three band-grid">
           <a class="x-card band-card" href="/earth_explorer/etna/"><h3>Mount Etna</h3><p>A 3D geological model of Europe's most active volcano: its structure, eruptive record and deformation, on real terrain.</p></a>
           <a class="x-card band-card" href="/everest/"><h3>Mount Everest — ASCENT</h3><p>Climb the real Mount Everest in 3D, on high-resolution imagery and elevation.</p></a>
