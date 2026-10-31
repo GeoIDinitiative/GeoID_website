@@ -195,6 +195,131 @@
     .x-card p { color: var(--muted); line-height: 1.6; font-size: 0.9rem; margin: 0; }
     a.x-card { color: inherit; text-decoration: none; display: block; }
     a.x-card:hover { border-color: var(--accent); }
+    /* The hero and bands as about_geohub/index.html has them inline. */
+    .hero-tile {
+      position: relative;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 1.35rem;
+      box-shadow: var(--shadow);
+      min-height: 32rem;
+      margin-bottom: 1.25rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .hero-slides { position: absolute; inset: 0; }
+
+    .hero-slide {
+      position: absolute;
+      inset: 0;
+      background-size: cover;
+      background-position: center;
+      opacity: 0;
+      transition: opacity 1.5s ease-in-out;
+    }
+
+    .hero-slide.active { opacity: 1; }
+
+    .hero-overlay {
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(160deg, rgba(3,8,16,0.72) 0%, rgba(3,8,16,0.52) 50%, rgba(3,8,16,0.38) 100%);
+    }
+
+    .hero-content {
+      position: relative;
+      z-index: 2;
+      text-align: center;
+      max-width: 58rem;
+      padding: 7.5rem 2.5rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .hero-logo-img {
+      height: 140px;
+      width: auto;
+      object-fit: contain;
+      filter: drop-shadow(0 2px 20px rgba(0,0,0,0.75));
+      margin-bottom: 0.25rem;
+    }
+
+    .hero-subtitle {
+      font-size: 0.68rem;
+      color: rgba(154,184,189,0.70);
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      font-family: "Public Sans", sans-serif;
+      font-weight: 600;
+    }
+
+    .hero-content h1 {
+      font-family: "Source Sans 3", sans-serif;
+      font-size: clamp(2.2rem, 5.5vw, 3.8rem);
+      font-weight: 300;
+      line-height: 1.1;
+      color: var(--text);
+      margin: 0;
+      letter-spacing: 0.06em;
+    }
+
+    /* The descriptive half of the H1. It is inside the heading so the page's
+       one <h1> says what GeoHUB IS rather than only what it is called, and it
+       is drawn in the tagline's own type so the hero reads exactly as it did
+       -- the mark, then a sentence under it. */
+    .hero-content h1 .hero-mark { display: block; }
+    .hero-content h1 .hero-sub {
+      display: block;
+      margin-top: 0.7rem;
+      font-family: "Public Sans", sans-serif;
+      font-size: clamp(1rem, 2vw, 1.2rem);
+      font-weight: 400;
+      line-height: 1.5;
+      letter-spacing: normal;
+      color: rgba(200,220,236,0.88);
+      max-width: 44rem;
+    }
+
+    .hero-tagline {
+      font-family: "Public Sans", sans-serif;
+      font-size: clamp(1rem, 2vw, 1.2rem);
+      color: rgba(200,220,236,0.88);
+      max-width: 44rem;
+      line-height: 1.5;
+    }
+
+    .hero-desc {
+      font-size: 0.92rem;
+      color: var(--muted);
+      line-height: 1.72;
+      max-width: 46rem;
+    }
+
+    .hero-actions {
+      display: flex;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+      justify-content: center;
+      margin-top: 0.4rem;
+    }
+    body.bands .fx { padding-top: clamp(5rem, 8vw, 7.5rem) !important; padding-bottom: clamp(5rem, 8vw, 7.5rem) !important; }
+    body.bands .fx > .cx-bg.fx-wash {
+      filter: blur(70px) saturate(1.35);
+      transform: scale(1.25);
+      opacity: 0.7;
+    }
+    body.bands .fx > .fx-shade {
+      background:
+        linear-gradient(180deg, rgba(8,0,20,0.80) 0%, rgba(8,0,20,0.58) 45%, rgba(8,0,20,0.82) 100%);
+    }
+    .fx-head .cx-kicker { margin-bottom: 1rem; }
+    .fx-head .tile-title { margin: 0 0 1.1rem !important; font-size: clamp(2.2rem, 4vw, 3.4rem) !important; }
+    .fx-head .tile-desc { margin: 0; max-width: none; font-size: 1.12rem !important; color: rgba(236, 232, 248, 0.84); }
+    .fx-head .tile-desc a { color: var(--accent); }
     .fx > .x-grid { position: relative; z-index: 1; }
     .fx .x-card p { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; }
     .x-card img { display: block; width: 100%; aspect-ratio: 16 / 9; object-fit: cover; border-radius: 0.55rem; margin-bottom: 0.7rem; }
@@ -258,7 +383,7 @@
 
       <div class="hero-tile" id="hero">
         <div class="hero-slides" id="heroSlides">
-          <div class="hero-slide active" style="background-image: url('/assets/photos/orbital-sunrise.webp');"></div>
+          <div class="hero-slide active" style="background-image: url('/assets/photos/earth-limb.webp');"></div>
         </div>
         <div class="hero-overlay"></div>
         <div class="hero-content">
